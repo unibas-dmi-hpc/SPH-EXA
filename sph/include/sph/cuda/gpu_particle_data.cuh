@@ -30,11 +30,14 @@
 #pragma once
 
 #include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
+#include "cstone/util/util.hpp"
 #include "cuda_utils.cuh"
+#include "sph/data_util.hpp"
+#include "sph/field_states.hpp"
 #include "sph/pinned_allocator.h"
 #include "sph/tables.hpp"
-#include "sph/data_util.hpp"
 
 namespace sphexa
 {
@@ -44,10 +47,12 @@ namespace cuda
 {
 
 template<typename T, class KeyType>
-class DeviceParticlesData
+class DeviceParticlesData : public FieldStates<DeviceParticlesData<T, KeyType>>
 {
-    size_t allocatedDeviceMemory = 0;
-    size_t allocatedTaskSize     = 0;
+    size_t allocatedTaskSize = 0;
+
+    template<class FType>
+    using DevVector = thrust::device_vector<FType>;
 
 public:
     // number of CUDA streams to use
@@ -63,20 +68,75 @@ public:
 
     struct neighbors_stream d_stream[NST];
 
-    T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_rho, *d_p, *d_c, *d_c11, *d_c12, *d_c13, *d_c22, *d_c23,
-        *d_c33, *d_wh, *d_whd, *d_ax, *d_ay, *d_az, *d_du;
+    /*! @brief Particle fields
+     *
+     * The length of these arrays equals the local number of particles including halos
+     * if the field is active and is zero if the field is inactive.
+     */
+    DevVector<T>       x, y, z, x_m1, y_m1, z_m1;    // Positions
+    DevVector<T>       vx, vy, vz;                   // Velocities
+    DevVector<T>       rho;                          // Density
+    DevVector<T>       temp;                         // Temperature
+    DevVector<T>       u;                            // Internal Energy
+    DevVector<T>       p;                            // Pressure
+    DevVector<T>       prho;                         // p / (kx * m^2 * gradh)
+    DevVector<T>       h;                            // Smoothing Length
+    DevVector<T>       m;                            // Mass
+    DevVector<T>       c;                            // Speed of sound
+    DevVector<T>       cv;                           // Specific heat
+    DevVector<T>       mue, mui;                     // mean molecular weight (electrons, ions)
+    DevVector<T>       divv, curlv;                  // Div(velocity), Curl(velocity)
+    DevVector<T>       ax, ay, az;                   // acceleration
+    DevVector<T>       du, du_m1;                    // energy rate of change (du/dt)
+    DevVector<T>       c11, c12, c13, c22, c23, c33; // IAD components
+    DevVector<T>       alpha;                        // AV coeficient
+    DevVector<T>       xm;                           // Volume element definition
+    DevVector<T>       kx;                           // Volume element normalization
+    DevVector<T>       gradh;                        // grad(h) term
+    DevVector<KeyType> codes;                        // Particle space-filling-curve keys
+    DevVector<int>     neighborsCount;               // number of neighbors of each particle
 
-    KeyType* d_codes;
+    DevVector<T> wh;
+    DevVector<T> whd;
+
+    /*! @brief
+     * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
+     */
+    inline static constexpr std::array fieldNames{
+        "x",   "y",   "z",   "x_m1", "y_m1", "z_m1", "vx", "vy",    "vz",    "rho",   "u",     "p",    "prho",
+        "h",   "m",   "c",   "ax",   "ay",   "az",   "du", "du_m1", "c11",   "c12",   "c13",   "c22",  "c23",
+        "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
+
+    /*! @brief return a vector of pointers to field vectors
+     *
+     * We implement this by returning an rvalue to prevent having to store pointers and avoid
+     * non-trivial copy/move constructors.
+     */
+    auto data()
+    {
+        using IntVecType = std::decay_t<decltype(neighborsCount)>;
+        using KeyVecType = std::decay_t<decltype(codes)>;
+        using FieldType  = std::variant<DevVector<float>*, DevVector<double>*, KeyVecType*, IntVecType*>;
+
+        std::array<FieldType, fieldNames.size()> ret{
+            &x,   &y,   &z,   &x_m1, &y_m1, &z_m1, &vx, &vy,    &vz,    &rho,   &u,     &p,     &prho,
+            &h,   &m,   &c,   &ax,   &ay,   &az,   &du, &du_m1, &c11,   &c12,   &c13,   &c22,   &c23,
+            &c33, &mue, &mui, &temp, &cv,   &xm,   &kx, &divv,  &curlv, &alpha, &gradh, &codes, &neighborsCount};
+
+        static_assert(ret.size() == fieldNames.size());
+
+        return ret;
+    }
+
+    void resize(size_t size);
 
     DeviceParticlesData()
     {
-        size_t                        size_lt_T = lt::size * sizeof(T);
-        const std::array<T, lt::size> wh        = lt::createWharmonicLookupTable<T, lt::size>();
-        const std::array<T, lt::size> whd       = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
+        auto wh_table  = lt::createWharmonicLookupTable<T, lt::size>();
+        auto whd_table = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
 
-        CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
-        CHECK_CUDA_ERR(cudaMemcpy(d_wh, wh.data(), size_lt_T, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(d_whd, whd.data(), size_lt_T, cudaMemcpyHostToDevice));
+        wh  = DevVector<T>(wh_table.begin(), wh_table.end());
+        whd = DevVector<T>(whd_table.begin(), whd_table.end());
 
         for (int i = 0; i < NST; ++i)
         {
@@ -87,31 +147,6 @@ public:
 
     ~DeviceParticlesData()
     {
-        CHECK_CUDA_ERR(utils::cudaFree(d_x,
-                                       d_y,
-                                       d_z,
-                                       d_vx,
-                                       d_vy,
-                                       d_vz,
-                                       d_h,
-                                       d_m,
-                                       d_rho,
-                                       d_p,
-                                       d_c,
-                                       d_c11,
-                                       d_c12,
-                                       d_c13,
-                                       d_c22,
-                                       d_c23,
-                                       d_c33,
-                                       d_ax,
-                                       d_ay,
-                                       d_az,
-                                       d_du,
-                                       d_wh,
-                                       d_whd));
-        CHECK_CUDA_ERR(utils::cudaFree(d_codes));
-
         for (int i = 0; i < NST; ++i)
         {
             CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
@@ -119,37 +154,10 @@ public:
         }
     }
 
-    void resize(size_t size)
+private:
+    void resize_streams(size_t newTaskSize)
     {
-        if (size > allocatedDeviceMemory)
-        {
-            // TODO: Investigate benefits of low-level reallocate
-            if (allocatedDeviceMemory)
-            {
-                CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h, d_m, d_rho));
-                CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
-                CHECK_CUDA_ERR(utils::cudaFree(d_vx, d_vy, d_vz, d_p, d_c, d_ax, d_ay, d_az, d_du));
-
-                CHECK_CUDA_ERR(utils::cudaFree(d_codes));
-            }
-
-            size = size_t(double(size) * 1.01); // allocate 1% extra to avoid reallocation on small size increase
-
-            size_t size_np_T       = size * sizeof(T);
-            size_t size_np_KeyType = size * sizeof(KeyType);
-
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_rho));
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_vx, d_vy, d_vz, d_p, d_c, d_ax, d_ay, d_az, d_du));
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_KeyType, d_codes));
-
-            allocatedDeviceMemory = size;
-        }
-    }
-
-    void resize_streams(size_t taskSize)
-    {
-        if (taskSize > allocatedTaskSize)
+        if (newTaskSize > allocatedTaskSize)
         {
             if (allocatedTaskSize)
             {
@@ -160,18 +168,33 @@ public:
             }
 
             // allocate 1% extra to avoid reallocation on small size increase
-            taskSize = size_t(double(taskSize) * 1.01);
+            newTaskSize = size_t(double(newTaskSize) * 1.01);
 
             for (int i = 0; i < NST; ++i)
             {
-                CHECK_CUDA_ERR(utils::cudaMalloc(taskSize * sizeof(int), d_stream[i].d_neighborsCount));
+                CHECK_CUDA_ERR(utils::cudaMalloc(newTaskSize * sizeof(int), d_stream[i].d_neighborsCount));
             }
 
-            allocatedTaskSize = taskSize;
+            allocatedTaskSize = newTaskSize;
         }
     }
 };
 
 } // namespace cuda
 } // namespace sph
+
+template<class ThrustVec>
+typename ThrustVec::value_type* rawPtr(ThrustVec& p)
+{
+    assert(p.size() && "cannot get pointer to unallocated device vector memory");
+    return thrust::raw_pointer_cast(p.data());
+}
+
+template<class ThrustVec>
+const typename ThrustVec::value_type* rawPtr(const ThrustVec& p)
+{
+    assert(p.size() && "cannot get pointer to unallocated device vector memory");
+    return thrust::raw_pointer_cast(p.data());
+}
+
 } // namespace sphexa

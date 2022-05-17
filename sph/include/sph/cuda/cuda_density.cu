@@ -57,13 +57,13 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     // number of CUDA streams to use
     constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.x), d.x.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.y), d.y.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.z), d.z.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.h), d.h.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.m), d.m.data(), size_np_T, cudaMemcpyHostToDevice));
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.codes), d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
 
     for (int i = 0; i < numTasks; ++i)
     {
@@ -86,16 +86,16 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
                                                           firstParticle,
                                                           lastParticle,
                                                           sizeWithHalos,
-                                                          d.devPtrs.d_codes,
+                                                          rawPtr(d.devPtrs.codes),
                                                           d_neighborsCount_use,
-                                                          d.devPtrs.d_x,
-                                                          d.devPtrs.d_y,
-                                                          d.devPtrs.d_z,
-                                                          d.devPtrs.d_h,
-                                                          d.devPtrs.d_m,
-                                                          d.devPtrs.d_wh,
-                                                          d.devPtrs.d_whd,
-                                                          d.devPtrs.d_rho);
+                                                          rawPtr(d.devPtrs.x),
+                                                          rawPtr(d.devPtrs.y),
+                                                          rawPtr(d.devPtrs.z),
+                                                          rawPtr(d.devPtrs.h),
+                                                          rawPtr(d.devPtrs.m),
+                                                          rawPtr(d.devPtrs.wh),
+                                                          rawPtr(d.devPtrs.whd),
+                                                          rawPtr(d.devPtrs.rho));
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
@@ -106,7 +106,7 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     }
 
     // Memcpy in default stream synchronizes all other streams
-    CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(), d.devPtrs.d_rho, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(), rawPtr(d.devPtrs.rho), size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeDensity(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,

@@ -111,18 +111,18 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
     size_t sizeWithHalos = d.x.size();
     size_t size_np_T     = sizeWithHalos * sizeof(T);
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vx, d.vx.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vy, d.vy.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vz, d.vz.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_p, d.p.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c, d.c.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.vx), d.vx.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.vy), d.vy.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.vz), d.vz.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.p), d.p.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.c), d.c.data(), size_np_T, cudaMemcpyHostToDevice));
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c11, d.c11.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c12, d.c12.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c13, d.c13.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c22, d.c22.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c23, d.c23.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c33, d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.c11), d.c11.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.c12), d.c12.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.c13), d.c13.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.c22), d.c22.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.c23), d.c23.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(rawPtr(d.devPtrs.c33), d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
 
     unsigned numParticlesCompute = endIndex - startIndex;
 
@@ -140,30 +140,30 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
                                          startIndex,
                                          endIndex,
                                          sizeWithHalos,
-                                         d.devPtrs.d_codes,
-                                         d.devPtrs.d_x,
-                                         d.devPtrs.d_y,
-                                         d.devPtrs.d_z,
-                                         d.devPtrs.d_vx,
-                                         d.devPtrs.d_vy,
-                                         d.devPtrs.d_vz,
-                                         d.devPtrs.d_h,
-                                         d.devPtrs.d_m,
-                                         d.devPtrs.d_rho,
-                                         d.devPtrs.d_p,
-                                         d.devPtrs.d_c,
-                                         d.devPtrs.d_c11,
-                                         d.devPtrs.d_c12,
-                                         d.devPtrs.d_c13,
-                                         d.devPtrs.d_c22,
-                                         d.devPtrs.d_c23,
-                                         d.devPtrs.d_c33,
-                                         d.devPtrs.d_wh,
-                                         d.devPtrs.d_whd,
-                                         d.devPtrs.d_ax,
-                                         d.devPtrs.d_ay,
-                                         d.devPtrs.d_az,
-                                         d.devPtrs.d_du);
+                                         rawPtr(d.devPtrs.codes),
+                                         rawPtr(d.devPtrs.x),
+                                         rawPtr(d.devPtrs.y),
+                                         rawPtr(d.devPtrs.z),
+                                         rawPtr(d.devPtrs.vx),
+                                         rawPtr(d.devPtrs.vy),
+                                         rawPtr(d.devPtrs.vz),
+                                         rawPtr(d.devPtrs.h),
+                                         rawPtr(d.devPtrs.m),
+                                         rawPtr(d.devPtrs.rho),
+                                         rawPtr(d.devPtrs.p),
+                                         rawPtr(d.devPtrs.c),
+                                         rawPtr(d.devPtrs.c11),
+                                         rawPtr(d.devPtrs.c12),
+                                         rawPtr(d.devPtrs.c13),
+                                         rawPtr(d.devPtrs.c22),
+                                         rawPtr(d.devPtrs.c23),
+                                         rawPtr(d.devPtrs.c33),
+                                         rawPtr(d.devPtrs.wh),
+                                         rawPtr(d.devPtrs.whd),
+                                         rawPtr(d.devPtrs.ax),
+                                         rawPtr(d.devPtrs.ay),
+                                         rawPtr(d.devPtrs.az),
+                                         rawPtr(d.devPtrs.du));
 
     CHECK_CUDA_ERR(cudaGetLastError());
 
@@ -174,12 +174,12 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
     // if we don't have gravity, we copy back the pressure gradients (=acceleration) now
     if (d.g == 0.0)
     {
-        CHECK_CUDA_ERR(cudaMemcpy(d.ax.data(), d.devPtrs.d_ax, size_np_T, cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERR(cudaMemcpy(d.ay.data(), d.devPtrs.d_ay, size_np_T, cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERR(cudaMemcpy(d.az.data(), d.devPtrs.d_az, size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.ax.data(), rawPtr(d.devPtrs.ax), size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.ay.data(), rawPtr(d.devPtrs.ay), size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.az.data(), rawPtr(d.devPtrs.az), size_np_T, cudaMemcpyDeviceToHost));
     }
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d.devPtrs.d_du, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), rawPtr(d.devPtrs.du), size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>& d,
