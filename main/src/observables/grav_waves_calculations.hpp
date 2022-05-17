@@ -1,26 +1,26 @@
 /*
-* MIT License
-*
-* Copyright (c) 2021 CSCS, ETH Zurich
-*               2021 University of Basel
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all
-* copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-* SOFTWARE.
+ * MIT License
+ *
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 /*! @file calculations for the gravitational waves observable
@@ -77,7 +77,7 @@ T d2QuadpoleMomentum(size_t begin, size_t end, int dim1, int dim2, const T* x, c
 
     std::array<const T*, 3> coords = {x, y, z};
     std::array<const T*, 3> vel    = {vx, vy, vz};
-    std::array<const T*, 3> acc  = {ax, ay, az};
+    std::array<const T*, 3> acc    = {ax, ay, az};
 
     if (dim1 == dim2)
     {
@@ -88,7 +88,8 @@ T d2QuadpoleMomentum(size_t begin, size_t end, int dim1, int dim2, const T* x, c
             T scalv2        = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
             T coordDotAccel = x[i] * ax[i] + y[i] * ay[i] + z[i] * az[i];
 
-            out += (3.0 * (vel[dim1][i] * vel[dim1][i] + coords[dim1][i] * acc[dim1][i]) - scalv2 - coordDotAccel) * m[i];
+            out +=
+                (3.0 * (vel[dim1][i] * vel[dim1][i] + coords[dim1][i] * acc[dim1][i]) - scalv2 - coordDotAccel) * m[i];
         }
         return out * 2.0 / 3.0;
     }
@@ -97,9 +98,12 @@ T d2QuadpoleMomentum(size_t begin, size_t end, int dim1, int dim2, const T* x, c
 #pragma omp parallel for reduction(+ : out)
         for (size_t i = begin; i < end; i++)
         {
-            out += (2.0 * vel[dim1][i] * vel[dim2][i] + acc[dim1][i] * coords[dim2][i] + coords[dim1][i] * acc[dim2][i]) * m[i];
+            out +=
+                (2.0 * vel[dim1][i] * vel[dim2][i] + acc[dim1][i] * coords[dim2][i] + coords[dim1][i] * acc[dim2][i]) *
+                m[i];
         }
         return out;
     }
 }
-}
+
+} // namespace sphexa

@@ -30,14 +30,14 @@
 #pragma once
 
 #include <array>
-#include <cstdio>
-#include <iostream>
 #include <vector>
 #include <variant>
 
+#include "cstone/util/util.hpp"
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
 #include "data_util.hpp"
+#include "field_states.hpp"
 #include "traits.hpp"
 
 #if defined(USE_CUDA)
@@ -48,7 +48,7 @@ namespace sphexa
 {
 
 template<typename T, typename I, class AccType>
-class ParticlesData
+class ParticlesData : public FieldStates<ParticlesData<T, I, AccType>>
 {
 public:
     using RealType        = T;
@@ -57,12 +57,6 @@ public:
 
     template<class ValueType>
     using PinnedVec = std::vector<ValueType, PinnedAlloc_t<AcceleratorType, ValueType>>;
-
-    ParticlesData()
-    {
-        setConservedFields();
-        setDependentFields();
-    }
 
     size_t iteration{1};
     size_t numParticlesGlobal;
@@ -74,7 +68,7 @@ public:
     T minDt_loc;
 
     //! @brief gravitational constant
-    T g = 0.0;
+    T g{0.0};
 
     /*! @brief Particle fields
      *
@@ -95,7 +89,6 @@ public:
     std::vector<T>       divv, curlv;                  // Div(velocity), Curl(velocity)
     std::vector<T>       ax, ay, az;                   // acceleration
     std::vector<T>       du, du_m1;                    // energy rate of change (du/dt)
-    std::vector<T>       dt, dt_m1;                    // timestep
     std::vector<T>       c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T>       alpha;                        // AV coeficient
     std::vector<T>       xm;                           // Volume element definition
@@ -116,9 +109,9 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",   "y",   "z",    "x_m1", "y_m1", "z_m1",  "vx",   "vy",    "vz",    "rho",   "u",    "p",   "h",   "m",
-        "c",   "ax",  "ay",   "az",   "du",   "du_m1", "dt",   "dt_m1", "c11",   "c12",   "c13",  "c22", "c23", "c33",
-        "mue", "mui", "temp", "cv",   "xm",   "kx",    "divv", "curlv", "alpha", "gradh", "keys", "nc"};
+        "x",   "y",   "z",    "x_m1", "y_m1", "z_m1", "vx",    "vy",    "vz",    "rho",   "u",    "p",   "h",
+        "m",   "c",   "ax",   "ay",   "az",   "du",   "du_m1", "c11",   "c12",   "c13",   "c22",  "c23", "c33",
+        "mue", "mui", "temp", "cv",   "xm",   "kx",   "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -136,83 +129,37 @@ public:
                                        IntVecType*>;
 
         std::array<FieldType, fieldNames.size()> ret{
-            &x,    &y,     &z,   &x_m1, &y_m1, &z_m1,  &vx,    &vy,    &vz,    &rho,
-            &u,    &p,     &h,   &m,    &c,    &ax,    &ay,    &az,    &du,    &du_m1,
-            &dt,   &dt_m1, &c11, &c12,  &c13,  &c22,   &c23,   &c33,   &mue,   &mui,
-            &temp, &cv,    &xm,  &kx,   &divv, &curlv, &alpha, &gradh, &codes, &neighborsCount};
+            &x,    &y,  &z,  &x_m1, &y_m1, &z_m1,  &vx,    &vy,    &vz,    &rho,           &u,   &p,   &h,   &m,
+            &c,    &ax, &ay, &az,   &du,   &du_m1, &c11,   &c12,   &c13,   &c22,           &c23, &c33, &mue, &mui,
+            &temp, &cv, &xm, &kx,   &divv, &curlv, &alpha, &gradh, &codes, &neighborsCount};
 
         static_assert(ret.size() == fieldNames.size());
 
         return ret;
     }
 
-    void setConservedFields()
-    {
-        std::vector<std::string> fields{
-            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1"};
-        conservedFields = fieldStringsToInt(fieldNames, fields);
-    }
-
-    void setDependentFields()
-    {
-        std::vector<std::string> fields{
-            "rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys", "nc"};
-        dependentFields = fieldStringsToInt(fieldNames, fields);
-    }
-
-    void setConservedFieldsVE()
-    {
-        std::vector<std::string> fields{
-            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha"};
-        conservedFields = fieldStringsToInt(fieldNames, fields);
-    }
-
-    void setDependentFieldsVE()
-    {
-        std::vector<std::string> fields{"p",
-                                        "c",
-                                        "ax",
-                                        "ay",
-                                        "az",
-                                        "du",
-                                        "c11",
-                                        "c12",
-                                        "c13",
-                                        "c22",
-                                        "c23",
-                                        "c33",
-                                        "xm",
-                                        "kx",
-                                        "divv",
-                                        "curlv",
-                                        "gradh",
-                                        "keys",
-                                        "nc"};
-        dependentFields = fieldStringsToInt(fieldNames, fields);
-    }
-
     void setOutputFields(const std::vector<std::string>& outFields)
     {
         outputFieldNames   = outFields;
         outputFieldIndices = fieldStringsToInt(fieldNames, outFields);
-
-        for (int& outIndex : outputFieldIndices)
-        {
-            int originalIndex = outIndex;
-            outIndex          = findFieldIdx(outIndex, outputFieldIndices, conservedFields, dependentFields, data());
-
-            if (outIndex == fieldNames.size())
-            {
-                throw std::runtime_error(std::string("Could not find output location for field ") +
-                                         fieldNames[originalIndex]);
-            }
-        }
     }
 
-    //! @brief particle fields to conserve between iterations, needed for checkpoints and domain exchange
-    std::vector<int> conservedFields;
-    //! @brief particle fields recomputed every step from conserved fields
-    std::vector<int> dependentFields;
+    void resize(size_t size)
+    {
+        double growthRate = 1.05;
+        auto   data_      = data();
+
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (this->isAllocated(i))
+            {
+                std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
+            }
+        }
+
+        devPtrs.resize(size);
+    }
+
     //! @brief particle fields selected for file output
     std::vector<int>         outputFieldIndices;
     std::vector<std::string> outputFieldNames;

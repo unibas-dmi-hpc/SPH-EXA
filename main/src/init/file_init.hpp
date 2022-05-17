@@ -89,7 +89,7 @@ public:
         cstone::Box<T> box(
             extents[0], extents[1], extents[2], extents[3], extents[4], extents[5], pbc[0], pbc[1], pbc[2]);
 
-        resize(d, count);
+        d.resize(count);
 
         H5PartSetView(h5_file, first, last - 1);
         h5part_int64_t errors = H5PART_SUCCESS;
@@ -106,7 +106,6 @@ public:
         initField(h5_file, rank, d.vy, "vy", 0.0);
         initField(h5_file, rank, d.vz, "vz", 0.0);
 
-        initField(h5_file, rank, d.dt_m1, "dt_m1", d.minDt);
         initField(h5_file, rank, d.du_m1, "du_m1", 0.0);
         initField(h5_file, rank, d.alpha, "alpha", d.alphamin);
 
