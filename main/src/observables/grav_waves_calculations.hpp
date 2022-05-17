@@ -33,6 +33,18 @@
 
 namespace sphexa
 {
+struct QIdx
+{
+    enum IndexLabels
+    {
+        xx = 0,
+        yy = 1,
+        zz = 2,
+        xy = 3,
+        xz = 4,
+        yz = 5
+    };
+};
 
 //! @brief calculates the two polarization modes of the gravitational waves for a given quadrupole momentum
 template<class T>
@@ -54,15 +66,18 @@ void computeHtt(std::array<T, 6> quadpoleMomentum, T theta, T phi, T* httplus, T
     T sqcost = cost * cost;
     T sqcosp = cosp * cosp;
 
-    T dot2ibartt =
-        (quadpoleMomentum[0] * sqcosp + quadpoleMomentum[1] * sqsinp + quadpoleMomentum[3] * sin2p) * sqcost +
-        quadpoleMomentum[2] * sqsint - (quadpoleMomentum[4] * cosp + quadpoleMomentum[5] * sinp) * sin2t;
+    T dot2ibartt = (quadpoleMomentum[QIdx::xx] * sqcosp + quadpoleMomentum[QIdx::yy] * sqsinp +
+                    quadpoleMomentum[QIdx::xy] * sin2p) *
+                       sqcost +
+                   quadpoleMomentum[QIdx::zz] * sqsint -
+                   (quadpoleMomentum[QIdx::xz] * cosp + quadpoleMomentum[QIdx::yz] * sinp) * sin2t;
 
-    T dot2ibarpp = quadpoleMomentum[0] * sqsinp + quadpoleMomentum[1] * sqcosp - quadpoleMomentum[3] * sin2p;
+    T dot2ibarpp =
+        quadpoleMomentum[QIdx::xx] * sqsinp + quadpoleMomentum[QIdx::yy] * sqcosp - quadpoleMomentum[QIdx::xy] * sin2p;
 
-    T dot2ibartp = 0.5 * (quadpoleMomentum[1] - quadpoleMomentum[0]) * cost * sin2p +
-                   quadpoleMomentum[3] * cost * cos2p +
-                   (quadpoleMomentum[4] * sinp - quadpoleMomentum[5] * cosp) * sint;
+    T dot2ibartp = 0.5 * (quadpoleMomentum[QIdx::yy] - quadpoleMomentum[QIdx::xx]) * cost * sin2p +
+                   quadpoleMomentum[QIdx::xy] * cost * cos2p +
+                   (quadpoleMomentum[QIdx::xz] * sinp - quadpoleMomentum[QIdx::yz] * cosp) * sint;
 
     *httplus  = (dot2ibartt - dot2ibarpp) * gwunits;
     *httcross = 2.0 * dot2ibartp * gwunits;
@@ -105,5 +120,4 @@ T d2QuadpoleMomentum(size_t begin, size_t end, int dim1, int dim2, const T* x, c
         return out;
     }
 }
-
 } // namespace sphexa
