@@ -70,6 +70,7 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> vz{0.091, -0.081, 0.071, -0.061, 0.055};
 
     std::vector<T> c{0.4, 0.5, 0.6, 0.7, 0.8};
+    std::vector<T> u{0.4, 0.5, 0.6, 0.7, 0.8};
     std::vector<T> p{0.2, 0.3, 0.4, 0.5, 0.6};
 
     std::vector<T> alpha{1.0, 0.05, 0.3, 0.5, 0.3};
@@ -119,6 +120,7 @@ TEST(MomentumEnergy, JLoop)
                                          m.data(),
                                          p.data(),
                                          c.data(),
+                                         u.data(),
                                          c11.data(),
                                          c12.data(),
                                          c13.data(),
@@ -143,6 +145,6 @@ TEST(MomentumEnergy, JLoop)
     EXPECT_NEAR(grad_Px, 4.6852624676440924e-1, 1e-10);
     EXPECT_NEAR(grad_Py, -8.2810161944474575e-2, 1e-10);
     EXPECT_NEAR(grad_Pz, 5.209843022360216e-1, 1e-10);
-    EXPECT_NEAR(du, -3.8445778269613888e-3, 1e-10);
-    EXPECT_NEAR(maxvsignal, 1.4112466829, 1e-10);
+    EXPECT_NEAR(du, -3.6517141514543563e-3, 1e-10);
+    EXPECT_NEAR(maxvsignal, 1.4112466828564341, 1e-10);
 }
