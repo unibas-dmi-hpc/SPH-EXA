@@ -120,4 +120,5 @@ T d2QuadpoleMomentum(size_t begin, size_t end, int dim1, int dim2, const T* x, c
         return out;
     }
 }
+
 } // namespace sphexa

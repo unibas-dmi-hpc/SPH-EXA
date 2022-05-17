@@ -82,11 +82,19 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> c33{0.26, 0.34, 0.15, 0.40, 0.51};
 
     std::vector<T> xm{m[0] / 1.1, m[1] / 1.2, m[2] / 1.3, m[3] / 1.4, m[4] / 1.5};
+
     std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
     for (i = 0; i < neighborsCount + 1; i++)
     {
         kx[i] = K * xm[i] / ::sphexa::math::pow(h[i], 3);
     }
+
+    std::vector<T> prho(p.size());
+    for (size_t k = 0; k < prho.size(); ++k)
+    {
+        prho[k] = p[k] / (kx[k] * m[k] * m[k] * gradh[k]);
+    }
+
     /* distances of particle zero to particle j
      *
      * j = 1   1.10905
@@ -117,7 +125,7 @@ TEST(MomentumEnergy, JLoop)
                                          vz.data(),
                                          h.data(),
                                          m.data(),
-                                         p.data(),
+                                         prho.data(),
                                          c.data(),
                                          c11.data(),
                                          c12.data(),
@@ -133,7 +141,6 @@ TEST(MomentumEnergy, JLoop)
                                          kx.data(),
                                          xm.data(),
                                          alpha.data(),
-                                         gradh.data(),
                                          &grad_Px,
                                          &grad_Py,
                                          &grad_Pz,
