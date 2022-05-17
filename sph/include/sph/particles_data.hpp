@@ -101,7 +101,7 @@ public:
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
     std::vector<int> neighbors;
 
-    DeviceData_t<AccType, T, KeyType> devPtrs;
+    DeviceData_t<AccType, T, KeyType> devData;
 
     const std::array<T, lt::size> wh  = lt::createWharmonicLookupTable<T, lt::size>();
     const std::array<T, lt::size> whd = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
@@ -158,7 +158,7 @@ public:
             }
         }
 
-        devPtrs.resize(size);
+        devData.resize(size);
     }
 
     //! @brief particle fields selected for file output

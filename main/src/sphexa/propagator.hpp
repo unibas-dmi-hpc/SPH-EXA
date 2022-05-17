@@ -157,8 +157,8 @@ public:
         d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1");
         d.setDependent("rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys", "nc");
 
-        d.devPtrs.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz");
-        d.devPtrs.setDependent(
+        d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz");
+        d.devData.setDependent(
             "rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys");
     }
 
@@ -211,9 +211,9 @@ public:
 #ifdef USE_CUDA
             size_t sizeWithHalos = d.x.size();
             size_t size_np_T     = sizeWithHalos * sizeof(decltype(d.ax[0]));
-            CHECK_CUDA_ERR(cudaMemcpy(d.ax.data(), rawPtr(d.devPtrs.ax), size_np_T, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.ay.data(), rawPtr(d.devPtrs.ay), size_np_T, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.az.data(), rawPtr(d.devPtrs.az), size_np_T, cudaMemcpyDeviceToHost));
+            CHECK_CUDA_ERR(cudaMemcpy(d.ax.data(), rawPtr(d.devData.ax), size_np_T, cudaMemcpyDeviceToHost));
+            CHECK_CUDA_ERR(cudaMemcpy(d.ay.data(), rawPtr(d.devData.ay), size_np_T, cudaMemcpyDeviceToHost));
+            CHECK_CUDA_ERR(cudaMemcpy(d.az.data(), rawPtr(d.devData.az), size_np_T, cudaMemcpyDeviceToHost));
 #endif
         }
 

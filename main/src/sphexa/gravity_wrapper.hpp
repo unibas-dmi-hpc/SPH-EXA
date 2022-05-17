@@ -119,10 +119,10 @@ public:
 
         reallocate(multipoles_, octree.numTreeNodes(), 1.05);
 
-        mHolder_.upsweep(rawPtr(d.devPtrs.x),
-                         rawPtr(d.devPtrs.y),
-                         rawPtr(d.devPtrs.z),
-                         rawPtr(d.devPtrs.m),
+        mHolder_.upsweep(rawPtr(d.devData.x),
+                         rawPtr(d.devData.y),
+                         rawPtr(d.devData.z),
+                         rawPtr(d.devData.m),
                          domain.globalTree(),
                          domain.focusTree(),
                          domain.layout().data(),
@@ -134,15 +134,15 @@ public:
     {
         d.egrav = mHolder_.compute(domain.startIndex(),
                                    domain.endIndex(),
-                                   rawPtr(d.devPtrs.x),
-                                   rawPtr(d.devPtrs.y),
-                                   rawPtr(d.devPtrs.z),
-                                   rawPtr(d.devPtrs.m),
-                                   rawPtr(d.devPtrs.h),
+                                   rawPtr(d.devData.x),
+                                   rawPtr(d.devData.y),
+                                   rawPtr(d.devData.z),
+                                   rawPtr(d.devData.m),
+                                   rawPtr(d.devData.h),
                                    d.g,
-                                   rawPtr(d.devPtrs.ax),
-                                   rawPtr(d.devPtrs.ay),
-                                   rawPtr(d.devPtrs.az));
+                                   rawPtr(d.devData.ax),
+                                   rawPtr(d.devData.ay),
+                                   rawPtr(d.devData.az));
     }
 
     const MType* multipoles() const { return multipoles_.data(); }
