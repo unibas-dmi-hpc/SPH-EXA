@@ -18,15 +18,16 @@ namespace sph
  * Returns pressure, speed of sound
  */
 template<class T1, class T2>
-CUDA_DEVICE_HOST_FUN util::tuple<T2, T2> equationOfState(T1 u, T2 rho)
+CUDA_DEVICE_HOST_FUN auto equationOfState(T1 u, T2 rho)
 {
-    constexpr T2 gamma = (5.0 / 3.0);
+    using Tc = std::common_type_t<T1, T2>;
+    constexpr Tc gamma = (5.0 / 3.0);
 
-    T2 tmp = u * (gamma - T1(1));
-    T2 p   = rho * tmp;
-    T2 c   = std::sqrt(tmp);
+    Tc tmp = u * (gamma - Tc(1));
+    Tc p   = rho * tmp;
+    Tc c   = std::sqrt(tmp);
 
-    return {p, c};
+    return util::tuple<Tc, Tc>{p, c};
 }
 
 /*! @brief Ideal gas EOS for internal energy taking into account composition via mui
@@ -38,36 +39,40 @@ CUDA_DEVICE_HOST_FUN util::tuple<T2, T2> equationOfState(T1 u, T2 rho)
  * Returns pressure, speed of sound, du/dT, and temperature
  */
 template<class T1, class T2, class T3>
-CUDA_DEVICE_HOST_FUN util::tuple<T2, T2> equationOfState(T1 u, T2 rho, T3 mui)
+CUDA_DEVICE_HOST_FUN auto equationOfState(T1 u, T2 rho, T3 mui)
 {
-    constexpr T2 R     = 8.317e7;
-    constexpr T2 gamma = (5.0 / 3.0);
+    using Tc = std::common_type_t<T1, T2, T3>;
 
-    T2 cv   = T2(1.5) * R / mui;
-    T2 temp = u / cv;
-    T2 tmp  = u * (gamma - T1(1));
-    T2 p    = rho * tmp;
-    T2 c    = std::sqrt(tmp);
+    constexpr Tc R     = 8.317e7;
+    constexpr Tc gamma = (5.0 / 3.0);
 
-    return {p, c, cv, temp};
+    Tc cv   = Tc(1.5) * R / mui;
+    Tc temp = u / cv;
+    Tc tmp  = u * (gamma - Tc(1));
+    Tc p    = rho * tmp;
+    Tc c    = std::sqrt(tmp);
+
+    return util::tuple<Tc, Tc, Tc, Tc>{p, c, cv, temp};
 }
 
-/*! @brief Polytropic EOS
+/*! @brief Polytropic EOS for a 1.4 M_sun and 12.8 km neutron star
  *
  * @param rho  baryonic density
  *
+ * Kpol is hardcoded for these NS characteristics and is not valid for
+ * other NS masses and radius
  * Returns pressure, and speed of sound
  */
-template<class T2>
-CUDA_DEVICE_HOST_FUN util::tuple<T2, T2> equationOfState_Polytropic(T2 rho)
+template<class T>
+CUDA_DEVICE_HOST_FUN auto equationOfState_Polytropic(T rho)
 {
-    constexpr T2 Kpol     = 2.246341237993810232e-10;
-    constexpr T2 gammapol = 3.e0;
+    constexpr T Kpol     = 2.246341237993810232e-10;
+    constexpr T gammapol = 3.e0;
 
-    T2 p    = Kpol * std::pow(rho, gammapol);
-    T2 c    = std::sqrt(gammapol * p / rho);
+    T p    = Kpol * std::pow(rho, gammapol);
+    T c    = std::sqrt(gammapol * p / rho);
 
-    return {p, c};
+    return util::tuple<T, T>{p, c};
 }
 
 /*! @brief ideal gas EOS interface for SPH where rho is computed on-the-fly
