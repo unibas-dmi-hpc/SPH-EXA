@@ -65,6 +65,16 @@ struct DeviceDataFacade
     {
     }
 
+    template<class... Ts>
+    void release(Ts...)
+    {
+    }
+
+    template<class... Ts>
+    void acquire(Ts...)
+    {
+    }
+
     inline static constexpr std::array fieldNames{0};
 };
 

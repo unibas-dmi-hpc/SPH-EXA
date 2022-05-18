@@ -208,12 +208,9 @@ public:
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
 
-        transferToDevice(
-            d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz", "p", "c"});
-        transferToDevice(
-            d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33"});
-        transferToDevice(
-            d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33"});
+        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz", "p", "c"});
+        transferToDevice(d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33"});
+        transferToDevice(d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33"});
         computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
@@ -286,6 +283,10 @@ public:
                        "curlv",
                        "keys",
                        "nc");
+
+        d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz", "alpha");
+        d.devData.setDependent(
+            "prho", "c", "kx", "xm", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys");
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
@@ -320,31 +321,57 @@ public:
             first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
 
+        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"x", "y", "z", "h", "m", "keys"});
         computeXMass(first, last, ngmax_, d, domain.box());
+        transferToHost(d, first, last, {"xm"});
         timer.step("XMass");
         domain.exchangeHalos(d.xm);
         timer.step("mpi::synchronizeHalos");
 
         d.release("ax", "ay");
         d.acquire("p", "gradh");
+        d.devData.release("ax");
+        d.devData.acquire("gradh");
+        transferToDevice(d, 0, first, {"xm"});
+        transferToDevice(d, last, domain.nParticlesWithHalos(), {"xm"});
         computeDensityVE(first, last, ngmax_, d, domain.box());
         timer.step("Density & Gradh");
-        computeEquationOfState(first, last, d);
+        transferToHost(d, first, last, {"kx", "gradh"});
 
-        d.release("p", "gradh");
-        d.acquire("ax", "ay");
+        computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
+
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.prho, d.c, d.kx);
         timer.step("mpi::synchronizeHalos");
 
+        d.release("p", "gradh");
+        d.acquire("ax", "ay");
+        d.devData.release("gradh", "ay");
+        d.devData.acquire("divv", "curlv");
+        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz"});
+        transferToDevice(d, 0, first, {"kx"});
+        transferToDevice(d, last, domain.nParticlesWithHalos(), {"kx"});
         computeIadDivvCurlv(first, last, ngmax_, d, domain.box());
+        transferToHost(d, first, last, {"c11", "c12", "c13", "c22", "c23", "c33", "divv", "curlv"});
         timer.step("IadVelocityDivCurl");
+
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv);
         timer.step("mpi::synchronizeHalos");
+
+        transferToDevice(d, 0, first, {"divv"});
+        transferToDevice(d, last, domain.nParticlesWithHalos(), {"divv"});
         computeAVswitches(first, last, ngmax_, d, domain.box());
+        transferToHost(d, first, last, {"alpha"});
         timer.step("AVswitches");
+
         domain.exchangeHalos(d.alpha);
         timer.step("mpi::synchronizeHalos");
+
+        d.devData.release("divv", "curlv");
+        d.devData.acquire("ax", "ay");
+        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"c", "prho"});
+        transferToDevice(d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33", "alpha"});
+        transferToDevice(d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33", "alpha"});
         computeGradPVE(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
 
@@ -355,6 +382,7 @@ public:
             mHolder_.traverse(d, domain);
             timer.step("Gravity");
         }
+        transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
