@@ -188,16 +188,27 @@ public:
         findNeighborsSfc<T, KeyType>(
             first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
+
+        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"x", "y", "z", "h", "m", "keys"});
         computeDensity(first, last, ngmax_, d, domain.box());
+        transferToHost(d, first, last, {"rho"});
         timer.step("Density");
+
         computeEquationOfState3L(first, last, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
+
+        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"rho"});
         computeIAD(first, last, ngmax_, d, domain.box());
+        transferToHost(d, first, last, {"c11", "c12", "c13", "c22", "c23", "c33"});
         timer.step("IAD");
+
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
+
+        transferToDevice(
+            d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz", "p", "c", "c11", "c12", "c13", "c22", "c23", "c33"});
         computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
@@ -207,15 +218,8 @@ public:
             timer.step("Upsweep");
             mHolder_.traverse(d, domain);
             timer.step("Gravity");
-
-#ifdef USE_CUDA
-            size_t sizeWithHalos = d.x.size();
-            size_t size_np_T     = sizeWithHalos * sizeof(decltype(d.ax[0]));
-            CHECK_CUDA_ERR(cudaMemcpy(d.ax.data(), rawPtr(d.devData.ax), size_np_T, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.ay.data(), rawPtr(d.devData.ay), size_np_T, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.az.data(), rawPtr(d.devData.az), size_np_T, cudaMemcpyDeviceToHost));
-#endif
         }
+        transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
         computeTimestep(first, last, d);
         timer.step("Timestep");

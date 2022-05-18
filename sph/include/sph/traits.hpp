@@ -64,6 +64,8 @@ struct DeviceDataFacade
     void setDependent(Ts...)
     {
     }
+
+    inline static constexpr std::array fieldNames{0};
 };
 
 namespace sph

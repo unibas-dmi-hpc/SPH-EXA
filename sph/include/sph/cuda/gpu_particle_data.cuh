@@ -38,6 +38,7 @@
 #include "sph/field_states.hpp"
 #include "sph/pinned_allocator.h"
 #include "sph/tables.hpp"
+#include "sph/traits.hpp"
 
 namespace sphexa
 {
@@ -195,6 +196,66 @@ const typename ThrustVec::value_type* rawPtr(const ThrustVec& p)
 {
     assert(p.size() && "cannot get pointer to unallocated device vector memory");
     return thrust::raw_pointer_cast(p.data());
+}
+
+template<class DataType, std::enable_if_t<HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
+void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
+{
+    auto hostData = d.data();
+    auto deviceData = d.devData.data();
+
+    auto launchTransfer = [first, last](const auto* hostField, auto* deviceField)
+    {
+        using Type1 = std::decay_t<decltype(*hostField)>;
+        using Type2 = std::decay_t<decltype(*deviceField)>;
+        if constexpr (std::is_same_v<typename Type1::value_type, typename Type2::value_type>)
+        {
+            size_t transferSize = (last - first) * sizeof(typename Type1::value_type);
+            CHECK_CUDA_ERR(cudaMemcpy(
+                rawPtr(*deviceField) + first, hostField->data() + first, transferSize, cudaMemcpyHostToDevice));
+        }
+        else
+        {
+            throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
+        }
+    };
+
+    for (const auto& field : fields)
+    {
+        int fieldIdx =
+            std::find(DataType::fieldNames.begin(), DataType::fieldNames.end(), field) - DataType::fieldNames.begin();
+        std::visit(launchTransfer, hostData[fieldIdx], deviceData[fieldIdx]);
+    }
+}
+
+template<class DataType, std::enable_if_t<HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
+void transferToHost(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
+{
+    auto hostData   = d.data();
+    auto deviceData = d.devData.data();
+
+    auto launchTransfer = [first, last](auto* hostField, const auto* deviceField)
+    {
+        using Type1 = std::decay_t<decltype(*hostField)>;
+        using Type2 = std::decay_t<decltype(*deviceField)>;
+        if constexpr (std::is_same_v<typename Type1::value_type, typename Type2::value_type>)
+        {
+            size_t transferSize = (last - first) * sizeof(typename Type1::value_type);
+            CHECK_CUDA_ERR(cudaMemcpy(
+                hostField->data() + first, rawPtr(*deviceField) + first, transferSize, cudaMemcpyDeviceToHost));
+        }
+        else
+        {
+            throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
+        }
+    };
+
+    for (const auto& field : fields)
+    {
+        int fieldIdx =
+            std::find(DataType::fieldNames.begin(), DataType::fieldNames.end(), field) - DataType::fieldNames.begin();
+        std::visit(launchTransfer, hostData[fieldIdx], deviceData[fieldIdx]);
+    }
 }
 
 } // namespace sphexa
