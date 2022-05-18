@@ -255,7 +255,7 @@ public:
     void activateFields(ParticleDataType& d) override
     {
         d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha");
-        d.setDependent("p",
+        d.setDependent("prho",
                        "c",
                        "ax",
                        "ay",
@@ -271,7 +271,6 @@ public:
                        "kx",
                        "divv",
                        "curlv",
-                       "gradh",
                        "keys",
                        "nc");
     }
@@ -312,15 +311,23 @@ public:
         timer.step("XMass");
         domain.exchangeHalos(d.xm);
         timer.step("mpi::synchronizeHalos");
+
+        d.release("ax", "ay");
+        d.acquire("p", "gradh");
         computeDensityVE(first, last, ngmax_, d, domain.box());
         timer.step("Density & Gradh");
+        
         computeEOS(first, last, d);
+
+        d.release("p", "gradh");
+        d.acquire("ax", "ay");
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.p, d.c, d.kx, d.gradh);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.prho, d.c, d.kx);
         timer.step("mpi::synchronizeHalos");
+
         computeIadDivvCurlv(first, last, ngmax_, d, domain.box());
         timer.step("IadVelocityDivCurl");
-        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv, d.curlv);
+        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv);
         timer.step("mpi::synchronizeHalos");
         computeAVswitches(first, last, ngmax_, d, domain.box());
         timer.step("AVswitches");

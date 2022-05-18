@@ -39,7 +39,7 @@ CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho)
  * Returns pressure, speed of sound, du/dT, and temperature
  */
 template<class T1, class T2, class T3>
-CUDA_DEVICE_HOST_FUN auto idealGasEOS_Temperature(T1 u, T2 rho, T3 mui)
+CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho, T3 mui)
 {
     using Tc = std::common_type_t<T1, T2, T3>;
 
@@ -89,19 +89,22 @@ CUDA_DEVICE_HOST_FUN auto polytropicEOS(T rho)
 template<typename Dataset>
 void computeEOS(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    const auto* u  = d.u.data();
-    const auto* kx = d.kx.data();
-    const auto* xm = d.xm.data();
-    const auto* m  = d.m.data();
+    const auto* u     = d.u.data();
+    const auto* m     = d.m.data();
+    const auto* kx    = d.kx.data();
+    const auto* xm    = d.xm.data();
+    const auto* gradh = d.gradh.data();
 
-    auto* p = d.p.data();
-    auto* c = d.c.data();
+    auto* p    = d.p.data();
+    auto* prho = d.prho.data();
+    auto* c    = d.c.data();
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         auto rho             = kx[i] * m[i] / xm[i];
         std::tie(p[i], c[i]) = idealGasEOS(u[i], rho);
+        prho[i]              = p[i] / (kx[i] * m[i] * m[i] * gradh[i]);
     }
 }
 

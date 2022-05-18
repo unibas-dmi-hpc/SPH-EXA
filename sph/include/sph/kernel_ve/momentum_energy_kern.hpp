@@ -46,10 +46,10 @@ template<typename T>
 CUDA_DEVICE_HOST_FUN inline void
 momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
                        const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h,
-                       const T* m, const T* p, const T* c, const T* c11, const T* c12, const T* c13, const T* c22,
+                       const T* m, const T* prho, const T* c, const T* c11, const T* c12, const T* c13, const T* c22,
                        const T* c23, const T* c33, const T Atmin, const T Atmax, const T ramp, const T* wh,
-                       const T* whd, const T* kx, const T* xm, const T* alpha, const T* gradh, T* grad_P_x, T* grad_P_y,
-                       T* grad_P_z, T* du, T* maxvsignal)
+                       const T* whd, const T* kx, const T* xm, const T* alpha, T* grad_P_x, T* grad_P_y, T* grad_P_z,
+                       T* du, T* maxvsignal)
 {
     T xi  = x[i];
     T yi  = y[i];
@@ -67,8 +67,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
     T xmassi = xm[i];
     T rhoi   = kxi * mi / xmassi;
-    T gradhi = gradh[i];
-    T proi   = p[i] / (kxi * mi * mi * gradhi);
+    T prhoi  = prho[i];
     T voli   = xmassi / kxi;
 
     T mark_ramp = 0.0;
@@ -148,7 +147,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T vijsignal = ci + cj - T(3) * wij;
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
-        T proj = p[j] / (kxj * mj * mj * gradh[j]);
+        T prhoj = prho[j];
 
         T Atwood = (std::abs(rhoi - rhoj)) / (rhoi + rhoj);
         if (Atwood < Atmin)
@@ -173,35 +172,23 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T volj       = xmassj / kxj;
         T a_visc     = voli * mj / mi * viscosity_ij;
         T b_visc     = volj * viscosity_jj;
-        T momentum_i = proi * a_mom; // + 0.5 * a_visc;
-        T momentum_j = proj * b_mom; // + 0.5 * b_visc;
+        T momentum_i = prhoi * a_mom; // + 0.5 * a_visc;
+        T momentum_j = prhoj * b_mom; // + 0.5 * b_visc;
         T a_visc_x   = T(0.5) * (a_visc * termA1_i + b_visc * termA1_j);
         T a_visc_y   = T(0.5) * (a_visc * termA2_i + b_visc * termA2_j);
         T a_visc_z   = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
 
-        {
-            // T a = Wi * (mj_pro_i + viscosity_ij * mi_roi);
-            // T b = mj_roj_Wj * (p[j] / (roj * gradh_j) + viscosity_ij);
+        momentum_x += momentum_i * termA1_i + momentum_j * termA1_j + a_visc_x;
+        momentum_y += momentum_i * termA2_i + momentum_j * termA2_j + a_visc_y;
+        momentum_z += momentum_i * termA3_i + momentum_j * termA3_j + a_visc_z;
 
-            momentum_x += momentum_i * termA1_i + momentum_j * termA1_j + a_visc_x;
-            momentum_y += momentum_i * termA2_i + momentum_j * termA2_j + a_visc_y;
-            momentum_z += momentum_i * termA3_i + momentum_j * termA3_j + a_visc_z;
-            a_visc_energy += a_visc_x * vx_ij + a_visc_y * vy_ij + a_visc_z * vz_ij;
-        }
-        {
-            // T a = Wi * (2.0 * mj_pro_i + viscosity_ij * mi_roi);
-            // T b = viscosity_ij * mj_roj_Wj;
-
-            energy += a_mom * proi * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
-            // energy += vx_ij * (a * termA1_i + b * termA1_j) + vy_ij * (a * termA2_i + b * termA2_j) +
-            //           vz_ij * (a * termA3_i + b * termA3_j);
-        }
+        a_visc_energy += a_visc_x * vx_ij + a_visc_y * vy_ij + a_visc_z * vz_ij;
+        energy += momentum_i * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
     }
 
-    // with the choice of calculating coordinate (r) and velocity (v_ij) differences as i - j,
-    // we add the negative sign only here at the end instead of to termA123_ij in each iteration
     a_visc_energy = std::max(T(0), a_visc_energy);
     du[i]         = K * (energy + T(0.5) * a_visc_energy); // factor of 2 already removed from 2P/rho
+
     // grad_P_xyz is stored as the acceleration, accel = -grad_P / rho
     grad_P_x[i] = -K * momentum_x;
     grad_P_y[i] = -K * momentum_y;
