@@ -199,7 +199,8 @@ public:
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
 
-        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"rho"});
+        transferToDevice(d, 0, first, {"rho"});
+        transferToDevice(d, last, domain.nParticlesWithHalos(), {"rho"});
         computeIAD(first, last, ngmax_, d, domain.box());
         transferToHost(d, first, last, {"c11", "c12", "c13", "c22", "c23", "c33"});
         timer.step("IAD");
@@ -208,7 +209,11 @@ public:
         timer.step("mpi::synchronizeHalos");
 
         transferToDevice(
-            d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz", "p", "c", "c11", "c12", "c13", "c22", "c23", "c33"});
+            d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz", "p", "c"});
+        transferToDevice(
+            d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33"});
+        transferToDevice(
+            d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33"});
         computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
