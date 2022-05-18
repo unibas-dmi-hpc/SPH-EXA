@@ -18,7 +18,7 @@ namespace sph
  * Returns pressure, speed of sound
  */
 template<class T1, class T2>
-CUDA_DEVICE_HOST_FUN auto equationOfState(T1 u, T2 rho)
+CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho)
 {
     using Tc = std::common_type_t<T1, T2>;
     constexpr Tc gamma = (5.0 / 3.0);
@@ -39,7 +39,7 @@ CUDA_DEVICE_HOST_FUN auto equationOfState(T1 u, T2 rho)
  * Returns pressure, speed of sound, du/dT, and temperature
  */
 template<class T1, class T2, class T3>
-CUDA_DEVICE_HOST_FUN auto equationOfState(T1 u, T2 rho, T3 mui)
+CUDA_DEVICE_HOST_FUN auto idealGasEOS_Temperature(T1 u, T2 rho, T3 mui)
 {
     using Tc = std::common_type_t<T1, T2, T3>;
 
@@ -64,7 +64,7 @@ CUDA_DEVICE_HOST_FUN auto equationOfState(T1 u, T2 rho, T3 mui)
  * Returns pressure, and speed of sound
  */
 template<class T>
-CUDA_DEVICE_HOST_FUN auto equationOfState_Polytropic(T rho)
+CUDA_DEVICE_HOST_FUN auto polytropicEOS(T rho)
 {
     constexpr T Kpol     = 2.246341237993810232e-10;
     constexpr T gammapol = 3.e0;
@@ -75,7 +75,7 @@ CUDA_DEVICE_HOST_FUN auto equationOfState_Polytropic(T rho)
     return util::tuple<T, T>{p, c};
 }
 
-/*! @brief ideal gas EOS interface for SPH where rho is computed on-the-fly
+/*! @brief ideal gas EOS interface w/o temperature for SPH where rho is computed on-the-fly
  *
  * @tparam Dataset
  * @param startIndex  index of first locally owned particle
@@ -87,7 +87,7 @@ CUDA_DEVICE_HOST_FUN auto equationOfState_Polytropic(T rho)
  * we could potentially avoid halo exchange of p and c in return for exchanging halos of u.
  */
 template<typename Dataset>
-void computeEquationOfState(size_t startIndex, size_t endIndex, Dataset& d)
+void computeEOS(size_t startIndex, size_t endIndex, Dataset& d)
 {
     const auto* u  = d.u.data();
     const auto* kx = d.kx.data();
@@ -101,7 +101,7 @@ void computeEquationOfState(size_t startIndex, size_t endIndex, Dataset& d)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         auto rho             = kx[i] * m[i] / xm[i];
-        std::tie(p[i], c[i]) = equationOfState(u[i], rho);
+        std::tie(p[i], c[i]) = idealGasEOS(u[i], rho);
     }
 }
 
@@ -113,7 +113,7 @@ void computeEquationOfState(size_t startIndex, size_t endIndex, Dataset& d)
  * @param d           the dataset with the particle buffers
  */
 template<typename Dataset>
-void computeEquationOfState_Polytropic(size_t startIndex, size_t endIndex, Dataset& d)
+void computeEOS_Polytropic(size_t startIndex, size_t endIndex, Dataset& d)
 {
     const auto* kx = d.kx.data();
     const auto* xm = d.xm.data();
@@ -126,7 +126,7 @@ void computeEquationOfState_Polytropic(size_t startIndex, size_t endIndex, Datas
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         auto rho             = kx[i] * m[i] / xm[i];
-        std::tie(p[i], c[i]) = equationOfState_Polytropic(rho);
+        std::tie(p[i], c[i]) = polytropicEOS(rho);
     }
 }
 
@@ -144,7 +144,7 @@ void computeEquationOfState_Polytropic(size_t startIndex, size_t endIndex, Datas
  * we could potentially avoid halo exchange of p and c in return for exchanging halos of u.
  */
 template<typename Dataset>
-void computeEquationOfState3L(size_t startIndex, size_t endIndex, Dataset& d)
+void computeEOS3L(size_t startIndex, size_t endIndex, Dataset& d)
 {
     const auto* rho = d.rho.data();
     const auto* u   = d.u.data();
@@ -155,7 +155,7 @@ void computeEquationOfState3L(size_t startIndex, size_t endIndex, Dataset& d)
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
-        std::tie(p[i], c[i]) = equationOfState(u[i], rho[i]);
+        std::tie(p[i], c[i]) = idealGasEOS(u[i], rho[i]);
     }
 }
 

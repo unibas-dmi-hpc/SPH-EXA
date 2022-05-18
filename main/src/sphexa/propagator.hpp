@@ -186,7 +186,7 @@ public:
         timer.step("FindNeighbors");
         computeDensity(first, last, ngmax_, d, domain.box());
         timer.step("Density");
-        computeEquationOfState3L(first, last, d);
+        computeEOS3L(first, last, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
@@ -314,7 +314,7 @@ public:
         timer.step("mpi::synchronizeHalos");
         computeDensityVE(first, last, ngmax_, d, domain.box());
         timer.step("Density & Gradh");
-        computeEquationOfState(first, last, d);
+        computeEOS(first, last, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.p, d.c, d.kx, d.gradh);
         timer.step("mpi::synchronizeHalos");
