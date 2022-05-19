@@ -193,8 +193,7 @@ public:
         computeDensity(first, last, ngmax_, d, domain.box());
         transferToHost(d, first, last, {"rho"});
         timer.step("Density");
-
-        computeEquationOfState3L(first, last, d);
+        computeEOS3L(first, last, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
@@ -337,8 +336,7 @@ public:
         computeDensityVE(first, last, ngmax_, d, domain.box());
         timer.step("Density & Gradh");
         transferToHost(d, first, last, {"kx", "gradh"});
-
-        computeEquationOfState(first, last, d);
+        computeEOS(first, last, d);
         timer.step("EquationOfState");
 
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.prho, d.c, d.kx);
