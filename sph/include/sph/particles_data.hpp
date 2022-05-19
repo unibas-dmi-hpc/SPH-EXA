@@ -38,13 +38,13 @@
 
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
-#include "sph/util/pinned_allocator.h"
 
 #include "data_util.hpp"
 #include "field_states.hpp"
 #include "traits.hpp"
 
 #if defined(USE_CUDA)
+#include "sph/util/pinned_allocator.h"
 #include "particles_data_gpu.cuh"
 #endif
 
