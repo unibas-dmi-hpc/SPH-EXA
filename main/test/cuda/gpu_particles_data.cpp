@@ -33,7 +33,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/cuda/gpu_particle_data.cuh"
+#include "sph/particles_data_gpu.cuh"
 
 using namespace sphexa;
 

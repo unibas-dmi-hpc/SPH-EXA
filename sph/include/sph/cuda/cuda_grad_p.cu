@@ -1,6 +1,5 @@
-#include <algorithm>
 
-#include "sph.cuh"
+#include "sph/sph.cuh"
 #include "sph/particles_data.hpp"
 #include "sph/util/cuda_utils.cuh"
 #include "sph/hydro_3L/momentum_energy_kern.hpp"

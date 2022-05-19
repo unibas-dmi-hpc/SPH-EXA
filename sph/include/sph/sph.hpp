@@ -1,7 +1,7 @@
 #pragma once
 
 #if defined(USE_CUDA)
-#include "sph/cuda/sph.cuh"
+#include "sph/sph.cuh"
 #endif
 
 #include "sph/find_neighbors.hpp"

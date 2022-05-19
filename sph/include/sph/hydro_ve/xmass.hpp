@@ -34,7 +34,7 @@
 #include "sph/kernels.hpp"
 #include "xmass_kern.hpp"
 #ifdef USE_CUDA
-#include "sph/cuda/sph.cuh"
+#include "sph/sph.cuh"
 #endif
 
 namespace sphexa

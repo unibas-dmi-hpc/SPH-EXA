@@ -27,7 +27,7 @@
  * @brief Contains the object holding all particle data on the GPU
  */
 
-#include "gpu_particle_data.cuh"
+#include "sph/particles_data_gpu.cuh"
 
 namespace sphexa
 {

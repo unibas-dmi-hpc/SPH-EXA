@@ -1,5 +1,5 @@
 
-#include "sph.cuh"
+#include "sph/sph.cuh"
 #include "sph/particles_data.hpp"
 #include "sph/util/cuda_utils.cuh"
 #include "sph/hydro_3L/iad_kern.hpp"

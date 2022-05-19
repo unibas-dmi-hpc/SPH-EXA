@@ -25,6 +25,7 @@
 
 /*! @file
  * @brief Contains the object holding all particle data
+ *
  */
 
 #pragma once
@@ -44,7 +45,7 @@
 #include "traits.hpp"
 
 #if defined(USE_CUDA)
-#include "sph/cuda/gpu_particle_data.cuh"
+#include "particles_data_gpu.cuh"
 #endif
 
 namespace sphexa

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "gpu_particle_data.cuh"
 #include "cstone/sfc/box.hpp"
+#include "particles_data_gpu.cuh"
 
 //! @brief maximum number of neighbors supported in GPU kernels
 #define NGMAX 150

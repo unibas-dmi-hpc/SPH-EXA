@@ -33,11 +33,11 @@
 #include <thrust/host_vector.h>
 
 #include "cstone/util/util.hpp"
-#include "sph/util/cuda_utils.cuh"
-#include "sph/data_util.hpp"
-#include "sph/field_states.hpp"
-#include "sph/tables.hpp"
-#include "sph/traits.hpp"
+#include "util/cuda_utils.cuh"
+#include "data_util.hpp"
+#include "field_states.hpp"
+#include "tables.hpp"
+#include "traits.hpp"
 
 namespace sphexa
 {
