@@ -34,7 +34,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/hydro_ve/kernel_ve/xmass_kern.hpp"
+#include "sph/hydro_ve/xmass_kern.hpp"
 #include "sph/tables.hpp"
 
 using namespace sphexa;

@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "kernel_ve/density_kern.hpp"
+#include "density_kern.hpp"
 #ifdef USE_CUDA
 #include "sph/cuda/sph.cuh"
 #endif

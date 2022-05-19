@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "kernel_ve/momentum_energy_kern.hpp"
+#include "momentum_energy_kern.hpp"
 #ifdef USE_CUDA
 #include "sph/cuda/sph.cuh"
 #endif

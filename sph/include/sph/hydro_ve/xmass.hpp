@@ -32,7 +32,7 @@
 #pragma once
 
 #include "sph/kernels.hpp"
-#include "kernel_ve/xmass_kern.hpp"
+#include "xmass_kern.hpp"
 #ifdef USE_CUDA
 #include "sph/cuda/sph.cuh"
 #endif

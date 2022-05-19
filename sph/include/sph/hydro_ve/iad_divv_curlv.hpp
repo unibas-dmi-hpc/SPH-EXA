@@ -31,8 +31,8 @@
 
 #pragma once
 
-#include "kernel_ve/iad_kern.hpp"
-#include "kernel_ve/divv_curlv_kern.hpp"
+#include "iad_kern.hpp"
+#include "divv_curlv_kern.hpp"
 #ifdef USE_CUDA
 #include "sph/cuda/sph.cuh"
 #endif
