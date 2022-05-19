@@ -101,7 +101,7 @@ public:
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
     std::vector<int> neighbors;
 
-    DeviceData_t<AccType, T, KeyType> devPtrs;
+    DeviceData_t<AccType, T, KeyType> devData;
 
     const std::array<T, lt::size> wh  = lt::createWharmonicLookupTable<T, lt::size>();
     const std::array<T, lt::size> whd = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
@@ -113,6 +113,10 @@ public:
         "x",   "y",   "z",   "x_m1", "y_m1", "z_m1", "vx", "vy",    "vz",    "rho",   "u",     "p",    "prho",
         "h",   "m",   "c",   "ax",   "ay",   "az",   "du", "du_m1", "c11",   "c12",   "c13",   "c22",  "c23",
         "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
+
+    static_assert(std::is_same_v<AcceleratorType, CpuTag> ||
+                      fieldNames.size() == DeviceData_t<AccType, T, KeyType>::fieldNames.size(),
+                  "ParticlesData on CPU and GPU must have the same fields");
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -158,7 +162,7 @@ public:
             }
         }
 
-        devPtrs.resize(size);
+        devData.resize(size);
     }
 
     //! @brief particle fields selected for file output
@@ -191,5 +195,15 @@ public:
 
 template<typename T, typename I, class Acc>
 const T ParticlesData<T, I, Acc>::K = sphexa::compute_3d_k(sincIndex);
+
+template<class Dataset, std::enable_if_t<not HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
+void transferToDevice(Dataset&, size_t, size_t, const std::vector<std::string>&)
+{
+}
+
+template<class Dataset, std::enable_if_t<not HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
+void transferToHost(Dataset&, size_t, size_t, const std::vector<std::string>&)
+{
+}
 
 } // namespace sphexa

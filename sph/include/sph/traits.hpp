@@ -54,7 +54,28 @@ template<class T, class KeyType>
 struct DeviceDataFacade
 {
     void resize(size_t) {}
-    void resize_streams(size_t, size_t) {}
+
+    template<class... Ts>
+    void setConserved(Ts...)
+    {
+    }
+
+    template<class... Ts>
+    void setDependent(Ts...)
+    {
+    }
+
+    template<class... Ts>
+    void release(Ts...)
+    {
+    }
+
+    template<class... Ts>
+    void acquire(Ts...)
+    {
+    }
+
+    inline static constexpr std::array fieldNames{0};
 };
 
 namespace sph
