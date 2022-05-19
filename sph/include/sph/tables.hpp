@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sph/cuda/annotation.hpp"
+#include "sph/util/annotation.hpp"
 #include "kernels.hpp"
 
 namespace sphexa
