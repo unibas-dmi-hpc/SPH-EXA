@@ -29,6 +29,8 @@
 
 #pragma once
 
+#include <variant>
+
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
