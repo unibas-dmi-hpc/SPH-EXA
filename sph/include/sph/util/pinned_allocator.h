@@ -20,12 +20,12 @@
 
 #pragma once
 
-#include <stdexcept>
-#include <limits>
-#include <string>
+#include "../../../../../../../../usr/include/c++/11/stdexcept"
+#include "../../../../../../../../usr/include/c++/11/limits"
+#include "../../../../../../../../usr/include/c++/11/string"
 
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include "../../../../../../../../usr/local/cuda/targets/x86_64-linux/include/cuda.h"
+#include "../../../../../../../../usr/local/cuda/targets/x86_64-linux/include/cuda_runtime.h"
 
 /*! \addtogroup memory_management_classes
  *  \ingroup memory_management

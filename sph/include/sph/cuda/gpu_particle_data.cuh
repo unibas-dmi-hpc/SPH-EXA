@@ -36,7 +36,6 @@
 #include "sph/util/cuda_utils.cuh"
 #include "sph/data_util.hpp"
 #include "sph/field_states.hpp"
-#include "sph/pinned_allocator.h"
 #include "sph/tables.hpp"
 #include "sph/traits.hpp"
 

@@ -34,8 +34,11 @@
 #include <variant>
 
 #include "cstone/util/util.hpp"
+
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
+#include "sph/util/pinned_allocator.h"
+
 #include "data_util.hpp"
 #include "field_states.hpp"
 #include "traits.hpp"
