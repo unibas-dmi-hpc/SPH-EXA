@@ -1,6 +1,6 @@
 set(UNIT_TESTS
         xmass_kern.cpp
-        density_kern.cpp
+        ve_norm_gradh.cpp
         iad_kern.cpp
         divv_curlv_kern.cpp
         av_switches_kern.cpp

@@ -17,7 +17,7 @@
 #include "sph/update_h.hpp"
 
 #include "sph/hydro_ve/av_switches.hpp"
-#include "sph/hydro_ve/density.hpp"
+#include "sph/hydro_ve/ve_norm_gradh.hpp"
 #include "sph/hydro_ve/iad_divv_curlv.hpp"
 #include "sph/hydro_ve/momentum_energy.hpp"
 #include "sph/hydro_ve/xmass.hpp"

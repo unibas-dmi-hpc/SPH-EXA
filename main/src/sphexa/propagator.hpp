@@ -333,8 +333,8 @@ public:
         d.devData.acquire("gradh");
         transferToDevice(d, 0, first, {"xm"});
         transferToDevice(d, last, domain.nParticlesWithHalos(), {"xm"});
-        computeDensityVE(first, last, ngmax_, d, domain.box());
-        timer.step("Density & Gradh");
+        computeVeNormGradh(first, last, ngmax_, d, domain.box());
+        timer.step("Normalization & Gradh");
         transferToHost(d, first, last, {"kx", "gradh"});
         computeEOS(first, last, d);
         timer.step("EquationOfState");

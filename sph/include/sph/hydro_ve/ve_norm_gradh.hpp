@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "density_kern.hpp"
+#include "ve_norm_gradh_kern.hpp"
 #ifdef USE_CUDA
 #include "sph/cuda/sph.cuh"
 #endif
@@ -41,7 +41,7 @@ namespace sphexa
 namespace sph
 {
 template<class T, class Dataset>
-void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeVeNormGradhImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -82,9 +82,9 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
 }
 
 template<typename T, class Dataset>
-void computeDensityVE(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeVeNormGradh(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    computeDensityVeImpl(startIndex, endIndex, ngmax, d, box);
+    computeVeNormGradhImpl(startIndex, endIndex, ngmax, d, box);
 }
 
 } // namespace sph

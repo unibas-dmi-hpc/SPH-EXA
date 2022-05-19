@@ -34,7 +34,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/hydro_ve/density_kern.hpp"
+#include "sph/hydro_ve/ve_norm_gradh_kern.hpp"
 #include "sph/tables.hpp"
 
 using namespace sphexa;
