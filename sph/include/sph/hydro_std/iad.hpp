@@ -72,26 +72,26 @@ void computeIADImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
-        kernels::IADJLoop3L(i,
-                            sincIndex,
-                            K,
-                            box,
-                            neighbors + ngmax * ni,
-                            neighborsCount[i],
-                            x,
-                            y,
-                            z,
-                            h,
-                            m,
-                            rho,
-                            wh,
-                            whd,
-                            c11,
-                            c12,
-                            c13,
-                            c22,
-                            c23,
-                            c33);
+        kernels::IADJLoopSTD(i,
+                             sincIndex,
+                             K,
+                             box,
+                             neighbors + ngmax * ni,
+                             neighborsCount[i],
+                             x,
+                             y,
+                             z,
+                             h,
+                             m,
+                             rho,
+                             wh,
+                             whd,
+                             c11,
+                             c12,
+                             c13,
+                             c22,
+                             c23,
+                             c33);
     }
 }
 

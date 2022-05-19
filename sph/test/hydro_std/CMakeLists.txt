@@ -5,7 +5,7 @@ set(UNIT_TESTS
         test_main.cpp
         )
 
-set(testname kernel_tests_3L)
+set(testname kernel_tests_std)
 add_executable(${testname} ${UNIT_TESTS})
 target_compile_options(${testname} PRIVATE -Wall -Wextra)
 

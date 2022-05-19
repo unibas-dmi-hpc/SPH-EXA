@@ -6,9 +6,9 @@
 
 #include "sph/find_neighbors.hpp"
 
-#include "sph/hydro_3L/density.hpp"
-#include "sph/hydro_3L/iad.hpp"
-#include "sph/hydro_3L/momentum_energy.hpp"
+#include "sph/hydro_std/density.hpp"
+#include "sph/hydro_std/iad.hpp"
+#include "sph/hydro_std/momentum_energy.hpp"
 #include "sph/kernels.hpp"
 #include "sph/eos.hpp"
 #include "sph/timestep.hpp"

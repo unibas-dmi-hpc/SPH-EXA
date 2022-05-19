@@ -33,7 +33,7 @@
 #include "sph/sph.cuh"
 #include "sph/particles_data.hpp"
 #include "sph/util/cuda_utils.cuh"
-#include "sph/hydro_3L/iad_kern.hpp"
+#include "sph/hydro_std/iad_kern.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 
@@ -91,7 +91,7 @@ __global__ void cudaIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box, int fir
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
 
-    sph::kernels::IADJLoop3L(
+    sph::kernels::IADJLoopSTD(
         i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22, c23, c33);
 }
 

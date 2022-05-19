@@ -10,10 +10,10 @@ namespace kernels
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline void IADJLoop3L(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
-                                            int neighborsCount, const T* x, const T* y, const T* z, const T* h,
-                                            const T* m, const T* ro, const T* wh, const T* whd, T* c11, T* c12, T* c13,
-                                            T* c22, T* c23, T* c33)
+CUDA_DEVICE_HOST_FUN inline void IADJLoopSTD(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
+                                             int neighborsCount, const T* x, const T* y, const T* z, const T* h,
+                                             const T* m, const T* ro, const T* wh, const T* whd, T* c11, T* c12, T* c13,
+                                             T* c22, T* c23, T* c33)
 {
     T tau11 = 0.0, tau12 = 0.0, tau13 = 0.0, tau22 = 0.0, tau23 = 0.0, tau33 = 0.0;
 

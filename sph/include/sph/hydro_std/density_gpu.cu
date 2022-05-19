@@ -34,7 +34,7 @@
 #include "sph/sph.cuh"
 #include "sph/particles_data.hpp"
 #include "sph/util/cuda_utils.cuh"
-#include "sph/hydro_3L/density_kern.hpp"
+#include "sph/hydro_std/density_kern.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 
