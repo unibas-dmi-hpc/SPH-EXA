@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "ve_norm_gradh_kern.hpp"
+#include "ve_def_gradh_kern.hpp"
 #ifdef USE_CUDA
 #include "sph/sph.cuh"
 #endif
@@ -39,7 +39,7 @@
 namespace sph
 {
 template<class T, class Dataset>
-void computeVeNormGradhImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -65,7 +65,7 @@ void computeVeNormGradhImpl(size_t startIndex, size_t endIndex, size_t ngmax, Da
     for (size_t i = startIndex; i < endIndex; i++)
     {
         size_t ni          = i - startIndex;
-        auto [kxi, gradhi] = kernels::densityJLoop(
+        auto [kxi, gradhi] = veDefGradhJLoop(
             i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd, xm);
 
         kx[i]    = kxi;
@@ -80,9 +80,9 @@ void computeVeNormGradhImpl(size_t startIndex, size_t endIndex, size_t ngmax, Da
 }
 
 template<typename T, class Dataset>
-void computeVeNormGradh(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeVeDefGradh(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    computeVeNormGradhImpl(startIndex, endIndex, ngmax, d, box);
+    computeVeDefGradhImpl(startIndex, endIndex, ngmax, d, box);
 }
 
 } // namespace sph

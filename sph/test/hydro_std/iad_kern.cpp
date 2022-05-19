@@ -73,26 +73,26 @@ TEST(IAD, JLoop)
     std::vector<T> iad(6, -1);
 
     // compute the 6 tensor components for particle 0
-    sph::kernels::IADJLoopSTD(0,
-                              sincIndex,
-                              K,
-                              box,
-                              neighbors.data(),
-                              neighborsCount,
-                              x.data(),
-                              y.data(),
-                              z.data(),
-                              h.data(),
-                              m.data(),
-                              rho.data(),
-                              wh.data(),
-                              whd.data(),
-                              &iad[0],
-                              &iad[1],
-                              &iad[2],
-                              &iad[3],
-                              &iad[4],
-                              &iad[5]);
+    IADJLoopSTD(0,
+                sincIndex,
+                K,
+                box,
+                neighbors.data(),
+                neighborsCount,
+                x.data(),
+                y.data(),
+                z.data(),
+                h.data(),
+                m.data(),
+                rho.data(),
+                wh.data(),
+                whd.data(),
+                &iad[0],
+                &iad[1],
+                &iad[2],
+                &iad[3],
+                &iad[4],
+                &iad[5]);
 
     EXPECT_NEAR(iad[0], 0.68826690705820426, 1e-10);
     EXPECT_NEAR(iad[1], -0.12963692749098227, 1e-10);
@@ -139,26 +139,26 @@ TEST(IAD, JLoopPBC)
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     std::vector<T> iad(6, -1);
 
-    sph::kernels::IADJLoopSTD(0,
-                              sincIndex,
-                              K,
-                              box,
-                              neighbors.data(),
-                              neighborsCount,
-                              x.data(),
-                              y.data(),
-                              z.data(),
-                              h.data(),
-                              m.data(),
-                              rho.data(),
-                              wh.data(),
-                              whd.data(),
-                              &iad[0],
-                              &iad[1],
-                              &iad[2],
-                              &iad[3],
-                              &iad[4],
-                              &iad[5]);
+    IADJLoopSTD(0,
+                sincIndex,
+                K,
+                box,
+                neighbors.data(),
+                neighborsCount,
+                x.data(),
+                y.data(),
+                z.data(),
+                h.data(),
+                m.data(),
+                rho.data(),
+                wh.data(),
+                whd.data(),
+                &iad[0],
+                &iad[1],
+                &iad[2],
+                &iad[3],
+                &iad[4],
+                &iad[5]);
 
     EXPECT_NEAR(iad[0], 0.42970014180599519, 1e-10);
     EXPECT_NEAR(iad[1], -0.2304555811353339, 1e-10);

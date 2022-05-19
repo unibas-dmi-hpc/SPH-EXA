@@ -37,8 +37,6 @@
 
 namespace sph
 {
-namespace kernels
-{
 
 //! @brief a particular choice of defining generalized volume elements
 template<class T>
@@ -48,9 +46,9 @@ CUDA_DEVICE_HOST_FUN inline T veDefinition(T mass, T rhoZero)
 }
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline void xmassJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
-                                            int neighborsCount, const T* x, const T* y, const T* z, const T* h,
-                                            const T* m, const T* wh, const T* whd, T* xm)
+CUDA_DEVICE_HOST_FUN inline T xmassJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
+                                         int neighborsCount, const T* x, const T* y, const T* z, const T* h, const T* m,
+                                         const T* wh, const T* whd)
 {
     T xi = x[i];
     T yi = y[i];
@@ -68,13 +66,13 @@ CUDA_DEVICE_HOST_FUN inline void xmassJLoop(int i, T sincIndex, T K, const cston
         int j    = neighbors[pj];
         T   dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
         T   vloc = dist * hInv;
-        T   w    = ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
+        T   w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
 
         rho0i += w * m[j];
     }
 
-    xm[i] = veDefinition(mi, rho0i * K * h3Inv);
+    T xmassi = veDefinition(mi, rho0i * K * h3Inv);
+    return xmassi;
 }
 
-} // namespace kernels
 } // namespace sph

@@ -6,8 +6,6 @@
 
 namespace sph
 {
-namespace kernels
-{
 
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void IADJLoopSTD(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
@@ -38,7 +36,7 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoopSTD(int i, T sincIndex, T K, const csto
 
         // calculate the v as ratio between the distance and the smoothing length
         T vloc = dist * hiInv;
-        T w    = ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
+        T w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
 
         T mj_roj_w = m[j] / ro[j] * w;
 
@@ -65,5 +63,4 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoopSTD(int i, T sincIndex, T K, const csto
     c33[i] = (tau11 * tau22 - tau12 * tau12) * factor;
 }
 
-} // namespace kernels
 } // namespace sph

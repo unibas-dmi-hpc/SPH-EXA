@@ -37,8 +37,6 @@
 
 namespace sph
 {
-namespace kernels
-{
 
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void
@@ -88,7 +86,7 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
         T vz_ji = vz[j] - vzi;
 
         T v1 = dist * hiInv;
-        T Wi = ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wi = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
 
         T termA1 = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
         T termA2 = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
@@ -107,5 +105,4 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
     curlv[i] = K * hiInv3 * std::abs(std::sqrt(curlv_x * curlv_x + curlv_y * curlv_y + curlv_z * curlv_z)) / kx[i];
 }
 
-} // namespace kernels
 } // namespace sph

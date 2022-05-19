@@ -73,8 +73,7 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
 
         size_t ni = i - startIndex;
 
-        rho[i] = kernels::densityJLoop(
-            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd);
+        rho[i] = densityJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd);
 
 #ifndef NDEBUG
         if (std::isnan(rho[i]))

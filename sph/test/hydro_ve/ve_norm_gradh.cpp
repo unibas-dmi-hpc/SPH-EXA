@@ -34,12 +34,12 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/hydro_ve/ve_norm_gradh_kern.hpp"
+#include "sph/hydro_ve/ve_def_gradh_kern.hpp"
 #include "sph/tables.hpp"
 
 using namespace sph;
 
-TEST(Density, JLoop)
+TEST(VeDefGradh, JLoop)
 {
     using T = double;
 
@@ -70,27 +70,27 @@ TEST(Density, JLoop)
      * j = 3   5.71577
      * j = 4   7.62102
      */
-    auto [kx, gradh] = sph::kernels::densityJLoop(0,
-                                                  sincIndex,
-                                                  K,
-                                                  box,
-                                                  neighbors.data(),
-                                                  neighborsCount,
-                                                  x.data(),
-                                                  y.data(),
-                                                  z.data(),
-                                                  h.data(),
-                                                  m.data(),
-                                                  wh.data(),
-                                                  whd.data(),
-                                                  xm.data());
+    auto [kx, gradh] = sph::veDefGradhJLoop(0,
+                                            sincIndex,
+                                            K,
+                                            box,
+                                            neighbors.data(),
+                                            neighborsCount,
+                                            x.data(),
+                                            y.data(),
+                                            z.data(),
+                                            h.data(),
+                                            m.data(),
+                                            wh.data(),
+                                            whd.data(),
+                                            xm.data());
 
     EXPECT_NEAR(kx * m[0] / xm[0], 1.67849454056818e-2, 1e-10);
     EXPECT_NEAR(gradh, 0.20340838824719132, 1e-10);
     EXPECT_NEAR(kx, 1.5259041277892543e-2, 1e-10);
 }
 
-TEST(Density, JLoopPBC)
+TEST(VeDefGradh, JLoopPBC)
 {
     using T = double;
 
@@ -125,20 +125,20 @@ TEST(Density, JLoopPBC)
      */
 
     T kx;
-    std::tie(kx, std::ignore) = sph::kernels::densityJLoop(0,
-                                                           sincIndex,
-                                                           K,
-                                                           box,
-                                                           neighbors.data(),
-                                                           neighborsCount,
-                                                           x.data(),
-                                                           y.data(),
-                                                           z.data(),
-                                                           h.data(),
-                                                           m.data(),
-                                                           wh.data(),
-                                                           whd.data(),
-                                                           xm.data());
+    std::tie(kx, std::ignore) = sph::veDefGradhJLoop(0,
+                                                     sincIndex,
+                                                     K,
+                                                     box,
+                                                     neighbors.data(),
+                                                     neighborsCount,
+                                                     x.data(),
+                                                     y.data(),
+                                                     z.data(),
+                                                     h.data(),
+                                                     m.data(),
+                                                     wh.data(),
+                                                     whd.data(),
+                                                     xm.data());
 
     EXPECT_NEAR(kx * m[0] / xm[0], 0.17929212293724384, 1e-10);
 }

@@ -6,8 +6,6 @@
 
 namespace sph
 {
-namespace kernels
-{
 
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline T densityJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
@@ -28,7 +26,7 @@ CUDA_DEVICE_HOST_FUN inline T densityJLoop(int i, T sincIndex, T K, const cstone
         int j    = neighbors[pj];
         T   dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
         T   vloc = dist * hInv;
-        T   w    = ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
+        T   w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
 
         roloc += w * m[j];
     }
@@ -36,5 +34,4 @@ CUDA_DEVICE_HOST_FUN inline T densityJLoop(int i, T sincIndex, T K, const cstone
     return K * (roloc + m[i]) * h3Inv;
 }
 
-} // namespace kernels
 } // namespace sph

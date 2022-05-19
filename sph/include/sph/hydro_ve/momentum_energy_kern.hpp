@@ -37,8 +37,6 @@
 
 namespace sph
 {
-namespace kernels
-{
 
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void
@@ -111,8 +109,8 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
 
         T hjInv3 = hjInv * hjInv * hjInv;
-        T Wi     = hiInv3 * ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
-        T Wj     = hjInv3 * ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
+        T Wi     = hiInv3 * math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wj     = hjInv3 * math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
 
         T termA1_i = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
         T termA2_i = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
@@ -194,5 +192,4 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
     *maxvsignal = maxvsignali;
 }
 
-} // namespace kernels
 } // namespace sph

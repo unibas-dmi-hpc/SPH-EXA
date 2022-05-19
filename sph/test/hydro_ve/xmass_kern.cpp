@@ -62,7 +62,6 @@ TEST(xmass, JLoop)
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
-    std::vector<T> xm{-1.0, -1.0, -1.0, -1.0, -1.0};
 
     /* distances of particle zero to particle j
      *
@@ -72,19 +71,18 @@ TEST(xmass, JLoop)
      * j = 4   7.62102
      */
 
-    sph::kernels::xmassJLoop(0,
-                             sincIndex,
-                             K,
-                             box,
-                             neighbors.data(),
-                             neighborsCount,
-                             x.data(),
-                             y.data(),
-                             z.data(),
-                             h.data(),
-                             m.data(),
-                             wh.data(),
-                             whd.data(),
-                             xm.data());
-    EXPECT_NEAR(xm[0], m[0] / 1.84507162831338e-2, 1e-10);
+    T xmass = xmassJLoop(0,
+                         sincIndex,
+                         K,
+                         box,
+                         neighbors.data(),
+                         neighborsCount,
+                         x.data(),
+                         y.data(),
+                         z.data(),
+                         h.data(),
+                         m.data(),
+                         wh.data(),
+                         whd.data());
+    EXPECT_NEAR(xmass, m[0] / 1.84507162831338e-2, 1e-10);
 }

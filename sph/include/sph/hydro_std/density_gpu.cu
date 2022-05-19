@@ -63,7 +63,7 @@ __global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, int
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-    rho[i] = sph::kernels::densityJLoop(i, sincIndex, K, box, neighbors, neighborsCount_, x, y, z, h, m, wh, whd);
+    rho[i] = sph::densityJLoop(i, sincIndex, K, box, neighbors, neighborsCount_, x, y, z, h, m, wh, whd);
 
     neighborsCount[tid] = neighborsCount_;
 }

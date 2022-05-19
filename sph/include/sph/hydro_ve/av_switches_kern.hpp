@@ -37,8 +37,6 @@
 
 namespace sph
 {
-namespace kernels
-{
 
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline T
@@ -100,7 +98,7 @@ AVswitchesJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
         vijsignal_i = stl::max(vijsignal_i, vijsignal_ij);
 
         T v1 = dist * hiInv;
-        T Wi = K * hiInv3 * ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wi = K * hiInv3 * math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
 
         T termA1 = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
         T termA2 = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
@@ -136,5 +134,4 @@ AVswitchesJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
     return alpha_i;
 }
 
-} // namespace kernels
 } // namespace sph

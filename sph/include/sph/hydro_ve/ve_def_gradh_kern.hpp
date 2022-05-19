@@ -37,13 +37,11 @@
 
 namespace sph
 {
-namespace kernels
-{
 
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline util::tuple<T, T>
-densityJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount, const T* x,
-             const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, const T* xm)
+veDefGradhJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
+                const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, const T* xm)
 {
     T xi     = x[i];
     T yi     = y[i];
@@ -65,7 +63,7 @@ densityJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neig
         int j      = neighbors[pj];
         T   dist   = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
         T   vloc   = dist * hInv;
-        T   w      = ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
+        T   w      = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
         T   dw     = wharmonic_derivative(vloc, w) * sincIndex;
         T   dterh  = -(T(3) * w + vloc * dw);
         T   xmassj = xm[j];
@@ -87,5 +85,4 @@ densityJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neig
     return {kxi, gradhi};
 }
 
-} // namespace kernels
 } // namespace sph
