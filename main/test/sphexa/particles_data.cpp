@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Unit tests for I/O related functionality
+ * @brief Unit tests for ParticlesData
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */

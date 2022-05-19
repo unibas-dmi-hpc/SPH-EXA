@@ -48,8 +48,6 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
 
     size_t sizeWithHalos     = d.x.size();
     size_t numLocalParticles = endIndex - startIndex;
-    size_t size_np_T         = sizeWithHalos * sizeof(T);
-    size_t size_np_CodeType  = sizeWithHalos * sizeof(KeyType);
 
     size_t taskSize = DeviceParticlesData<T, KeyType>::taskSize;
     size_t numTasks = iceil(numLocalParticles, taskSize);
@@ -57,20 +55,12 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     // number of CUDA streams to use
     constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
-
     for (int i = 0; i < numTasks; ++i)
     {
         int          sIdx   = i % NST;
-        cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
+        cudaStream_t stream = d.devData.d_stream[sIdx].stream;
 
-        int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
+        int* d_neighborsCount_use = d.devData.d_stream[sIdx].d_neighborsCount;
 
         unsigned firstParticle       = startIndex + i * taskSize;
         unsigned lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
@@ -86,16 +76,16 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
                                                           firstParticle,
                                                           lastParticle,
                                                           sizeWithHalos,
-                                                          d.devPtrs.d_codes,
+                                                          rawPtr(d.devData.codes),
                                                           d_neighborsCount_use,
-                                                          d.devPtrs.d_x,
-                                                          d.devPtrs.d_y,
-                                                          d.devPtrs.d_z,
-                                                          d.devPtrs.d_h,
-                                                          d.devPtrs.d_m,
-                                                          d.devPtrs.d_wh,
-                                                          d.devPtrs.d_whd,
-                                                          d.devPtrs.d_rho);
+                                                          rawPtr(d.devData.x),
+                                                          rawPtr(d.devData.y),
+                                                          rawPtr(d.devData.z),
+                                                          rawPtr(d.devData.h),
+                                                          rawPtr(d.devData.m),
+                                                          rawPtr(d.devData.wh),
+                                                          rawPtr(d.devData.whd),
+                                                          rawPtr(d.devData.rho));
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
@@ -104,9 +94,6 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
                                        cudaMemcpyDeviceToHost,
                                        stream));
     }
-
-    // Memcpy in default stream synchronizes all other streams
-    CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(), d.devPtrs.d_rho, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeDensity(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,

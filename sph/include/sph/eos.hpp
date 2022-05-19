@@ -20,7 +20,7 @@ namespace sph
 template<class T1, class T2>
 CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho)
 {
-    using Tc = std::common_type_t<T1, T2>;
+    using Tc           = std::common_type_t<T1, T2>;
     constexpr Tc gamma = (5.0 / 3.0);
 
     Tc tmp = u * (gamma - Tc(1));
@@ -69,8 +69,8 @@ CUDA_DEVICE_HOST_FUN auto polytropicEOS(T rho)
     constexpr T Kpol     = 2.246341237993810232e-10;
     constexpr T gammapol = 3.e0;
 
-    T p    = Kpol * std::pow(rho, gammapol);
-    T c    = std::sqrt(gammapol * p / rho);
+    T p = Kpol * std::pow(rho, gammapol);
+    T c = std::sqrt(gammapol * p / rho);
 
     return util::tuple<T, T>{p, c};
 }
@@ -132,8 +132,6 @@ void computeEOS_Polytropic(size_t startIndex, size_t endIndex, Dataset& d)
         std::tie(p[i], c[i]) = polytropicEOS(rho);
     }
 }
-
-
 
 /*! @brief Ideal gas EOS interface w/o temperature for SPH where rho is stored
  *

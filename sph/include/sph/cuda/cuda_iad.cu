@@ -76,10 +76,6 @@ void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
     // number of locally present particles, including halos
     size_t sizeWithHalos = d.x.size();
 
-    size_t size_np_T = sizeWithHalos * sizeof(T);
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_rho, d.rho.data(), size_np_T, cudaMemcpyHostToDevice));
-
     unsigned numParticlesCompute = endIndex - startIndex;
 
     unsigned numThreads = 128;
@@ -92,29 +88,22 @@ void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                                        startIndex,
                                        endIndex,
                                        sizeWithHalos,
-                                       d.devPtrs.d_codes,
-                                       d.devPtrs.d_x,
-                                       d.devPtrs.d_y,
-                                       d.devPtrs.d_z,
-                                       d.devPtrs.d_h,
-                                       d.devPtrs.d_m,
-                                       d.devPtrs.d_rho,
-                                       d.devPtrs.d_wh,
-                                       d.devPtrs.d_whd,
-                                       d.devPtrs.d_c11,
-                                       d.devPtrs.d_c12,
-                                       d.devPtrs.d_c13,
-                                       d.devPtrs.d_c22,
-                                       d.devPtrs.d_c23,
-                                       d.devPtrs.d_c33);
+                                       rawPtr(d.devData.codes),
+                                       rawPtr(d.devData.x),
+                                       rawPtr(d.devData.y),
+                                       rawPtr(d.devData.z),
+                                       rawPtr(d.devData.h),
+                                       rawPtr(d.devData.m),
+                                       rawPtr(d.devData.rho),
+                                       rawPtr(d.devData.wh),
+                                       rawPtr(d.devData.whd),
+                                       rawPtr(d.devData.c11),
+                                       rawPtr(d.devData.c12),
+                                       rawPtr(d.devData.c13),
+                                       rawPtr(d.devData.c22),
+                                       rawPtr(d.devData.c23),
+                                       rawPtr(d.devData.c33));
     CHECK_CUDA_ERR(cudaGetLastError());
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.c11.data(), d.devPtrs.d_c11, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c12.data(), d.devPtrs.d_c12, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c13.data(), d.devPtrs.d_c13, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c22.data(), d.devPtrs.d_c22, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c23.data(), d.devPtrs.d_c23, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c33.data(), d.devPtrs.d_c33, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeIAD(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>& d,

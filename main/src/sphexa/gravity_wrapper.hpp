@@ -97,6 +97,12 @@ private:
     std::vector<MType> multipoles_;
 };
 
+template<class ThrustVec>
+typename ThrustVec::value_type* rawPtr(ThrustVec& p);
+
+template<class ThrustVec>
+const typename ThrustVec::value_type* rawPtr(const ThrustVec& p);
+
 template<class MType, class KeyType, class Tc, class Tm, class Tf>
 class MultipoleHolderGpu
 {
@@ -113,10 +119,10 @@ public:
 
         reallocate(multipoles_, octree.numTreeNodes(), 1.05);
 
-        mHolder_.upsweep(d.devPtrs.d_x,
-                         d.devPtrs.d_y,
-                         d.devPtrs.d_z,
-                         d.devPtrs.d_m,
+        mHolder_.upsweep(rawPtr(d.devData.x),
+                         rawPtr(d.devData.y),
+                         rawPtr(d.devData.z),
+                         rawPtr(d.devData.m),
                          domain.globalTree(),
                          domain.focusTree(),
                          domain.layout().data(),
@@ -128,15 +134,15 @@ public:
     {
         d.egrav = mHolder_.compute(domain.startIndex(),
                                    domain.endIndex(),
-                                   d.devPtrs.d_x,
-                                   d.devPtrs.d_y,
-                                   d.devPtrs.d_z,
-                                   d.devPtrs.d_m,
-                                   d.devPtrs.d_h,
+                                   rawPtr(d.devData.x),
+                                   rawPtr(d.devData.y),
+                                   rawPtr(d.devData.z),
+                                   rawPtr(d.devData.m),
+                                   rawPtr(d.devData.h),
                                    d.g,
-                                   d.devPtrs.d_ax,
-                                   d.devPtrs.d_ay,
-                                   d.devPtrs.d_az);
+                                   rawPtr(d.devData.ax),
+                                   rawPtr(d.devData.ay),
+                                   rawPtr(d.devData.az));
     }
 
     const MType* multipoles() const { return multipoles_.data(); }

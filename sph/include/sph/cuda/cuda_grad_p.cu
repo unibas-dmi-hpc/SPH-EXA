@@ -109,20 +109,6 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
     using T = typename Dataset::RealType;
 
     size_t sizeWithHalos = d.x.size();
-    size_t size_np_T     = sizeWithHalos * sizeof(T);
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vx, d.vx.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vy, d.vy.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vz, d.vz.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_p, d.p.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c, d.c.data(), size_np_T, cudaMemcpyHostToDevice));
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c11, d.c11.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c12, d.c12.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c13, d.c13.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c22, d.c22.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c23, d.c23.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c33, d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
 
     unsigned numParticlesCompute = endIndex - startIndex;
 
@@ -140,46 +126,36 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
                                          startIndex,
                                          endIndex,
                                          sizeWithHalos,
-                                         d.devPtrs.d_codes,
-                                         d.devPtrs.d_x,
-                                         d.devPtrs.d_y,
-                                         d.devPtrs.d_z,
-                                         d.devPtrs.d_vx,
-                                         d.devPtrs.d_vy,
-                                         d.devPtrs.d_vz,
-                                         d.devPtrs.d_h,
-                                         d.devPtrs.d_m,
-                                         d.devPtrs.d_rho,
-                                         d.devPtrs.d_p,
-                                         d.devPtrs.d_c,
-                                         d.devPtrs.d_c11,
-                                         d.devPtrs.d_c12,
-                                         d.devPtrs.d_c13,
-                                         d.devPtrs.d_c22,
-                                         d.devPtrs.d_c23,
-                                         d.devPtrs.d_c33,
-                                         d.devPtrs.d_wh,
-                                         d.devPtrs.d_whd,
-                                         d.devPtrs.d_ax,
-                                         d.devPtrs.d_ay,
-                                         d.devPtrs.d_az,
-                                         d.devPtrs.d_du);
+                                         rawPtr(d.devData.codes),
+                                         rawPtr(d.devData.x),
+                                         rawPtr(d.devData.y),
+                                         rawPtr(d.devData.z),
+                                         rawPtr(d.devData.vx),
+                                         rawPtr(d.devData.vy),
+                                         rawPtr(d.devData.vz),
+                                         rawPtr(d.devData.h),
+                                         rawPtr(d.devData.m),
+                                         rawPtr(d.devData.rho),
+                                         rawPtr(d.devData.p),
+                                         rawPtr(d.devData.c),
+                                         rawPtr(d.devData.c11),
+                                         rawPtr(d.devData.c12),
+                                         rawPtr(d.devData.c13),
+                                         rawPtr(d.devData.c22),
+                                         rawPtr(d.devData.c23),
+                                         rawPtr(d.devData.c33),
+                                         rawPtr(d.devData.wh),
+                                         rawPtr(d.devData.whd),
+                                         rawPtr(d.devData.ax),
+                                         rawPtr(d.devData.ay),
+                                         rawPtr(d.devData.az),
+                                         rawPtr(d.devData.du));
 
     CHECK_CUDA_ERR(cudaGetLastError());
 
     float minDt;
     CHECK_CUDA_ERR(cudaMemcpyFromSymbol(&minDt, minDt_device, sizeof(minDt)));
     d.minDt_loc = minDt;
-
-    // if we don't have gravity, we copy back the pressure gradients (=acceleration) now
-    if (d.g == 0.0)
-    {
-        CHECK_CUDA_ERR(cudaMemcpy(d.ax.data(), d.devPtrs.d_ax, size_np_T, cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERR(cudaMemcpy(d.ay.data(), d.devPtrs.d_ay, size_np_T, cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERR(cudaMemcpy(d.az.data(), d.devPtrs.d_az, size_np_T, cudaMemcpyDeviceToHost));
-    }
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d.devPtrs.d_du, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>& d,
