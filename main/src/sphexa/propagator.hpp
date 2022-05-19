@@ -44,7 +44,7 @@
 namespace sphexa
 {
 
-using namespace sphexa::sph;
+using namespace sph;
 
 template<class DomainType, class ParticleDataType>
 class Propagator

@@ -35,8 +35,6 @@
 
 #include "sph/tables.hpp"
 
-namespace sphexa
-{
 namespace sph
 {
 namespace kernels
@@ -70,7 +68,7 @@ CUDA_DEVICE_HOST_FUN inline void xmassJLoop(int i, T sincIndex, T K, const cston
         int j    = neighbors[pj];
         T   dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
         T   vloc = dist * hInv;
-        T   w    = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
+        T   w    = ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
 
         rho0i += w * m[j];
     }
@@ -80,4 +78,3 @@ CUDA_DEVICE_HOST_FUN inline void xmassJLoop(int i, T sincIndex, T K, const cston
 
 } // namespace kernels
 } // namespace sph
-} // namespace sphexa

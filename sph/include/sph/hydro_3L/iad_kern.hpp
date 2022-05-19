@@ -4,8 +4,6 @@
 
 #include "sph/tables.hpp"
 
-namespace sphexa
-{
 namespace sph
 {
 namespace kernels
@@ -40,7 +38,7 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop3L(int i, T sincIndex, T K, const cston
 
         // calculate the v as ratio between the distance and the smoothing length
         T vloc = dist * hiInv;
-        T w    = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
+        T w    = ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
 
         T mj_roj_w = m[j] / ro[j] * w;
 
@@ -69,4 +67,3 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop3L(int i, T sincIndex, T K, const cston
 
 } // namespace kernels
 } // namespace sph
-} // namespace sphexa

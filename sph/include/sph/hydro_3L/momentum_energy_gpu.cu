@@ -36,8 +36,6 @@
 
 #include "cstone/cuda/findneighbors.cuh"
 
-namespace sphexa
-{
 namespace sph
 {
 namespace cuda
@@ -187,15 +185,18 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
     d.minDt_loc = minDt;
 }
 
-template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeMomentumAndEnergy(size_t, size_t, size_t,
+                                       sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
-template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumAndEnergy(size_t, size_t, size_t,
+                                       sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
-template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeMomentumAndEnergy(size_t, size_t, size_t,
+                                       sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                        const cstone::Box<float>&);
-template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumAndEnergy(size_t, size_t, size_t,
+                                       sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<float>&);
 
 } // namespace cuda
 } // namespace sph
-} // namespace sphexa

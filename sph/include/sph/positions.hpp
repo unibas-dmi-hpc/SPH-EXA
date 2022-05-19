@@ -36,8 +36,6 @@
 #include <cmath>
 #include <tuple>
 
-namespace sphexa
-{
 namespace sph
 {
 
@@ -149,4 +147,3 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 }
 
 } // namespace sph
-} // namespace sphexa

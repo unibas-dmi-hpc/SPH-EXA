@@ -38,8 +38,6 @@
 
 #include "cstone/cuda/findneighbors.cuh"
 
-namespace sphexa
-{
 namespace sph
 {
 namespace cuda
@@ -80,11 +78,11 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     size_t sizeWithHalos     = d.x.size();
     size_t numLocalParticles = endIndex - startIndex;
 
-    size_t taskSize = DeviceParticlesData<T, KeyType>::taskSize;
+    size_t taskSize = sphexa::DeviceParticlesData<T, KeyType>::taskSize;
     size_t numTasks = iceil(numLocalParticles, taskSize);
 
     // number of CUDA streams to use
-    constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
+    constexpr int NST = sphexa::DeviceParticlesData<T, Dataset>::NST;
 
     for (int i = 0; i < numTasks; ++i)
     {
@@ -127,15 +125,14 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     }
 }
 
-template void computeDensity(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>&,
                              const cstone::Box<double>&);
-template void computeDensity(size_t, size_t, size_t, ParticlesData<double, uint64_t, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>&,
                              const cstone::Box<double>&);
-template void computeDensity(size_t, size_t, size_t, ParticlesData<float, unsigned, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>&,
                              const cstone::Box<float>&);
-template void computeDensity(size_t, size_t, size_t, ParticlesData<float, uint64_t, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>&,
                              const cstone::Box<float>&);
 
 } // namespace cuda
 } // namespace sph
-} // namespace sphexa

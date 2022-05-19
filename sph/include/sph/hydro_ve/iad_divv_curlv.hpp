@@ -37,8 +37,6 @@
 #include "sph/sph.cuh"
 #endif
 
-namespace sphexa
-{
 namespace sph
 {
 
@@ -135,4 +133,3 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Datas
 }
 
 } // namespace sph
-} // namespace sphexa

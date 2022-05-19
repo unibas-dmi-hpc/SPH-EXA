@@ -39,7 +39,7 @@ using namespace sphexa;
 
 TEST(DeviceParticlesData, resize)
 {
-    sph::cuda::DeviceParticlesData<double, unsigned> dev;
+    DeviceParticlesData<double, unsigned> dev;
 
     dev.setConserved("x", "y", "z");
     dev.setDependent("du");

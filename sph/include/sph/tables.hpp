@@ -3,9 +3,8 @@
 #include "sph/util/annotation.hpp"
 #include "kernels.hpp"
 
-namespace sphexa
+namespace sph
 {
-
 namespace lt
 {
 
@@ -66,4 +65,4 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_lt_with_derivative(const T* wh, const T*
 
 } // namespace lt
 
-} // namespace sphexa
+} // namespace sph

@@ -35,8 +35,6 @@
 
 #include "sph/tables.hpp"
 
-namespace sphexa
-{
 namespace sph
 {
 namespace kernels
@@ -90,7 +88,7 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
         T vz_ji = vz[j] - vzi;
 
         T v1 = dist * hiInv;
-        T Wi = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wi = ::sph::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
 
         T termA1 = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
         T termA2 = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
@@ -111,4 +109,3 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
 
 } // namespace kernels
 } // namespace sph
-} // namespace sphexa

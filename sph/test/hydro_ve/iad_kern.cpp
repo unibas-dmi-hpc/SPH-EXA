@@ -37,7 +37,7 @@
 #include "sph/hydro_ve/iad_kern.hpp"
 #include "sph/tables.hpp"
 
-using namespace sphexa;
+using namespace sph;
 
 TEST(IAD, JLoop)
 {
@@ -64,7 +64,7 @@ TEST(IAD, JLoop)
     std::vector<T> kx{-1.0, -1.0, -1.0, -1.0, -1.0};
     for (i = 0; i < neighborsCount + 1; i++)
     {
-        kx[i] = K * xm[i] / ::sphexa::math::pow(h[i], 3);
+        kx[i] = K * xm[i] / math::pow(h[i], 3);
     }
     /* distances of particle zero to particle j
      *

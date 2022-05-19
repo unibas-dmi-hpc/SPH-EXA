@@ -37,7 +37,7 @@
 #include "sph/hydro_ve/divv_curlv_kern.hpp"
 #include "sph/tables.hpp"
 
-using namespace sphexa;
+using namespace sph;
 
 TEST(Divv_Curlv, JLoop)
 {
@@ -76,7 +76,7 @@ TEST(Divv_Curlv, JLoop)
     std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
     for (i = 0; i < neighborsCount + 1; i++)
     {
-        kx[i] = K * xm[i] / ::sphexa::math::pow(h[i], 3);
+        kx[i] = K * xm[i] / math::pow(h[i], 3);
     }
     /* distances of particle zero to particle j
      *

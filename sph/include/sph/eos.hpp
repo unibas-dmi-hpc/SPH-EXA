@@ -4,8 +4,6 @@
 
 #include "kernels.hpp"
 
-namespace sphexa
-{
 namespace sph
 {
 
@@ -161,4 +159,3 @@ void computeEOS3L(size_t startIndex, size_t endIndex, Dataset& d)
 }
 
 } // namespace sph
-} // namespace sphexa

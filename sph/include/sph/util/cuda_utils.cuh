@@ -6,13 +6,26 @@
 #include <cuda_runtime_api.h>
 #include <type_traits>
 
-namespace sphexa
-{
 namespace sph
 {
 namespace cuda
 {
-#define CHECK_CUDA_ERR(errcode) sphexa::sph::cuda::utils::checkErr((errcode), __FILE__, __LINE__, #errcode)
+
+template<class ThrustVec>
+typename ThrustVec::value_type* rawPtr(ThrustVec& p)
+{
+    assert(p.size() && "cannot get pointer to unallocated device vector memory");
+    return thrust::raw_pointer_cast(p.data());
+}
+
+template<class ThrustVec>
+const typename ThrustVec::value_type* rawPtr(const ThrustVec& p)
+{
+    assert(p.size() && "cannot get pointer to unallocated device vector memory");
+    return thrust::raw_pointer_cast(p.data());
+}
+
+#define CHECK_CUDA_ERR(errcode) ::sph::cuda::utils::checkErr((errcode), __FILE__, __LINE__, #errcode)
 
 namespace utils
 {
@@ -63,4 +76,3 @@ inline cudaError_t cudaMalloc(size_t bytes, Ptr& devptr, Ptrs&&... ptrs)
 } // namespace utils
 } // namespace cuda
 } // namespace sph
-} // namespace sphexa

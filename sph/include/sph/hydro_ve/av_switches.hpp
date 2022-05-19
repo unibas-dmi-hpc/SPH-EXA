@@ -36,8 +36,6 @@
 #include "sph/sph.cuh"
 #endif
 
-namespace sphexa
-{
 namespace sph
 {
 
@@ -122,4 +120,3 @@ void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset
 }
 
 } // namespace sph
-} // namespace sphexa

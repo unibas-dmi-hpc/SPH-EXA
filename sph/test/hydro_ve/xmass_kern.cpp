@@ -37,7 +37,7 @@
 #include "sph/hydro_ve/xmass_kern.hpp"
 #include "sph/tables.hpp"
 
-using namespace sphexa;
+using namespace sph;
 
 TEST(xmass, JLoop)
 {

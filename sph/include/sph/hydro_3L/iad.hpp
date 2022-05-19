@@ -39,8 +39,6 @@
 #include "sph/sph.cuh"
 #endif
 
-namespace sphexa
-{
 namespace sph
 {
 
@@ -108,5 +106,3 @@ void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, co
 }
 
 } // namespace sph
-
-} // namespace sphexa

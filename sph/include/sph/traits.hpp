@@ -78,16 +78,8 @@ struct DeviceDataFacade
     inline static constexpr std::array fieldNames{0};
 };
 
-namespace sph
-{
-namespace cuda
-{
-
 template<class T, class KeyType>
 class DeviceParticlesData;
-
-} // namespace cuda
-} // namespace sph
 
 namespace detail
 {
@@ -116,8 +108,8 @@ struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<H
 
 //! @brief Just a facade on the CPU, DeviceParticlesData on the GPU
 template<class Accelerator, class T, class KeyType>
-using DeviceData_t = typename detail::AccelSwitchType<Accelerator, DeviceDataFacade,
-                                                      sph::cuda::DeviceParticlesData>::template type<T, KeyType>;
+using DeviceData_t =
+    typename detail::AccelSwitchType<Accelerator, DeviceDataFacade, DeviceParticlesData>::template type<T, KeyType>;
 
 //! @brief std::allocator on the CPU, pinned_allocator on the GPU
 template<class Accelerator, class T>

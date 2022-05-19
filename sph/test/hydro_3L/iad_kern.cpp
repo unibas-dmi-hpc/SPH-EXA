@@ -36,7 +36,7 @@
 #include "sph/hydro_3L/iad_kern.hpp"
 #include "sph/tables.hpp"
 
-using namespace sphexa;
+using namespace sph;
 
 TEST(IAD, JLoop)
 {

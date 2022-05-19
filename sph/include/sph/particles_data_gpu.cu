@@ -31,10 +31,6 @@
 
 namespace sphexa
 {
-namespace sph
-{
-namespace cuda
-{
 
 template<typename T, class KeyType>
 void DeviceParticlesData<T, KeyType>::resize(size_t size)
@@ -67,6 +63,4 @@ template class DeviceParticlesData<float, uint64_t>;
 template class DeviceParticlesData<double, unsigned>;
 template class DeviceParticlesData<double, uint64_t>;
 
-} // namespace cuda
-} // namespace sph
 } // namespace sphexa

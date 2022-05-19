@@ -6,8 +6,6 @@
 //! @brief maximum number of neighbors supported in GPU kernels
 #define NGMAX 150
 
-namespace sphexa
-{
 namespace sph
 {
 namespace cuda
@@ -25,4 +23,3 @@ extern void computeMomentumAndEnergy(size_t, size_t, size_t, Dataset& d,
 
 } // namespace cuda
 } // namespace sph
-} // namespace sphexa

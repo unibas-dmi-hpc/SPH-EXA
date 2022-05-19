@@ -39,8 +39,6 @@
 #include "sph/sph.cuh"
 #endif
 
-namespace sphexa
-{
 namespace sph
 {
 
@@ -139,4 +137,3 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
 }
 
 } // namespace sph
-} // namespace sphexa

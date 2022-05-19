@@ -43,10 +43,6 @@
 
 namespace sphexa
 {
-namespace sph
-{
-namespace cuda
-{
 
 template<typename T, class KeyType>
 class DeviceParticlesData : public FieldStates<DeviceParticlesData<T, KeyType>>
@@ -134,8 +130,8 @@ public:
 
     DeviceParticlesData()
     {
-        auto wh_table  = lt::createWharmonicLookupTable<T, lt::size>();
-        auto whd_table = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
+        auto wh_table  = ::sph::lt::createWharmonicLookupTable<T, ::sph::lt::size>();
+        auto whd_table = ::sph::lt::createWharmonicDerivativeLookupTable<T, ::sph::lt::size>();
 
         wh  = DevVector<T>(wh_table.begin(), wh_table.end());
         whd = DevVector<T>(whd_table.begin(), whd_table.end());
@@ -152,7 +148,7 @@ public:
         for (int i = 0; i < NST; ++i)
         {
             CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
-            CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighborsCount));
+            CHECK_CUDA_ERR(::sph::cuda::utils::cudaFree(d_stream[i].d_neighborsCount));
         }
     }
 
@@ -165,7 +161,7 @@ private:
             {
                 for (int i = 0; i < NST; ++i)
                 {
-                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighborsCount));
+                    CHECK_CUDA_ERR(::sph::cuda::utils::cudaFree(d_stream[i].d_neighborsCount));
                 }
             }
 
@@ -174,16 +170,13 @@ private:
 
             for (int i = 0; i < NST; ++i)
             {
-                CHECK_CUDA_ERR(utils::cudaMalloc(newTaskSize * sizeof(int), d_stream[i].d_neighborsCount));
+                CHECK_CUDA_ERR(::sph::cuda::utils::cudaMalloc(newTaskSize * sizeof(int), d_stream[i].d_neighborsCount));
             }
 
             allocatedTaskSize = newTaskSize;
         }
     }
 };
-
-} // namespace cuda
-} // namespace sph
 
 template<class ThrustVec>
 typename ThrustVec::value_type* rawPtr(ThrustVec& p)
@@ -217,9 +210,7 @@ void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<
             CHECK_CUDA_ERR(cudaMemcpy(
                 rawPtr(*deviceField) + first, hostField->data() + first, transferSize, cudaMemcpyHostToDevice));
         }
-        else
-        {
-            throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
+        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
         }
     };
 
@@ -249,9 +240,7 @@ void transferToHost(DataType& d, size_t first, size_t last, const std::vector<st
             CHECK_CUDA_ERR(cudaMemcpy(
                 hostField->data() + first, rawPtr(*deviceField) + first, transferSize, cudaMemcpyDeviceToHost));
         }
-        else
-        {
-            throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
+        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
         }
     };
 

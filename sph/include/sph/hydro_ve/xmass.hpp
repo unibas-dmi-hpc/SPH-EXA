@@ -37,8 +37,6 @@
 #include "sph/sph.cuh"
 #endif
 
-namespace sphexa
-{
 namespace sph
 {
 template<typename T, class Dataset>
@@ -81,4 +79,3 @@ void computeXMass(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, 
 }
 
 } // namespace sph
-} // namespace sphexa

@@ -36,8 +36,6 @@
 #include "sph/sph.cuh"
 #endif
 
-namespace sphexa
-{
 namespace sph
 {
 template<class T, class Dataset>
@@ -88,4 +86,3 @@ void computeVeNormGradh(size_t startIndex, size_t endIndex, size_t ngmax, Datase
 }
 
 } // namespace sph
-} // namespace sphexa
