@@ -2,7 +2,7 @@
 #include "sph.cuh"
 #include "sph/particles_data.hpp"
 #include "cuda_utils.cuh"
-#include "sph/hydro_3L/kernel/iad_kern.hpp"
+#include "sph/hydro_3L/iad_kern.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 

@@ -3,7 +3,7 @@
 #include "sph.cuh"
 #include "sph/particles_data.hpp"
 #include "cuda_utils.cuh"
-#include "sph/hydro_3L/kernel/density_kern.hpp"
+#include "sph/hydro_3L/density_kern.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 

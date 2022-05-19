@@ -33,7 +33,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/hydro_3L/kernel/iad_kern.hpp"
+#include "sph/hydro_3L/iad_kern.hpp"
 #include "sph/tables.hpp"
 
 using namespace sphexa;

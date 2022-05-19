@@ -2,7 +2,7 @@
 
 #include "sph/math.hpp"
 #include "sph/kernels.hpp"
-#include "kernel/iad_kern.hpp"
+#include "iad_kern.hpp"
 #ifdef USE_CUDA
 #include "sph/cuda/sph.cuh"
 #endif

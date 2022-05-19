@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../../../../../domain/include/cstone/sfc/box.hpp"
+#include "cstone/sfc/box.hpp"
 
-#include "../../tables.hpp"
+#include "sph/tables.hpp"
 
 namespace sphexa
 {
