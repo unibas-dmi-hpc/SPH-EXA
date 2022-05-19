@@ -18,4 +18,4 @@ target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(${testname} PRIVATE GTest::gtest_main)
 add_test(NAME ${testname} COMMAND ${testname})
 
-install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/kernel)
+install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/hydro)
