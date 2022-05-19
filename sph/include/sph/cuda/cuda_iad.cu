@@ -1,9 +1,8 @@
-#include <algorithm>
 
 #include "sph.cuh"
 #include "sph/particles_data.hpp"
 #include "cuda_utils.cuh"
-#include "sph/kernel/iad_kern.hpp"
+#include "sph/hydro_3L/kernel/iad_kern.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 

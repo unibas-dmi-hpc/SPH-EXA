@@ -1,8 +1,10 @@
 #pragma once
 
-#include "kernel_ve/momentum_energy_kern.hpp"
+#include "sph/math.hpp"
+#include "sph/kernels.hpp"
+#include "kernel/momentum_energy_kern.hpp"
 #ifdef USE_CUDA
-#include "cuda/sph.cuh"
+#include "sph/cuda/sph.cuh"
 #endif
 
 namespace sphexa
@@ -11,22 +13,23 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumAndEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+                                  const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
 
-    const T* h     = d.h.data();
-    const T* m     = d.m.data();
-    const T* x     = d.x.data();
-    const T* y     = d.y.data();
-    const T* z     = d.z.data();
-    const T* vx    = d.vx.data();
-    const T* vy    = d.vy.data();
-    const T* vz    = d.vz.data();
-    const T* c     = d.c.data();
-    const T* prho  = d.prho.data();
-    const T* alpha = d.alpha.data();
+    const T* h   = d.h.data();
+    const T* m   = d.m.data();
+    const T* x   = d.x.data();
+    const T* y   = d.y.data();
+    const T* z   = d.z.data();
+    const T* vx  = d.vx.data();
+    const T* vy  = d.vy.data();
+    const T* vz  = d.vz.data();
+    const T* rho = d.rho.data();
+    const T* c   = d.c.data();
+    const T* p   = d.p.data();
 
     const T* c11 = d.c11.data();
     const T* c12 = d.c12.data();
@@ -42,14 +45,9 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
 
     const T* wh  = d.wh.data();
     const T* whd = d.whd.data();
-    const T* kx  = d.kx.data();
-    const T* xm  = d.xm.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
-    const T Atmin     = d.Atmin;
-    const T Atmax     = d.Atmax;
-    const T ramp      = d.ramp;
 
     T minDt = INFINITY;
 
@@ -74,7 +72,8 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
                                         vz,
                                         h,
                                         m,
-                                        prho,
+                                        rho,
+                                        p,
                                         c,
                                         c11,
                                         c12,
@@ -82,14 +81,8 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
                                         c22,
                                         c23,
                                         c33,
-                                        Atmin,
-                                        Atmax,
-                                        ramp,
                                         wh,
                                         whd,
-                                        kx,
-                                        xm,
-                                        alpha,
                                         grad_P_x,
                                         grad_P_y,
                                         grad_P_z,
@@ -104,9 +97,13 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
 }
 
 template<class T, class Dataset>
-void computeGradPVE(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    computeGradPVeImpl(startIndex, endIndex, ngmax, d, box);
+#if defined(USE_CUDA)
+    cuda::computeMomentumAndEnergy(startIndex, endIndex, ngmax, d, box);
+#else
+    computeMomentumAndEnergyImpl(startIndex, endIndex, ngmax, d, box);
+#endif
 }
 
 } // namespace sph

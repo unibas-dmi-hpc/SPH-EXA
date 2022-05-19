@@ -34,7 +34,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel_ve/momentum_energy_kern.hpp"
+#include "sph/hydro_ve/kernel_ve/momentum_energy_kern.hpp"
 #include "sph/tables.hpp"
 
 using namespace sphexa;

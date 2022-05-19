@@ -1,13 +1,10 @@
 #pragma once
 
-#include <vector>
-
-#include <cmath>
-#include "math.hpp"
-#include "kernels.hpp"
+#include "sph/math.hpp"
+#include "sph/kernels.hpp"
 #include "kernel/iad_kern.hpp"
 #ifdef USE_CUDA
-#include "cuda/sph.cuh"
+#include "sph/cuda/sph.cuh"
 #endif
 
 namespace sphexa

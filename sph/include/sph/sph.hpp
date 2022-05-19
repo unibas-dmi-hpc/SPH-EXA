@@ -6,9 +6,9 @@
 
 #include "sph/find_neighbors.hpp"
 
-#include "sph/density.hpp"
-#include "sph/iad.hpp"
-#include "sph/momentum_energy.hpp"
+#include "sph/hydro_3L/density.hpp"
+#include "sph/hydro_3L/iad.hpp"
+#include "sph/hydro_3L/momentum_energy.hpp"
 #include "sph/kernels.hpp"
 #include "sph/eos.hpp"
 #include "sph/timestep.hpp"
@@ -16,8 +16,8 @@
 #include "sph/total_energy.hpp"
 #include "sph/update_h.hpp"
 
-#include "sph/av_switches.hpp"
-#include "sph/density_ve.hpp"
-#include "sph/iad_divv_curlv.hpp"
-#include "sph/momentum_energy_ve.hpp"
-#include "sph/xmass.hpp"
+#include "sph/hydro_ve/av_switches.hpp"
+#include "sph/hydro_ve/density_ve.hpp"
+#include "sph/hydro_ve/iad_divv_curlv.hpp"
+#include "sph/hydro_ve/momentum_energy_ve.hpp"
+#include "sph/hydro_ve/xmass.hpp"
