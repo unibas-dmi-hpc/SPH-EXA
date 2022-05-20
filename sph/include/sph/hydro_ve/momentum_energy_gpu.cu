@@ -51,12 +51,12 @@ struct GradPVEConfig
 __device__ float minDt_ve_device;
 
 template<typename T, class KeyType>
-__global__ void momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, int ngmax, const cstone::Box<T> box,
-                                  size_t first, size_t last, size_t numParticles, const KeyType* particleKeys,
-                                  const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h,
-                                  const T* m, const T* prho, const T* c, const T* c11, const T* c12, const T* c13,
-                                  const T* c22, const T* c23, const T* c33, const T* wh, const T* whd, const T* kx,
-                                  const T* xm, const T* alpha, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du)
+__global__ void
+momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, int ngmax, const cstone::Box<T> box,
+                  size_t first, size_t last, size_t numParticles, const KeyType* particleKeys, const T* x, const T* y,
+                  const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* prho, const T* c,
+                  const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
+                  const T* whd, const T* kx, const T* xm, const T* alpha, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + first;
@@ -117,7 +117,7 @@ __global__ void momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T
     }
 
     typedef cub::BlockReduce<T, GradPVEConfig::numThreads> BlockReduce;
-    __shared__ typename BlockReduce::TempStorage         temp_storage;
+    __shared__ typename BlockReduce::TempStorage           temp_storage;
 
     BlockReduce reduce(temp_storage);
     T           blockMin = reduce.Reduce(dt_i, cub::Min());

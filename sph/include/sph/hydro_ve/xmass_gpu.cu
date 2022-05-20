@@ -135,4 +135,3 @@ template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<float, 
 
 } // namespace cuda
 } // namespace sph
-
