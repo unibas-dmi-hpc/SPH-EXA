@@ -17,7 +17,7 @@ template<class Dataset>
 extern void computeIAD(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeMomentumAndEnergy(size_t, size_t, size_t, Dataset& d,
+extern void computeMomentumEnergySTD(size_t, size_t, size_t, Dataset& d,
                                      const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
@@ -28,6 +28,9 @@ extern void computeVeDefGradh(size_t, size_t, size_t, Dataset& d, const cstone::
 
 template<class Dataset>
 extern void computeIadDivvCurlv(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+
+template<class Dataset>
+extern void computeMomentumEnergy(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 } // namespace cuda
 } // namespace sph

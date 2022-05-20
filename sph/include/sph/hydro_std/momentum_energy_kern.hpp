@@ -7,15 +7,6 @@
 namespace sph
 {
 
-//! @brief compute time-step based on the signal velocity
-template<class T1, class T2, class T3>
-CUDA_DEVICE_HOST_FUN inline auto tsKCourant(T1 maxvsignal, T2 h, T3 c, double kcour)
-{
-    using T = std::common_type_t<T1, T2, T3>;
-    T v     = maxvsignal > T(0) ? maxvsignal : c;
-    return T(kcour * h / v);
-}
-
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void
 momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
