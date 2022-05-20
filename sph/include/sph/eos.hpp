@@ -4,8 +4,6 @@
 
 #include "kernels.hpp"
 
-namespace sphexa
-{
 namespace sph
 {
 
@@ -145,7 +143,7 @@ void computeEOS_Polytropic(size_t startIndex, size_t endIndex, Dataset& d)
  * we could potentially avoid halo exchange of p and c in return for exchanging halos of u.
  */
 template<typename Dataset>
-void computeEOS3L(size_t startIndex, size_t endIndex, Dataset& d)
+void computeEOS_HydroStd(size_t startIndex, size_t endIndex, Dataset& d)
 {
     const auto* rho = d.rho.data();
     const auto* u   = d.u.data();
@@ -161,4 +159,3 @@ void computeEOS3L(size_t startIndex, size_t endIndex, Dataset& d)
 }
 
 } // namespace sph
-} // namespace sphexa

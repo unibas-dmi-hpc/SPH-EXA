@@ -1,2 +1,2 @@
-add_subdirectory(kernel)
-add_subdirectory(kernel_ve)
+add_subdirectory(hydro_std)
+add_subdirectory(hydro_ve)

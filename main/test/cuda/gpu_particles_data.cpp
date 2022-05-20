@@ -33,13 +33,13 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/cuda/gpu_particle_data.cuh"
+#include "sph/particles_data_gpu.cuh"
 
 using namespace sphexa;
 
 TEST(DeviceParticlesData, resize)
 {
-    sph::cuda::DeviceParticlesData<double, unsigned> dev;
+    DeviceParticlesData<double, unsigned> dev;
 
     dev.setConserved("x", "y", "z");
     dev.setDependent("du");

@@ -24,42 +24,55 @@
  */
 
 /*! @file
- * @brief Min-reduction to determine global timestep
+ * @brief Generalized volume elements
  *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Aurelien Cavelan
+ * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
  */
 
 #pragma once
 
-#include <vector>
-#include <math.h>
-#include <algorithm>
+#include "cstone/sfc/box.hpp"
 
-#include "kernels.hpp"
-
-#ifdef USE_MPI
-#include "mpi.h"
-#endif
+#include "sph/tables.hpp"
 
 namespace sph
 {
 
-template<class Dataset>
-void computeTimestep(size_t startIndex, size_t endIndex, Dataset& d)
+//! @brief a particular choice of defining generalized volume elements
+template<class T>
+CUDA_DEVICE_HOST_FUN inline T veDefinition(T mass, T rhoZero)
 {
-    using T = typename Dataset::RealType;
+    return mass / rhoZero;
+}
 
-    T minDt = std::min(d.minDt_loc, d.maxDtIncrease * d.minDt);
+template<typename T>
+CUDA_DEVICE_HOST_FUN inline T xmassJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
+                                         int neighborsCount, const T* x, const T* y, const T* z, const T* h, const T* m,
+                                         const T* wh, const T* whd)
+{
+    T xi = x[i];
+    T yi = y[i];
+    T zi = z[i];
+    T hi = h[i];
+    T mi = m[i];
 
-#ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &minDt, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
-#endif
+    T hInv  = 1.0 / hi;
+    T h3Inv = hInv * hInv * hInv;
 
-    d.ttot += minDt;
+    // initialize with self-contribution
+    T rho0i = mi;
+    for (int pj = 0; pj < neighborsCount; ++pj)
+    {
+        int j    = neighbors[pj];
+        T   dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
+        T   vloc = dist * hInv;
+        T   w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
 
-    d.minDt_m1 = d.minDt;
-    d.minDt    = minDt;
+        rho0i += w * m[j];
+    }
+
+    T xmassi = veDefinition(mi, rho0i * K * h3Inv);
+    return xmassi;
 }
 
 } // namespace sph
