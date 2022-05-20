@@ -25,6 +25,7 @@
 
 /*! @file
  * @brief Contains the object holding all particle data
+ *
  */
 
 #pragma once
@@ -34,14 +35,17 @@
 #include <variant>
 
 #include "cstone/util/util.hpp"
+
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
+
 #include "data_util.hpp"
 #include "field_states.hpp"
 #include "traits.hpp"
 
 #if defined(USE_CUDA)
-#include "sph/cuda/gpu_particle_data.cuh"
+#include "sph/util/pinned_allocator.h"
+#include "particles_data_gpu.cuh"
 #endif
 
 namespace sphexa
@@ -103,8 +107,8 @@ public:
 
     DeviceData_t<AccType, T, KeyType> devData;
 
-    const std::array<T, lt::size> wh  = lt::createWharmonicLookupTable<T, lt::size>();
-    const std::array<T, lt::size> whd = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
+    const std::array<T, ::sph::lt::size> wh  = ::sph::lt::createWharmonicLookupTable<T, ::sph::lt::size>();
+    const std::array<T, ::sph::lt::size> whd = ::sph::lt::createWharmonicDerivativeLookupTable<T, ::sph::lt::size>();
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
@@ -194,7 +198,7 @@ public:
 };
 
 template<typename T, typename I, class Acc>
-const T ParticlesData<T, I, Acc>::K = sphexa::compute_3d_k(sincIndex);
+const T ParticlesData<T, I, Acc>::K = ::sph::compute_3d_k(sincIndex);
 
 template<class Dataset, std::enable_if_t<not HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
 void transferToDevice(Dataset&, size_t, size_t, const std::vector<std::string>&)

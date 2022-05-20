@@ -60,7 +60,6 @@ using AccType = cstone::CpuTag;
 #endif
 
 using namespace sphexa;
-using namespace sphexa::sph;
 
 bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr);
 void printHelp(char* binName, int rank);

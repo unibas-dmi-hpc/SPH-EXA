@@ -44,7 +44,7 @@
 namespace sphexa
 {
 
-using namespace sphexa::sph;
+using namespace sph;
 
 template<class DomainType, class ParticleDataType>
 class Propagator
@@ -193,7 +193,7 @@ public:
         computeDensity(first, last, ngmax_, d, domain.box());
         transferToHost(d, first, last, {"rho"});
         timer.step("Density");
-        computeEOS3L(first, last, d);
+        computeEOS_HydroStd(first, last, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
@@ -333,8 +333,8 @@ public:
         d.devData.acquire("gradh");
         transferToDevice(d, 0, first, {"xm"});
         transferToDevice(d, last, domain.nParticlesWithHalos(), {"xm"});
-        computeDensityVE(first, last, ngmax_, d, domain.box());
-        timer.step("Density & Gradh");
+        computeVeDefGradh(first, last, ngmax_, d, domain.box());
+        timer.step("Normalization & Gradh");
         transferToHost(d, first, last, {"kx", "gradh"});
         computeEOS(first, last, d);
         timer.step("EquationOfState");

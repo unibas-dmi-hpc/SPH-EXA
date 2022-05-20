@@ -5,11 +5,11 @@
 #include <cstdio>
 #include <array>
 
-#include "sph/cuda/annotation.hpp"
+#include "sph/util/annotation.hpp"
 
 #define PI 3.14159265358979323846
 
-namespace sphexa
+namespace sph
 {
 namespace math
 {
@@ -38,4 +38,4 @@ CUDA_DEVICE_HOST_FUN inline T pow(T a, int b)
 }
 
 } // namespace math
-} // namespace sphexa
+} // namespace sph

@@ -24,42 +24,43 @@
  */
 
 /*! @file
- * @brief Min-reduction to determine global timestep
- *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Aurelien Cavelan
+ * @brief Contains the object holding all particle data on the GPU
  */
 
-#pragma once
+#include "particles_data_gpu.cuh"
 
-#include <vector>
-#include <math.h>
-#include <algorithm>
-
-#include "kernels.hpp"
-
-#ifdef USE_MPI
-#include "mpi.h"
-#endif
-
-namespace sph
+namespace sphexa
 {
 
-template<class Dataset>
-void computeTimestep(size_t startIndex, size_t endIndex, Dataset& d)
+template<typename T, class KeyType>
+void DeviceParticlesData<T, KeyType>::resize(size_t size)
 {
-    using T = typename Dataset::RealType;
+    double growthRate = 1.01;
+    auto   data_      = data();
 
-    T minDt = std::min(d.minDt_loc, d.maxDtIncrease * d.minDt);
+    auto deallocateVector = [size](auto* devVectorPtr)
+    {
+        using DevVector = std::decay_t<decltype(*devVectorPtr)>;
+        if (devVectorPtr->capacity() < size) { *devVectorPtr = DevVector{}; }
+    };
 
-#ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &minDt, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
-#endif
+    for (size_t i = 0; i < data_.size(); ++i)
+    {
+        if (this->isAllocated(i)) { std::visit(deallocateVector, data_[i]); }
+    }
 
-    d.ttot += minDt;
-
-    d.minDt_m1 = d.minDt;
-    d.minDt    = minDt;
+    for (size_t i = 0; i < data_.size(); ++i)
+    {
+        if (this->isAllocated(i))
+        {
+            std::visit([size, growthRate](auto* arg) { reallocate(*arg, size, growthRate); }, data_[i]);
+        }
+    }
 }
 
-} // namespace sph
+template class DeviceParticlesData<float, unsigned>;
+template class DeviceParticlesData<float, uint64_t>;
+template class DeviceParticlesData<double, unsigned>;
+template class DeviceParticlesData<double, uint64_t>;
+
+} // namespace sphexa

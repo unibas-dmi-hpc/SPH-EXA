@@ -1,9 +1,9 @@
 #pragma once
 
 #include "math.hpp"
-#include "sph/cuda/annotation.hpp"
+#include "sph/util/annotation.hpp"
 
-namespace sphexa
+namespace sph
 {
 
 template<typename T>
@@ -110,4 +110,4 @@ CUDA_DEVICE_FUN inline T artificial_viscosity(T alpha_i, T alpha_j, T c_i, T c_j
     return viscosity_ij;
 }
 
-} // namespace sphexa
+} // namespace sph
