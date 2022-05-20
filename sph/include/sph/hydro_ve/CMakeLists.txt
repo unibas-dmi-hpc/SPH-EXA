@@ -3,6 +3,7 @@ set(VE_KERNELS
         xmass_gpu.cu
         ve_def_gradh_gpu.cu
         iad_divv_curlv_gpu.cu
+        av_switches_gpu.cu
         momentum_energy_gpu.cu)
 
 if(CMAKE_HIP_COMPILER)

@@ -30,6 +30,9 @@ template<class Dataset>
 extern void computeIadDivvCurlv(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
+extern void computeAVswitches(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+
+template<class Dataset>
 extern void computeMomentumEnergy(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 } // namespace cuda
