@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Volume element normalization i-loop driver
+ * @brief Volume element definition i-loop driver
  *
  * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
  */

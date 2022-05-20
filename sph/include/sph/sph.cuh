@@ -26,5 +26,8 @@ extern void computeXMass(size_t, size_t, size_t, Dataset& d, const cstone::Box<t
 template<class Dataset>
 extern void computeVeDefGradh(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
+template<class Dataset>
+extern void computeIadDivvCurlv(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+
 } // namespace cuda
 } // namespace sph

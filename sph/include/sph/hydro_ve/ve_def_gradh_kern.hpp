@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Density SPH kernel
+ * @brief Volume definition and gradient of h architecture portable kernel
  *
  * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
  */

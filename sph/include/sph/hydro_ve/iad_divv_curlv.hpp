@@ -33,9 +33,8 @@
 
 #include "iad_kern.hpp"
 #include "divv_curlv_kern.hpp"
-#ifdef USE_CUDA
 #include "sph/sph.cuh"
-#endif
+#include "sph/traits.hpp"
 
 namespace sph
 {
@@ -129,7 +128,11 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, D
 template<class T, class Dataset>
 void computeIadDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    computeIadDivvCurlvImpl(startIndex, endIndex, ngmax, d, box);
+    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        cuda::computeIadDivvCurlv(startIndex, endIndex, ngmax, d, box);
+    }
+    else { computeIadDivvCurlvImpl(startIndex, endIndex, ngmax, d, box); }
 }
 
 } // namespace sph
