@@ -43,8 +43,8 @@ namespace cuda
 
 template<typename T, class KeyType>
 __global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T>& box, size_t first, size_t last,
-                         size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
-                         const T* h, const T* m, const T* wh, const T* whd, T* xm)
+                         size_t numParticles, const KeyType* particleKeys, int* neighborsCount, const T* x, const T* y,
+                         const T* z, const T* h, const T* m, const T* wh, const T* whd, T* xm)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + first;
@@ -54,48 +54,74 @@ __global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T>& box,
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired size");
     int neighbors[NGMAX];
-    int neighborsCount;
+    int neighborsCount_;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
     cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-    xm[i] = sph::xmassJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, wh, whd);
+    xm[i] = sph::xmassJLoop(i, sincIndex, K, box, neighbors, neighborsCount_, x, y, z, h, m, wh, whd);
+
+    neighborsCount[tid] = neighborsCount_;
 }
 
 template<class Dataset>
 void computeXMass(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                   const cstone::Box<typename Dataset::RealType>& box)
 {
-    using T = typename Dataset::RealType;
+    using T       = typename Dataset::RealType;
+    using KeyType = typename Dataset::KeyType;
 
-    // number of locally present particles, including halos
-    size_t sizeWithHalos       = d.x.size();
-    size_t numParticlesCompute = endIndex - startIndex;
+    size_t sizeWithHalos     = d.x.size();
+    size_t numLocalParticles = endIndex - startIndex;
 
-    unsigned numThreads = 128;
-    unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
+    size_t taskSize = sphexa::DeviceParticlesData<T, KeyType>::taskSize;
+    size_t numTasks = iceil(numLocalParticles, taskSize);
 
-    xmassGpu<<<numBlocks, numThreads>>>(d.sincIndex,
-                                        d.K,
-                                        ngmax,
-                                        box,
-                                        startIndex,
-                                        endIndex,
-                                        sizeWithHalos,
-                                        rawPtr(d.devData.codes),
-                                        rawPtr(d.devData.x),
-                                        rawPtr(d.devData.y),
-                                        rawPtr(d.devData.z),
-                                        rawPtr(d.devData.h),
-                                        rawPtr(d.devData.m),
-                                        rawPtr(d.devData.wh),
-                                        rawPtr(d.devData.whd),
-                                        rawPtr(d.devData.xm));
+    // number of CUDA streams to use
+    constexpr int NST = sphexa::DeviceParticlesData<T, Dataset>::NST;
 
-    CHECK_CUDA_ERR(cudaGetLastError());
+    for (int i = 0; i < numTasks; ++i)
+    {
+        int          sIdx   = i % NST;
+        cudaStream_t stream = d.devData.d_stream[sIdx].stream;
+
+        int* d_neighborsCount_use = d.devData.d_stream[sIdx].d_neighborsCount;
+
+        size_t firstParticle       = startIndex + i * taskSize;
+        size_t lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
+        size_t numParticlesCompute = lastParticle - firstParticle;
+
+        unsigned numThreads = 256;
+        unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
+
+        xmassGpu<<<numBlocks, numThreads>>>(d.sincIndex,
+                                            d.K,
+                                            ngmax,
+                                            box,
+                                            firstParticle,
+                                            lastParticle,
+                                            sizeWithHalos,
+                                            rawPtr(d.devData.codes),
+                                            d_neighborsCount_use,
+                                            rawPtr(d.devData.x),
+                                            rawPtr(d.devData.y),
+                                            rawPtr(d.devData.z),
+                                            rawPtr(d.devData.h),
+                                            rawPtr(d.devData.m),
+                                            rawPtr(d.devData.wh),
+                                            rawPtr(d.devData.whd),
+                                            rawPtr(d.devData.xm));
+        CHECK_CUDA_ERR(cudaGetLastError());
+
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
+                                       d_neighborsCount_use,
+                                       numParticlesCompute * sizeof(decltype(d.neighborsCount.front())),
+                                       cudaMemcpyDeviceToHost,
+                                       stream));
+    }
 }
 
 template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
