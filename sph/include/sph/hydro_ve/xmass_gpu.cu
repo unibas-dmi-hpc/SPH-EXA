@@ -42,7 +42,7 @@ namespace cuda
 {
 
 template<typename T, class KeyType>
-__global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T>& box, size_t first, size_t last,
+__global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> box, size_t first, size_t last,
                          size_t numParticles, const KeyType* particleKeys, int* neighborsCount, const T* x, const T* y,
                          const T* z, const T* h, const T* m, const T* wh, const T* whd, T* xm)
 {
@@ -97,23 +97,23 @@ void computeXMass(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
         unsigned numThreads = 256;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-        xmassGpu<<<numBlocks, numThreads>>>(d.sincIndex,
-                                            d.K,
-                                            ngmax,
-                                            box,
-                                            firstParticle,
-                                            lastParticle,
-                                            sizeWithHalos,
-                                            rawPtr(d.devData.codes),
-                                            d_neighborsCount_use,
-                                            rawPtr(d.devData.x),
-                                            rawPtr(d.devData.y),
-                                            rawPtr(d.devData.z),
-                                            rawPtr(d.devData.h),
-                                            rawPtr(d.devData.m),
-                                            rawPtr(d.devData.wh),
-                                            rawPtr(d.devData.whd),
-                                            rawPtr(d.devData.xm));
+        xmassGpu<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
+                                                       d.K,
+                                                       ngmax,
+                                                       box,
+                                                       firstParticle,
+                                                       lastParticle,
+                                                       sizeWithHalos,
+                                                       rawPtr(d.devData.codes),
+                                                       d_neighborsCount_use,
+                                                       rawPtr(d.devData.x),
+                                                       rawPtr(d.devData.y),
+                                                       rawPtr(d.devData.z),
+                                                       rawPtr(d.devData.h),
+                                                       rawPtr(d.devData.m),
+                                                       rawPtr(d.devData.wh),
+                                                       rawPtr(d.devData.whd),
+                                                       rawPtr(d.devData.xm));
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
@@ -135,3 +135,4 @@ template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<float, 
 
 } // namespace cuda
 } // namespace sph
+

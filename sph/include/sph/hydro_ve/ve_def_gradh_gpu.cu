@@ -42,7 +42,7 @@ namespace cuda
 {
 
 template<typename T, class KeyType>
-__global__ void veDefGradhGpu(T sincIndex, T K, int ngmax, const cstone::Box<T>& box, size_t first, size_t last,
+__global__ void veDefGradhGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> box, size_t first, size_t last,
                               size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
                               const T* h, const T* m, const T* wh, const T* whd, const T* xm, T* kx, T* gradh)
 {

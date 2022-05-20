@@ -43,7 +43,7 @@ namespace cuda
 {
 
 template<typename T, class KeyType>
-__global__ void iadDivvCurlvGpu(T sincIndex, T K, int ngmax, const cstone::Box<T>& box, size_t first, size_t last,
+__global__ void iadDivvCurlvGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> box, size_t first, size_t last,
                                 size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
                                 const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* wh,
                                 const T* whd, const T* xm, const T* kx, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33,

@@ -42,7 +42,7 @@ namespace cuda
 {
 
 template<typename T, class KeyType>
-__global__ void AVswitchesGpu(T sincIndex, T K, int ngmax, const cstone::Box<T>& box, size_t first, size_t last,
+__global__ void AVswitchesGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> box, size_t first, size_t last,
                               size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
                               const T* vx, const T* vy, const T* vz, const T* h, const T* c, const T* c11, const T* c12,
                               const T* c13, const T* c22, const T* c23, const T* c33, const T* wh, const T* whd,
@@ -139,7 +139,7 @@ void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset
                                              d.alphamin,
                                              d.alphamax,
                                              d.decay_constant,
-                                             rawPtr(d.alpha));
+                                             rawPtr(d.devData.alpha));
     CHECK_CUDA_ERR(cudaGetLastError());
 }
 
