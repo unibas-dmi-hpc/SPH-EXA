@@ -35,11 +35,9 @@
 #include <vector>
 
 #include "cstone/findneighbors.hpp"
-
 #include "density_kern.hpp"
-#ifdef USE_CUDA
 #include "sph/sph.cuh"
-#endif
+#include "sph/traits.hpp"
 
 namespace sph
 {
@@ -85,11 +83,11 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
 template<class T, class Dataset>
 void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-#if defined(USE_CUDA)
-    cuda::computeDensity(startIndex, endIndex, ngmax, d, box);
-#else
-    computeDensityImpl(startIndex, endIndex, ngmax, d, box);
-#endif
+    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        cuda::computeDensity(startIndex, endIndex, ngmax, d, box);
+    }
+    else { computeDensityImpl(startIndex, endIndex, ngmax, d, box); }
 }
 
 } // namespace sph

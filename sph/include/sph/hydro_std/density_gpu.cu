@@ -44,9 +44,9 @@ namespace cuda
 {
 
 template<class T, class KeyType>
-__global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, int firstParticle, int lastParticle,
-                            int numParticles, const KeyType* particleKeys, int* neighborsCount, const T* x, const T* y,
-                            const T* z, const T* h, const T* m, const T* wh, const T* whd, T* rho)
+__global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, size_t firstParticle, size_t lastParticle,
+                            size_t numParticles, const KeyType* particleKeys, int* neighborsCount, const T* x,
+                            const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, T* rho)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
@@ -91,9 +91,9 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
 
         int* d_neighborsCount_use = d.devData.d_stream[sIdx].d_neighborsCount;
 
-        unsigned firstParticle       = startIndex + i * taskSize;
-        unsigned lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
-        unsigned numParticlesCompute = lastParticle - firstParticle;
+        size_t firstParticle       = startIndex + i * taskSize;
+        size_t lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
+        size_t numParticlesCompute = lastParticle - firstParticle;
 
         unsigned numThreads = 256;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
