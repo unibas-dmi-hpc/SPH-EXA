@@ -64,7 +64,7 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative(T v, T powsincv)
  * in the Evrard collapse test case in the wake of the shock wave.
  */
 template<typename T>
-CUDA_DEVICE_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv, T r_square)
+CUDA_DEVICE_HOST_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv, T r_square)
 {
     constexpr T alpha   = 1.0;
     constexpr T beta    = 2.0;
@@ -95,7 +95,7 @@ CUDA_DEVICE_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, 
  * @return        the viscosity
  */
 template<typename T>
-CUDA_DEVICE_FUN inline T artificial_viscosity(T alpha_i, T alpha_j, T c_i, T c_j, T w_ij)
+CUDA_DEVICE_HOST_FUN inline T artificial_viscosity(T alpha_i, T alpha_j, T c_i, T c_j, T w_ij)
 {
     // alpha is const for now, but will be different for each particle when using viscosity switching
     constexpr T beta = 2.0;

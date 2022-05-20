@@ -261,7 +261,7 @@ public:
         std::vector<LocalIndex> layout(leafCounts_.size() + 1, 0);
         TreeNodeIndex firstIdx = assignment_[myRank_].start();
         TreeNodeIndex lastIdx  = assignment_[myRank_].end();
-        std::exclusive_scan(leafCounts_.begin() + firstIdx, leafCounts_.begin() + lastIdx + 1,
+        stl::exclusive_scan(leafCounts_.begin() + firstIdx, leafCounts_.begin() + lastIdx + 1,
                             layout.begin() + firstIdx, 0);
 
         globalCenters_.resize(globalTree.numTreeNodes());
