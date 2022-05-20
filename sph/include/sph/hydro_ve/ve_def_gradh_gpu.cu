@@ -32,7 +32,7 @@
 #include "sph/sph.cuh"
 #include "sph/particles_data.hpp"
 #include "sph/util/cuda_utils.cuh"
-#include "sph/hydro_ve/xmass_kern.hpp"
+#include "sph/hydro_ve/ve_def_gradh_kern.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 
@@ -42,9 +42,9 @@ namespace cuda
 {
 
 template<typename T, class KeyType>
-__global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T>& box, size_t first, size_t last,
-                         size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
-                         const T* h, const T* m, const T* wh, const T* whd, T* xm)
+__global__ void veDefGradhGpu(T sincIndex, T K, int ngmax, const cstone::Box<T>& box, size_t first, size_t last,
+                              size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
+                              const T* h, const T* m, const T* wh, const T* whd, const T* xm, T* kx, T* gradh)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + first;
@@ -62,12 +62,15 @@ __global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T>& box,
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
 
-    xm[i] = sph::xmassJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, wh, whd);
+    auto [kxi, gradhi] = veDefGradhJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, wh, whd, xm);
+
+    kx[i]    = kxi;
+    gradh[i] = gradhi;
 }
 
 template<class Dataset>
-void computeXMass(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
-                  const cstone::Box<typename Dataset::RealType>& box)
+void computeVeDefGradh(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+                       const cstone::Box<typename Dataset::RealType>& box)
 {
     using T = typename Dataset::RealType;
 
@@ -78,34 +81,36 @@ void computeXMass(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
     unsigned numThreads = 128;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-    xmassGpu<<<numBlocks, numThreads>>>(d.sincIndex,
-                                        d.K,
-                                        ngmax,
-                                        box,
-                                        startIndex,
-                                        endIndex,
-                                        sizeWithHalos,
-                                        rawPtr(d.devData.codes),
-                                        rawPtr(d.devData.x),
-                                        rawPtr(d.devData.y),
-                                        rawPtr(d.devData.z),
-                                        rawPtr(d.devData.h),
-                                        rawPtr(d.devData.m),
-                                        rawPtr(d.devData.wh),
-                                        rawPtr(d.devData.whd),
-                                        rawPtr(d.devData.xm));
+    veDefGradhGpu<<<numBlocks, numThreads>>>(d.sincIndex,
+                                             d.K,
+                                             ngmax,
+                                             box,
+                                             startIndex,
+                                             endIndex,
+                                             sizeWithHalos,
+                                             rawPtr(d.devData.codes),
+                                             rawPtr(d.devData.x),
+                                             rawPtr(d.devData.y),
+                                             rawPtr(d.devData.z),
+                                             rawPtr(d.devData.h),
+                                             rawPtr(d.devData.m),
+                                             rawPtr(d.devData.wh),
+                                             rawPtr(d.devData.whd),
+                                             rawPtr(d.devData.xm),
+                                             rawPtr(d.devData.kx),
+                                             rawPtr(d.devData.gradh));
 
     CHECK_CUDA_ERR(cudaGetLastError());
 }
 
-template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
-                           const cstone::Box<double>&);
-template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
-                           const cstone::Box<double>&);
-template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
-                           const cstone::Box<float>&);
-template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
-                           const cstone::Box<float>&);
+template void computeVeDefGradh(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+                                const cstone::Box<double>&);
+template void computeVeDefGradh(size_t, size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+                                const cstone::Box<double>&);
+template void computeVeDefGradh(size_t, size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+                                const cstone::Box<float>&);
+template void computeVeDefGradh(size_t, size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+                                const cstone::Box<float>&);
 
 } // namespace cuda
 } // namespace sph
