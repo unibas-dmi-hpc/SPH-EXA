@@ -38,8 +38,8 @@ prgenv:
 build with ParaView Catalyst on Eiger
 
 prgenv:
-  module load cpeCray CMake cray-hdf5-parallel ParaView
-
+  module load cpeCray CMake ParaView
+  export GCC_X86_64=/opt/cray/pe/gcc/9.3.0/snos
   mkdir buildCatalystEiger
   cd buildCatalystEiger
   cmake -S .. \
