@@ -86,19 +86,28 @@ public:
 
     std::vector<T> HI_fraction;
     std::vector<T> HII_fraction;
+    std::vector<T> HM_fraction;
     std::vector<T> HeI_fraction;
     std::vector<T> HeII_fraction;
     std::vector<T> HeIII_fraction;
-    std::vector<T> e_fraction;
-    std::vector<T> HM_fraction;
     std::vector<T> H2I_fraction;
     std::vector<T> H2II_fraction;
     std::vector<T> DI_fraction;
     std::vector<T> DII_fraction;
     std::vector<T> HDI_fraction;
-    std::vector<T> metal_fraction;
+    std::vector<T> e_fraction;
+    std::vector<T> metal_fraction; //option: metal_cooling
 
-    std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
+    std::vector<T> volumetric_heating_rate; //option: use_volumetric_heating_rate
+    std::vector<T> specific_heating_rate; //option: use_specific_heating_rate
+    std::vector<T> RT_heating_rate; //option: use_radiative_transfer
+    std::vector<T> RT_HI_ionization_rate; //option: use_radiative_transfer
+    std::vector<T> RT_HeI_ionization_rate; //option: use_radiative_transfer
+    std::vector<T> RT_HeII_ionization_rate; //option: use_radiative_transfer
+    std::vector<T> RT_H2_dissociation_rate; //option: use_radiative_transfer
+    std::vector<T> H2_self_shielding_length; //option: H2_self_shielding = 2
+
+        std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
     std::vector<int, PinnedAlloc_t<AccType, int>> neighborsCount; // number of neighbors of each particle
     std::vector<int>                              neighbors;      // only used in the CPU version
 
@@ -152,17 +161,26 @@ public:
                                                   "alpha",
                                                   "HI_fraction",
                                                   "HII_fraction",
+                                                  "HM_fraction",
                                                   "HeI_fraction",
                                                   "HeII_fraction",
                                                   "HeIII_fraction",
-                                                  "e_fraction",
-                                                  "HM_fraction",
                                                   "H2I_fraction",
                                                   "H2II_fraction",
                                                   "DI_fraction",
                                                   "DII_fraction",
                                                   "HDI_fraction",
-                                                  "metal_fraction"};
+                                                  "e_fraction",
+                                                  "metal_fraction",
+                                                  "volumetric_heating_rate",
+                                                  "specific_heating_rate",
+                                                  "RT_heating_rate",
+                                                  "RT_HI_ionization_rate",
+                                                  "RT_HeI_ionization_rate",
+                                                  "RT_HeII_ionization_rate",
+                                                  "RT_H2_dissociation_rate",
+                                                  "H2_self_shielding_length"
+    };
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -213,17 +231,26 @@ public:
                                                            &alpha,
                                                            &HI_fraction,
                                                            &HII_fraction,
+                                                           &HM_fraction,
                                                            &HeI_fraction,
                                                            &HeII_fraction,
                                                            &HeIII_fraction,
-                                                           &e_fraction,
-                                                           &HM_fraction,
                                                            &H2I_fraction,
                                                            &H2II_fraction,
                                                            &DI_fraction,
                                                            &DII_fraction,
                                                            &HDI_fraction,
-                                                           &metal_fraction};
+                                                           &e_fraction,
+                                                           &metal_fraction,
+                                                           &volumetric_heating_rate,
+                                                           &specific_heating_rate,
+                                                           &RT_heating_rate,
+                                                           &RT_HI_ionization_rate,
+                                                           &RT_HeI_ionization_rate,
+                                                           &RT_HeII_ionization_rate,
+                                                           &RT_H2_dissociation_rate,
+                                                           &H2_self_shielding_length,
+        };
 
         static_assert(ret.size() == fieldNames.size());
 
