@@ -143,18 +143,18 @@ void Execute(DataType& d, long startIndex, long endIndex)
     mesh["fields/Speed of sound/values"].set_external(&d.c[startIndex], endIndex - startIndex);
     mesh["fields/Speed of sound/volume_dependent"].set("false");
 
-    mesh["fields/grad_P_x/association"] = "vertex";
-    mesh["fields/grad_P_x/topology"]    = "mesh";
-    mesh["fields/grad_P_x/values"].set_external(&d.grad_P_x[startIndex], endIndex - startIndex);
-    mesh["fields/grad_P_x/volume_dependent"].set("false");
-    mesh["fields/grad_P_y/association"] = "vertex";
-    mesh["fields/grad_P_y/topology"]    = "mesh";
-    mesh["fields/grad_P_y/values"].set_external(&d.grad_P_y[startIndex], endIndex - startIndex);
-    mesh["fields/grad_P_y/volume_dependent"].set("false");
-    mesh["fields/grad_P_z/association"] = "vertex";
-    mesh["fields/grad_P_z/topology"]    = "mesh";
-    mesh["fields/grad_P_z/values"].set_external(&d.grad_P_z[startIndex], endIndex - startIndex);
-    mesh["fields/grad_P_z/volume_dependent"].set("false");
+    mesh["fields/Acceleration x/association"] = "vertex";
+    mesh["fields/Acceleration x/topology"]    = "mesh";
+    mesh["fields/Acceleration x/values"].set_external(&d.ax[startIndex], endIndex - startIndex);
+    mesh["fields/Acceleration x/volume_dependent"].set("false");
+    mesh["fields/Acceleration y/association"] = "vertex";
+    mesh["fields/Acceleration y/topology"]    = "mesh";
+    mesh["fields/Acceleration y/values"].set_external(&d.ax[startIndex], endIndex - startIndex);
+    mesh["fields/Acceleration y/volume_dependent"].set("false");
+    mesh["fields/Acceleration z/association"] = "vertex";
+    mesh["fields/Acceleration z/topology"]    = "mesh";
+    mesh["fields/Acceleration z/values"].set_external(&d.ax[startIndex], endIndex - startIndex);
+    mesh["fields/Acceleration z/volume_dependent"].set("false");
 
     std::vector<conduit_int64> conn(endIndex - startIndex);
     std::iota(conn.begin(), conn.end(), 0);
