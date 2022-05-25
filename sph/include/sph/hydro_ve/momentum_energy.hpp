@@ -32,15 +32,14 @@
 #pragma once
 
 #include "momentum_energy_kern.hpp"
-#ifdef USE_CUDA
 #include "sph/sph.cuh"
-#endif
+#include "sph/traits.hpp"
 
 namespace sph
 {
 
 template<class T, class Dataset>
-void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -133,9 +132,13 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
 }
 
 template<class T, class Dataset>
-void computeGradPVE(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    computeGradPVeImpl(startIndex, endIndex, ngmax, d, box);
+    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        cuda::computeMomentumEnergy(startIndex, endIndex, ngmax, d, box);
+    }
+    else { computeMomentumEnergyImpl(startIndex, endIndex, ngmax, d, box); }
 }
 
 } // namespace sph

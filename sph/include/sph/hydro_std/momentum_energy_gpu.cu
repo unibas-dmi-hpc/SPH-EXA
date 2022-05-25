@@ -41,29 +41,19 @@ namespace sph
 namespace cuda
 {
 
-//! @brief compute atomic min for floats using integer operations
-__device__ __forceinline__ float atomicMinFloat(float* addr, float value)
-{
-    float old;
-    old = (value >= 0) ? __int_as_float(atomicMin((int*)addr, __float_as_int(value)))
-                       : __uint_as_float(atomicMax((unsigned int*)addr, __float_as_uint(value)));
-
-    return old;
-}
-
-__device__ float minDt_device;
-
 struct GradPConfig
 {
-    //! @brief number of threads per block for the traversal kernel
+    //! @brief number of threads per block
     static constexpr int numThreads = 128;
 };
 
+__device__ float minDt_device;
+
 template<class T, class KeyType>
-__global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> box, int firstParticle, int lastParticle,
-                          int numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
-                          const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* rho, const T* p,
-                          const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
+__global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> box, size_t firstParticle,
+                          size_t lastParticle, size_t numParticles, const KeyType* particleKeys, const T* x, const T* y,
+                          const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* rho,
+                          const T* p, const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
                           const T* c33, const T* wh, const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -85,38 +75,38 @@ __global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> b
             i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
 
         T maxvsignal;
-        sph::momentumAndEnergyJLoop(i,
-                                    sincIndex,
-                                    K,
-                                    box,
-                                    neighbors,
-                                    neighborsCount,
-                                    x,
-                                    y,
-                                    z,
-                                    vx,
-                                    vy,
-                                    vz,
-                                    h,
-                                    m,
-                                    rho,
-                                    p,
-                                    c,
-                                    c11,
-                                    c12,
-                                    c13,
-                                    c22,
-                                    c23,
-                                    c33,
-                                    wh,
-                                    whd,
-                                    grad_P_x,
-                                    grad_P_y,
-                                    grad_P_z,
-                                    du,
-                                    &maxvsignal);
+        momentumAndEnergyJLoop(i,
+                               sincIndex,
+                               K,
+                               box,
+                               neighbors,
+                               neighborsCount,
+                               x,
+                               y,
+                               z,
+                               vx,
+                               vy,
+                               vz,
+                               h,
+                               m,
+                               rho,
+                               p,
+                               c,
+                               c11,
+                               c12,
+                               c13,
+                               c22,
+                               c23,
+                               c33,
+                               wh,
+                               whd,
+                               grad_P_x,
+                               grad_P_y,
+                               grad_P_z,
+                               du,
+                               &maxvsignal);
 
-        dt_i = sph::tsKCourant(maxvsignal, h[i], c[i], Kcour);
+        dt_i = tsKCourant(maxvsignal, h[i], c[i], Kcour);
     }
 
     typedef cub::BlockReduce<T, GradPConfig::numThreads> BlockReduce;
@@ -130,14 +120,11 @@ __global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> b
 }
 
 template<class Dataset>
-void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                               const cstone::Box<typename Dataset::RealType>& box)
 {
-    using T = typename Dataset::RealType;
-
-    size_t sizeWithHalos = d.x.size();
-
-    unsigned numParticlesCompute = endIndex - startIndex;
+    size_t sizeWithHalos       = d.x.size();
+    size_t numParticlesCompute = endIndex - startIndex;
 
     unsigned numThreads = GradPConfig::numThreads;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
@@ -185,16 +172,16 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
     d.minDt_loc = minDt;
 }
 
-template void computeMomentumAndEnergy(size_t, size_t, size_t,
+template void computeMomentumEnergySTD(size_t, size_t, size_t,
                                        sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
-template void computeMomentumAndEnergy(size_t, size_t, size_t,
+template void computeMomentumEnergySTD(size_t, size_t, size_t,
                                        sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
-template void computeMomentumAndEnergy(size_t, size_t, size_t,
+template void computeMomentumEnergySTD(size_t, size_t, size_t,
                                        sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                        const cstone::Box<float>&);
-template void computeMomentumAndEnergy(size_t, size_t, size_t,
+template void computeMomentumEnergySTD(size_t, size_t, size_t,
                                        sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<float>&);
 

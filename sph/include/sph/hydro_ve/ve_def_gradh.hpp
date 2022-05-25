@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Volume element normalization i-loop driver
+ * @brief Volume element definition i-loop driver
  *
  * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
  */
@@ -32,9 +32,8 @@
 #pragma once
 
 #include "ve_def_gradh_kern.hpp"
-#ifdef USE_CUDA
 #include "sph/sph.cuh"
-#endif
+#include "sph/traits.hpp"
 
 namespace sph
 {
@@ -82,7 +81,11 @@ void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dat
 template<typename T, class Dataset>
 void computeVeDefGradh(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    computeVeDefGradhImpl(startIndex, endIndex, ngmax, d, box);
+    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        cuda::computeVeDefGradh(startIndex, endIndex, ngmax, d, box);
+    }
+    else { computeVeDefGradhImpl(startIndex, endIndex, ngmax, d, box); }
 }
 
 } // namespace sph
