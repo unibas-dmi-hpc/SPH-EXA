@@ -7,6 +7,23 @@ function(enableH5Part exename)
     endif()
 endfunction()
 
+function(enableInSituViz exename)
+  if(INSITU STREQUAL "Catalyst")
+    target_include_directories(${exename} PRIVATE ..)
+    target_compile_definitions(${exename}
+            PRIVATE
+            "PARAVIEW_IMPL_DIR=\"${ParaView_CATALYST_DIR}\""
+            SPH_EXA_USE_CATALYST2)
+    target_link_libraries(${exename} PRIVATE catalyst::catalyst)
+  elseif(INSITU STREQUAL "Ascent")
+    target_include_directories(${exename} PRIVATE ..)
+    target_compile_definitions(${exename}
+            PRIVATE
+            SPH_EXA_USE_ASCENT)
+    target_link_libraries(${exename} PRIVATE ascent::ascent_mpi)
+  endif()
+endfunction()
+
 set(exename sphexa)
 add_executable(${exename} sphexa.cpp)
 target_include_directories(${exename} PRIVATE ${SPH_EXA_INCLUDE_DIRS})
@@ -14,22 +31,8 @@ target_include_directories(${exename} PRIVATE ${SPH_EXA_INCLUDE_DIRS})
 target_link_libraries(${exename} PRIVATE ${MPI_CXX_LIBRARIES})
 target_link_libraries(${exename} PRIVATE OpenMP::OpenMP_CXX)
 enableH5Part(${exename})
+enableInSituViz(${exename})
 install(TARGETS ${exename} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-if(INSITU STREQUAL "Catalyst")
-    target_include_directories(${exename} PRIVATE ..)
-    target_compile_definitions(${exename}
-	    PRIVATE
-	    "PARAVIEW_IMPL_DIR=\"${ParaView_CATALYST_DIR}\""
-	    SPH_EXA_USE_CATALYST2)
-    target_link_libraries(${exename} PRIVATE catalyst::catalyst)
-elseif(INSITU STREQUAL "Ascent")
-    target_include_directories(${exename} PRIVATE ..)
-    target_compile_definitions(${exename}
-	    PRIVATE
-	    SPH_EXA_USE_ASCENT)
-    target_link_libraries(${exename} PRIVATE ascent::ascent_mpi)
-endif()
 
 if(CMAKE_CUDA_COMPILER)
     add_executable(${exename}-cuda $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> sphexa.cpp)
@@ -38,6 +41,7 @@ if(CMAKE_CUDA_COMPILER)
     target_compile_definitions(${exename}-cuda PRIVATE USE_MPI USE_CUDA)
     target_link_libraries(${exename}-cuda PRIVATE ryoanji sph_gpu OpenMP::OpenMP_CXX ${MPI_CXX_LIBRARIES} CUDA::cudart)
     enableH5Part(${exename}-cuda)
+    enableInSituViz(${exename}-cuda)
     install(TARGETS ${exename}-cuda RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 elseif(CMAKE_HIP_COMPILER)
