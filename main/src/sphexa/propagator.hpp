@@ -210,7 +210,7 @@ public:
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz", "p", "c"});
         transferToDevice(d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33"});
         transferToDevice(d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33"});
-        computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
+        computeMomentumEnergySTD(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
         if (d.g != 0.0)
@@ -370,7 +370,7 @@ public:
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"c", "prho"});
         transferToDevice(d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33", "alpha"});
         transferToDevice(d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33", "alpha"});
-        computeGradPVE(first, last, ngmax_, d, domain.box());
+        computeMomentumEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
 
         if (d.g != 0.0)

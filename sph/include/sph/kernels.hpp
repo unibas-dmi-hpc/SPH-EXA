@@ -19,6 +19,15 @@ CUDA_DEVICE_HOST_FUN inline T compute_3d_k(T n)
     return b0 + b1 * std::sqrt(n) + b2 * n + b3 * std::sqrt(n * n * n);
 }
 
+//! @brief compute time-step based on the signal velocity
+template<class T1, class T2, class T3>
+CUDA_DEVICE_HOST_FUN inline auto tsKCourant(T1 maxvsignal, T2 h, T3 c, double kcour)
+{
+    using T = std::common_type_t<T1, T2, T3>;
+    T v     = maxvsignal > T(0) ? maxvsignal : c;
+    return T(kcour * h / v);
+}
+
 //! @brief sinc(PI/2 * v)
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline T wharmonic_std(T v)

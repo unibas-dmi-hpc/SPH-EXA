@@ -182,7 +182,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         energy += momentum_i * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
     }
 
-    a_visc_energy = std::max(T(0), a_visc_energy);
+    a_visc_energy = stl::max(T(0), a_visc_energy);
     du[i]         = K * (energy + T(0.5) * a_visc_energy); // factor of 2 already removed from 2P/rho
 
     // grad_P_xyz is stored as the acceleration, accel = -grad_P / rho

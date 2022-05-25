@@ -35,15 +35,14 @@
 #include "sph/math.hpp"
 #include "sph/kernels.hpp"
 #include "momentum_energy_kern.hpp"
-#ifdef USE_CUDA
 #include "sph/sph.cuh"
-#endif
+#include "sph/traits.hpp"
 
 namespace sph
 {
 
 template<class T, class Dataset>
-void computeMomentumAndEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                                   const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
@@ -127,13 +126,13 @@ void computeMomentumAndEnergyImpl(size_t startIndex, size_t endIndex, size_t ngm
 }
 
 template<class T, class Dataset>
-void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-#if defined(USE_CUDA)
-    cuda::computeMomentumAndEnergy(startIndex, endIndex, ngmax, d, box);
-#else
-    computeMomentumAndEnergyImpl(startIndex, endIndex, ngmax, d, box);
-#endif
+    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        cuda::computeMomentumEnergySTD(startIndex, endIndex, ngmax, d, box);
+    }
+    else { computeMomentumEnergySTDImpl(startIndex, endIndex, ngmax, d, box); }
 }
 
 } // namespace sph
