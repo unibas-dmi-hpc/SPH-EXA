@@ -85,6 +85,24 @@ void Initialize([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex)
     savedata["e1/params/protocol"] = "blueprint/mesh/hdf5";
 }
 
+/*! @brief Add a volume-independent vertex field to a mesh
+ *
+ * @tparam       FieldType  and elementary type like float, double, int, ...
+ * @param[inout] mesh       the mesh to add the field to
+ * @param[in]    name       the name of the field to use within the mesh
+ * @param[in]    field      field base pointer to publish to the mesh as external (zero-copy)
+ * @param[in]    start      first element of @p field to reveal to the mesh
+ * @param[in]    end        last element of @p field to reveal to the meash
+ */
+template<class FieldType>
+void addField(conduit::Node& mesh, const std::string& name, FieldType* field, size_t start, size_t end)
+{
+    mesh["fields/" + name + "/association"] = "vertex";
+    mesh["fields/" + name + "/topology"]    = "mesh";
+    mesh["fields/" + name + "/values"].set_external(field + start, end- start);
+    mesh["fields/" + name + "/volume_dependent"].set("false");
+}
+
 template<class DataType>
 void Execute(DataType& d, long startIndex, long endIndex)
 {
@@ -100,61 +118,18 @@ void Execute(DataType& d, long startIndex, long endIndex)
     mesh["topologies/mesh/type"]     = "unstructured";
     mesh["topologies/mesh/coordset"] = "coords";
 
-    mesh["fields/Density/association"] = "vertex";
-    mesh["fields/Density/topology"]    = "mesh";
-    mesh["fields/Density/values"].set_external(&d.rho[startIndex], endIndex - startIndex);
-    mesh["fields/Density/volume_dependent"].set("false");
-
-    mesh["fields/Internal Energy/association"] = "vertex";
-    mesh["fields/Internal Energy/topology"]    = "mesh";
-    mesh["fields/Internal Energy/values"].set_external(&d.u[startIndex], endIndex - startIndex);
-    mesh["fields/Internal Energy/volume_dependent"].set("false");
-
-    mesh["fields/Pressure/association"] = "vertex";
-    mesh["fields/Pressure/topology"]    = "mesh";
-    mesh["fields/Pressure/values"].set_external(&d.p[startIndex], endIndex - startIndex);
-    mesh["fields/Pressure/volume_dependent"].set("false");
-
-    mesh["fields/vx/association"] = "vertex";
-    mesh["fields/vx/topology"]    = "mesh";
-    mesh["fields/vx/values"].set_external(&d.vx[startIndex], endIndex - startIndex);
-    mesh["fields/vx/volume_dependent"].set("false");
-    mesh["fields/vy/association"] = "vertex";
-    mesh["fields/vy/topology"]    = "mesh";
-    mesh["fields/vy/values"].set_external(&d.vy[startIndex], endIndex - startIndex);
-    mesh["fields/vy/volume_dependent"].set("false");
-    mesh["fields/vz/association"] = "vertex";
-    mesh["fields/vz/topology"]    = "mesh";
-    mesh["fields/vz/values"].set_external(&d.vz[startIndex], endIndex - startIndex);
-    mesh["fields/vz/volume_dependent"].set("false");
-
-    mesh["fields/Smoothing Length/association"] = "vertex";
-    mesh["fields/Smoothing Length/topology"]    = "mesh";
-    mesh["fields/Smoothing Length/values"].set_external(&d.h[startIndex], endIndex - startIndex);
-    mesh["fields/Smoothing Length/volume_dependent"].set("false");
-
-    mesh["fields/Mass/association"] = "vertex";
-    mesh["fields/Mass/topology"]    = "mesh";
-    mesh["fields/Mass/values"].set_external(&d.m[startIndex], endIndex - startIndex);
-    mesh["fields/Mass/volume_dependent"].set("false");
-
-    mesh["fields/Speed of sound/association"] = "vertex";
-    mesh["fields/Speed of sound/topology"]    = "mesh";
-    mesh["fields/Speed of sound/values"].set_external(&d.c[startIndex], endIndex - startIndex);
-    mesh["fields/Speed of sound/volume_dependent"].set("false");
-
-    mesh["fields/Acceleration x/association"] = "vertex";
-    mesh["fields/Acceleration x/topology"]    = "mesh";
-    mesh["fields/Acceleration x/values"].set_external(&d.ax[startIndex], endIndex - startIndex);
-    mesh["fields/Acceleration x/volume_dependent"].set("false");
-    mesh["fields/Acceleration y/association"] = "vertex";
-    mesh["fields/Acceleration y/topology"]    = "mesh";
-    mesh["fields/Acceleration y/values"].set_external(&d.ax[startIndex], endIndex - startIndex);
-    mesh["fields/Acceleration y/volume_dependent"].set("false");
-    mesh["fields/Acceleration z/association"] = "vertex";
-    mesh["fields/Acceleration z/topology"]    = "mesh";
-    mesh["fields/Acceleration z/values"].set_external(&d.ax[startIndex], endIndex - startIndex);
-    mesh["fields/Acceleration z/volume_dependent"].set("false");
+    addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
+    addField(mesh, "vy", d.vy.data(), startIndex, endIndex);
+    addField(mesh, "vz", d.vz.data(), startIndex, endIndex);
+    addField(mesh, "Mass", d.m.data(), startIndex, endIndex);
+    addField(mesh, "Smoothing Length", d.h.data(), startIndex, endIndex);
+    addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
+    addField(mesh, "Internal Energy", d.u.data(), startIndex, endIndex);
+    addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
+    addField(mesh, "Speed of Sound", d.c.data(), startIndex, endIndex);
+    addField(mesh, "ax", d.ax.data(), startIndex, endIndex);
+    addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
+    addField(mesh, "ax", d.az.data(), startIndex, endIndex);
 
     std::vector<conduit_int64> conn(endIndex - startIndex);
     std::iota(conn.begin(), conn.end(), 0);
