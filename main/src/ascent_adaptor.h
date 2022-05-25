@@ -99,7 +99,7 @@ void addField(conduit::Node& mesh, const std::string& name, FieldType* field, si
 {
     mesh["fields/" + name + "/association"] = "vertex";
     mesh["fields/" + name + "/topology"]    = "mesh";
-    mesh["fields/" + name + "/values"].set_external(field + start, end- start);
+    mesh["fields/" + name + "/values"].set_external(field + start, end - start);
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
 
