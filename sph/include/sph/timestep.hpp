@@ -42,8 +42,6 @@
 #include "mpi.h"
 #endif
 
-namespace sphexa
-{
 namespace sph
 {
 
@@ -65,4 +63,3 @@ void computeTimestep(size_t startIndex, size_t endIndex, Dataset& d)
 }
 
 } // namespace sph
-} // namespace sphexa

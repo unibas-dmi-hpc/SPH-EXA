@@ -114,6 +114,11 @@ void Execute(DataType& d, long startIndex, long endIndex)
     fields["Speed of sound/topology"].set("mesh");
     fields["Speed of sound/volume_dependent"].set("false");
     fields["Speed of sound/values"].set_external(&d.c[startIndex], endIndex - startIndex); // zero-copy
+    // m is vertex-data.
+    fields["Mass/association"].set("vertex");
+    fields["Mass/topology"].set("mesh");
+    fields["Mass/volume_dependent"].set("false");
+    fields["Mass/values"].set_external(&d.m[startIndex], endIndex - startIndex); // zero-copy
 
     catalyst_status err = catalyst_execute(conduit_cpp::c_node(&exec_params));
     if (err != catalyst_status_ok) { std::cerr << "ERROR: Failed to execute Catalyst: " << err << std::endl; }

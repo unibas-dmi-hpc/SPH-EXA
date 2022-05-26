@@ -2,9 +2,6 @@
 
 #include "cstone/findneighbors.hpp"
 
-namespace sphexa
-{
-
 namespace sph
 {
 
@@ -62,4 +59,3 @@ size_t neighborsSum(size_t startIndex, size_t endIndex, gsl::span<const int> nei
 }
 
 } // namespace sph
-} // namespace sphexa

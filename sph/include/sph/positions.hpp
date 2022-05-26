@@ -36,8 +36,6 @@
 #include <cmath>
 #include <tuple>
 
-namespace sphexa
-{
 namespace sph
 {
 
@@ -65,7 +63,7 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        Vec3T A{-d.grad_P_x[i], -d.grad_P_y[i], -d.grad_P_z[i]};
+        Vec3T A{d.ax[i], d.ay[i], d.az[i]};
         Vec3T X{x[i], y[i], z[i]};
         Vec3T X_m1{x_m1[i], y_m1[i], z_m1[i]};
 
@@ -149,4 +147,3 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 }
 
 } // namespace sph
-} // namespace sphexa

@@ -54,19 +54,32 @@ template<class T, class KeyType>
 struct DeviceDataFacade
 {
     void resize(size_t) {}
-    void resize_streams(size_t, size_t) {}
-};
 
-namespace sph
-{
-namespace cuda
-{
+    template<class... Ts>
+    void setConserved(Ts...)
+    {
+    }
+
+    template<class... Ts>
+    void setDependent(Ts...)
+    {
+    }
+
+    template<class... Ts>
+    void release(Ts...)
+    {
+    }
+
+    template<class... Ts>
+    void acquire(Ts...)
+    {
+    }
+
+    inline static constexpr std::array fieldNames{0};
+};
 
 template<class T, class KeyType>
 class DeviceParticlesData;
-
-} // namespace cuda
-} // namespace sph
 
 namespace detail
 {
@@ -95,8 +108,8 @@ struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<H
 
 //! @brief Just a facade on the CPU, DeviceParticlesData on the GPU
 template<class Accelerator, class T, class KeyType>
-using DeviceData_t = typename detail::AccelSwitchType<Accelerator, DeviceDataFacade,
-                                                      sph::cuda::DeviceParticlesData>::template type<T, KeyType>;
+using DeviceData_t =
+    typename detail::AccelSwitchType<Accelerator, DeviceDataFacade, DeviceParticlesData>::template type<T, KeyType>;
 
 //! @brief std::allocator on the CPU, pinned_allocator on the GPU
 template<class Accelerator, class T>

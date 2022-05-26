@@ -49,7 +49,7 @@ struct AsciiWriter : public IFileWriter<Dataset>
                 }
                 catch (std::runtime_error& ex)
                 {
-                    if (rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
+                    if (rank == 0) fprintf(stderr, "ERROR: %s Terminating\n", ex.what());
                     MPI_Abort(d.comm, 1);
                 }
             }
@@ -107,5 +107,12 @@ struct H5PartWriter : public IFileWriter<Dataset>
 #endif
     }
 };
+
+template<class Dataset>
+std::unique_ptr<IFileWriter<Dataset>> fileWriterFactory(bool ascii)
+{
+    if (ascii) { return std::make_unique<AsciiWriter<Dataset>>(); }
+    else { return std::make_unique<H5PartWriter<Dataset>>(); }
+}
 
 } // namespace sphexa
