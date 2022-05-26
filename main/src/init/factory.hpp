@@ -42,7 +42,7 @@
 #include "sedov_init.hpp"
 #include "noh_init.hpp"
 #include "isobaric_cube_init.hpp"
-#include "bubble_shock_init.hpp"
+#include "wind_shock_init.hpp"
 
 namespace sphexa
 {
@@ -65,10 +65,10 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for isobaric cube\n"); }
         return std::make_unique<IsobaricCubeGlass<Dataset>>(glassBlock);
     }
-    if (testCase == "bubble-shock")
+    if (testCase == "wind-shock")
     {
-        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for bubble shock\n"); }
-        return std::make_unique<BubbleShockGlass<Dataset>>(glassBlock);
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for Wind shock\n"); }
+        return std::make_unique<WindShockGlass<Dataset>>(glassBlock);
     }
     if (testCase == "evrard")
     {

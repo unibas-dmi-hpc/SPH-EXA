@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Bubble shock simulation data initialization
+ * @brief Wind shock simulation data initialization
  *
  * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
  * @author Jose A. Escartin <ja.escartin@gmail.com>
@@ -47,7 +47,7 @@ namespace sphexa
 {
 
 template<class Dataset>
-void initBubbleShockFields(Dataset& d, const std::map<std::string, double>& constants, double massPart)
+void initWindShockFields(Dataset& d, const std::map<std::string, double>& constants, double massPart)
 {
     using T = typename Dataset::RealType;
 
@@ -121,7 +121,7 @@ void initBubbleShockFields(Dataset& d, const std::map<std::string, double>& cons
     }
 }
 
-std::map<std::string, double> BubbleShockConstants()
+std::map<std::string, double> WindShockConstants()
 {
     return {{"r", .125},
             {"rSphere", .025},
@@ -180,7 +180,7 @@ T sphereStretch(T rPos, T rInt, T s, T rExt)
  * The return value is the solution of rho_int / rho_ext == rhoRatio for s
  */
 template<class T>
-T BubbleShockcomputeStretchFactor(T rInt, T rExt, T rhoRatio)
+T WindShockcomputeStretchFactor(T rInt, T rExt, T rhoRatio)
 {
     T factor = (4. / 3. ) * M_PI;
     T hc = factor * rInt * rInt * rInt;
@@ -191,7 +191,7 @@ T BubbleShockcomputeStretchFactor(T rInt, T rExt, T rhoRatio)
 }
 
 template<class T>
-size_t BubbleShockcompressCenterSphere(gsl::span<T> x, gsl::span<T> y, gsl::span<T> z, T rInt, T s, T rExt, T epsilon)
+size_t WindShockcompressCenterSphere(gsl::span<T> x, gsl::span<T> y, gsl::span<T> z, T rInt, T s, T rExt, T epsilon)
 {
     size_t sum = 0;
 
@@ -230,16 +230,16 @@ size_t BubbleShockcompressCenterSphere(gsl::span<T> x, gsl::span<T> y, gsl::span
 
 
 template<class Dataset>
-class BubbleShockGlass : public ISimInitializer<Dataset>
+class WindShockGlass : public ISimInitializer<Dataset>
 {
     std::string                   glassBlock;
     std::map<std::string, double> constants_;
 
 public:
-    BubbleShockGlass(std::string initBlock)
+    WindShockGlass(std::string initBlock)
         : glassBlock(initBlock)
     {
-        constants_ = BubbleShockConstants();
+        constants_ = WindShockConstants();
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& d) const override
@@ -264,17 +264,17 @@ public:
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
-        T      s                    = BubbleShockcomputeStretchFactor(rSphere, r, rhoInt / rhoExt);
-        size_t numParticlesInternal = BubbleShockcompressCenterSphere<T>(d.x, d.y, d.z, rSphere, s, r, epsilon);
+        T      s                    = WindShockcomputeStretchFactor(rSphere, r, rhoInt / rhoExt);
+        size_t numParticlesInternal = WindShockcompressCenterSphere<T>(d.x, d.y, d.z, rSphere, s, r, epsilon);
 
         // Calculate particle mass with the internal sphere
         T innerSide   = rSphere;
         T innerVolume = (4. / 3.) * M_PI * innerSide * innerSide * innerSide;
         T massPart    = innerVolume * rhoInt / numParticlesInternal;
 
-        // Initialize bubble shock domain variables
+        // Initialize Wind shock domain variables
         d.resize(d.x.size());
-        initBubbleShockFields(d, constants_, massPart);
+        initWindShockFields(d, constants_, massPart);
 
         return globalBox;
     }
