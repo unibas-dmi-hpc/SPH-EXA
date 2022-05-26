@@ -70,8 +70,6 @@ void initBubbleShockFields(Dataset& d, const std::map<std::string, double>& cons
     std::fill(d.m.begin(), d.m.end(), massPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
     std::fill(d.mui.begin(), d.mui.end(), 10.0);
-    std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
-    std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
 
     d.minDt    = firstTimeStep;
@@ -275,7 +273,7 @@ public:
         T massPart    = innerVolume * rhoInt / numParticlesInternal;
 
         // Initialize bubble shock domain variables
-        resize(d, d.x.size());
+        d.resize(d.x.size());
         initBubbleShockFields(d, constants_, massPart);
 
         return globalBox;
