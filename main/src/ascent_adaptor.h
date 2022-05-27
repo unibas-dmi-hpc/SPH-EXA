@@ -118,6 +118,9 @@ void Execute(DataType& d, long startIndex, long endIndex)
     mesh["topologies/mesh/type"]     = "unstructured";
     mesh["topologies/mesh/coordset"] = "coords";
 
+    addField(mesh, "x", d.x.data(), startIndex, endIndex);
+    addField(mesh, "y", d.y.data(), startIndex, endIndex);
+    addField(mesh, "z", d.z.data(), startIndex, endIndex);
     addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
     addField(mesh, "vy", d.vy.data(), startIndex, endIndex);
     addField(mesh, "vz", d.vz.data(), startIndex, endIndex);
