@@ -42,11 +42,18 @@ namespace sphexa
 {
 
 template<class DomainType, class ParticleDataType>
-std::unique_ptr<Propagator<DomainType, ParticleDataType>> propagatorFactory(bool ve, size_t ngmax, size_t ng0,
-                                                                            std::ostream& output, size_t rank)
+std::unique_ptr<Propagator<DomainType, ParticleDataType>>
+propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
 {
-    if (ve) { return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
-    else { return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
+    if (choice == "ve")
+    {
+        return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+    }
+    else if (choice == "std")
+    {
+        return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+    }
+    else { throw std::runtime_error("Unknown propagator choice: " + choice); }
 }
 
 } // namespace sphexa
