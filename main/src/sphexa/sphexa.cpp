@@ -43,9 +43,9 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
-#include "propagator.hpp"
 #include "init/factory.hpp"
 #include "observables/factory.hpp"
+#include "propagator/factory.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
 #include "util/timer.hpp"
