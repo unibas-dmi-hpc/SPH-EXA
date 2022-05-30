@@ -201,34 +201,19 @@ public:
         this->printIterationTimings(domain, d);
     }
 
-    //! @brief configure the dataset for output
+    //! @brief configure the dataset for output by calling EOS again to recover rho and p
     void prepareOutput(ParticleDataType& d, size_t startIndex, size_t endIndex) override
     {
-        bool outputRho =
-            std::find(d.outputFieldNames.begin(), d.outputFieldNames.end(), "rho") != d.outputFieldNames.end();
-        if (outputRho)
-        {
-            d.release("c11");
-            d.acquire("rho");
-
-#pragma omp parallel for schedule(static)
-            for (size_t i = startIndex; i < endIndex; ++i)
-            {
-                d.rho[i] = d.kx[i] * d.m[i] / d.xm[i];
-            }
-        }
+        d.release("c11", "c12", "c13");
+        d.acquire("rho", "p", "gradh");
+        computeEOS(startIndex, endIndex, d);
     }
 
     //! @brief undo output configuration and restore compute configuration
     void finishOutput(ParticleDataType& d) override
     {
-        bool outputRho =
-            std::find(d.outputFieldNames.begin(), d.outputFieldNames.end(), "rho") != d.outputFieldNames.end();
-        if (outputRho)
-        {
-            d.release("rho");
-            d.acquire("c11");
-        }
+        d.release("rho", "p", "gradh");
+        d.acquire("c11", "c12", "c13");
     }
 };
 
