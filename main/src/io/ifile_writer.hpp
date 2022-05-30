@@ -30,7 +30,7 @@ struct AsciiWriter : public IFileWriter<Dataset>
               std::string path) const override
     {
         const char separator = ' ';
-        path += std::to_string(d.iteration) + ".txt";
+        path += std::to_string(d.ttot) + ".txt";
 
         int rank, numRanks;
         MPI_Comm_rank(d.comm, &rank);
