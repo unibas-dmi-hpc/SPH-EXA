@@ -38,15 +38,15 @@ class analytical_solution(rfm.RunOnlyRegressionTest):
     def set_reference(self):
         reference_d = {
             'sedov': {
-                'Density':  (0.157, -0.05, 0.05, ''),
-                'Pressure':  (0.921, -0.05, 0.05, ''),
-                'Velocity':  (0.923, -0.05, 0.05, ''),
+                'Density':  (0.138, -0.01, 0.01, ''),
+                'Pressure':  (0.902, -0.01, 0.01, ''),
+                'Velocity':  (0.915, -0.01, 0.01, ''),
                 # 'Energy':  (0., -0.05, 0.05, ''),
             },
             'noh': {
-                'Density':  (1.095, -0.05, 0.05, ''),
-                'Pressure':  (0.458, -0.05, 0.05, ''),
-                'Velocity':  (0.046, -0.05, 0.05, ''),
+                'Density':  (0.955, -0.01, 0.01, ''),
+                'Pressure':  (0.388, -0.01, 0.01, ''),
+                'Velocity':  (0.0384, -0.05, 0.05, ''),
                 # 'Energy':  (0.029, -0.05, 0.05, ''),
             },
         }
