@@ -85,7 +85,11 @@ HOST_DEVICE_FUN constexpr TreeNodeIndex loadLeafIndex(TreeNodeIndex index)
 template<class I>
 struct BinaryNode
 {
-    enum ChildType{ left = 0, right = 1 };
+    enum ChildType
+    {
+        left  = 0,
+        right = 1
+    };
 
     /*! @brief indices to the left and right children nodes
      *
@@ -100,9 +104,8 @@ struct BinaryNode
     TreeNodeIndex child[2];
 
     //! @brief the SFC key code with placeholder bit (Warren-Salmon 1993)
-    I   prefix;
+    I prefix;
 };
-
 
 /*! @brief find position of first differing bit
  *
@@ -119,8 +122,7 @@ HOST_DEVICE_FUN TreeNodeIndex findSplit(const I* sortedSfcCodes, TreeNodeIndex f
     I firstCode = sortedSfcCodes[first];
     I lastCode  = sortedSfcCodes[last];
 
-    if (firstCode == lastCode)
-        return (first + last) >> 1;
+    if (firstCode == lastCode) return (first + last) >> 1;
 
     // Calculate the number of highest bits that are the same for all objects
     int cpr = commonPrefix(firstCode, lastCode);
@@ -129,22 +131,20 @@ HOST_DEVICE_FUN TreeNodeIndex findSplit(const I* sortedSfcCodes, TreeNodeIndex f
     // Specifically, we are looking for the highest Morton code that
     // shares more than commonPrefix bits with the first one.
     TreeNodeIndex split = first; // initial guess
-    TreeNodeIndex step = last - first;
+    TreeNodeIndex step  = last - first;
 
     do
     {
-        step = (step + 1) / 2;      // exponential decrease
-        TreeNodeIndex newSplit = split + step; // proposed new position
+        step                   = (step + 1) / 2; // exponential decrease
+        TreeNodeIndex newSplit = split + step;   // proposed new position
 
         if (newSplit < last)
         {
-            I splitCode = sortedSfcCodes[newSplit];
+            I splitCode               = sortedSfcCodes[newSplit];
             TreeNodeIndex splitPrefix = commonPrefix(firstCode, splitCode);
-            if (splitPrefix > cpr)
-                split = newSplit; // accept proposal
+            if (splitPrefix > cpr) split = newSplit; // accept proposal
         }
-    }
-    while (step > 1);
+    } while (step > 1);
 
     return split;
 }
@@ -159,25 +159,28 @@ HOST_DEVICE_FUN TreeNodeIndex findSplit(const I* sortedSfcCodes, TreeNodeIndex f
  *                            permissible range is 0 <= firstIndex < nCodes-1
  */
 template<class I>
-HOST_DEVICE_FUN void constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* internalNodes, TreeNodeIndex firstIndex)
+HOST_DEVICE_FUN void
+constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* internalNodes, TreeNodeIndex firstIndex)
 {
     BinaryNode<I> outputNode;
 
-    int d = 1;
+    int d               = 1;
     int minPrefixLength = -1;
 
     if (firstIndex > 0)
     {
-        d = (commonPrefix(codes[firstIndex], codes[firstIndex + 1]) >
-             commonPrefix(codes[firstIndex], codes[firstIndex - 1])) ? 1 : -1;
-        minPrefixLength = commonPrefix(codes[firstIndex], codes[firstIndex -d]);
+        d               = (commonPrefix(codes[firstIndex], codes[firstIndex + 1]) >
+             commonPrefix(codes[firstIndex], codes[firstIndex - 1]))
+                              ? 1
+                              : -1;
+        minPrefixLength = commonPrefix(codes[firstIndex], codes[firstIndex - d]);
     }
 
     // determine searchRange, the maximum distance of secondIndex from firstIndex
     TreeNodeIndex searchRange = 2;
     TreeNodeIndex secondIndex = firstIndex + searchRange * d;
-    while(0 <= secondIndex && secondIndex < nCodes
-          && commonPrefix(codes[firstIndex], codes[secondIndex]) > minPrefixLength)
+    while (0 <= secondIndex && secondIndex < nCodes &&
+           commonPrefix(codes[firstIndex], codes[secondIndex]) > minPrefixLength)
     {
         searchRange *= 2;
         secondIndex = firstIndex + searchRange * d;
@@ -187,17 +190,16 @@ HOST_DEVICE_FUN void constructInternalNode(const I* codes, TreeNodeIndex nCodes,
     secondIndex = firstIndex;
     do
     {
-        searchRange = (searchRange + 1) / 2;
+        searchRange          = (searchRange + 1) / 2;
         TreeNodeIndex newJdx = secondIndex + searchRange * d;
-        if (0 <= newJdx && newJdx < nCodes
-            && commonPrefix(codes[firstIndex], codes[newJdx]) > minPrefixLength)
+        if (0 <= newJdx && newJdx < nCodes && commonPrefix(codes[firstIndex], codes[newJdx]) > minPrefixLength)
         {
             secondIndex = newJdx;
         }
     } while (searchRange > 1);
 
     int prefixLength  = commonPrefix(codes[firstIndex], codes[secondIndex]);
-    I   prefix        = zeroLowBits(codes[firstIndex], prefixLength);
+    I prefix          = zeroLowBits(codes[firstIndex], prefixLength);
     outputNode.prefix = encodePlaceholderBit(prefix, prefixLength);
 
     // find position of highest differing bit between [firstIndex, secondIndex]
@@ -211,7 +213,7 @@ HOST_DEVICE_FUN void constructInternalNode(const I* codes, TreeNodeIndex nCodes,
     }
     else
     {
-        //left child is an internal binary node
+        // left child is an internal binary node
         outputNode.child[BinaryNode<I>::left] = gamma;
     }
 
@@ -228,7 +230,6 @@ HOST_DEVICE_FUN void constructInternalNode(const I* codes, TreeNodeIndex nCodes,
 
     internalNodes[firstIndex] = outputNode;
 }
-
 
 /*! @brief create a binary radix tree from a cornerstone octree
  *
@@ -258,10 +259,10 @@ HOST_DEVICE_FUN void constructInternalNode(const I* codes, TreeNodeIndex nCodes,
 template<class KeyType>
 void createBinaryTree(const KeyType* tree, TreeNodeIndex nNodes, BinaryNode<KeyType>* binaryTree)
 {
-    #pragma omp parallel for
+#pragma omp parallel for
     for (TreeNodeIndex idx = 0; idx < nNodes; ++idx)
     {
-        constructInternalNode(tree, nNodes+1, binaryTree, idx);
+        constructInternalNode(tree, nNodes + 1, binaryTree, idx);
     }
 }
 

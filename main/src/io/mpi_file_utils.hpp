@@ -3,6 +3,7 @@
 #ifdef SPH_EXA_HAVE_H5PART
 #include <filesystem>
 #include "H5Part.h"
+#include <variant>
 #endif
 
 namespace sphexa
@@ -29,6 +30,12 @@ std::vector<std::string> datasetNames(H5PartFile* h5_file)
     return setNames;
 }
 
+inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, int* field)
+{
+    static_assert(std::is_same_v<int, h5part_int32_t>);
+    return H5PartReadDataInt32(h5_file, fieldName.c_str(), field);
+}
+
 inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, float* field)
 {
     static_assert(std::is_same_v<float, h5part_float32_t>);
@@ -39,6 +46,22 @@ inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fi
 {
     static_assert(std::is_same_v<double, h5part_float64_t>);
     return H5PartReadDataFloat64(h5_file, fieldName.c_str(), field);
+}
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const int* field)
+{
+    static_assert(std::is_same_v<int, h5part_int32_t>);
+    return H5PartWriteDataInt32(h5_file, fieldName.c_str(), field);
+}
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const unsigned* field)
+{
+    return H5PartWriteDataInt32(h5_file, fieldName.c_str(), (const h5part_int32_t*)field);
+}
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const uint64_t* field)
+{
+    return H5PartWriteDataInt64(h5_file, fieldName.c_str(), (const h5part_int64_t*)field);
 }
 
 inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const float* field)
@@ -53,6 +76,16 @@ inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& f
     return H5PartWriteDataFloat64(h5_file, fieldName.c_str(), field);
 }
 
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, double* value, size_t numElements)
+{
+    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
+}
+
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, float* value, size_t numElements)
+{
+    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
+}
+
 template<class Dataset, class T>
 void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& box, const std::string& path)
 {
@@ -65,10 +98,7 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
 
 #ifdef H5PART_PARALLEL_IO
     if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFileParallel(h5_fname, H5PART_APPEND, d.comm); }
-    else
-    {
-        h5_file = H5PartOpenFileParallel(h5_fname, H5PART_WRITE, d.comm);
-    }
+    else { h5_file = H5PartOpenFileParallel(h5_fname, H5PART_WRITE, d.comm); }
 #else
     int numRanks;
     MPI_Comm_size(d.comm, &numRanks);
@@ -77,21 +107,19 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
         throw std::runtime_error("Cannot write HDF5 output with multiple ranks without parallel HDF5 support\n");
     }
     if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFile(h5_fname, H5PART_APPEND); }
-    else
-    {
-        h5_file = H5PartOpenFile(h5_fname, H5PART_WRITE);
-    }
+    else { h5_file = H5PartOpenFile(h5_fname, H5PART_WRITE); }
 #endif
 
     // create the next step
     h5_id_t numSteps = H5PartGetNumSteps(h5_file);
     H5PartSetStep(h5_file, numSteps);
 
-    H5PartWriteStepAttrib(h5_file, "time", H5PART_FLOAT64, &d.ttot, 1);
-    H5PartWriteStepAttrib(h5_file, "minDt", H5PART_FLOAT64, &d.minDt, 1);
+    sphexaWriteStepAttrib(h5_file, "time", &d.ttot, 1);
+    sphexaWriteStepAttrib(h5_file, "minDt", &d.minDt, 1);
+    sphexaWriteStepAttrib(h5_file, "minDt_m1", &d.minDt_m1, 1);
+    sphexaWriteStepAttrib(h5_file, "gravConstant", &d.g, 1);
     // record the actual SPH-iteration as step attribute
     H5PartWriteStepAttrib(h5_file, "step", H5PART_INT64, &d.iteration, 1);
-    H5PartWriteStepAttrib(h5_file, "gravConstant", H5PART_FLOAT64, &d.g, 1);
 
     // record the global coordinate bounding box
     double extents[6] = {box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax()};
@@ -106,8 +134,10 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     auto fieldPointers = getOutputArrays(d);
     for (size_t fidx = 0; fidx < fieldPointers.size(); ++fidx)
     {
-        const std::string& fieldName = Dataset::fieldNames[d.outputFields[fidx]];
-        writeH5PartField(h5_file, fieldName, fieldPointers[fidx] + firstIndex);
+        const std::string& fieldName = d.outputFieldNames[fidx];
+        std::visit([&h5_file, &fieldName, firstIndex](auto& arg)
+                   { writeH5PartField(h5_file, fieldName, arg + firstIndex); },
+                   fieldPointers[fidx]);
     }
 
     H5PartCloseFile(h5_file);
@@ -135,7 +165,7 @@ void readTemplateBlock(std::string block, Vector& x, Vector& y, Vector& z)
 #else
 
 template<class Vector>
-void readTemplateBlock(std::string block, Vector& x, Vector& y, Vector& z)
+void readTemplateBlock(std::string /*block*/, Vector& /*x*/, Vector& /*y*/, Vector& /*z*/)
 {
     throw std::runtime_error("Glass initialization with template blocks only supported with HDF5 support\n");
 }

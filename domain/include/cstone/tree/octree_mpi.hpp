@@ -29,7 +29,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-
 #pragma once
 
 #include <mpi.h>
@@ -52,9 +51,10 @@ bool updateOctreeGlobal(const KeyType* keyStart,
                         std::vector<KeyType>& tree,
                         std::vector<unsigned>& counts)
 {
-    int nRanks;
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
-    unsigned maxCount = std::numeric_limits<unsigned>::max() / nRanks;
+    int numRanks;
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+    // to prevent 32-bit overflow we limit the maximum count to 2^32-1, divided by numRanks due to MPI_Allreduce
+    unsigned maxCount = std::numeric_limits<unsigned>::max() / numRanks;
 
     bool converged = updateOctree(keyStart, keyEnd, bucketSize, tree, counts, maxCount);
     MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
@@ -81,6 +81,7 @@ bool updateOctreeGlobal(const KeyType* keyStart,
                         std::vector<unsigned>& counts,
                         int numRanks)
 {
+    // to prevent 32-bit overflow we limit the maximum count to 2^32-1, divided by numRanks due to MPI_Allreduce
     unsigned maxCount = std::numeric_limits<unsigned>::max() / numRanks;
 
     bool converged = tree.rebalance(bucketSize, counts);

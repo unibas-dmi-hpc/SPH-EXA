@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <map>
 
 #include "cstone/sfc/box.hpp"
@@ -51,22 +52,17 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     if (testCase == "sedov")
     {
         if (glassBlock.empty()) { return std::make_unique<SedovGrid<Dataset>>(); }
-        else
-        {
-            return std::make_unique<SedovGlass<Dataset>>(glassBlock);
-        }
+        else { return std::make_unique<SedovGlass<Dataset>>(glassBlock); }
     }
     if (testCase == "noh")
     {
         if (glassBlock.empty()) { return std::make_unique<NohGrid<Dataset>>(); }
-        else
-        {
-            return std::make_unique<NohGlassSphere<Dataset>>(glassBlock);
-        }
+        else { return std::make_unique<NohGlassSphere<Dataset>>(glassBlock); }
     }
     if (testCase == "isobaric-cube")
     {
-        return std::make_unique<IsobaricCubeGrid<Dataset>>();
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for isobaric cube\n"); }
+        return std::make_unique<IsobaricCubeGlass<Dataset>>(glassBlock);
     }
     if (testCase == "evrard")
     {
@@ -75,7 +71,13 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     }
     else
     {
-        return std::make_unique<FileInit<Dataset>>(testCase);
+        if (std::filesystem::exists(testCase)) { return std::make_unique<FileInit<Dataset>>(testCase); }
+        else
+        {
+            throw std::runtime_error("supplied value of --init " +
+                                     (testCase.empty() ? "[empty string]" : "(\"" + testCase + "\")") +
+                                     " is not an existing file and does not refer to a supported test case\n");
+        }
     }
 }
 

@@ -60,6 +60,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     unsigned bucketSize           = 64;
     unsigned bucketSizeLocal      = 16;
     float theta                   = 10.0;
+    float invThetaEff             = invThetaMinMac(theta);
 
     Box<T> box{-1, 1};
 
@@ -79,7 +80,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
 
     // *******************************
 
-    auto peers = findPeersMac(thisRank, assignment, domainTree, box, theta);
+    auto peers = findPeersMac(thisRank, assignment, domainTree, box, invThetaEff);
 
     KeyType focusStart = tree[assignment.firstNodeIdx(thisRank)];
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
@@ -99,7 +100,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
     FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
-    focusTree.converge(box, particleKeys, peers, assignment, tree, counts);
+    focusTree.converge(box, particleKeys, peers, assignment, tree, counts, invThetaEff);
 
     const Octree<KeyType>& octree = focusTree.octree();
     std::vector<int> testCounts(octree.numTreeNodes(), -1);
@@ -165,6 +166,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     unsigned bucketSize           = 64;
     unsigned bucketSizeLocal      = 16;
     float theta                   = 10.0;
+    float invThetaEff             = invThetaMinMac(theta);
 
     Box<T> box{-1, 1};
 
@@ -185,7 +187,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
 
     /*******************************/
 
-    auto peers = findPeersMac(thisRank, assignment, domainTree, box, theta);
+    auto peers = findPeersMac(thisRank, assignment, domainTree, box, invThetaEff);
 
     KeyType focusStart = tree[assignment.firstNodeIdx(thisRank)];
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
@@ -206,7 +208,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
     FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
-    focusTree.converge(box, particleKeys, peers, assignment, tree, counts);
+    focusTree.converge(box, particleKeys, peers, assignment, tree, counts, invThetaEff);
 
     const Octree<KeyType>& octree = focusTree.octree();
 
@@ -226,7 +228,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
             SourceCenterType<T> reference = massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(),
                                                           globalMasses.data(), startIndex, endIndex);
 
-            T refMac     = computeMac(octree.nodeKeys()[i], makeVec3(reference), 1.0 / theta, box);
+            T refMac     = computeVecMacR2(octree.nodeKeys()[i], makeVec3(reference), 1.0 / theta, box);
             reference[3] = (reference[3] == T(0)) ? T(0) : refMac;
 
             EXPECT_NEAR(sourceCenter[i][0], reference[0], tol);

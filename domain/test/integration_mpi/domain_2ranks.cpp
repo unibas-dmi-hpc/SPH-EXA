@@ -43,7 +43,7 @@ template<class KeyType, class T>
 void noHalos(int rank, int numRanks)
 {
     int bucketSize = 1;
-    float theta = 1.0;
+    float theta    = 1.0;
     Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize, theta);
 
     std::vector<T> x{0.5, 0.6};
@@ -94,7 +94,7 @@ template<class KeyType, class T>
 void withHalos(int rank, int numRanks)
 {
     int bucketSize = 1;
-    float theta = 1.0;
+    float theta    = 1.0;
     Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize, theta);
 
     std::vector<T> x{0.5, 0.6};
@@ -149,7 +149,7 @@ template<class KeyType, class T>
 void moreHalos(int rank, int numRanks)
 {
     int bucketSize = 4;
-    float theta = 1.0;
+    float theta    = 1.0;
     Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize, theta);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
@@ -195,7 +195,7 @@ void moreHalos(int rank, int numRanks)
     }
 
     int gstart = (rank == 0) ? 0 : 2;
-    int gend = (rank == 0) ? 9 : 12;
+    int gend   = (rank == 0) ? 9 : 12;
 
     std::vector<T> xref{xGlobal.begin() + gstart, xGlobal.begin() + gend};
     std::vector<T> yref{yGlobal.begin() + gstart, yGlobal.begin() + gend};
@@ -239,7 +239,7 @@ template<class KeyType, class T>
 void particleProperty(int rank, int numRanks)
 {
     int bucketSize = 4;
-    float theta = 1.0;
+    float theta    = 1.0;
     Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize, theta);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
@@ -273,10 +273,7 @@ void particleProperty(int rank, int numRanks)
 
     std::vector<T> refMass;
     if (rank == 0) { refMass = std::vector<T>{1, 2, 3, 4, 5, 6, 0, 0, 0}; }
-    else if (rank == 1)
-    {
-        refMass = std::vector<T>{0, 0, 0, 0, 7, 8, 9, 10, 11, 12};
-    }
+    else if (rank == 1) { refMass = std::vector<T>{0, 0, 0, 0, 7, 8, 9, 10, 11, 12}; }
 
     EXPECT_EQ(mass.size(), refMass.size());
     for (LocalIndex i = domain.startIndex(); i < domain.endIndex(); ++i)
@@ -310,9 +307,9 @@ TEST(FocusDomain, particleProperty)
 template<class KeyType, class T>
 void multiStepSync(int rank, int numRanks)
 {
-    int bucketSize = 4;
+    int bucketSize      = 4;
     int bucketSizeFocus = 1;
-    float theta = 1.0;
+    float theta         = 1.0;
     Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
@@ -451,9 +448,9 @@ void zipSort(std::vector<T>& x, std::vector<T>& y)
 template<class KeyType, class T>
 void domainHaloRadii(int rank, int nRanks)
 {
-    int bucketSize = 4;
+    int bucketSize      = 4;
     int bucketSizeFocus = 1;
-    float theta = 1.0;
+    float theta         = 1.0;
     Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta);
 
     std::vector<T> x, y, z, h;

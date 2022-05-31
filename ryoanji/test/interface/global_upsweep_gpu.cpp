@@ -46,7 +46,7 @@ template<class T, class KeyType>
 static int multipoleHolderTest(int thisRank, int numRanks)
 {
     using MultipoleType              = SphericalMultipole<T, 4>;
-    const LocalIndex numParticles    = 1000;
+    const LocalIndex numParticles    = 1000 * numRanks;
     unsigned         bucketSize      = 64;
     unsigned         bucketSizeLocal = 16;
     float            theta           = 10.0;
@@ -97,6 +97,11 @@ static int multipoleHolderTest(int thisRank, int numRanks)
                             domain.layout().data(),
                             multipoles.data());
 
+    cudaMemcpy(multipoles.data(),
+               multipoleHolder.deviceMultipoles(),
+               multipoles.size() * sizeof(MultipoleType),
+               cudaMemcpyDeviceToHost);
+
     MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];
 
     // compute reference root cell multipole from global particle data
@@ -123,10 +128,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     }
 
     if (numPassed == numRanks) { return EXIT_SUCCESS; }
-    else
-    {
-        return EXIT_FAILURE;
-    }
+    else { return EXIT_FAILURE; }
 }
 
 int main(int argc, char** argv)

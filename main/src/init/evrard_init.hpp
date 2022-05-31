@@ -53,10 +53,10 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
     std::fill(d.mui.begin(), d.mui.end(), 10.0);
-    std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
-    std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-    d.minDt = firstTimeStep;
+
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
 
     std::fill(d.vx.begin(), d.vx.end(), 0.0);
     std::fill(d.vy.begin(), d.vy.end(), 0.0);
@@ -92,7 +92,7 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
 
 std::map<std::string, double> evrardConstants()
 {
-    return {{"r", 1.}, {"mTotal", 1.}, {"gamma", 5.0 / 3.0}, {"u0", 0.05}, {"firstTimeStep", 1e-4}};
+    return {{"G", 1.}, {"r", 1.}, {"mTotal", 1.}, {"gamma", 5. / 3.}, {"u0", 0.05}, {"firstTimeStep", 1e-4}};
 }
 
 template<class Dataset>
@@ -119,7 +119,9 @@ public:
 
         size_t multiplicity = std::rint(cbrtNumPart / std::cbrt(blockSize));
 
-        T              r = constants_.at("r");
+        d.g = constants_.at("G");
+        T r = constants_.at("r");
+
         cstone::Box<T> globalBox(-r, r, false);
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
@@ -129,15 +131,32 @@ public:
         d.numParticlesGlobal = d.x.size();
         MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
 
-        resize(d, d.x.size());
-        initEvrardFields(d, constants_);
+        size_t                    bucketSize = std::max(64lu, d.numParticlesGlobal / (100 * numRanks));
+        cstone::BufferDescription bufDesc{0, cstone::LocalIndex(d.x.size()), cstone::LocalIndex(d.x.size())};
 
-        // TODO: unify this with computePosition/Acceleration:
-        // from SPH we have acceleration = -grad_P, so computePosition adds a factor of -1 to the pressure gradients
-        // instead, the pressure gradients should be renamed to acceleration and computeMomentumAndEnergy should
-        // directly set this to -grad_P, such that we don't need to add the gravitational acceleration with a factor of
-        // -1 on top. The cgs value of g would be 6.6726e-8, 1.0 for Evrard mainly.
-        d.g = -1.0;
+        cstone::GlobalAssignment<KeyType, T> distributor(rank, numRanks, bucketSize, globalBox);
+        cstone::ReorderFunctor_t<cstone::CpuTag, T, KeyType, cstone::LocalIndex> reorderFunctor;
+
+        std::vector<KeyType> particleKeys(d.x.size());
+        cstone::LocalIndex   newNParticlesAssigned =
+            distributor.assign(bufDesc, reorderFunctor, particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
+        size_t exchangeSize = std::max(d.x.size(), size_t(newNParticlesAssigned));
+        cstone::reallocate(exchangeSize, particleKeys, d.x, d.y, d.z);
+        auto [exchangeStart, keyView] =
+            distributor.distribute(bufDesc, reorderFunctor, particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
+
+        reorderFunctor(d.x.data() + exchangeStart, d.x.data());
+        reorderFunctor(d.y.data() + exchangeStart, d.y.data());
+        reorderFunctor(d.z.data() + exchangeStart, d.z.data());
+        d.x.resize(keyView.size());
+        d.y.resize(keyView.size());
+        d.z.resize(keyView.size());
+        d.x.shrink_to_fit();
+        d.y.shrink_to_fit();
+        d.z.shrink_to_fit();
+
+        d.resize(d.x.size());
+        initEvrardFields(d, constants_);
 
         return globalBox;
     }

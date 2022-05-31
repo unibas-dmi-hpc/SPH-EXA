@@ -45,12 +45,12 @@ void simpleTest(int thisRank)
     int localCount, localOffset;
     if (thisRank == 0)
     {
-        localCount = 3;
+        localCount  = 3;
         localOffset = 0;
     }
     if (thisRank == 1)
     {
-        localCount = 7;
+        localCount  = 7;
         localOffset = 3;
     }
 

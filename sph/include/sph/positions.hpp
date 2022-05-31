@@ -36,29 +36,16 @@
 #include <cmath>
 #include <tuple>
 
-namespace sphexa
-{
 namespace sph
 {
-
-template<typename T, class Dataset>
-struct computeAccelerationWithGravity
-{
-    std::tuple<T, T, T> operator()(const int idx, Dataset& d)
-    {
-        const T G  = d.g;
-        const T ax = -(d.grad_P_x[idx] - G * d.fx[idx]);
-        const T ay = -(d.grad_P_y[idx] - G * d.fy[idx]);
-        const T az = -(d.grad_P_z[idx] - G * d.fz[idx]);
-        return std::make_tuple(ax, ay, az);
-    }
-};
 
 template<class T, class Dataset>
 void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     using Vec3T = cstone::Vec3<T>;
-    const T* dt = d.dt.data();
+    T dt        = d.minDt;
+    T dt_m1     = d.minDt_m1;
+
     const T* du = d.du.data();
 
     T* x     = d.x.data();
@@ -72,7 +59,6 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
     T* z_m1  = d.z_m1.data();
     T* u     = d.u.data();
     T* du_m1 = d.du_m1.data();
-    T* dt_m1 = d.dt_m1.data();
 
     T hasFBC;
 
@@ -85,17 +71,15 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         } else {
             hasFBC = 1.0;
         }
-        Vec3T A{-d.grad_P_x[i], -d.grad_P_y[i], -d.grad_P_z[i]};
+        Vec3T A{d.ax[i], d.ay[i], d.az[i]};
         Vec3T X{x[i], y[i], z[i]};
         Vec3T X_m1{x_m1[i], y_m1[i], z_m1[i]};
 
-        T dt_i = dt[i];
-
         // Update positions according to Press (2nd order)
-        T deltaA = dt_i + 0.5 * dt_m1[i];
-        T deltaB = 0.5 * (dt_i + dt_m1[i]);
+        T deltaA = dt + T(0.5) * dt_m1;
+        T deltaB = T(0.5) * (dt + dt_m1);
 
-        Vec3T Val = (X - X_m1) * (1.0 * hasFBC/ dt_m1[i]);
+        Vec3T Val = (X - X_m1) * (T(1) * hasFBC/ dt_m1[i]);
         if(Val[0] == 0 && Val[1] == 0 && Val[2] == 0)
         {
             //printf("val zero: i %lu hasFBC %d", i, d.hasFBC[i]);
@@ -110,7 +94,7 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 
         Vec3T V = Val + A * (deltaA * hasFBC);
         X_m1    = X;
-        X += (dt_i * hasFBC) * Val + A * deltaB * (dt_i * hasFBC);
+        X += (dt * hasFBC) * Val + A * deltaB * (dt * hasFBC);
 
         if (box.pbcX() && X[0] < box.xmin())
         {
@@ -154,13 +138,12 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         vz[i]   = V[2];
 
         // Update the energy according to Adams-Bashforth (2nd order)
-        deltaA = 0.5 * dt_i * dt_i / dt_m1[i];
-        deltaB = dt_i + deltaA;
+        deltaA = 0.5 * dt * dt / dt_m1;
+        deltaB = dt + deltaA;
 
         u[i] += du[i] * deltaB - du_m1[i] * deltaA;
 
         du_m1[i] = du[i];
-        dt_m1[i] = dt_i;
 
 #ifndef NDEBUG
         if (std::isnan(u[i]) || u[i] < 0.0)
@@ -176,4 +159,3 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 }
 
 } // namespace sph
-} // namespace sphexa

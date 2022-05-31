@@ -26,13 +26,14 @@
 /*! @file
  * @brief Isobaric cube simulation data initialization
  *
- * @author Jose A. Escartin <ja.escartin@gmail.com>"
+ * @author Jose A. Escartin <ja.escartin@gmail.com>
  */
 
 #pragma once
 
 #include <map>
 #include <cmath>
+#include <algorithm>
 
 #include "cstone/sfc/box.hpp"
 
@@ -48,8 +49,6 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
     using T = typename Dataset::RealType;
 
     T r      = constants.at("r");
-    T rDelta = constants.at("rDelta");
-
     T rhoInt = constants.at("rhoInt");
     T rhoExt = constants.at("rhoExt");
 
@@ -64,23 +63,44 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
     T uExt = pIsobaric / (gamma - 1.) / rhoExt;
 
     T firstTimeStep = constants.at("firstTimeStep");
+    T epsilon       = constants.at("epsilon");
 
     std::fill(d.m.begin(), d.m.end(), massPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
     std::fill(d.mui.begin(), d.mui.end(), 10.0);
-    std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
-    std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-    d.minDt = firstTimeStep;
+
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        bool externalPart = (abs(d.x[i]) > r) || (abs(d.y[i]) > r) || (abs(d.z[i]) > r);
+        T xi = std::abs(d.x[i]);
+        T yi = std::abs(d.y[i]);
+        T zi = std::abs(d.z[i]);
 
-        d.h[i] = externalPart ? hExt : hInt;
+        if ((xi > r + epsilon) || (yi > r + epsilon) || (zi > r + epsilon))
+        {
+            if ((xi > r + 2 * hExt) || (yi > r + 2 * hExt) || (zi > r + 2 * hExt))
+            {
+                // more than two smoothing lengths away from the inner cube
+                d.h[i] = hExt;
+            }
+            else
+            {
+                T dist = std::max({xi - r, yi - r, zi - r});
+                // reduce smoothing lengths for particles outside, but close to the inner cube
+                d.h[i] = hInt * (1 - dist / (2 * hExt)) + hExt * dist / (2 * hExt);
+            }
 
-        d.u[i] = externalPart ? uExt : uInt;
+            d.u[i] = uExt;
+        }
+        else
+        {
+            d.h[i] = hInt;
+            d.u[i] = uInt;
+        }
 
         d.vx[i] = 0.;
         d.vy[i] = 0.;
@@ -101,93 +121,161 @@ std::map<std::string, double> IsobaricCubeConstants()
             {"rhoExt", 1.},
             {"rhoInt", 8.},
             {"pIsobaric", 2.5}, // pIsobaric = (gamma − 1.) * rho * u
-            {"firstTimeStep", 1e-4}};
+            {"firstTimeStep", 1e-4},
+            {"epsilon", 1e-15},
+            {"pairInstability", 0.}}; // 1e-6}};
+}
+
+/*! @brief compute the shift factor towards the center for point X in a capped pyramid
+ *
+ * @tparam T      float or double
+ * @param  X      a 3D point with at least one coordinate > s and all coordinates < rExt
+ * @param  rInt   half cube length of the internal high-density cube
+ * @param  s      compression radius used to create the high-density cube, in [rInt, rExt]
+ * @param  rExt   half cube length of the external low-density cube
+ * @return        factor in [0:1]
+ */
+template<class T>
+T cappedPyramidStretch(cstone::Vec3<T> X, T rInt, T s, T rExt)
+{
+    assert(rInt < s && s < rExt);
+
+    X = abs(X);
+
+    //! the intersection of the ray from the coordinate origin through X with the outer cube
+    cstone::Vec3<T> pointA = X * (rExt / util::max(X));
+    //! the intersection of the ray from the coordinate origin through X with the stretch cube [-s, s]^3
+    cstone::Vec3<T> pointB = X * (s / util::max(X));
+    //! the intersection of the ray from the coordinate origin through X with the inner cube
+    cstone::Vec3<T> pointC = X * (rInt / util::max(X));
+
+    // distances of points A, B and C from the coordinate origin
+    T hp     = std::sqrt(norm2(pointC));
+    T sp     = std::sqrt(norm2(pointB));
+    T rp     = std::sqrt(norm2(pointA));
+    T radius = std::sqrt(norm2(X));
+
+    /*! transformation map: particle X is moved towards the coordinate origin
+     * known mapped values:
+     * (1) if X == pointA, X is not moved
+     * (2) if X == pointB, X is moved to point C
+     *
+     * The map is not linear to compensate for the shrinking area of the capped pyramid top and keep density constant.
+     */
+    T expo = 0.75;
+    //! normalization constant to satisfy (1) and (2)
+    T a         = (rp - hp) / std::pow(rp - sp, expo);
+    T newRadius = a * std::pow(radius - sp, expo) + hp;
+
+    T scaleFactor = newRadius / radius;
+
+    return scaleFactor;
+}
+
+/*! returns a value in [rInt:rExt]
+ *
+ * @tparam T         float or double
+ * @param  rInt      inner cube half side
+ * @param  rExt      outer dube half side
+ * @param  rhoRatio  the desired density ratio between inner and outer
+ * @return           value s, such that if [-s, s]^3 gets contracted into the inner cube
+ *                   and [s:rExt, s:rExt]^3 is expanded into the resulting empty area,
+ *                   the inner and outer cubes will have a density ratio of @p rhoRatio
+ *
+ * Derivation:
+ *      internal density: rho_int = rho_0 * (s / rInt)^3
+ *
+ *      external density: rho_ext = rho_0  * (2rExt)^3 - (2s)^3
+ *                                           ------------------
+ *                                           (2rExt)^3 - (2rInt)^3
+ *
+ * The return value is the solution of rho_int / rho_ext == rhoRatio for s
+ */
+template<class T>
+T computeStretchFactor(T rInt, T rExt, T rhoRatio)
+{
+    T hc = rInt * rInt * rInt;
+    T rc = rExt * rExt * rExt;
+    T s  = std::cbrt(rhoRatio * hc * rc / (rc - hc + rhoRatio * hc));
+    assert(rInt < s && s < rExt);
+    return s;
+}
+
+template<class T>
+void compressCenterCube(gsl::span<T> x, gsl::span<T> y, gsl::span<T> z, T rInt, T s, T rExt, T epsilon)
+{
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < x.size(); i++)
+    {
+        if ((std::abs(x[i]) - s > epsilon) || (std::abs(y[i]) - s > epsilon) || (std::abs(z[i]) - s > epsilon))
+        {
+            cstone::Vec3<T> X{x[i], y[i], z[i]};
+
+            T scaleFactor = cappedPyramidStretch(X, rInt, s, rExt);
+
+            x[i] *= scaleFactor;
+            y[i] *= scaleFactor;
+            z[i] *= scaleFactor;
+        }
+        else
+        {
+            // particle in inner high-density region get contracted towards the center
+            x[i] *= rInt / s;
+            y[i] *= rInt / s;
+            z[i] *= rInt / s;
+        }
+    }
 }
 
 template<class Dataset>
-class IsobaricCubeGrid : public ISimInitializer<Dataset>
+class IsobaricCubeGlass : public ISimInitializer<Dataset>
 {
+    std::string                   glassBlock;
     std::map<std::string, double> constants_;
 
 public:
-    IsobaricCubeGrid() { constants_ = IsobaricCubeConstants(); }
-
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide, Dataset& d) const override
+    IsobaricCubeGlass(std::string initBlock)
+        : glassBlock(initBlock)
     {
-        using T = typename Dataset::RealType;
+        constants_ = IsobaricCubeConstants();
+    }
 
-        size_t nIntPart      = cubeSide * cubeSide * cubeSide;
-        d.numParticlesGlobal = nIntPart;
-        auto [first, last]   = partitionRange(d.numParticlesGlobal, rank, numRanks);
-        resize(d, last - first);
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& d) const override
+    {
+        using KeyType = typename Dataset::KeyType;
+        using T       = typename Dataset::RealType;
 
-        T r = constants_.at("r");
-        regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
+        T r       = constants_.at("r");
+        T rhoInt  = constants_.at("rhoInt");
+        T rhoExt  = constants_.at("rhoExt");
+        T epsilon = constants_.at("pairInstability");
 
-        T stepRatio = constants_.at("rhoInt") / constants_.at("rhoExt");
-        T rDelta    = constants_.at("rDelta");
-        T stepInt   = (2. * r) / cubeSide;
-        T stepExt   = stepInt * std::pow(stepRatio, 1. / 3.);
-        T totalSide = 2. * (r + rDelta);
+        std::vector<T> xBlock, yBlock, zBlock;
+        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        size_t blockSize = xBlock.size();
 
-        size_t extCubeSide = round(totalSide / stepExt);
-        stepExt            = totalSide / T(extCubeSide); // Adjust stepExt exactly to the actual # of particles
+        size_t multiplicity  = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        d.numParticlesGlobal = multiplicity * multiplicity * multiplicity * blockSize;
 
-        T initR       = -(r + rDelta) + 0.5 * stepExt;
-        T totalVolume = totalSide * totalSide * totalSide;
+        cstone::Box<T> globalBox(-2 * r, 2 * r, true);
+        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
+        assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
-        size_t totalCubeExt = extCubeSide * extCubeSide * extCubeSide;
-        T      massPart     = totalVolume / totalCubeExt;
+        T s = computeStretchFactor(r, 2 * r, rhoInt / rhoExt);
+        compressCenterCube<T>(d.x, d.y, d.z, r, s, 2. * r, epsilon);
 
-        // Count additional particles
-        size_t nExtPart = 0;
-        for (size_t i = 0; i < extCubeSide; i++)
-        {
-            T lz = initR + (i * stepExt);
+        size_t numParticlesInternal = d.numParticlesGlobal * std::pow(s / (2. * r), 3);
 
-            for (size_t j = 0; j < extCubeSide; j++)
-            {
-                T ly = initR + (j * stepExt);
+        // Calculate particle mass with the internal cube
+        T innerSide   = 2. * r;
+        T innerVolume = innerSide * innerSide * innerSide;
+        T massPart    = innerVolume * rhoInt / numParticlesInternal;
 
-                for (size_t k = 0; k < extCubeSide; k++)
-                {
-                    T lx = initR + (k * stepExt);
-
-                    if ((abs(lx) - r > 1.e-15) || (abs(ly) - r > 1.e-15) || (abs(lz) - r > 1.e-15)) { nExtPart++; }
-                }
-            }
-        }
-
-        // Reside ParticleData
-        d.numParticlesGlobal += nExtPart;
-        resize(d, d.numParticlesGlobal);
-
-        // Add external cube positions
-        size_t idx = nIntPart;
-        for (size_t i = 0; i < extCubeSide; i++)
-        {
-            T lz = initR + (i * stepExt);
-            for (size_t j = 0; j < extCubeSide; j++)
-            {
-                T ly = initR + (j * stepExt);
-                for (size_t k = 0; k < extCubeSide; k++)
-                {
-                    T lx = initR + (k * stepExt);
-                    if ((abs(lx) - r > 1.e-15) || (abs(ly) - r > 1.e-15) || (abs(lz) - r > 1.e-15))
-                    {
-                        d.x[idx] = lx;
-                        d.y[idx] = ly;
-                        d.z[idx] = lz;
-
-                        idx++;
-                    }
-                }
-            }
-        }
-
+        // Initialize isobaric cube domain variables
+        d.resize(d.x.size());
         initIsobaricCubeFields(d, constants_, massPart);
 
-        return cstone::Box<T>(-(r + rDelta), r + rDelta, true);
+        return globalBox;
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }

@@ -1,9 +1,9 @@
 #pragma once
 
 #include "math.hpp"
-#include "sph/cuda/annotation.hpp"
+#include "sph/util/annotation.hpp"
 
-namespace sphexa
+namespace sph
 {
 
 template<typename T>
@@ -19,6 +19,7 @@ CUDA_DEVICE_HOST_FUN inline T compute_3d_k(T n)
     return b0 + b1 * std::sqrt(n) + b2 * n + b3 * std::sqrt(n * n * n);
 }
 
+//! @brief sinc(PI/2 * v)
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline T wharmonic_std(T v)
 {
@@ -29,24 +30,32 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_std(T v)
     return std::sin(Pv) / Pv;
 }
 
+/*! @brief Derivative of sinc(PI/2 * v) w.r to v
+ *
+ * Unoptimized for clarity as this is only used to construct look-up tables
+ */
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
 {
     if (v == 0.0) return 0.0;
 
-    const T Pv    = (PI / 2.0) * v;
+    constexpr T piHalf = PI / 2.0;
+
+    const T Pv    = piHalf * v;
     const T sincv = std::sin(Pv) / (Pv);
 
-    return sincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv);
+    return sincv * piHalf * ((std::cos(Pv) / std::sin(Pv)) - T(1) / Pv);
 }
 
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative(T v, T powsincv)
 {
-    if (v == 0.0) return 0.0;
+    if (v == T(0)) return T(0);
 
-    const T Pv = (PI / 2.0) * v;
-    return powsincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv);
+    constexpr T piHalf = PI / 2.0;
+
+    const T Pv = piHalf * v;
+    return powsincv * piHalf * (T(1) / std::tan(Pv) - T(1) / Pv);
 }
 
 /*! @brief Old viscosity according to Monaghan & Gringold 1983
@@ -101,4 +110,4 @@ CUDA_DEVICE_FUN inline T artificial_viscosity(T alpha_i, T alpha_j, T c_i, T c_j
     return viscosity_ij;
 }
 
-} // namespace sphexa
+} // namespace sph

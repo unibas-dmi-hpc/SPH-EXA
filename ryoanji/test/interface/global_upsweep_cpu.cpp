@@ -43,7 +43,7 @@ template<class T, class KeyType>
 static int multipoleExchangeTest(int thisRank, int numRanks)
 {
     using MultipoleType              = CartesianQuadrupole<T>;
-    const LocalIndex numParticles    = 1000;
+    const LocalIndex numParticles    = 1000 * numRanks;
     unsigned         bucketSize      = 64;
     unsigned         bucketSizeLocal = 16;
     float            theta           = 10.0;
@@ -118,10 +118,7 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
     }
 
     if (numPassed == numRanks) { return EXIT_SUCCESS; }
-    else
-    {
-        return EXIT_FAILURE;
-    }
+    else { return EXIT_FAILURE; }
 }
 
 int main(int argc, char** argv)

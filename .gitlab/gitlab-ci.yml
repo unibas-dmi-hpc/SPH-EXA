@@ -157,8 +157,8 @@ variables:
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "1" ]; then
         /usr/local/sbin/performance/scan_perf;echo;
         /usr/local/sbin/coord_samples/coordinate_test;echo;
-        /usr/local/sbin/kernel/kernel_tests_ve;echo;
-        /usr/local/sbin/kernel/kernel_tests;echo;
+        /usr/local/sbin/hydro/kernel_tests_ve;echo;
+        /usr/local/sbin/hydro/kernel_tests_std;echo;
         /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests;echo;
         /usr/local/sbin/unit/component_units;echo;
         /usr/local/sbin/unit/component_units_omp;echo;
@@ -435,8 +435,8 @@ sph:test:cuda:sphexa:gpu:
 # 2 sbin/integration_mpi/globaloctree
 #
 # 1 sbin/coord_samples/coordinate_test
-# 1 sbin/kernel/kernel_tests_ve
-# 1 sbin/kernel/kernel_tests
+# 1 sbin/hydro/kernel_tests_ve
+# 1 sbin/hydro/kernel_tests_std
 # G sbin/unit_cuda/component_units_cuda
 # 5 sbin/ryoanji/multi_rank
 # G sbin/ryoanji/unit_tests/ryoanji_unit_tests

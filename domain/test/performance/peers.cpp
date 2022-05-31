@@ -43,8 +43,8 @@ int main()
     Box<double> box{-1, 1};
 
     LocalIndex nParticles = 20000;
-    int bucketSize = 1;
-    int numRanks = 50;
+    int bucketSize        = 1;
+    int numRanks          = 50;
 
     auto codes = makeRandomGaussianKeys<KeyType>(nParticles);
 
@@ -53,11 +53,11 @@ int main()
     octree.update(treeLeaves.data(), nNodes(treeLeaves));
 
     SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);
-    int probeRank = numRanks / 2;
+    int probeRank                   = numRanks / 2;
 
-    auto tp0 = std::chrono::high_resolution_clock::now();
-    std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, 0.5);
-    auto tp1 = std::chrono::high_resolution_clock::now();
+    auto tp0                  = std::chrono::high_resolution_clock::now();
+    std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, invThetaMinMac(0.5f));
+    auto tp1                  = std::chrono::high_resolution_clock::now();
 
     double t2 = std::chrono::duration<double>(tp1 - tp0).count();
     std::cout << "find peers: " << t2 << " numPeers: " << peersDtt.size() << std::endl;

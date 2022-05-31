@@ -240,10 +240,11 @@ public:
     //! @brief rebalance based on leaf counts only, optimized version that avoids unnecessary allocations
     bool rebalance(unsigned bucketSize, gsl::span<const unsigned> counts)
     {
-        assert(TreeNodeIndex(counts.size()) == numLeafNodes_);
+        assert(childOffsets_.size() >= cstoneTree_.size());
+
         bool converged =
-            rebalanceDecision(cstoneTree_.data(), counts.data(), numLeafNodes_, bucketSize, internalToLeaf_.data());
-        rebalanceTree(cstoneTree_, prefixes_, internalToLeaf_.data());
+            rebalanceDecision(cstoneTree_.data(), counts.data(), numLeafNodes_, bucketSize, childOffsets_.data());
+        rebalanceTree(cstoneTree_, prefixes_, childOffsets_.data());
         swap(cstoneTree_, prefixes_);
 
         updateInternalTree();
@@ -369,7 +370,8 @@ public:
         unsigned level = decodePrefixLength(nodeKey) / 3;
         auto it = std::lower_bound(prefixes_.begin() + levelRange_[level], prefixes_.begin() + levelRange_[level + 1],
                                    nodeKey);
-        return it - prefixes_.begin();
+        if (it != prefixes_.end() && *it == nodeKey) { return it - prefixes_.begin(); }
+        else { return numTreeNodes(); }
     }
 
 private:

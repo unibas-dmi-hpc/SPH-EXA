@@ -30,6 +30,7 @@
 #pragma once
 
 #include <vector>
+#include <variant>
 
 #include "traits.hpp"
 
@@ -63,46 +64,25 @@ std::vector<int> fieldStringsToInt(const Array& allNames, const std::vector<std:
 template<class Dataset>
 auto getOutputArrays(Dataset& dataset)
 {
-    using T            = typename Dataset::RealType;
     auto fieldPointers = dataset.data();
+    using FieldType    = std::variant<float*, double*, int*, unsigned*, uint64_t*>;
 
-    std::vector<const T*> outputFields(dataset.outputFields.size());
-    std::transform(dataset.outputFields.begin(),
-                   dataset.outputFields.end(),
-                   outputFields.begin(),
-                   [&fieldPointers](int i) { return fieldPointers[i]->data(); });
+    std::vector<FieldType> outputFields;
+    outputFields.reserve(dataset.outputFieldIndices.size());
 
+    for (int i : dataset.outputFieldIndices)
+    {
+        if (!dataset.isAllocated(i))
+        {
+            throw std::runtime_error("Cannot output field " + std::string(dataset.fieldNames[i]) +
+                                     ", because it is not active.");
+        }
+        std::visit([&outputFields](auto& arg) { outputFields.push_back(arg->data()); }, fieldPointers[i]);
+    }
     return outputFields;
 }
 
-/*! @brief resizes all active particles fields of @p d to the specified size
- *
- * Important Note: this only resizes the fields that are listed either as conserved or dependent.
- * The conserved/dependent list may be set at runtime, depending on the need of the simulation!
- */
-template<class Dataset>
-void resize(Dataset& d, size_t size)
-{
-    double growthRate = 1.05;
-    auto   data_      = d.data();
-
-    for (int i : d.conservedFields)
-    {
-        reallocate(*data_[i], size, growthRate);
-    }
-    for (int i : d.dependentFields)
-    {
-        reallocate(*data_[i], size, growthRate);
-    }
-
-    reallocate(d.codes, size, growthRate);
-    reallocate(d.neighborsCount, size, growthRate);
-    reallocate(d.hasFBC, size, growthRate);
-
-    d.devPtrs.resize(size);
-}
-
-//! resizes the neighbors list, only used in the CPU version
+//! @brief resizes the neighbors list, only used in the CPU version
 template<class Dataset>
 void resizeNeighbors(Dataset& d, size_t size)
 {

@@ -43,10 +43,18 @@ using namespace cstone;
 template<class KeyType>
 static void focusTransfer(int myRank, [[maybe_unused]] int numRanks)
 {
-    std::vector<KeyType>  treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
-    std::vector<unsigned> counts(nNodes(treeLeaves), 0);
+    std::vector<KeyType> treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
+    std::vector<unsigned> counts(nNodes(treeLeaves), 32);
+    unsigned bucketSize = 64;
+
+    // one of the nodes in the area to be handed over from rank 0 to rank 1 should be split based on counts
+    TreeNodeIndex fullNode = findNodeAbove<KeyType>(treeLeaves, pad(KeyType(032), 6));
+    counts[fullNode]       = bucketSize + 1;
 
     std::vector<KeyType> buffer;
+
+    // assignment before: 0 --- 040 --- nodeRange(0)
+    //            after:  0 --- 032 --- nodeRange(0)
 
     KeyType a = 0;
     KeyType b = 0;
@@ -67,11 +75,15 @@ static void focusTransfer(int myRank, [[maybe_unused]] int numRanks)
         d = nodeRange<KeyType>(0);
     }
 
-    focusTransfer<KeyType>(treeLeaves, myRank, a, b, c, d, buffer);
+    focusTransfer<KeyType>(treeLeaves, counts, 64, myRank, a, b, c, d, buffer);
 
+    // rank 1 receives rebalanced treelet for [032 - 040] from rank 0
     if (myRank == 1)
     {
-        EXPECT_EQ(buffer.size(), 6);
+        EXPECT_EQ(buffer.size(), 13);
+        EXPECT_EQ(buffer.front(), pad(KeyType(032), 6));
+        EXPECT_EQ(buffer[1], pad(KeyType(0321), 9));
+        EXPECT_EQ(buffer.back(), pad(KeyType(037), 6));
     }
 }
 
@@ -88,13 +100,14 @@ TEST(FocusTransfer, simpleTest)
 template<class KeyType>
 static void focusTransferNRanks(int myRank, int numRanks)
 {
-    using SignedKey = std::make_signed_t<KeyType>;
-    std::vector<KeyType>  treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
-    std::vector<unsigned> counts(nNodes(treeLeaves), 0);
+    using SignedKey                 = std::make_signed_t<KeyType>;
+    std::vector<KeyType> treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
+    std::vector<unsigned> counts(nNodes(treeLeaves), 32);
+    unsigned bucketSize = 64;
 
     std::vector<KeyType> buffer;
 
-    SignedKey sign = (myRank % 2 == 1) ? 1 : -1;
+    SignedKey sign  = (myRank % 2 == 1) ? 1 : -1;
     SignedKey delta = pad<KeyType>(02, 6);
 
     KeyType a = myRank * (nodeRange<KeyType>(0) / numRanks);
@@ -102,27 +115,12 @@ static void focusTransferNRanks(int myRank, int numRanks)
     KeyType c = (myRank == 0) ? 0 : a - sign * delta;
     KeyType d = (myRank == numRanks - 1) ? nodeRange<KeyType>(0) : b + sign * delta;
 
-    if (myRank < numRanks)
-    {
-        focusTransfer<KeyType>(treeLeaves, myRank, a, b, c, d, buffer);
-    }
+    if (myRank < numRanks) { focusTransfer<KeyType>(treeLeaves, counts, bucketSize, myRank, a, b, c, d, buffer); }
 
-    if (myRank == 0)
-    {
-        EXPECT_EQ(buffer.size(), 0);
-    }
-    else if (myRank == numRanks - 1)
-    {
-        EXPECT_EQ(buffer.size(), 2);
-    }
-    else if (sign > 0)
-    {
-        EXPECT_EQ(buffer.size(), 4);
-    }
-    else
-    {
-        EXPECT_EQ(buffer.size(), 0);
-    }
+    if (myRank == 0) { EXPECT_EQ(buffer.size(), 0); }
+    else if (myRank == numRanks - 1) { EXPECT_EQ(buffer.size(), 2); }
+    else if (sign > 0) { EXPECT_EQ(buffer.size(), 4); }
+    else { EXPECT_EQ(buffer.size(), 0); }
 }
 
 TEST(FocusTransfer, simpleTestNRanks)

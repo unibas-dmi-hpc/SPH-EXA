@@ -57,8 +57,8 @@ public:
                  const cstone::FocusedOctree<KeyType, Tf>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles)
     {
-        constexpr int numThreads = UpsweepConfig::numThreads;
-        const cstone::Octree<KeyType>& octree = focusTree.octree();
+        constexpr int                  numThreads = UpsweepConfig::numThreads;
+        const cstone::Octree<KeyType>& octree     = focusTree.octree();
 
         TreeNodeIndex numLeaves = focusTree.octree().numLeafNodes();
         resize(numLeaves);
@@ -75,7 +75,8 @@ public:
         memcpy(rawPtr(internalToLeaf_.data()), internalToLeaf, internalToLeaf_.size(), cudaMemcpyHostToDevice);
 
         const TreeNodeIndex* childOffsets = octree.childOffsets().data();
-        memcpy(rawPtr(childOffsets_.data()), octree.childOffsets().data(), childOffsets_.size(), cudaMemcpyHostToDevice);
+        memcpy(
+            rawPtr(childOffsets_.data()), octree.childOffsets().data(), childOffsets_.size(), cudaMemcpyHostToDevice);
 
         memcpy(rawPtr(layout_.data()), layout, layout_.size(), cudaMemcpyHostToDevice);
         memcpy(rawPtr(centers_.data()), centers.data(), centers.size(), cudaMemcpyHostToDevice);
@@ -129,9 +130,6 @@ public:
                                                          rawPtr(centers_.data()),
                                                          rawPtr(multipoles_.data()));
         }
-
-        // D2H multipoles
-        memcpy(multipoles, rawPtr(multipoles_.data()), multipoles_.size(), cudaMemcpyDeviceToHost);
     }
 
     float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
@@ -176,6 +174,8 @@ public:
         return 0.5f * Tc(G) * totalPotential;
     }
 
+    const MType* deviceMultipoles() const { return rawPtr(multipoles_.data()); }
+
 private:
     void resize(size_t numLeaves)
     {
@@ -205,7 +205,8 @@ private:
 };
 
 template<class Tc, class Tm, class Tf, class KeyType, class MType>
-MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::MultipoleHolder() : impl_(new Impl())
+MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::MultipoleHolder()
+    : impl_(new Impl())
 {
 }
 
@@ -229,8 +230,14 @@ float MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::compute(LocalIndex firstBody,
     return impl_->compute(firstBody, lastBody, x, y, z, m, h, G, ax, ay, az);
 }
 
+template<class Tc, class Tm, class Tf, class KeyType, class MType>
+const MType* MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::deviceMultipoles() const
+{
+    return impl_->deviceMultipoles();
+}
+
 template class MultipoleHolder<double, double, double, uint64_t, SphericalMultipole<double, 4>>;
-template class MultipoleHolder<double, float, double, uint64_t, SphericalMultipole<double, 4>>;
+template class MultipoleHolder<double, double, double, uint64_t, SphericalMultipole<float, 4>>;
 template class MultipoleHolder<double, float, double, uint64_t, SphericalMultipole<float, 4>>;
 template class MultipoleHolder<float, float, float, uint64_t, SphericalMultipole<float, 4>>;
 template class MultipoleHolder<double, double, double, uint32_t, SphericalMultipole<double, 4>>;
@@ -239,7 +246,7 @@ template class MultipoleHolder<double, float, double, uint32_t, SphericalMultipo
 template class MultipoleHolder<float, float, float, uint32_t, SphericalMultipole<float, 4>>;
 
 template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<double>>;
-template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<double>>;
+template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<float>>;
 template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<float>>;
 template class MultipoleHolder<float, float, float, uint64_t, CartesianQuadrupole<float>>;
 template class MultipoleHolder<double, double, double, uint32_t, CartesianQuadrupole<double>>;
