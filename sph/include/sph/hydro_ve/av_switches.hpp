@@ -32,9 +32,8 @@
 #pragma once
 
 #include "av_switches_kern.hpp"
-#ifdef USE_CUDA
 #include "sph/sph.cuh"
-#endif
+#include "sph/traits.hpp"
 
 namespace sph
 {
@@ -116,7 +115,11 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dat
 template<class T, class Dataset>
 void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    computeAVswitchesImpl(startIndex, endIndex, ngmax, d, box);
+    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        cuda::computeAVswitches(startIndex, endIndex, ngmax, d, box);
+    }
+    else { computeAVswitchesImpl(startIndex, endIndex, ngmax, d, box); }
 }
 
 } // namespace sph
