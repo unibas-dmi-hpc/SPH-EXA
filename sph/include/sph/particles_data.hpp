@@ -66,6 +66,8 @@ public:
     size_t numParticlesGlobal;
 
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
+    T linmom{0.0}, angmom{0.0};
+
     //! current and previous (global) time-steps
     T minDt, minDt_m1;
     //! temporary MPI rank local timestep;
