@@ -143,6 +143,7 @@ int main(int argc, char** argv)
         propagator->step(domain, d);
 
         observables->computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
+        propagator->printIterationTimings(domain, d);
 
         if (isPeriodicOutputStep(d.iteration, writeFrequencyStr) ||
             isPeriodicOutputTime(d.ttot - d.minDt, d.ttot, writeFrequencyStr) ||

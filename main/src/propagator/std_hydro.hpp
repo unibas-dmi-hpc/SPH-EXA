@@ -140,13 +140,10 @@ public:
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
-        computeTotalEnergy(first, last, d);
-        timer.step("EnergyConservation");
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
-        this->printIterationTimings(domain, d);
     }
 };
 

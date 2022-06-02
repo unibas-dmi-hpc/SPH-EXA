@@ -5,7 +5,6 @@
 #include "sph/eos.hpp"
 #include "sph/timestep.hpp"
 #include "sph/positions.hpp"
-#include "sph/total_energy.hpp"
 #include "sph/update_h.hpp"
 
 #include "sph/hydro_std/density.hpp"

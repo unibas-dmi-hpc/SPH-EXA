@@ -59,7 +59,6 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
     T vxExt         = constants.at("vxExt");
     T vyExt         = constants.at("vyExt");
     T vzExt         = constants.at("vzExt");
-    T gamma         = constants.at("gamma");
     T firstTimeStep = constants.at("firstTimeStep");
     T epsilon       = constants.at("epsilon");
 
@@ -108,8 +107,8 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
         }
         else
         {
-            d.h[i] = hInt;
-            d.u[i] = uInt;
+            d.h[i]  = hInt;
+            d.u[i]  = uInt;
             d.vx[i] = 0.;
             d.vy[i] = 0.;
             d.vz[i] = 0.;
@@ -136,8 +135,6 @@ std::map<std::string, double> WindShockConstants()
             {"firstTimeStep", 1e-10},
             {"epsilon", 0.}};
 }
-
-
 
 /*! @brief compute the shift factor towards the center for point X in a capped pyramid
  *
@@ -182,10 +179,10 @@ T sphereStretch(T rPos, T rInt, T s, T rExt)
 template<class T>
 T WindShockcomputeStretchFactor(T rInt, T rExt, T rhoRatio)
 {
-    T factor = (4. / 3. ) * M_PI;
-    T hc = factor * rInt * rInt * rInt;
-    T rc = 8. * rExt * rExt * rExt;
-    T s  = std::cbrt(rhoRatio * (hc / factor) * rc / (rc - hc + rhoRatio * hc));
+    T factor = (4. / 3.) * M_PI;
+    T hc     = factor * rInt * rInt * rInt;
+    T rc     = 8. * rExt * rExt * rExt;
+    T s      = std::cbrt(rhoRatio * (hc / factor) * rc / (rc - hc + rhoRatio * hc));
     assert(rInt < s && s < rExt);
     return s;
 }
@@ -195,7 +192,7 @@ size_t WindShockcompressCenterSphere(gsl::span<T> x, gsl::span<T> y, gsl::span<T
 {
     size_t sum = 0;
 
-#pragma omp parallel for reduction(+: sum) schedule(static)
+#pragma omp parallel for reduction(+ : sum) schedule(static)
     for (size_t i = 0; i < x.size(); i++)
     {
         T rPos = std::sqrt((x[i] * x[i]) + (y[i] * y[i]) + (z[i] * z[i]));
@@ -223,11 +220,11 @@ size_t WindShockcompressCenterSphere(gsl::span<T> x, gsl::span<T> y, gsl::span<T
         }
     }
 
-    std::cout << "rExt=" << rExt << ", s=" << s << ", rInt=" << rInt << "; Particles in High density region: " << sum << std::endl;
+    std::cout << "rExt=" << rExt << ", s=" << s << ", rInt=" << rInt << "; Particles in High density region: " << sum
+              << std::endl;
 
     return sum;
 }
-
 
 template<class Dataset>
 class WindShockGlass : public ISimInitializer<Dataset>
