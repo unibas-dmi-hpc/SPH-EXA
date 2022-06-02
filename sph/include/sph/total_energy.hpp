@@ -36,18 +36,16 @@
 #include <vector>
 #include <iostream>
 
-#ifdef USE_MPI
 #include "mpi.h"
-#endif
 
 namespace sph
 {
 
-template<typename T, class Dataset>
-void localEnergyReduction(size_t startIndex, size_t endIndex, Dataset& d, T* eKin, T* eInt,
-  T* linmomx, T* linmomy, T* linmomz, T* angmomx, T* angmomy, T* angmomz)
+template<class Dataset>
+auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    const T* u  = d.u.data();
+    using T = typename Dataset::RealType;
+
     const T* x  = d.x.data();
     const T* y  = d.y.data();
     const T* z  = d.z.data();
@@ -55,37 +53,33 @@ void localEnergyReduction(size_t startIndex, size_t endIndex, Dataset& d, T* eKi
     const T* vy = d.vy.data();
     const T* vz = d.vz.data();
     const T* m  = d.m.data();
+    const T* u  = d.u.data();
 
-    T eKinThread    = 0.0, eIntThread    = 0.0;
-    T linmomxThread = 0.0, linmomyThread = 0.0, linmomzThread = 0.0;
-    T angmomxThread = 0.0, angmomyThread = 0.0, angmomzThread = 0.0;
+    T eKin = 0.0;
+    T eInt = 0.0;
 
-#pragma omp parallel for reduction(+ : eKinThread, eIntThread, linmomxThread, linmomyThread, linmomzThread, angmomxThread, angmomyThread, angmomzThread)
+    util::array<T, 3> linmom{0.0, 0.0, 0.0};
+    util::array<T, 3> angmom{0.0, 0.0, 0.0};
+
+#pragma omp declare reduction(+ : util::array <T, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
+
+#pragma omp parallel for reduction(+ : eKin, eInt, linmom, angmom)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        T vmod2 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
+        util::array<T, 3> X{x[i], y[i], z[i]};
+        util::array<T, 3> V{vx[i], vy[i], vz[i]};
+        auto              mi = m[i];
 
-        eKinThread    += T(0.5) * m[i] * vmod2;
-        eIntThread    += u[i] * m[i];
-        linmomxThread += vx[i] * m[i];
-        linmomyThread += vy[i] * m[i];
-        linmomzThread += vz[i] * m[i];
-        angmomxThread += (y[i] * vz[i] - z[i] * vy[i]) * m[i];
-        angmomyThread += (z[i] * vx[i] - x[i] * vz[i]) * m[i];
-        angmomzThread += (x[i] * vy[i] - y[i] * vx[i]) * m[i];
+        eKin += mi * norm2(V);
+        eInt += u[i] * mi;
+        linmom += mi * V;
+        angmom += mi * cross(X, V);
     }
 
-    *eKin    = eKinThread;
-    *eInt    = eIntThread;
-    *linmomx = linmomxThread;
-    *linmomy = linmomyThread;
-    *linmomz = linmomzThread;
-    *angmomx = angmomxThread;
-    *angmomy = angmomyThread;
-    *angmomz = angmomzThread;
+    return std::make_tuple(T(0.5) * eKin, eInt, linmom, angmom);
 }
 
-/*! @brief global reduction of energies
+/*! @brief Computation of globally conserved quantities
  *
  * @tparam        T            float or double
  * @tparam        Dataset
@@ -96,24 +90,33 @@ void localEnergyReduction(size_t startIndex, size_t endIndex, Dataset& d, T* eKi
 template<class Dataset>
 void computeTotalEnergy(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    using T = typename Dataset::RealType;
-    T energies[9], globalEnergies[9];
-    localEnergyReduction(startIndex, endIndex, d, energies + 0, energies + 1,
-      energies + 3, energies + 4, energies + 5, energies + 6, energies + 7, energies + 8);
+    using T                           = typename Dataset::RealType;
+    auto [eKin, eInt, linmom, angmom] = localConservedQuantities(startIndex, endIndex, d);
 
-    energies[2] = d.egrav;
+    T quantities[9], globalQuantities[9];
+
+    quantities[0] = eKin;
+    quantities[1] = eInt;
+    quantities[2] = d.egrav;
+    quantities[3] = linmom[0];
+    quantities[4] = linmom[1];
+    quantities[5] = linmom[2];
+    quantities[6] = angmom[0];
+    quantities[7] = angmom[1];
+    quantities[8] = angmom[2];
 
     int rootRank = 0;
-#ifdef USE_MPI
-    MPI_Reduce(energies, globalEnergies, 9, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
-#endif
+    MPI_Reduce(quantities, globalQuantities, 9, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
 
-    d.ecin   = globalEnergies[0];
-    d.eint   = globalEnergies[1];
-    d.egrav  = globalEnergies[2];
-    d.etot   = globalEnergies[0] + globalEnergies[1] + globalEnergies[2];
-    d.linmom = std::sqrt(globalEnergies[3] * globalEnergies[3] + globalEnergies[4] * globalEnergies[4] + globalEnergies[5] * globalEnergies[5]);
-    d.angmom = std::sqrt(globalEnergies[6] * globalEnergies[6] + globalEnergies[7] * globalEnergies[7] + globalEnergies[8] * globalEnergies[8]);
+    d.ecin  = globalQuantities[0];
+    d.eint  = globalQuantities[1];
+    d.egrav = globalQuantities[2];
+    d.etot  = d.ecin + d.eint + d.egrav;
+
+    util::array<T, 3> globalLinmom{globalQuantities[3], globalQuantities[4], globalQuantities[5]};
+    util::array<T, 3> globalAngmom{globalQuantities[6], globalQuantities[7], globalQuantities[8]};
+    d.linmom = std::sqrt(norm2(globalLinmom));
+    d.angmom = std::sqrt(norm2(globalAngmom));
 }
 
 } // namespace sph
