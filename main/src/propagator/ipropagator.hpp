@@ -66,20 +66,8 @@ public:
 
     virtual ~Propagator() = default;
 
-protected:
-    MasterProcessTimer timer;
-    std::ostream&      out;
-
-    size_t rank_;
-    //! maximum number of neighbors per particle
-    size_t ngmax_;
-    //! target number of neighbors per particle
-    size_t ng0_;
-
     void printIterationTimings(const DomainType& domain, const ParticleDataType& d)
     {
-        size_t totalNeighbors = sph::neighborsSum(domain.startIndex(), domain.endIndex(), d.neighborsCount);
-
         if (rank_ == 0)
         {
             printCheck(d.ttot,
@@ -93,12 +81,22 @@ protected:
                        domain.nParticles(),
                        domain.globalTree().numLeafNodes(),
                        domain.nParticlesWithHalos() - domain.nParticles(),
-                       totalNeighbors);
+                       d.totalNeighbors);
 
             std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().octree().numLeafNodes() << std::endl;
             printTotalIterationTime(d.iteration, timer.duration());
         }
     }
+
+protected:
+    MasterProcessTimer timer;
+    std::ostream&      out;
+
+    size_t rank_;
+    //! maximum number of neighbors per particle
+    size_t ngmax_;
+    //! target number of neighbors per particle
+    size_t ng0_;
 
     void printTotalIterationTime(size_t iteration, float duration)
     {
@@ -118,7 +116,7 @@ protected:
             << ", Avg neighbor count per particle: " << totalNeighbors / totalParticleCount << std::endl;
         out << "### Check ### Total time: " << totalTime << ", current time-step: " << minTimeStep << std::endl;
         out << "### Check ### Total energy: " << totalEnergy << ", (internal: " << internalEnergy
-            << ", cinetic: " << kineticEnergy;
+            << ", kinetic: " << kineticEnergy;
         out << ", gravitational: " << gravitationalEnergy;
         out << ")" << std::endl;
     }
