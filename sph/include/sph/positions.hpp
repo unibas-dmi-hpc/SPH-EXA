@@ -65,12 +65,8 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        if(d.hasFBC[i] == 1.0)
-        {
-            hasFBC = 0.0;
-        } else {
-            hasFBC = 1.0;
-        }
+        if (d.hasFBC[i] == 1.0) { hasFBC = 0.0; }
+        else { hasFBC = 1.0; }
         Vec3T A{d.ax[i], d.ay[i], d.az[i]};
         Vec3T X{x[i], y[i], z[i]};
         Vec3T X_m1{x_m1[i], y_m1[i], z_m1[i]};
@@ -79,10 +75,10 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         T deltaA = dt + T(0.5) * dt_m1;
         T deltaB = T(0.5) * (dt + dt_m1);
 
-        Vec3T Val = (X - X_m1) * (T(1) * hasFBC/ dt_m1[i]);
-        if(Val[0] == 0 && Val[1] == 0 && Val[2] == 0)
+        Vec3T Val = (X - X_m1) * (T(1) * hasFBC / dt_m1);
+        if (Val[0] == 0 && Val[1] == 0 && Val[2] == 0)
         {
-            //printf("val zero: i %lu hasFBC %d", i, d.hasFBC[i]);
+            // printf("val zero: i %lu hasFBC %d", i, d.hasFBC[i]);
         }
 
 #ifndef NDEBUG
@@ -141,19 +137,20 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         deltaA = 0.5 * dt * dt / dt_m1;
         deltaB = dt + deltaA;
 
-        u[i] += du[i] * deltaB - du_m1[i] * deltaA;
+        if (hasFBC == T(0.0)) { u[i] += du[i] * deltaB - du_m1[i] * deltaA; }
 
         du_m1[i] = du[i];
 
 #ifndef NDEBUG
         if (std::isnan(u[i]) || u[i] < 0.0)
-            printf("ERROR::UpdateQuantities(%lu) internal energy: u %f du %f dB %f du_m1 %f dA %f\n",
+            printf("ERROR::UpdateQuantities(%lu) internal energy: u %f du %f dB %f du_m1 %f dA %f fbc %f\n",
                    i,
                    u[i],
                    du[i],
                    deltaB,
                    du_m1[i],
-                   deltaA);
+                   deltaA,
+                   d.hasFBC[i]);
 #endif
     }
 }

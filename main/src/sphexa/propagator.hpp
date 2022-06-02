@@ -154,7 +154,7 @@ public:
 
     void activateFields(ParticleDataType& d) override
     {
-        d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1");
+        d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "hasFBC");
         d.setDependent("rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys", "nc");
 
         d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz");
@@ -166,9 +166,14 @@ public:
     {
         if (d.g != 0.0)
         {
-            domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
+            domain.syncGrav(
+                d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.hasFBC);
         }
-        else { domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1); }
+        else
+        {
+            domain.sync(
+                d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.hasFBC);
+        }
     }
 
     void step(DomainType& domain, ParticleDataType& d) override

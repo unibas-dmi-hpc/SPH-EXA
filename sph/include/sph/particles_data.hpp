@@ -115,9 +115,9 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",   "y",   "z",   "x_m1", "y_m1", "z_m1", "vx", "vy",    "vz",    "rho",   "u",     "p",    "prho",
-        "h",   "m",   "c",   "ax",   "ay",   "az",   "du", "du_m1", "c11",   "c12",   "c13",   "c22",  "c23",
-        "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
+        "x",   "y",    "z",  "x_m1", "y_m1", "z_m1", "vx",    "vy",    "vz",    "rho",  "u",   "p",     "prho", "h",
+        "m",   "c",    "ax", "ay",   "az",   "du",   "du_m1", "c11",   "c12",   "c13",  "c22", "c23",   "c33",  "mue",
+        "mui", "temp", "cv", "xm",   "kx",   "divv", "curlv", "alpha", "gradh", "keys", "nc",  "hasFBC"};
 
     static_assert(std::is_same_v<AcceleratorType, CpuTag> ||
                       fieldNames.size() == DeviceData_t<AccType, T, KeyType>::fieldNames.size(),
@@ -139,9 +139,10 @@ public:
                                        IntVecType*>;
 
         std::array<FieldType, fieldNames.size()> ret{
-            &x,   &y,   &z,   &x_m1, &y_m1, &z_m1, &vx, &vy,    &vz,    &rho,   &u,     &p,     &prho,
-            &h,   &m,   &c,   &ax,   &ay,   &az,   &du, &du_m1, &c11,   &c12,   &c13,   &c22,   &c23,
-            &c33, &mue, &mui, &temp, &cv,   &xm,   &kx, &divv,  &curlv, &alpha, &gradh, &codes, &neighborsCount};
+            &x,     &y,   &z,   &x_m1, &y_m1, &z_m1, &vx, &vy,    &vz,    &rho,   &u,     &p,     &prho,
+            &h,     &m,   &c,   &ax,   &ay,   &az,   &du, &du_m1, &c11,   &c12,   &c13,   &c22,   &c23,
+            &c33,   &mue, &mui, &temp, &cv,   &xm,   &kx, &divv,  &curlv, &alpha, &gradh, &codes, &neighborsCount,
+            &hasFBC};
 
         static_assert(ret.size() == fieldNames.size());
 
