@@ -94,14 +94,12 @@ TEST(Array, smaller)
         util::array<int, 3> a{0, 0, 0};
         util::array<int, 3> b{0, 0, 0};
         EXPECT_FALSE(a < b);
-
     }
     {
         util::array<int, 3> a{0, 0, 0};
         util::array<int, 3> b{1, 0, 0};
         EXPECT_TRUE(a < b);
         EXPECT_FALSE(b < a);
-
     }
     {
         util::array<int, 3> a{0, 0, 0};
