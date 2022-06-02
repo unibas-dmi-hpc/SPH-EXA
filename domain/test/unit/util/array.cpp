@@ -94,14 +94,12 @@ TEST(Array, smaller)
         util::array<int, 3> a{0, 0, 0};
         util::array<int, 3> b{0, 0, 0};
         EXPECT_FALSE(a < b);
-
     }
     {
         util::array<int, 3> a{0, 0, 0};
         util::array<int, 3> b{1, 0, 0};
         EXPECT_TRUE(a < b);
         EXPECT_FALSE(b < a);
-
     }
     {
         util::array<int, 3> a{0, 0, 0};
@@ -190,6 +188,26 @@ TEST(Array, assignValue)
     a = 1;
     util::array<int, 3> ref{1, 1, 1};
     EXPECT_EQ(a, ref);
+}
+
+TEST(Array, reduction)
+{
+    util::array<size_t, 3ul> a{1ul, 2ul, 3ul};
+
+    size_t numElements = 10000;
+    std::vector v(numElements, a);
+
+    util::array<size_t, 3> sum{0ul, 0ul, 0ul};
+
+#pragma omp declare reduction(+ : array <size_t, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
+
+#pragma omp parallel for reduction(+ : sum)
+    for (size_t i = 0; i < numElements; ++i)
+    {
+        sum += v[i];
+    }
+
+    EXPECT_EQ(sum, numElements * a);
 }
 
 } // namespace util
