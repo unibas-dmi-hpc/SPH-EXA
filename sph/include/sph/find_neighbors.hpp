@@ -40,22 +40,4 @@ void findNeighborsSfc(size_t, size_t, size_t, gsl::span<const T>, gsl::span<cons
 
 #endif
 
-size_t neighborsSum(size_t startIndex, size_t endIndex, gsl::span<const int> neighborsCount)
-{
-    size_t sum = 0;
-#pragma omp parallel for reduction(+ : sum)
-    for (size_t i = startIndex; i < endIndex; i++)
-    {
-        sum += neighborsCount[i];
-    }
-
-    int    rootRank  = 0;
-    size_t globalSum = 0;
-#ifdef USE_MPI
-    MPI_Reduce(&sum, &globalSum, 1, MpiType<size_t>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
-#endif
-
-    return globalSum;
-}
-
 } // namespace sph

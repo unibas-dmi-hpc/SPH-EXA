@@ -38,7 +38,9 @@
 
 #include "mpi.h"
 
-namespace sph
+#include "cstone/util/array.hpp"
+
+namespace sphexa
 {
 
 template<class Dataset>
@@ -88,7 +90,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
  * @param[inout]  d            particle data set
  */
 template<class Dataset>
-void computeTotalEnergy(size_t startIndex, size_t endIndex, Dataset& d)
+void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 {
     using T                           = typename Dataset::RealType;
     auto [eKin, eInt, linmom, angmom] = localConservedQuantities(startIndex, endIndex, d);
@@ -119,4 +121,20 @@ void computeTotalEnergy(size_t startIndex, size_t endIndex, Dataset& d)
     d.angmom = std::sqrt(norm2(globalAngmom));
 }
 
-} // namespace sph
+size_t neighborsSum(size_t startIndex, size_t endIndex, gsl::span<const int> neighborsCount)
+{
+    size_t sum = 0;
+#pragma omp parallel for reduction(+ : sum)
+    for (size_t i = startIndex; i < endIndex; i++)
+    {
+        sum += neighborsCount[i];
+    }
+
+    int    rootRank  = 0;
+    size_t globalSum = 0;
+    MPI_Reduce(&sum, &globalSum, 1, MpiType<size_t>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
+
+    return globalSum;
+}
+
+} // namespace sphexa
