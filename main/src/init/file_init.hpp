@@ -111,8 +111,8 @@ public:
 
         if (errors != H5PART_SUCCESS) { throw std::runtime_error("Could not read essential fields x,y,z,h,m,u\n"); }
 
-        initField(h5_file, rank, d.vx, "vx", 0.3);
-        initField(h5_file, rank, d.vy, "vy", 0.4);
+        initField(h5_file, rank, d.vx, "vx", 0.0);
+        initField(h5_file, rank, d.vy, "vy", 0.0);
         initField(h5_file, rank, d.vz, "vz", 0.0);
 
         initField(h5_file, rank, d.du_m1, "du_m1", 0.0);
