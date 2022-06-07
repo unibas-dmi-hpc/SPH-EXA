@@ -49,13 +49,11 @@ TEST(cooling_grackle, test1a)
 
     using Real = double;
 
-    double dt = 3.15e7 * 1e6; // grackle_units.time_units;
-
     constexpr gr_float tiny_number = 1.e-20;
-    constexpr Real     mh 1.67262171e-24;
-    constexpr Real     kboltz 1.3806504e-16;
+    constexpr Real     dt          = 3.15e7 * 1e6; // grackle_units.time_units;
+    constexpr Real     mh          = 1.67262171e-24;
+    constexpr Real     kboltz      = 1.3806504e-16;
 
-    auto dt  = std::vector<Real>{dt};
     auto rho = std::vector<Real>{1.0};
     Real temperature_units =
         mh *
@@ -90,7 +88,7 @@ TEST(cooling_grackle, test1a)
     std::cout << HeI_fraction[0] << std::endl;
     std::cout << metal_fraction[0] << std::endl;
 
-    cool_particle(dt[0],
+    cool_particle(dt,
                   rho[0],
                   u[0],
                   HI_fraction[0],
@@ -115,7 +113,7 @@ TEST(cooling_grackle, test1a)
                   RT_H2_dissociation_rate[0],
                   H2_self_shielding_length[0]);
 
-    std::cout << d.HI_fraction[0] << std::endl;
+    std::cout << HI_fraction[0] << std::endl;
 
     EXPECT_NEAR(HI_fraction[0], 0.630705, 1e-6);
     EXPECT_NEAR(u[0], 2.95159e+35, 1e30);

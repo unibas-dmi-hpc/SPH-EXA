@@ -38,7 +38,7 @@
 
 extern "C"
 {
-#include <grackle.h>
+#include "grackle.h"
 }
 
 static constexpr double m_sun = 1.989e33;
@@ -49,7 +49,7 @@ static code_units      code_units_simulation;
 static chemistry_data* chemistry_data_simulation;
 
 template<typename T>
-void cool_particle(T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction,
+void cool_particle(const T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction,
                    T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction,
                    T& DII_fraction, T& HDI_fraction, T& e_fraction, T& metal_fraction, T& volumetric_heating_rate,
                    T& specific_heating_rate, T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate,
