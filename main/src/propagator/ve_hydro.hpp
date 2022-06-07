@@ -142,7 +142,7 @@ public:
         computeVeDefGradh(first, last, ngmax_, d, domain.box());
         timer.step("Normalization & Gradh");
         transferToHost(d, first, last, {"kx", "gradh"});
-        computeEOS(first, last, d);
+        computeEOSTemp(first, last, d);
         timer.step("EquationOfState");
 
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.prho, d.c, d.kx);

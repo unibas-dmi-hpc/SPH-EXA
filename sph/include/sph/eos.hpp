@@ -171,7 +171,7 @@ void computeEOSTemp(size_t startIndex, size_t endIndex, Dataset& d)
     {
         auto rho    = kx[i] * m[i] / xm[i];
         auto dpdT   = 0.;
-        std::tie(p[i], u[i], c[i], cv[i], dpdT) = idealGasEOSTemp(temp[i], rho, mui);
+        std::tie(p[i], u[i], c[i], cv[i], dpdT) = idealGasEOSTemp(temp[i], rho, mui[i]);
         auto denom  = kx[i] * m[i] * m[i] * gradh[i];
         prho[i]     = p[i] / denom;
         TdpdTrho[i] = dpdT * temp[i] / denom;
