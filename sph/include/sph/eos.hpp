@@ -53,6 +53,31 @@ CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho, T3 mui)
     return util::tuple<Tc, Tc, Tc, Tc>{p, c, cv, temp};
 }
 
+/*! @brief Ideal gas EOS for temperature taking into account composition via mui
+ *
+ * @param temp temperature
+ * @param rho  baryonic density
+ * @param mui  mean molecular weight
+ *
+ * Returns pressure, speed of sound, du/dT, and temperature
+ */
+template<class T1, class T2, class T3>
+CUDA_DEVICE_HOST_FUN auto idealGasEOSTemp(T1 temp, T2 rho, T3 mui)
+{
+    using Tc = std::common_type_t<T1, T2, T3>;
+
+    constexpr Tc R     = 8.317e7;
+    constexpr Tc gamma = (5.0 / 3.0);
+
+    Tc dmy  = R / mui;
+    Tc cv   = Tc(1.5) * dmy;
+    Tc u    = temp * cv;
+    Tc p    = rho * temp * dmy;
+    Tc c    = std::sqrt(p / rho);
+    Tc dpdT = rho *dmy;
+
+    return util::tuple<Tc, Tc, Tc, Tc, Tc>{p, u, c, cv, dpdT};
+}
 /*! @brief Polytropic EOS for a 1.4 M_sun and 12.8 km neutron star
  *
  * @param rho  baryonic density
@@ -108,6 +133,53 @@ void computeEOS(size_t startIndex, size_t endIndex, Dataset& d)
         if (storeRho) { d.rho[i] = rho; }
     }
 }
+
+
+/*! @brief ideal gas EOS interface with temperature for SPH where rho is computed on-the-fly
+ *
+ * @tparam Dataset
+ * @param startIndex  index of first locally owned particle
+ * @param endIndex    index of last locally owned particle
+ * @param d           the dataset with the particle buffers
+ *
+ * In this simple version of equation of state, we calculate all dependent quantities
+ * also for halos, not just assigned particles in [startIndex:endIndex], so that
+ * we could potentially avoid halo exchange of p and c in return for exchanging halos of u.
+ */
+template<typename Dataset>
+void computeEOSTemp(size_t startIndex, size_t endIndex, Dataset& d)
+{
+    const auto* temp  = d.temp.data();
+    const auto* m     = d.m.data();
+    const auto* kx    = d.kx.data();
+    const auto* xm    = d.xm.data();
+    const auto* mui   = d.mui.data();
+    const auto* gradh = d.gradh.data();
+
+    auto* u        = d.u.data();
+    auto* p        = d.p.data();
+    auto* c        = d.c.data();
+    auto* cv       = d.cv.data();
+    auto* prho     = d.prho.data();
+    auto* TdpdTrho = d.TdpdTrho.data();
+
+
+    bool storeRho = (d.rho.size() == d.m.size());
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = startIndex; i < endIndex; ++i)
+    {
+        auto rho    = kx[i] * m[i] / xm[i];
+        auto dpdT   = 0.;
+        std::tie(p[i], u[i], c[i], cv[i], dpdT) = idealGasEOSTemp(temp[i], rho, mui);
+        auto denom  = kx[i] * m[i] * m[i] * gradh[i];
+        prho[i]     = p[i] / denom;
+        TdpdTrho[i] = dpdT * temp[i] / denom;
+        if (storeRho) { d.rho[i] = rho; }
+    }
+}
+
+
 
 /*! @brief Polytropic EOS interface for SPH where rho is computed on-the-fly
  *
