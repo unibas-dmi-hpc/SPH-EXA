@@ -2,8 +2,6 @@
 
 #include <vector>
 
-namespace sphexa
-{
 namespace sph
 {
 
@@ -30,4 +28,3 @@ void updateSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d, size_
 }
 
 } // namespace sph
-} // namespace sphexa

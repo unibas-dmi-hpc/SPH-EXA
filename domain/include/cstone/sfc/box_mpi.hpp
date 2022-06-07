@@ -41,50 +41,28 @@
 #include "box.hpp"
 #include "cstone/primitives/mpi_wrappers.hpp"
 
-
 namespace cstone
 {
 
-//! @brief compute global minimum of an array range
+//! @brief compute minimum and maximum of an array range with an OpenMP reduction
 template<class Iterator>
-auto globalMin(Iterator start, Iterator end)
+auto localMinMax(Iterator start, Iterator end)
 {
-    assert(end > start);
+    assert(end >= start);
     using T = std::decay_t<decltype(*start)>;
 
     T minimum = INFINITY;
+    T maximum = -INFINITY;
 
-    #pragma omp parallel for reduction(min : minimum)
-    for (size_t pi = 0; pi < std::size_t(end-start); pi++)
+#pragma omp parallel for reduction(min : minimum) reduction(max : maximum)
+    for (size_t pi = 0; pi < std::size_t(end - start); pi++)
     {
         T value = start[pi];
         minimum = std::min(minimum, value);
-    }
-
-    MPI_Allreduce(MPI_IN_PLACE, &minimum, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
-
-    return minimum;
-}
-
-//! @brief compute global maximum of an array range
-template<class Iterator>
-auto globalMax(Iterator start, Iterator end)
-{
-    assert(end > start);
-    using T = std::decay_t<decltype(*start)>;
-
-    T maximum = -INFINITY;
-
-    #pragma omp parallel for reduction(max : maximum)
-    for (size_t pi = 0; pi < std::size_t(end-start); pi++)
-    {
-        T value = start[pi];
         maximum = std::max(maximum, value);
     }
 
-    MPI_Allreduce(MPI_IN_PLACE, &maximum, 1, MpiType<T>{}, MPI_MAX, MPI_COMM_WORLD);
-
-    return maximum;
+    return std::make_tuple(minimum, maximum);
 }
 
 /*! @brief compute global bounding box for local x,y,z arrays
@@ -106,16 +84,27 @@ auto makeGlobalBox(Iterator xB, Iterator xE, Iterator yB, Iterator zB, const Box
 {
     std::size_t nElements = xE - xB;
 
-    T newXmin = (previousBox.pbcX()) ? previousBox.xmin() : globalMin(xB, xB + nElements);
-    T newYmin = (previousBox.pbcY()) ? previousBox.ymin() : globalMin(yB, yB + nElements);
-    T newZmin = (previousBox.pbcZ()) ? previousBox.zmin() : globalMin(zB, zB + nElements);
-    T newXmax = (previousBox.pbcX()) ? previousBox.xmax() : globalMax(xB, xB + nElements);
-    T newYmax = (previousBox.pbcY()) ? previousBox.ymax() : globalMax(yB, yB + nElements);
-    T newZmax = (previousBox.pbcZ()) ? previousBox.zmax() : globalMax(zB, zB + nElements);
+    std::array<T, 6> extrema;
+    std::tie(extrema[0], extrema[1]) =
+        previousBox.pbcX() ? std::make_tuple(previousBox.xmin(), previousBox.xmax()) : localMinMax(xB, xB + nElements);
+    std::tie(extrema[2], extrema[3]) =
+        previousBox.pbcY() ? std::make_tuple(previousBox.ymin(), previousBox.ymax()) : localMinMax(yB, yB + nElements);
+    std::tie(extrema[4], extrema[5]) =
+        previousBox.pbcZ() ? std::make_tuple(previousBox.zmin(), previousBox.zmax()) : localMinMax(zB, zB + nElements);
 
-    return Box<T>{newXmin, newXmax, newYmin, newYmax, newZmin, newZmax,
-                  previousBox.pbcX(), previousBox.pbcY(), previousBox.pbcZ()};
-};
+    if (!previousBox.pbcX() || !previousBox.pbcY() || !previousBox.pbcZ())
+    {
+        extrema[1] = -extrema[1];
+        extrema[3] = -extrema[3];
+        extrema[5] = -extrema[5];
+        MPI_Allreduce(MPI_IN_PLACE, extrema.data(), extrema.size(), MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
+        extrema[1] = -extrema[1];
+        extrema[3] = -extrema[3];
+        extrema[5] = -extrema[5];
+    }
+
+    return Box<T>{extrema[0], extrema[1],         extrema[2],         extrema[3],        extrema[4],
+                  extrema[5], previousBox.pbcX(), previousBox.pbcY(), previousBox.pbcZ()};
+}
 
 } // namespace cstone
-

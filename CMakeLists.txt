@@ -6,10 +6,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
 
-##################################################
-# CMAKE_MODULE_PATH
-##################################################
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH 
+     "${PROJECT_SOURCE_DIR}/cmake"
+     "${PROJECT_SOURCE_DIR}/main/cmake"
+)
 
 option(BUILD_TESTING "build unit and integration tests" ON)
 option(BUILD_ANALYTICAL "build analytical solution" ON)
@@ -99,13 +99,22 @@ set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent)
 if(INSITU STREQUAL "Catalyst")
     find_package(catalyst REQUIRED PATHS "$ENV{EBROOTPARAVIEW}/lib/cmake/paraview-5.10")
 elseif(INSITU STREQUAL "Ascent")
-    find_package(Ascent REQUIRED PATHS "/apps/daint/UES/Ascent/ascent-install/lib/cmake/ascent")
+	find_package(Ascent REQUIRED PATHS "$ENV{EBROOTASCENT}/lib/cmake/ascent")
 endif()
 # }}}
+
+option(SPH_EXA_WITH_FFTW "Enable use of the FFTW library" ON)
+if (SPH_EXA_WITH_FFTW)
+    find_package(FFTW)
+    if (NOT FFTW_FOUND)
+        message(STATUS "No FFTW support")
+        set(SPH_EXA_WITH_FFTW OFF)
+    endif ()
+endif ()
 
 add_subdirectory(domain)
 add_subdirectory(ryoanji)
 add_subdirectory(sph)
-add_subdirectory(src)
+add_subdirectory(main)
 add_subdirectory(extern)
-add_subdirectory(cooling)
+#add_subdirectory(cooling)

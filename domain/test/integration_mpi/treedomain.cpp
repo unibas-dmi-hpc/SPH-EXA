@@ -72,7 +72,7 @@ template<class KeyType, class T>
 void globalRandomGaussian(int thisRank, int numRanks)
 {
     LocalIndex numParticles = 1000;
-    unsigned bucketSize = 64;
+    unsigned bucketSize     = 64;
 
     Box<T> box{-1, 1};
     RandomGaussianCoordinates<T, SfcKind<KeyType>> coords(numParticles, box, thisRank);
@@ -80,8 +80,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
     std::vector<unsigned> counts{numRanks * unsigned(numParticles)};
 
-    while (!updateOctreeGlobal(coords.particleKeys().data(), coords.particleKeys().data() + numParticles,
-                               bucketSize, tree, counts))
+    while (!updateOctreeGlobal(coords.particleKeys().data(), coords.particleKeys().data() + numParticles, bucketSize,
+                               tree, counts))
     {
     }
 
@@ -90,7 +90,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::iota(begin(ordering), end(ordering), 0);
 
     auto assignment = singleRangeSfcSplit(counts, numRanks);
-    auto sendList = createSendList<KeyType>(assignment, tree, coords.particleKeys());
+    auto sendList   = createSendList<KeyType>(assignment, tree, coords.particleKeys());
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), numParticles * numRanks);
 
@@ -102,8 +102,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     reallocate(std::max(numParticlesAssigned, numParticles), x, y, z);
     auto [particleStart, particleEnd] =
-        exchangeParticles(sendList, Rank(thisRank), 0, numParticles, x.size(), numParticlesAssigned,
-                          ordering.data(), x.data(), y.data(), z.data());
+        exchangeParticles(sendList, Rank(thisRank), 0, numParticles, x.size(), numParticlesAssigned, ordering.data(),
+                          x.data(), y.data(), z.data());
 
     /// post-exchange test:
     /// if the global tree build and assignment is repeated, no particles are exchanged anymore

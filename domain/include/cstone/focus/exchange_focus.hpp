@@ -62,14 +62,16 @@ namespace cstone
  * @param[out] requestCounts   output counts for @p requestLeaves, length = length(requestLeaves) - 1
  */
 template<class KeyType>
-void countRequestParticles(gsl::span<const KeyType> leaves, gsl::span<const unsigned> counts,
-                           gsl::span<const KeyType> requestLeaves, gsl::span<unsigned> requestCounts)
+void countRequestParticles(gsl::span<const KeyType> leaves,
+                           gsl::span<const unsigned> counts,
+                           gsl::span<const KeyType> requestLeaves,
+                           gsl::span<unsigned> requestCounts)
 {
-    #pragma omp parallel for
+#pragma omp parallel for
     for (size_t i = 0; i < requestCounts.size(); ++i)
     {
         KeyType startKey = requestLeaves[i];
-        KeyType endKey   = requestLeaves[i+1];
+        KeyType endKey   = requestLeaves[i + 1];
 
         size_t startIdx = findNodeBelow(leaves, startKey);
         size_t endIdx   = findNodeAbove(leaves, endKey);
@@ -107,8 +109,8 @@ void exchangeTreelets(gsl::span<const int> peerRanks,
                       std::vector<MPI_Request>& receiveRequests)
 
 {
-    constexpr int keyTag   = static_cast<int>(P2pTags::focusPeerCounts);
-    size_t numPeers = peerRanks.size();
+    constexpr int keyTag = static_cast<int>(P2pTags::focusPeerCounts);
+    size_t numPeers      = peerRanks.size();
 
     std::vector<MPI_Request> sendRequests;
     sendRequests.reserve(numPeers);
@@ -224,8 +226,6 @@ void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
         sendBuffers.push_back(std::move(buffer));
     }
 
-    TreeNodeIndex numInternalNodes = (quantities.size() - 1) / 8;
-
     std::vector<T> buffer;
     for (auto peer : peerRanks)
     {
@@ -235,7 +235,7 @@ void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
         for (int i = 0; i < receiveCount; ++i)
         {
             TreeNodeIndex csIdx       = i + focusAssignment[peer].start();
-            TreeNodeIndex internalIdx = csToInternalMap[csIdx + numInternalNodes];
+            TreeNodeIndex internalIdx = csToInternalMap[csIdx];
             quantities[internalIdx]   = buffer[i];
         }
     }
@@ -280,14 +280,16 @@ void exchangePeerCounts(gsl::span<const int> peerRanks,
 
 /*! @brief Pass on focus tree parts from old owners to new owners
  *
- * @tparam     KeyType         32- or 64-bit unsigned integer
- * @param[in]  cstree          cornerstone leaf cell array (of the locally focused tree)
- * @param[in]  myRank          the executing rank
- * @param[in]  oldFocusStart   SFC assignment boundaries from previous iteration
- * @param[in]  oldFocusEnd
- * @param[in]  newFocusStart   new SFC assignment boundaries
- * @param[in]  newFocusEnd
- * @param[out] buffer          cell keys of parts of a remote rank's @p cstree for the newly assigned area of @p myRank
+ * @tparam       KeyType        32- or 64-bit unsigned integer
+ * @param[in]    cstree         cornerstone leaf cell array (of the locally focused tree)
+ * @param[in]    counts         particle counts per cell in @p cstree, length cstree.size() - 1
+ * @param[in]    myRank         the executing rank
+ * @param[in]    oldFocusStart  SFC assignment boundaries from previous iteration
+ * @param[in]    oldFocusEnd
+ * @param[in]    newFocusStart  new SFC assignment boundaries
+ * @param[in]    newFocusEnd
+ * @param[inout] buffer         cell keys of parts of a remote rank's @p cstree for the newly assigned area of @p myRank
+ *                              will be appended to this
  *
  * When the assignment boundaries change, we let the previous owning rank pass on its focus tree of the part that it
  * lost to the new owning rank. Thanks to doing so we can guarantee that each rank always has the highest focus
@@ -296,6 +298,8 @@ void exchangePeerCounts(gsl::span<const int> peerRanks,
  */
 template<class KeyType>
 void focusTransfer(gsl::span<const KeyType> cstree,
+                   gsl::span<const unsigned> counts,
+                   unsigned bucketSize,
                    int myRank,
                    KeyType oldFocusStart,
                    KeyType oldFocusEnd,
@@ -306,13 +310,20 @@ void focusTransfer(gsl::span<const KeyType> cstree,
     constexpr int ownerTag = static_cast<int>(P2pTags::focusTransfer);
 
     std::vector<MPI_Request> sendRequests;
+    std::vector<std::vector<KeyType>> sendBuffers;
 
     if (oldFocusStart < newFocusStart)
     {
         // current rank lost range [oldFocusStart : newFocusStart] to rank below
         TreeNodeIndex start = findNodeAbove(cstree, oldFocusStart);
         TreeNodeIndex end   = findNodeAbove(cstree, newFocusStart);
-        mpiSendAsync(cstree.data() + start, end - start, myRank - 1, ownerTag, sendRequests);
+
+        size_t numNodes = end - start;
+        auto treelet    = updateTreelet(gsl::span<const KeyType>(cstree.data() + start, numNodes + 1),
+                                        gsl::span<const unsigned>(counts.data() + start, numNodes), bucketSize);
+
+        mpiSendAsync(treelet.data(), int(treelet.size() - 1), myRank - 1, ownerTag, sendRequests);
+        sendBuffers.push_back(std::move(treelet));
     }
 
     if (newFocusEnd < oldFocusEnd)
@@ -320,8 +331,13 @@ void focusTransfer(gsl::span<const KeyType> cstree,
         // current rank lost range [newFocusEnd : oldFocusEnd] to rank above
         TreeNodeIndex start = findNodeAbove(cstree, newFocusEnd);
         TreeNodeIndex end   = findNodeAbove(cstree, oldFocusEnd);
-        int sendCount = end - start;
-        mpiSendAsync(cstree.data() + start, sendCount, myRank + 1, ownerTag, sendRequests);
+
+        size_t numNodes = end - start;
+        auto treelet    = updateTreelet(gsl::span<const KeyType>(cstree.data() + start, numNodes + 1),
+                                        gsl::span<const unsigned>(counts.data() + start, numNodes), bucketSize);
+
+        mpiSendAsync(treelet.data(), int(treelet.size() - 1), myRank + 1, ownerTag, sendRequests);
+        sendBuffers.push_back(std::move(treelet));
     }
 
     if (newFocusStart < oldFocusStart)

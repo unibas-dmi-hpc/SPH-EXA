@@ -1,13 +1,13 @@
-include(sphexa_add_test)
+include(cstone_add_test)
 
 function(addMpiTest source exename testname ranks)
     add_executable(${exename} ${source} test_main.cpp)
-    target_include_directories(${exename} PRIVATE ../../include)
-    target_include_directories(${exename} PRIVATE ../)
+    target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+    target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/test)
     target_include_directories(${exename} PRIVATE ${MPI_CXX_INCLUDE_PATH})
     target_compile_options(${exename} PRIVATE -Wno-unknown-pragmas)
     target_link_libraries(${exename} ${MPI_CXX_LIBRARIES} GTest::gtest_main)
-    sphexa_add_test(${testname} EXECUTABLE ${exename} RANKS ${ranks})
+    cstone_add_test(${testname} EXECUTABLE ${exename} RANKS ${ranks})
     install(TARGETS ${exename} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/integration_mpi)
 endfunction()
 
