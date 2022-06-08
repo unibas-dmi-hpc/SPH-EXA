@@ -1,8 +1,10 @@
 #include <stdio.h>
-void auto_show_version(FILE *fp) {
-   fprintf (fp,"\n");
-   fprintf (fp,"The Grackle Version xxx\n");
-   fprintf (fp,"Git Branch   master\n");
-   fprintf (fp,"Git Revision xxx\n");
-   fprintf (fp,"\n");
+#include "grackle_types.h"
+
+grackle_version get_grackle_version() {
+   	grackle_version out;
+	out.version = "grackle_version";
+	out.branch = "grackle_branch";
+	out.revision = "grackle_revision";
+	return out;
 }

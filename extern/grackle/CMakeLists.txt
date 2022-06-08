@@ -33,17 +33,14 @@ set(grackle_SRCS
     grackle_repo/src/clib/solve_rate_cool_g.F
 )
 
-add_library(grackle SHARED ${grackle_SRCS})
+add_library(grackle ${grackle_SRCS})
 target_include_directories(grackle PRIVATE ${HDF5_INCLUDE_DIRS} ${MPI_C_INCLUDE_PATH})
 target_include_directories(grackle PUBLIC ${PROJECT_SOURCE_DIR}/grackle_repo/src/clib)
-target_link_libraries(grackle ${HDF5_LIBRARIES} ${MPI_C_LIBRARIES})
+target_link_libraries(grackle ${HDF5_LIBRARIES} ${MPI_C_LIBRARIES} gfortran)
 target_compile_definitions(grackle PRIVATE LINUX H5_USE_16_API CONFIG_BFLOAT_8 PIC)
 set_target_properties(grackle PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# Language specific compilation flags. Note that no-second-underscore and fixed-line-length are specific to gfortran
-#target_compile_options(grackle PRIVATE
-#    "$<$<COMPILE_LANGUAGE:Fortran>:-fno-second-underscore -ffixed-line-length-132>"
-#)
-
-#link_directories(${CMAKE_SOURCE_DIR}/extern/grackle)
-# TODO: install
+# Language specific compilation flags.
+target_compile_options(grackle PRIVATE
+    $<$<COMPILE_LANGUAGE:Fortran>:-fno-second-underscore -ffixed-line-length-132>
+)
