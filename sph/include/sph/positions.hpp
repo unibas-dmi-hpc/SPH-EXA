@@ -59,13 +59,14 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
     T* z_m1  = d.z_m1.data();
     T* u     = d.u.data();
     T* du_m1 = d.du_m1.data();
+    T* FBCdata = d.hasFBC.data();
 
     T hasFBC;
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        if (d.hasFBC[i] == 1.0) { hasFBC = 0.0; }
+        if (FBCdata[i] == 1.0) { hasFBC = 0.0; }
         else { hasFBC = 1.0; }
         Vec3T A{d.ax[i], d.ay[i], d.az[i]};
         Vec3T X{x[i], y[i], z[i]};
