@@ -4,9 +4,9 @@ project(grackle C Fortran)
 find_package(HDF5 REQUIRED)
 
 set(grackle_SRCS
-    grackle_deps/src/clib/auto_show_config.c
-    grackle_deps/src/clib/auto_show_flags.c
-    grackle_deps/src/clib/auto_show_version.c
+    grackle_deps/auto_show_config.c
+    grackle_deps/auto_show_flags.c
+    grackle_deps/auto_show_version.c
     grackle_repo/src/clib/calculate_cooling_time.c
     grackle_repo/src/clib/calculate_dust_temperature.c
     grackle_repo/src/clib/calculate_gamma.c
