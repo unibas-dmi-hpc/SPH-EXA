@@ -32,6 +32,8 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+
+#include "grackle_deps/version.h"
 #include "cooling.hpp"
 
 TEST(cooling_grackle, test1a)
@@ -43,9 +45,7 @@ TEST(cooling_grackle, test1a)
     options.metal_cooling          = 1;
     options.UVbackground           = 1;
 
-    // WTF ?!
-    // initGrackle("/Users/noah/Documents/Changa/grackle/grackle/grackle_data_files/input/CloudyData_UVB=HM2012.h5",
-    //            options);
+    initGrackle(PROJECT_SOURCE_DIR "/grackle_repo/input/CloudyData_UVB=HM2012.h5", options);
 
     using Real = double;
 
@@ -81,8 +81,6 @@ TEST(cooling_grackle, test1a)
     auto RT_HeII_ionization_rate  = std::vector<Real>{0.};
     auto RT_H2_dissociation_rate  = std::vector<Real>{0.};
     auto H2_self_shielding_length = std::vector<Real>{0.};
-
-    size_t numParticles = 1;
 
     std::cout << HI_fraction[0] << std::endl;
     std::cout << HeI_fraction[0] << std::endl;
