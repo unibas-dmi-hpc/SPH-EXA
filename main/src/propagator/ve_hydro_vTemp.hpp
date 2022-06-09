@@ -43,7 +43,7 @@ namespace sphexa
 using namespace sph;
 
 template<class DomainType, class ParticleDataType>
-class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
+class HydroVeTempProp final : public Propagator<DomainType, ParticleDataType>
 {
     using Base = Propagator<DomainType, ParticleDataType>;
     using Base::ng0_;
@@ -62,15 +62,16 @@ class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
     MHolder_t mHolder_;
 
 public:
-    HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+    HydroVeTempProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
     {
     }
 
     void activateFields(ParticleDataType& d) override
     {
-        d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha");
+        d.setConserved("x", "y", "z", "h", "m", "u", "temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha", "cv", "mui");
         d.setDependent("prho",
+                       "TdpdTrho",
                        "c",
                        "ax",
                        "ay",
@@ -91,7 +92,7 @@ public:
 
         d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz", "alpha");
         d.devData.setDependent(
-            "prho", "c", "kx", "xm", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys");
+            "prho", "TdpdTrho", "c", "kx", "xm", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys");
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
@@ -104,7 +105,7 @@ public:
         else
         {
             domain.sync(
-                d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha);
+                d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha, d.mui, d.cv, d.temp);
         }
     }
 
@@ -142,7 +143,7 @@ public:
         computeVeDefGradh(first, last, ngmax_, d, domain.box());
         timer.step("Normalization & Gradh");
         transferToHost(d, first, last, {"kx", "gradh"});
-        computeEOS(first, last, d);
+        computeEOSTemp(first, last, d);
         timer.step("EquationOfState");
 
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.prho, d.c, d.kx);
@@ -176,7 +177,7 @@ public:
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"c", "prho", "TdpdTrho"});
         transferToDevice(d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33", "alpha"});
         transferToDevice(d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33", "alpha"});
-        computeMomentumEnergy(first, last, ngmax_, d, domain.box());
+        computeMomentumTemperature(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
 
         if (d.g != 0.0)
@@ -190,7 +191,7 @@ public:
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
-        computePositions(first, last, d, domain.box());
+        computePositions_temperature(first, last, d, domain.box());
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
@@ -203,7 +204,7 @@ public:
     {
         d.release("c11", "c12", "c13");
         d.acquire("rho", "p", "gradh");
-        computeEOS(startIndex, endIndex, d);
+        computeEOSTemp(startIndex, endIndex, d);
     }
 
     //! @brief undo output configuration and restore compute configuration

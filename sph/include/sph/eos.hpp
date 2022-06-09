@@ -67,8 +67,6 @@ CUDA_DEVICE_HOST_FUN auto idealGasEOSTemp(T1 temp, T2 rho, T3 mui)
     using Tc = std::common_type_t<T1, T2, T3>;
 
     constexpr Tc R     = 8.317e7;
-    constexpr Tc gamma = (5.0 / 3.0);
-
     Tc dmy  = R / mui;
     Tc cv   = Tc(1.5) * dmy;
     Tc u    = temp * cv;

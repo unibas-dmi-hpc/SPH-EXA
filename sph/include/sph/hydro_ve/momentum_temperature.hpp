@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "momentum_energy_kern.hpp"
+#include "momentum_temperature_kern.hpp"
 #include "sph/sph.cuh"
 #include "sph/traits.hpp"
 
@@ -39,22 +39,24 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumTemperatureImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
 
-    const T* h     = d.h.data();
-    const T* m     = d.m.data();
-    const T* x     = d.x.data();
-    const T* y     = d.y.data();
-    const T* z     = d.z.data();
-    const T* vx    = d.vx.data();
-    const T* vy    = d.vy.data();
-    const T* vz    = d.vz.data();
-    const T* c     = d.c.data();
-    const T* prho  = d.prho.data();
-    const T* alpha = d.alpha.data();
+    const T* h         = d.h.data();
+    const T* m         = d.m.data();
+    const T* x         = d.x.data();
+    const T* y         = d.y.data();
+    const T* z         = d.z.data();
+    const T* vx        = d.vx.data();
+    const T* vy        = d.vy.data();
+    const T* vz        = d.vz.data();
+    const T* c         = d.c.data();
+    const T* prho      = d.prho.data();
+    const T* TdpdTrho  = d.TdpdTrho.data();
+    const T* alpha     = d.alpha.data();
+
 
     const T* c11 = d.c11.data();
     const T* c12 = d.c12.data();
@@ -88,7 +90,7 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax,
 
         T maxvsignal = 0;
 
-        momentumAndEnergyJLoop(i,
+        momentumAndTemperatureJLoop(i,
                                sincIndex,
                                K,
                                box,
@@ -103,6 +105,7 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax,
                                h,
                                m,
                                prho,
+                               TdpdTrho,
                                c,
                                c11,
                                c12,
@@ -132,13 +135,13 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax,
 }
 
 template<class T, class Dataset>
-void computeMomentumEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumTemperature(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeMomentumEnergy(startIndex, endIndex, ngmax, d, box);
+        cuda::computeMomentumTemperature(startIndex, endIndex, ngmax, d, box);
     }
-    else { computeMomentumEnergyImpl(startIndex, endIndex, ngmax, d, box); }
+    else { computeMomentumTemperatureImpl(startIndex, endIndex, ngmax, d, box); }
 }
 
 } // namespace sph

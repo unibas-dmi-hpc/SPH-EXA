@@ -35,5 +35,8 @@ extern void computeAVswitches(size_t, size_t, size_t, Dataset& d, const cstone::
 template<class Dataset>
 extern void computeMomentumEnergy(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
+template<class Dataset>
+extern void computeMomentumTemperature(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+
 } // namespace cuda
 } // namespace sph

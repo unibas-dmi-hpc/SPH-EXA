@@ -40,7 +40,7 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
+void computePositions_temperature(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     using Vec3T = cstone::Vec3<T>;
     T dt        = d.minDt;
@@ -58,6 +58,8 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
     T* y_m1  = d.y_m1.data();
     T* z_m1  = d.z_m1.data();
     T* u     = d.u.data();
+    T* temp  = d.temp.data();
+    T* cv    = d.cv.data();
     T* du_m1 = d.du_m1.data();
 
 #pragma omp parallel for schedule(static)
@@ -129,7 +131,10 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         deltaA = 0.5 * dt * dt / dt_m1;
         deltaB = dt + deltaA;
 
-        u[i] += du[i] * deltaB - du_m1[i] * deltaA;
+        temp[i] += (du[i] * deltaB - du_m1[i] * deltaA) / cv[i];
+        //temp[i]  = std::max(10., temp[i]);
+        u[i]     = temp[i] * cv[i];
+
         du_m1[i] = du[i];
 
 #ifndef NDEBUG

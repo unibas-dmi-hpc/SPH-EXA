@@ -44,7 +44,7 @@ namespace sphexa
 {
 
 template<class Dataset>
-void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
+void initSedovTempFields(Dataset& d, const std::map<std::string, double>& constants)
 {
     using T = typename Dataset::RealType;
 
@@ -58,6 +58,7 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
     double width2 = width * width;
 
     double firstTimeStep = constants.at("firstTimeStep");
+    constexpr T R_gas = 8.317e7;
 
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.h.begin(), d.h.end(), hInit);
@@ -79,8 +80,10 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
         T zi = d.z[i];
         T r2 = xi * xi + yi * yi + zi * zi;
 
+        d.cv[i]    = T(1.5) * R_gas / d.mui[i];
         d.u[i]     = constants.at("ener0") * exp(-(r2 / width2)) + constants.at("u0");
-        d.du_m1[i] = d.u[i];
+        d.temp[i]  = d.u[i] / d.cv[i];
+        d.du_m1[i] = d.temp[i];
 
         d.x_m1[i] = xi - d.vx[i] * firstTimeStep;
         d.y_m1[i] = yi - d.vy[i] * firstTimeStep;
@@ -89,12 +92,12 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
 }
 
 template<class Dataset>
-class SedovGrid : public ISimInitializer<Dataset>
+class SedovTempGrid : public ISimInitializer<Dataset>
 {
     std::map<std::string, double> constants_;
 
 public:
-    SedovGrid() { constants_ = sedovConstants(); }
+    SedovTempGrid() { constants_ = sedovConstants(); }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide, Dataset& d) const override
     {
@@ -106,7 +109,7 @@ public:
 
         T r = constants_.at("r1");
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
-        initSedovFields(d, constants_);
+        initSedovTempFields(d, constants_);
 
         return cstone::Box<T>(-r, r, true);
     }
@@ -115,13 +118,13 @@ public:
 };
 
 template<class Dataset>
-class SedovGlass : public ISimInitializer<Dataset>
+class SedovTempGlass : public ISimInitializer<Dataset>
 {
     std::string                   glassBlock;
     std::map<std::string, double> constants_;
 
 public:
-    SedovGlass(std::string initBlock)
+    SedovTempGlass(std::string initBlock)
         : glassBlock(initBlock)
     {
         constants_ = sedovConstants();
@@ -154,7 +157,7 @@ public:
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
         d.resize(d.x.size());
-        initSedovFields(d, constants_);
+        initSedovTempFields(d, constants_);
 
         return globalBox;
     }

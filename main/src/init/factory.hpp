@@ -40,6 +40,7 @@
 #include "file_init.hpp"
 #include "evrard_init.hpp"
 #include "sedov_init.hpp"
+#include "sedovTemp_init.hpp"
 #include "noh_init.hpp"
 #include "isobaric_cube_init.hpp"
 #include "wind_shock_init.hpp"
@@ -54,6 +55,11 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     {
         if (glassBlock.empty()) { return std::make_unique<SedovGrid<Dataset>>(); }
         else { return std::make_unique<SedovGlass<Dataset>>(glassBlock); }
+    }
+    if (testCase == "sedovTemp")
+    {
+        if (glassBlock.empty()) { return std::make_unique<SedovTempGrid<Dataset>>(); }
+        else { return std::make_unique<SedovTempGlass<Dataset>>(glassBlock); }
     }
     if (testCase == "noh")
     {
