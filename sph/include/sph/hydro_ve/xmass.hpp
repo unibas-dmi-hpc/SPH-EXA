@@ -32,10 +32,9 @@
 #pragma once
 
 #include "sph/kernels.hpp"
+#include "sph/traits.hpp"
 #include "xmass_kern.hpp"
-#ifdef USE_CUDA
 #include "sph/sph.cuh"
-#endif
 
 namespace sph
 {
@@ -74,7 +73,11 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
 template<typename T, class Dataset>
 void computeXMass(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    computeXMassImpl(startIndex, endIndex, ngmax, d, box);
+    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        cuda::computeXMass(startIndex, endIndex, ngmax, d, box);
+    }
+    else { computeXMassImpl(startIndex, endIndex, ngmax, d, box); }
 }
 
 } // namespace sph

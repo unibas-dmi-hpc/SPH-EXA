@@ -33,9 +33,10 @@
 #include <array>
 #include <mpi.h>
 
+#include "conserved_quantities.hpp"
 #include "iobservables.hpp"
-#include "sph/math.hpp"
 #include "io/ifile_writer.hpp"
+#include "sph/math.hpp"
 
 namespace sphexa
 {
@@ -113,6 +114,8 @@ public:
 
     void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
+        d.totalNeighbors = neighborsSum(firstIndex, lastIndex, d.neighborsCount);
+        computeConservedQuantities(firstIndex, lastIndex, d);
         T khgr = computeKHGrowthRate<T>(firstIndex, lastIndex, d, box);
 
         int rank;
@@ -120,8 +123,18 @@ public:
 
         if (rank == 0)
         {
-            fileutils::writeColumns(
-                constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, khgr);
+            fileutils::writeColumns(constantsFile,
+                                    ' ',
+                                    d.iteration,
+                                    d.ttot,
+                                    d.minDt,
+                                    d.etot,
+                                    d.ecin,
+                                    d.eint,
+                                    d.egrav,
+                                    d.linmom,
+                                    d.angmom,
+                                    khgr);
         }
     }
 };

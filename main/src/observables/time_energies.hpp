@@ -28,8 +28,10 @@
  * @author Lukas Schmidt
  */
 
-#include "iobservables.hpp"
 #include <fstream>
+
+#include "conserved_quantities.hpp"
+#include "iobservables.hpp"
 #include "io/ifile_writer.hpp"
 
 namespace sphexa
@@ -49,13 +51,16 @@ public:
     using T = typename Dataset::RealType;
     void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
-
         int rank;
         MPI_Comm_rank(d.comm, &rank);
 
+        d.totalNeighbors = neighborsSum(firstIndex, lastIndex, d.neighborsCount);
+        computeConservedQuantities(firstIndex, lastIndex, d);
+
         if (rank == 0)
         {
-            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
+            fileutils::writeColumns(
+                constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, d.linmom, d.angmom);
         }
     }
 };

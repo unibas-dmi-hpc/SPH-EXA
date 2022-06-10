@@ -43,9 +43,9 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
-#include "propagator.hpp"
 #include "init/factory.hpp"
 #include "observables/factory.hpp"
+#include "propagator/factory.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
 #include "util/timer.hpp"
@@ -83,7 +83,7 @@ int main(int argc, char** argv)
     const std::string        initCond          = parser.get("--init");
     const size_t             problemSize       = parser.get("-n", 50);
     const std::string        glassBlock        = parser.get("--glass");
-    const bool               ve                = parser.exists("--ve");
+    const std::string        propChoice        = parser.get("--prop", std::string("ve"));
     const std::string        maxStepStr        = parser.get("-s", std::string("200"));
     const std::string        writeFrequencyStr = parser.get("-w", std::string("0"));
     std::vector<std::string> writeExtra        = parser.getCommaList("--wextra");
@@ -105,7 +105,7 @@ int main(int argc, char** argv)
 
     //! @brief evaluate user choice for different kind of actions
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
-    auto propagator  = propagatorFactory<Domain, Dataset>(ve, ngmax, ng0, output, rank);
+    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, ngmax, ng0, output, rank);
     auto fileWriter  = fileWriterFactory<Dataset>(ascii);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
@@ -143,6 +143,7 @@ int main(int argc, char** argv)
         propagator->step(domain, d);
 
         observables->computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
+        propagator->printIterationTimings(domain, d);
 
         if (isPeriodicOutputStep(d.iteration, writeFrequencyStr) ||
             isPeriodicOutputTime(d.ttot - d.minDt, d.ttot, writeFrequencyStr) ||
@@ -181,14 +182,14 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
-        printf("\t--init \t\t Test case selection (evrard, sedov, noh, isobaric-cube) or an HDF5 file "
+        printf("\t--init \t\t Test case selection (evrard, sedov, noh, isobaric-cube, wind-shock) or an HDF5 file "
                "with initial conditions\n");
         printf("\t-n NUM \t\t Initialize data with (approx when using glass blocks) NUM^3 global particles [50]\n");
         printf("\t--glass FILE\t Use glass block as template to generate initial x,y,z configuration\n\n");
 
         printf("\t--theta NUM \t Gravity accuracy parameter [default 0.5 when self-gravity is active]\n\n");
 
-        printf("\t--ve \t\t Activate SPH with generalized volume elements\n\n");
+        printf("\t--prop STRING \t Choice of SPH propagator [default: modern SPH]. For standard SPH, use \"std\" \n\n");
 
         printf("\t-s NUM \t\t int(NUM):  Number of iterations (time-steps) [200],\n\
                 \t real(NUM): Time   of simulation (time-model)\n\n");
@@ -197,9 +198,9 @@ void printHelp(char* name, int rank)
                " at which to trigger output to file []\n\
                    \t\t e.g.: --wextra 1,0.77,1.29,2.58\n\n");
 
-        printf("\t-w NUM \t\t NUM<=0:    No write per frequency [0],\n\
-                \t int(NUM):  Dump particles data every NUM iteration steps,\n\
-                \t real(NUM): Dump particles data every NUM of time seconds\n\n");
+        printf("\t-w NUM \t\t NUM<=0:    Disable file output [default],\n\
+                \t int(NUM):  Dump particle data every NUM iteration steps,\n\
+                \t real(NUM): Dump particle data every NUM seconds of simulation (not wall-clock) time \n\n");
 
         printf("\t-f LIST \t Comma-separated list of field names to write for each dump [x,y,z,vx,vy,vz,h,rho,u,p,c]\n\
                     \t\t e.g: -f x,y,z,h,rho\n\n");

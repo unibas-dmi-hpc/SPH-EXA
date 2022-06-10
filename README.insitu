@@ -1,20 +1,19 @@
-build wth ParaView Catalyst on Piz Daint:
+build with ParaView Catalyst on Piz Daint:
 
 prgenv:
-  module load daint-gpu CMake
+  module load daint-gpu CMake cudatoolkit/11.2.0_3.39-2.1__gf93aa1c
   module load ParaView/5.10.1-CrayGNU-21.09-EGL
 
   mkdir buildCatalystDaint
   cd buildCatalystDaint
-  cmake \
+  cmake -S .. \
     -DCMAKE_CXX_COMPILER=CC \
     -DINSITU=Catalyst \
     -DBUILD_ANALYTICAL:BOOL=OFF \
     -DBUILD_TESTING:BOOL=OFF \
     -DSPH_EXA_WITH_H5PART:BOOL=OFF \
-    -DSPH_EXA_WITH_FFTW:BOOL=OFF \
-    ..
-  make sphexa
+
+  make -j
 ############
 
 build with ASCENT on Piz Daint:
@@ -24,34 +23,32 @@ prgenv:
   
   mkdir buildAscentDaint
   cd buildAscentDaint
-  cmake \
+  cmake -S .. \
     -DHDF5_INCLUDE_DIR=$HDF5_DIR/include \
     -DBUILD_ANALYTICAL:BOOL=OFF \
     -DBUILD_TESTING:BOOL=OFF \
     -DSPH_EXA_WITH_H5PART:BOOL=OFF \
-    -DSPH_EXA_WITH_FFTW:BOOL=OFF \
     -DCMAKE_CXX_COMPILER=CC \
-    -DINSITU=Ascent \
-    ..
-  make sphexa
+    -DINSITU=Ascent
+    
+  make -j
   
 ######################################################
 
-build wth ParaView Catalyst on Eiger (Work in Progress... until https://github.com/unibas-dmi-hpc/SPH-EXA/issues/248 is fixed)
+build with ParaView Catalyst on Eiger
 
 prgenv:
-  module load cpeCray CMake cray-hdf5-parallel ParaView
-
+  module load cpeCray CMake ParaView
+  export GCC_X86_64=/opt/cray/pe/gcc/9.3.0/snos
   mkdir buildCatalystEiger
   cd buildCatalystEiger
-  cmake \
+  cmake -S .. \
     -DCMAKE_CXX_COMPILER=CC \
     -DINSITU=Catalyst \
     -DBUILD_ANALYTICAL:BOOL=OFF \
     -DBUILD_TESTING:BOOL=OFF \
-    -DSPH_EXA_WITH_H5PART:BOOL=OFF \
-    -DSPH_EXA_WITH_FFTW:BOOL=OFF \
-    ..
+    -DSPH_EXA_WITH_H5PART:BOOL=OFF
+
   make sphexa
   
 ############
@@ -63,13 +60,13 @@ prgenv:
   
   mkdir buildAscentEiger
   cd buildAscentEiger
-  cmake \
+  cmake -S .. \
     -DHDF5_INCLUDE_DIR=$HDF5_DIR/include \
     -DBUILD_ANALYTICAL:BOOL=OFF \
     -DBUILD_TESTING:BOOL=OFF \
     -DSPH_EXA_WITH_H5PART:BOOL=OFF \
     -DSPH_EXA_WITH_FFTW:BOOL=OFF \
     -DCMAKE_CXX_COMPILER=CC \
-    -DINSITU=Ascent \
-    ..
+    -DINSITU=Ascent
+
   make sphexa

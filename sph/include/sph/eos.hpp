@@ -97,12 +97,15 @@ void computeEOS(size_t startIndex, size_t endIndex, Dataset& d)
     auto* prho = d.prho.data();
     auto* c    = d.c.data();
 
+    bool storeRho = (d.rho.size() == d.m.size());
+
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         auto rho             = kx[i] * m[i] / xm[i];
         std::tie(p[i], c[i]) = idealGasEOS(u[i], rho);
         prho[i]              = p[i] / (kx[i] * m[i] * m[i] * gradh[i]);
+        if (storeRho) { d.rho[i] = rho; }
     }
 }
 

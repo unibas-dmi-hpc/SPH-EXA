@@ -78,14 +78,16 @@ cd build
 cmake <GIT_SOURCE_DIR>
 ```
 
-Recommended CMake configuration on Piz Daint:
+Recommended CMake configuration on Piz Daint,
+using the (default) Cray Clang compiler for CPU code (.cpp) and nvcc/g++ for GPU code (.cu):
 ```shell
 module load daint-gpu
-module load cudatoolkit
+module load cudatoolkit/11.2.0_3.39-2.1__gf93aa1c # or newer
 module load CMake/3.22.1               # or newer
 module load cray-hdf5-parallel
-module load gcc/9.3.0                  # only used as host compiler by nvcc
-export GCC_X86_64=/opt/gcc/9.3.0/snos  # system header versions are too old
+module load gcc/9.3.0                  # nvcc uses gcc as the default host compiler,
+                                       # but the system version is too old
+export GCC_X86_64=/opt/gcc/9.3.0/snos  # system header versions are too old, applies to cray-clang too
 
 mkdir build
 cd build
