@@ -48,17 +48,17 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 
     const T* du = d.du.data();
 
-    T* x     = d.x.data();
-    T* y     = d.y.data();
-    T* z     = d.z.data();
-    T* vx    = d.vx.data();
-    T* vy    = d.vy.data();
-    T* vz    = d.vz.data();
-    T* x_m1  = d.x_m1.data();
-    T* y_m1  = d.y_m1.data();
-    T* z_m1  = d.z_m1.data();
-    T* u     = d.u.data();
-    T* du_m1 = d.du_m1.data();
+    T* x       = d.x.data();
+    T* y       = d.y.data();
+    T* z       = d.z.data();
+    T* vx      = d.vx.data();
+    T* vy      = d.vy.data();
+    T* vz      = d.vz.data();
+    T* x_m1    = d.x_m1.data();
+    T* y_m1    = d.y_m1.data();
+    T* z_m1    = d.z_m1.data();
+    T* u       = d.u.data();
+    T* du_m1   = d.du_m1.data();
     T* FBCdata = d.hasFBC.data();
 
     T hasFBC;
