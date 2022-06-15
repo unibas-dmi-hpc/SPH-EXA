@@ -29,7 +29,7 @@ module load ParaView/5.10.1-CrayGNU-21.09-EGL
 
 - prgenv:
 ```
-  module load daint-gpu CMake cray-hdf5-parallel Ascent
+  module load daint-gpu CMake cray-hdf5-parallel Ascent cudatoolkit/11.2.0_3.39-2.1__gf93aa1c
 ```
 
 - build:
@@ -122,7 +122,7 @@ daint101> git clone https://github.com/unibas-dmi-hpc/SPH-EXA.git SPH-EXA.git
 daint101> module load singularity/3.8.0
 daint101> singularity pull docker://sphexa/ascent:latest
 # -> ascent_latest.sif
-# NOTE: this .sif image has not been optimized (yet), do not use for performance
+# NOTE: this .sif image has not been optimized for performance (yet).
 ```
 
 ### Build
