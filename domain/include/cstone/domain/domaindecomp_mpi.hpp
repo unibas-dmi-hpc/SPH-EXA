@@ -77,7 +77,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticles(const SendList& sendList,
 {
     constexpr int domainExchangeTag = static_cast<int>(P2pTags::domainExchange);
     constexpr int numArrays         = sizeof...(Arrays);
-    util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
+    constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
 
     int numRanks = int(sendList.size());
 
@@ -148,6 +148,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticles(const SendList& sendList,
         }
     }
 
+    size_t bytesPerParticle = std::accumulate(elementSizes.begin(), elementSizes.end(), size_t(0));
     std::vector<char> receiveBuffer;
     while (numParticlesPresent != numParticlesAssigned)
     {
@@ -157,7 +158,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticles(const SendList& sendList,
         int receiveCountBytes;
         MPI_Get_count(&status, MPI_CHAR, &receiveCountBytes);
 
-        size_t receiveCount = receiveCountBytes / std::accumulate(elementSizes.begin(), elementSizes.end(), size_t(0));
+        size_t receiveCount = receiveCountBytes / bytesPerParticle;
         assert(numParticlesPresent + receiveCount <= numParticlesAssigned);
 
         util::array<size_t, numArrays> arrayByteOffsets = receiveCount * elementSizes;
