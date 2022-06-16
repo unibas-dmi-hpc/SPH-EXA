@@ -51,17 +51,16 @@ TEST(GatherCpu, sortInvert)
     EXPECT_EQ(values, reference);
 }
 
-
-template<class ValueType, class CodeType, class IndexType>
+template<class ValueType, class KeyType, class IndexType>
 void CpuGatherTest()
 {
-    std::vector<CodeType> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
+    std::vector<KeyType> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
 
-    CpuGather<ValueType, CodeType, IndexType> cpuGather;
+    CpuGather<KeyType, IndexType> cpuGather;
     cpuGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
     {
-        std::vector<CodeType> refCodes{0, 10, 20, 30, 40, 50, 60, 70, 80, 90};
+        std::vector<KeyType> refCodes{0, 10, 20, 30, 40, 50, 60, 70, 80, 90};
         EXPECT_EQ(codes, refCodes);
     }
 
@@ -78,8 +77,4 @@ TEST(GatherCpu, CpuGather)
     CpuGatherTest<float, uint64_t, unsigned>();
     CpuGatherTest<double, unsigned, unsigned>();
     CpuGatherTest<double, uint64_t, unsigned>();
-    CpuGatherTest<float, unsigned, uint64_t>();
-    CpuGatherTest<float, uint64_t, uint64_t>();
-    CpuGatherTest<double, unsigned, uint64_t>();
-    CpuGatherTest<double, uint64_t, uint64_t>();
 }

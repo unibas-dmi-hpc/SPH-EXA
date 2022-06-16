@@ -143,7 +143,7 @@ void reorderInPlace(const std::vector<LocalIndex>& ordering, ValueType* array)
 }
 
 //! @brief This class conforms to the same interface as the device version to allow abstraction
-template<class ValueType, class CodeType, class IndexType>
+template<class CodeType, class IndexType>
 class CpuGather
 {
 public:
@@ -160,7 +160,7 @@ public:
         ordering_.resize(mapSize_);
         omp_copy(map_first, map_last, begin(ordering_));
 
-        buffer_.resize(mapSize_);
+        buffer_.resize(mapSize_ * ElementSize);
     }
 
     void getReorderMap(IndexType* map_first, LocalIndex first, LocalIndex last)
@@ -197,7 +197,7 @@ public:
 
         sort_by_key(codes_first, codes_last, begin(ordering_));
 
-        buffer_.resize(mapSize_);
+        buffer_.resize(mapSize_ * ElementSize);
     }
 
     /*! @brief reorder the array @p values according to the reorder map provided previously
@@ -205,13 +205,18 @@ public:
      * @p values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
-    void operator()(const ValueType* source, ValueType* destination, IndexType offset, IndexType numExtract) const
+    template<class T>
+    void operator()(const T* source, T* destination, IndexType offset, IndexType numExtract) const
     {
-        reorder<IndexType>({ordering_.data() + offset, numExtract}, source, buffer_.data());
-        omp_copy(buffer_.begin(), buffer_.begin() + numExtract, destination);
+        static_assert(sizeof(T) <= ElementSize);
+        auto* bufferT = reinterpret_cast<T*>(buffer_.data());
+
+        reorder<IndexType>({ordering_.data() + offset, numExtract}, source, bufferT);
+        omp_copy(bufferT, bufferT + numExtract, destination);
     }
 
-    void operator()(const ValueType* source, ValueType* destination) const
+    template<class T>
+    void operator()(const T* source, T* destination) const
     {
         this->operator()(source, destination, offset_, numExtract_);
     }
@@ -225,13 +230,15 @@ public:
     }
 
 private:
+    constexpr static inline size_t ElementSize = 8;
+
     std::size_t offset_{0};
     std::size_t numExtract_{0};
     std::size_t mapSize_{0};
 
     std::vector<IndexType, util::DefaultInitAdaptor<IndexType>> ordering_;
 
-    mutable std::vector<ValueType, util::DefaultInitAdaptor<ValueType>> buffer_;
+    mutable std::vector<char, util::DefaultInitAdaptor<char>> buffer_;
 };
 
 } // namespace cstone

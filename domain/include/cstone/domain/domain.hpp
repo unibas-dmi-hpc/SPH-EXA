@@ -53,7 +53,7 @@ class Domain
 {
     static_assert(std::is_unsigned<KeyType>{}, "SFC key type needs to be an unsigned integer\n");
 
-    using ReorderFunctor = ReorderFunctor_t<Accelerator, T, KeyType, LocalIndex>;
+    using ReorderFunctor = ReorderFunctor_t<Accelerator, KeyType, LocalIndex>;
 
 public:
     /*! @brief construct empty Domain
