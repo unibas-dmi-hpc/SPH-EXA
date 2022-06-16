@@ -180,9 +180,9 @@ public:
               std::tuple<Vectors2&...> scratchBuffers)
     {
         auto [exchangeStart, keyView] =
-            distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties));
+            distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratchBuffers);
         // h is already reordered here for use in halo discovery
-        reorderFunctor(h.data() + exchangeStart, h.data());
+        reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(h), scratchBuffers);
 
         float invThetaEff      = invThetaMinMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
@@ -219,8 +219,8 @@ public:
                   std::tuple<Vectors2&...> scratchBuffers)
     {
         auto [exchangeStart, keyView] =
-            distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties));
-        reorderArrays(reorderFunctor, exchangeStart, 0, x.data(), y.data(), z.data(), h.data(), m.data());
+            distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratchBuffers);
+        reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(x, y, z, h, m), scratchBuffers);
 
         float invThetaEff      = invThetaVecMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
@@ -307,24 +307,29 @@ private:
         if (!allEqual) { throw std::runtime_error("Domain sync: input array sizes are inconsistent\n"); }
     }
 
-    template<class KeyVec, class VectorX, class... Vectors>
-    auto
-    distribute(KeyVec& particleKeys, VectorX& x, VectorX& y, VectorX& z, std::tuple<Vectors&...> particleProperties)
+    template<class KeyVec, class VectorX, class... Vectors1, class... Vectors2>
+    auto distribute(KeyVec& particleKeys,
+                    VectorX& x,
+                    VectorX& y,
+                    VectorX& z,
+                    std::tuple<Vectors1&...> particleProperties,
+                    std::tuple<Vectors2&...> scratchBuffers)
     {
         initBounds(x.size());
-        auto allArrays = std::tuple_cat(std::tie(particleKeys, x, y, z), particleProperties);
-        std::apply([size = x.size()](auto&... arrays) { checkSizesEqual(size, arrays...); }, allArrays);
+        auto distributedArrays = std::tuple_cat(std::tie(particleKeys, x, y, z), particleProperties);
+        std::apply([size = x.size()](auto&... arrays) { checkSizesEqual(size, arrays...); }, distributedArrays);
 
         // Global tree build and assignment
         LocalIndex newNParticlesAssigned =
             global_.assign(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
 
         size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
-        std::apply([size = exchangeSize](auto&... arrays) { reallocate(size, arrays...); }, allArrays);
+        std::apply([size = exchangeSize](auto&... arrays) { reallocate(size, arrays...); },
+                   std::tuple_cat(distributedArrays, scratchBuffers));
 
         return std::apply([this](auto&... arrays)
                           { return global_.distribute(bufDesc_, reorderFunctor, arrays.data()...); },
-                          allArrays);
+                          distributedArrays);
     }
 
     template<class KeyVec, class VectorX, class VectorH>
@@ -369,9 +374,7 @@ private:
         for_each_tuple(relocate, orderedBuffers);
 
         // reorder the unordered buffers
-        std::apply([src = exchangeStart, dest = newBufDesc.start, this](auto&... arrays)
-                   { reorderArrays(reorderFunctor, src, dest, arrays.data()...); },
-                   unorderedBuffers);
+        reorderArrays(reorderFunctor, exchangeStart, newBufDesc.start, unorderedBuffers, scratchBuffers);
 
         // newBufDesc is now the valid buffer description
         std::swap(newBufDesc, bufDesc_);

@@ -51,6 +51,8 @@
 #include <vector>
 
 #include "cstone/domain/domaindecomp.hpp"
+#include "cstone/domain/domain_traits.hpp"
+#include "cstone/util/traits.hpp"
 
 namespace cstone
 {
@@ -228,14 +230,35 @@ void reallocate(std::size_t size, Arrays&... arrays)
     [[maybe_unused]] std::initializer_list<int> list{(arrays.resize(size), 0)...};
 }
 
-template<class R, class... Arrays>
-void reorderArrays(const R& reorderFunctor, size_t inputOffset, size_t outputOffset, Arrays... arrays)
+template<class KeyType, class LocalIndex, class... Arrays1, class... Arrays2>
+void reorderArrays(const ReorderFunctor_t<CpuTag, KeyType, LocalIndex>& reorderFunctor,
+                   size_t inputOffset,
+                   size_t outputOffset,
+                   std::tuple<Arrays1&...> arrays,
+                   std::tuple<Arrays2&...> scratchBuffers)
 {
-    auto reorderArray = [inputOffset, outputOffset, &reorderFunctor](auto ptr)
-    { reorderFunctor(ptr + inputOffset, ptr + outputOffset); };
+    auto reorderArray = [inputOffset, outputOffset, &reorderFunctor, &scratchBuffers](auto& array)
+    {
+        auto& swapSpace = util::pickType<decltype(array)>(scratchBuffers);
+        assert(swapSpace.size() == array.size());
+        reorderFunctor.direct(array.data() + inputOffset, swapSpace.data() + outputOffset);
+        swap(swapSpace, array);
+    };
 
-    std::tuple particleArrays{arrays...};
-    for_each_tuple(reorderArray, particleArrays);
+    for_each_tuple(reorderArray, arrays);
+}
+
+template<class KeyType, class LocalIndex, class... Arrays1, class... Arrays2>
+void reorderArrays(const ReorderFunctor_t<GpuTag, KeyType, LocalIndex>& reorderFunctor,
+                   size_t inputOffset,
+                   size_t outputOffset,
+                   std::tuple<Arrays1&...> arrays,
+                   std::tuple<Arrays2&...> /*scratchBuffers*/)
+{
+    auto reorderArray = [inputOffset, outputOffset, &reorderFunctor](auto& array)
+    { reorderFunctor(array.data() + inputOffset, array.data() + outputOffset); };
+
+    for_each_tuple(reorderArray, arrays);
 }
 
 } // namespace cstone

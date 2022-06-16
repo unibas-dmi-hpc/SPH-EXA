@@ -270,8 +270,9 @@ void particleProperty(int rank, int numRanks)
     }
 
     std::vector<KeyType> keys(x.size());
-    std::vector<T> scratch;
-    domain.sync(keys, x, y, z, h, std::tie(mass), std::tie(scratch));
+    std::vector<double> scratchd;
+    std::vector<float> scratchf;
+    domain.sync(keys, x, y, z, h, std::tie(mass), std::tie(scratchd, scratchf));
 
     // the order of particles on the node depends on the SFC algorithm
     std::sort(mass.begin() + domain.startIndex(), mass.begin() + domain.endIndex());

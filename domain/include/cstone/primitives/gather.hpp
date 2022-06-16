@@ -221,6 +221,12 @@ public:
         this->operator()(source, destination, offset_, numExtract_);
     }
 
+    template<class T>
+    void direct(const T* source, T* destination) const
+    {
+        reorder<IndexType>({ordering_.data() + offset_, numExtract_}, source, destination);
+    }
+
     void restrictRange(std::size_t offset, std::size_t numExtract)
     {
         assert(offset + numExtract <= mapSize_);
