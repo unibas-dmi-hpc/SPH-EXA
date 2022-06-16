@@ -76,7 +76,8 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
     cstone::Domain<KeyType, T> domain(thisRank, numRanks, bucketSize, bucketSizeLocal, theta, box);
 
-    domain.syncGrav(particleKeys, x, y, z, h, m);
+    std::vector<T> scratchSpace;
+    domain.syncGrav(particleKeys, x, y, z, h, m, std::tuple{}, std::tie(scratchSpace));
 
     MultipoleHolder<T, T, T, KeyType, MultipoleType> multipoleHolder;
     thrust::device_vector<T>                         d_x = x, d_y = y, d_z = z, d_m = m;

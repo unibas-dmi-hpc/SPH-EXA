@@ -73,7 +73,8 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
 
     cstone::Domain<KeyType, T> domain(thisRank, numRanks, bucketSize, bucketSizeLocal, theta, box);
 
-    domain.syncGrav(particleKeys, x, y, z, h, m);
+    std::vector<T> scratchSpace;
+    domain.syncGrav(particleKeys, x, y, z, h, m, std::tuple{}, std::tie(scratchSpace));
 
     //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
     const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();

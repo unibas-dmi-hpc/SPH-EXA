@@ -44,6 +44,7 @@
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/traversal/peers.hpp"
 #include "cstone/sfc/box_mpi.hpp"
+#include "cstone/util/traits.hpp"
 
 namespace cstone
 {
@@ -169,13 +170,14 @@ public:
      *      9. SFC sort exchanged assigned particles
      *     10. exchange halo particles
      */
-    template<class VectorX, class VectorH, class... Vectors>
+    template<class VectorX, class VectorH, class... Vectors1, class... Vectors2>
     void sync(std::vector<KeyType>& particleKeys,
               VectorX& x,
               VectorX& y,
               VectorX& z,
               VectorH& h,
-              std::tuple<Vectors&...> particleProperties = std::tuple{})
+              std::tuple<Vectors1&...> particleProperties,
+              std::tuple<Vectors2&...> scratchBuffers)
     {
         auto [exchangeStart, keyView] =
             distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties));
@@ -201,19 +203,20 @@ public:
                              layout_);
 
         updateLayout(exchangeStart, keyView, particleKeys, std::tie(h),
-                     std::tuple_cat(std::tie(x, y, z), particleProperties));
+                     std::tuple_cat(std::tie(x, y, z), particleProperties), scratchBuffers);
         setupHalos(particleKeys, x, y, z, h);
         firstCall_ = false;
     }
 
-    template<class VectorX, class VectorH, class VectorM, class... Vectors>
+    template<class VectorX, class VectorH, class VectorM, class... Vectors1, class... Vectors2>
     void syncGrav(std::vector<KeyType>& particleKeys,
                   VectorX& x,
                   VectorX& y,
                   VectorX& z,
                   VectorH& h,
                   VectorM& m,
-                  std::tuple<Vectors&...> particleProperties = std::tuple{})
+                  std::tuple<Vectors1&...> particleProperties,
+                  std::tuple<Vectors2&...> scratchBuffers)
     {
         auto [exchangeStart, keyView] =
             distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties));
@@ -250,7 +253,7 @@ public:
 
         // diagnostics(keyView.size(), peers);
 
-        updateLayout(exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), particleProperties);
+        updateLayout(exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), particleProperties, scratchBuffers);
         setupHalos(particleKeys, x, y, z, h);
         firstCall_ = false;
     }
@@ -335,30 +338,33 @@ private:
                        sfcKindPointer(keys.data()) + bufDesc_.end, x.size() - bufDesc_.end, box());
     }
 
-    template<class KeyVec, class... Arrays1, class... Arrays2>
+    template<class KeyVec, class... Arrays1, class... Arrays2, class... Arrays3>
     void updateLayout(LocalIndex exchangeStart,
                       gsl::span<const KeyType> keyView,
                       KeyVec& keys,
                       std::tuple<Arrays1&...> orderedBuffers,
-                      std::tuple<Arrays2&...> unorderedBuffers)
+                      std::tuple<Arrays2&...> unorderedBuffers,
+                      std::tuple<Arrays3&...> scratchBuffers)
     {
         auto myRange = focusTree_.assignment()[myRank_];
         BufferDescription newBufDesc{layout_[myRange.start()], layout_[myRange.end()], layout_.back()};
 
         // adjust sizes of all buffers if necessary
         std::apply([size = newBufDesc.size](auto&... arrays) { reallocate(size, arrays...); },
-                   std::tuple_cat(orderedBuffers, unorderedBuffers));
-        reallocate(newBufDesc.size, swapSpace_, swapKeys_);
+                   std::tuple_cat(std::tie(swapKeys_), orderedBuffers, unorderedBuffers, scratchBuffers));
 
         // relocate particle SFC keys
         omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);
         swap(keys, swapKeys_);
 
         // relocate ordered buffer contents from offset 0 to offset newBufDesc.start
-        auto relocate = [size = keyView.size(), dest = newBufDesc.start, this](auto& array)
+        auto relocate = [size = keyView.size(), dest = newBufDesc.start, &scratchBuffers](auto& array)
         {
-            omp_copy(array.begin(), array.begin() + size, swapSpace_.begin() + dest);
-            swap(array, swapSpace_);
+            static_assert(util::FindIndex<decltype(array), std::tuple<Arrays3&...>>{} < sizeof...(Arrays3),
+                          "No suitable scratch buffer available");
+            auto& swapSpace = util::pickType<decltype(array)>(scratchBuffers);
+            omp_copy(array.begin(), array.begin() + size, swapSpace.begin() + dest);
+            swap(array, swapSpace);
         };
         for_each_tuple(relocate, orderedBuffers);
 
@@ -453,7 +459,6 @@ private:
     bool firstCall_{true};
 
     ReorderFunctor reorderFunctor;
-    std::vector<T> swapSpace_;
     std::vector<KeyType> swapKeys_;
 };
 

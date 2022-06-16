@@ -104,7 +104,8 @@ public:
                             d.z,
                             d.h,
                             d.m,
-                            std::tie(d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha));
+                            std::tie(d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha),
+                            std::tie(d.du));
         }
         else
         {
@@ -113,7 +114,8 @@ public:
                         d.y,
                         d.z,
                         d.h,
-                        std::tie(d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha));
+                        std::tie(d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha),
+                        std::tie(d.du));
         }
     }
 
