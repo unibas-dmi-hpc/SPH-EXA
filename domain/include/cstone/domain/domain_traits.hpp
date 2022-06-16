@@ -57,21 +57,21 @@ struct ReorderFunctor
 template<class Accelerator>
 struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
 {
-    template<class ValueType, class CodeType, class IndexType>
-    using type = CpuGather<ValueType, CodeType, IndexType>;
+    template<class KeyType, class IndexType>
+    using type = CpuGather<KeyType, IndexType>;
 };
 
 template<class Accelerator>
 struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, GpuTag>{}>>
 {
-    template<class ValueType, class CodeType, class IndexType>
-    using type = DeviceGather<ValueType, CodeType, IndexType>;
+    template<class KeyType, class IndexType>
+    using type = DeviceGather<KeyType, IndexType>;
 };
 
 } // namespace detail
 
 //! @brief returns reorder functor type to be used, depending on the accelerator
-template<class Accelerator, class ValueType, class CodeType, class IndexType>
-using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<ValueType, CodeType, IndexType>;
+template<class Accelerator, class KeyType, class IndexType>
+using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<KeyType, IndexType>;
 
 } // namespace cstone
