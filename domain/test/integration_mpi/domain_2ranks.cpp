@@ -253,7 +253,8 @@ void particleProperty(int rank, int numRanks)
 
     std::vector<T> massGlobal{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
 
-    std::vector<T> x, y, z, h, mass;
+    std::vector<T> x, y, z, h;
+    std::vector<float> mass;
     // rank 0 gets particles with even index before the sync
     // rank 1 gets particles with uneven index before the sync
     for (std::size_t i = rank; i < xGlobal.size(); i += numRanks)
@@ -266,14 +267,14 @@ void particleProperty(int rank, int numRanks)
     }
 
     std::vector<KeyType> keys(x.size());
-    domain.sync(keys, x, y, z, h, mass);
+    domain.sync(keys, x, y, z, h, std::tie(mass));
 
     // the order of particles on the node depends on the SFC algorithm
     std::sort(mass.begin() + domain.startIndex(), mass.begin() + domain.endIndex());
 
-    std::vector<T> refMass;
-    if (rank == 0) { refMass = std::vector<T>{1, 2, 3, 4, 5, 6, 0, 0, 0}; }
-    else if (rank == 1) { refMass = std::vector<T>{0, 0, 0, 0, 7, 8, 9, 10, 11, 12}; }
+    std::vector<float> refMass;
+    if (rank == 0) { refMass = std::vector<float>{1, 2, 3, 4, 5, 6, 0, 0, 0}; }
+    else if (rank == 1) { refMass = std::vector<float>{0, 0, 0, 0, 7, 8, 9, 10, 11, 12}; }
 
     EXPECT_EQ(mass.size(), refMass.size());
     for (LocalIndex i = domain.startIndex(); i < domain.endIndex(); ++i)

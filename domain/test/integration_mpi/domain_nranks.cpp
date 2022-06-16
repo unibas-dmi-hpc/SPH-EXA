@@ -107,10 +107,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     std::vector<T> z{zGlobal.begin() + firstExtract, zGlobal.begin() + lastExtract};
     std::vector<T> h{hGlobal.begin() + firstExtract, hGlobal.begin() + lastExtract};
 
-    std::vector<float> testProperty(x.size());
-
     std::vector<KeyType> keys(x.size());
-    domain.sync(keys, x, y, z, h, testProperty);
+    domain.sync(keys, x, y, z, h);
 
     LocalIndex localCount    = domain.endIndex() - domain.startIndex();
     LocalIndex localCountSum = localCount;
