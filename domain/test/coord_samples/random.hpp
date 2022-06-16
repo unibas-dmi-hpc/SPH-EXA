@@ -227,6 +227,7 @@ void adjustSmoothingLength(cstone::LocalIndex numParticles,
     // adjust h[i] such that each particle has between ng0/2 and ngmax neighbors
     for (cstone::LocalIndex i = 0; i < numParticles; ++i)
     {
+        int iteration = 0;
         do
         {
             cstone::findNeighbors(i, x.data(), y.data(), z.data(), h.data(), box,
@@ -236,7 +237,7 @@ void adjustSmoothingLength(cstone::LocalIndex numParticles,
             const Tc c0 = 7.0;
             int nn      = std::max(neighborCounts[i], 1);
             h[i]        = h[i] * 0.5 * pow(1.0 + (c0 * ng0) / nn, 1.0 / 3.0);
-        } while (neighborCounts[i] < ng0 / 2 || neighborCounts[i] >= ngmax);
+        } while ((neighborCounts[i] < ng0 / 4 || neighborCounts[i] >= ngmax) && iteration++ < 10);
     }
 
     for (cstone::LocalIndex i = 0; i < numParticles; ++i)

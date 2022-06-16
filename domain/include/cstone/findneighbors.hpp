@@ -304,15 +304,14 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys,
         {
             if (j == particleIndex) { continue; }
 
-            if (numNeighbors == ngmax)
+            if (distance(x[j], y[j], z[j]) < radiusSq)
             {
-                *neighborsCount = ngmax;
-                return;
+                if (numNeighbors < ngmax) { neighbors[numNeighbors] = int(j); }
+                numNeighbors++;
             }
-
-            if (distance(x[j], y[j], z[j]) < radiusSq) { neighbors[numNeighbors++] = int(j); }
         }
     }
+
     *neighborsCount = numNeighbors;
 }
 
