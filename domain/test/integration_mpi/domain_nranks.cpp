@@ -199,19 +199,19 @@ TEST(FocusDomain, randomGaussianNeighborSumPbc)
     float theta         = 0.75;
 
     {
-        Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, true});
+        Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, BoundaryType::periodic});
         randomGaussianDomain<unsigned, double>(domain, rank, nRanks);
     }
     {
-        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, true});
+        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, BoundaryType::periodic});
         randomGaussianDomain<uint64_t, double>(domain, rank, nRanks);
     }
     {
-        Domain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, true});
+        Domain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, BoundaryType::periodic});
         randomGaussianDomain<unsigned, float>(domain, rank, nRanks);
     }
     {
-        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, true});
+        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, BoundaryType::periodic});
         randomGaussianDomain<uint64_t, float>(domain, rank, nRanks);
     }
 }

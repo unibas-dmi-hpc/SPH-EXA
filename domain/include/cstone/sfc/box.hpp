@@ -178,7 +178,8 @@ private:
     {
         return a.limits[0] == b.limits[0] && a.limits[1] == b.limits[1] && a.limits[2] == b.limits[2] &&
                a.limits[3] == b.limits[3] && a.limits[4] == b.limits[4] && a.limits[5] == b.limits[5] &&
-               a.pbc[0] == b.pbc[0] && a.pbc[1] == b.pbc[1] && a.pbc[2] == b.pbc[2];
+               a.boundaries[0] == b.boundaries[0] && a.boundaries[1] == b.boundaries[1] &&
+               a.boundaries[2] == b.boundaries[2];
     }
 
     T limits[6];
