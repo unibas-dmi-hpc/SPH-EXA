@@ -39,24 +39,28 @@
 namespace cstone
 {
 
-template<class... Arrays>
-void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outgoingHalos, Arrays... arrays)
+template<class...Arrays>
+void haloexchange(int epoch,
+                  const SendList& incomingHalos,
+                  const SendList& outgoingHalos,
+                  Arrays... arrays)
 {
-    using T         = std::common_type_t<std::decay_t<decltype(*arrays)>...>;
+    using T = std::common_type_t<std::decay_t<decltype(*arrays)>...>;
     using IndexType = SendManifest::IndexType;
 
     constexpr int nArrays = sizeof...(Arrays);
     std::array<T*, nArrays> data{arrays...};
 
     std::vector<std::vector<T>> sendBuffers;
-    std::vector<MPI_Request> sendRequests;
+    std::vector<MPI_Request>    sendRequests;
 
     int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
 
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
         IndexType sendCount = outgoingHalos[destinationRank].totalCount();
-        if (sendCount == 0) continue;
+        if (sendCount == 0)
+            continue;
 
         std::vector<T> buffer(sendCount * nArrays);
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
@@ -67,7 +71,8 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
                 IndexType lowerIndex = outgoingHalos[destinationRank].rangeStart(rangeIdx);
                 IndexType upperIndex = outgoingHalos[destinationRank].rangeEnd(rangeIdx);
 
-                std::copy(data[arrayIndex] + lowerIndex, data[arrayIndex] + upperIndex, buffer.data() + outputOffset);
+                std::copy(data[arrayIndex]+lowerIndex, data[arrayIndex]+upperIndex,
+                          buffer.data() + outputOffset);
                 outputOffset += upperIndex - lowerIndex;
             }
         }
@@ -76,7 +81,7 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
         sendBuffers.push_back(std::move(buffer));
     }
 
-    int nMessages              = 0;
+    int nMessages = 0;
     std::size_t maxReceiveSize = 0;
     for (std::size_t sourceRank = 0; sourceRank < incomingHalos.size(); ++sourceRank)
         if (incomingHalos[sourceRank].totalCount() > 0)
@@ -91,7 +96,7 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
     {
         MPI_Status status;
         mpiRecvSync(receiveBuffer.data(), receiveBuffer.size(), MPI_ANY_SOURCE, haloExchangeTag, &status);
-        int receiveRank      = status.MPI_SOURCE;
+        int receiveRank = status.MPI_SOURCE;
         size_t countPerArray = incomingHalos[receiveRank].totalCount();
 
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
@@ -103,7 +108,7 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
                 size_t count     = incomingHalos[receiveRank].count(rangeIdx);
 
                 std::copy(receiveBuffer.data() + inputOffset, receiveBuffer.data() + inputOffset + count,
-                          data[arrayIndex] + offset);
+                          data[arrayIndex]+offset);
 
                 inputOffset += count;
             }
@@ -119,7 +124,8 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
 
     // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
     // across all ranks before calling this function again.
-    // MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
 }
 
 } // namespace cstone
+

@@ -43,9 +43,9 @@ namespace cstone
 template<class T, class LocalIndex>
 class DeviceMemory
 {
-    static constexpr int alignment = 4096 / sizeof(T);
-
+    static constexpr int alignment = 4096/sizeof(T);
 public:
+
     DeviceMemory() = default;
 
     ~DeviceMemory()
@@ -64,7 +64,7 @@ public:
             // allocate 5% extra to avoid reallocation on small increase
             newSize = double(newSize) * 1.05;
             // round up newSize to next 4K boundary
-            newSize += newSize % alignment;
+            newSize += newSize%alignment;
 
             if (allocatedSize_ > 0)
             {
@@ -73,7 +73,7 @@ public:
                 checkGpuErrors(cudaFree(d_buffer_));
             }
 
-            checkGpuErrors(cudaMalloc((void**)&d_ordering_, newSize * sizeof(LocalIndex)));
+            checkGpuErrors(cudaMalloc((void**)&d_ordering_,  newSize * sizeof(LocalIndex)));
             checkGpuErrors(cudaMalloc((void**)&(d_buffer_), 2 * newSize * sizeof(T)));
 
             allocatedSize_ = newSize;
@@ -89,7 +89,7 @@ public:
     }
 
 private:
-    std::size_t allocatedSize_{0};
+    std::size_t allocatedSize_{0} ;
 
     //! @brief reorder map
     LocalIndex* d_ordering_;
@@ -98,16 +98,17 @@ private:
     T* d_buffer_;
 };
 
+
 template<class ValueType, class CodeType, class IndexType>
 DeviceGather<ValueType, CodeType, IndexType>::DeviceGather()
     : deviceMemory_(std::make_unique<DeviceMemory<ValueType, IndexType>>())
-{
-}
+{}
 
 template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::setReorderMap(const IndexType* map_first, const IndexType* map_last)
+void DeviceGather<ValueType, CodeType, IndexType>::setReorderMap(const IndexType* map_first,
+                                                                 const IndexType* map_last)
 {
-    mapSize_ = map_last - map_first;
+    mapSize_      = map_last - map_first;
     deviceMemory_->reallocate(mapSize_);
     // upload new ordering to the device
     cudaMemcpy(deviceMemory_->ordering(), map_first, mapSize_ * sizeof(IndexType), cudaMemcpyHostToDevice);
@@ -126,7 +127,10 @@ __global__ void iotaKernel(I* buffer, size_t n, size_t offset)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (tid < n) { buffer[tid] = offset + tid; }
+    if (tid < n)
+    {
+        buffer[tid] = offset + tid;
+    }
 }
 
 template<class ValueType, class CodeType, class IndexType>
@@ -147,13 +151,14 @@ void DeviceGather<ValueType, CodeType, IndexType>::setMapFromCodes(CodeType* cod
     checkGpuErrors(cudaGetLastError());
 
     constexpr int nThreads = 256;
-    int nBlocks            = (mapSize_ + nThreads - 1) / nThreads;
+    int nBlocks = (mapSize_ + nThreads - 1) / nThreads;
     iotaKernel<<<nBlocks, nThreads>>>(deviceMemory_->ordering(), mapSize_, 0);
     checkGpuErrors(cudaGetLastError());
 
     // sort Morton codes on device as keys, track new ordering on the device
-    thrust::sort_by_key(thrust::device, thrust::device_pointer_cast(d_codes),
-                        thrust::device_pointer_cast(d_codes + mapSize_),
+    thrust::sort_by_key(thrust::device,
+                        thrust::device_pointer_cast(d_codes),
+                        thrust::device_pointer_cast(d_codes+mapSize_),
                         thrust::device_pointer_cast(deviceMemory_->ordering()));
     checkGpuErrors(cudaGetLastError());
 
@@ -165,34 +170,39 @@ void DeviceGather<ValueType, CodeType, IndexType>::setMapFromCodes(CodeType* cod
 template<class ValueType, class CodeType, class IndexType>
 DeviceGather<ValueType, CodeType, IndexType>::~DeviceGather() = default;
 
+
 template<class T, class I>
 __global__ void reorder(I* map, T* source, T* destination, size_t n)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (tid < n) { destination[tid] = source[map[tid]]; }
+    if (tid < n)
+    {
+        destination[tid] = source[map[tid]];
+    }
 }
 
 template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values,
-                                                              ValueType* destination,
-                                                              IndexType offset,
-                                                              IndexType numExtract) const
+void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values, ValueType* destination,
+                                                              IndexType offset, IndexType numExtract) const
 {
     constexpr int nThreads = 256;
-    int nBlocks            = (numExtract + nThreads - 1) / nThreads;
+    int nBlocks = (numExtract + nThreads - 1) / nThreads;
 
     // upload to device
     cudaMemcpy(deviceMemory_->deviceBuffer(0), values, mapSize_ * sizeof(ValueType), cudaMemcpyHostToDevice);
     checkGpuErrors(cudaGetLastError());
 
     // reorder on device
-    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset, deviceMemory_->deviceBuffer(0),
-                                   deviceMemory_->deviceBuffer(1), numExtract);
+    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset,
+                                   deviceMemory_->deviceBuffer(0),
+                                   deviceMemory_->deviceBuffer(1),
+                                   numExtract);
     checkGpuErrors(cudaGetLastError());
 
     // download to host
-    cudaMemcpy(destination, deviceMemory_->deviceBuffer(1), numExtract * sizeof(ValueType), cudaMemcpyDeviceToHost);
+    cudaMemcpy(destination, deviceMemory_->deviceBuffer(1),
+               numExtract * sizeof(ValueType), cudaMemcpyDeviceToHost);
     checkGpuErrors(cudaGetLastError());
 }
 
@@ -211,12 +221,12 @@ void DeviceGather<ValueType, CodeType, IndexType>::restrictRange(std::size_t off
     numExtract_ = numExtract;
 }
 
-template class DeviceGather<float, unsigned, unsigned>;
-template class DeviceGather<float, uint64_t, unsigned>;
+template class DeviceGather<float,  unsigned, unsigned>;
+template class DeviceGather<float,  uint64_t, unsigned>;
 template class DeviceGather<double, unsigned, unsigned>;
 template class DeviceGather<double, uint64_t, unsigned>;
-template class DeviceGather<float, unsigned, uint64_t>;
-template class DeviceGather<float, uint64_t, uint64_t>;
+template class DeviceGather<float,  unsigned, uint64_t>;
+template class DeviceGather<float,  uint64_t, uint64_t>;
 template class DeviceGather<double, unsigned, uint64_t>;
 template class DeviceGather<double, uint64_t, uint64_t>;
 
