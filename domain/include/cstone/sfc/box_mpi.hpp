@@ -103,8 +103,15 @@ auto makeGlobalBox(Iterator xB, Iterator xE, Iterator yB, Iterator zB, const Box
         extrema[5] = -extrema[5];
     }
 
-    return Box<T>{extrema[0], extrema[1],         extrema[2],         extrema[3],        extrema[4],
-                  extrema[5], previousBox.pbcX(), previousBox.pbcY(), previousBox.pbcZ()};
+    return Box<T>{extrema[0],
+                  extrema[1],
+                  extrema[2],
+                  extrema[3],
+                  extrema[4],
+                  extrema[5],
+                  previousBox.boundaryX(),
+                  previousBox.boundaryY(),
+                  previousBox.boundaryZ()};
 }
 
 } // namespace cstone

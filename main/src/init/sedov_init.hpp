@@ -108,7 +108,7 @@ public:
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
         initSedovFields(d, constants_);
 
-        return cstone::Box<T>(-r, r, true);
+        return cstone::Box<T>(-r, r, 1);
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
@@ -148,7 +148,7 @@ public:
         d.numParticlesGlobal = multiplicity * multiplicity * multiplicity * blockSize;
 
         T              r = constants_.at("r1");
-        cstone::Box<T> globalBox(-r, r, true);
+        cstone::Box<T> globalBox(-r, r, 1);
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);

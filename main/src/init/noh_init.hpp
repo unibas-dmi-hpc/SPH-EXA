@@ -115,7 +115,7 @@ public:
         double totalVolume = 8.0 * r * r * r;
         initNohFields(d, totalVolume, constants_);
 
-        return cstone::Box<T>(-r, r, false);
+        return cstone::Box<T>(-r, r, 0);
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
@@ -146,7 +146,7 @@ public:
         size_t multiplicity = std::rint(cbrtNumPart / std::cbrt(blockSize));
 
         T              r = constants_.at("r1");
-        cstone::Box<T> globalBox(-r, r, false);
+        cstone::Box<T> globalBox(-r, r, 0);
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);

@@ -38,6 +38,41 @@
 
 namespace sph
 {
+template<class T>
+T fbcCheck(T x, T y, T z, T vx, T vy, T vz, T h, const cstone::Box<T> box)
+{
+    if (box.fbcX())
+    {
+        T distXmax = std::abs(box.xmax() - x);
+        T distXmin = std::abs(box.xmin() - x);
+
+        if (distXmax < 2.0 * h || distXmin < 2.0 * h)
+        {
+            if (vx == T(0.0) && vy == vx && vz == vx) { return T(0.0); }
+        }
+    }
+    if (box.fbcY())
+    {
+        T distYmax = std::abs(box.ymax() - y);
+        T distYmin = std::abs(box.ymin() - y);
+
+        if (distYmax < 2.0 * h || distYmin < 2.0 * h)
+        {
+            if (vx == T(0.0) && vy == vx && vz == vx) { return T(0.0); }
+        }
+    }
+    if (box.fbcZ())
+    {
+        T distZmax = std::abs(box.zmax() - z);
+        T distZmin = std::abs(box.zmin() - z);
+
+        if (distZmax < 2.0 * h || distZmin < 2.0 * h)
+        {
+            if (vx == T(0.0) && vy == vx && vz == vy) { return T(0.0); }
+        }
+    }
+    return T(1.0);
+}
 
 template<class T, class Dataset>
 void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
@@ -48,26 +83,28 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 
     const T* du = d.du.data();
 
-    T* x       = d.x.data();
-    T* y       = d.y.data();
-    T* z       = d.z.data();
-    T* vx      = d.vx.data();
-    T* vy      = d.vy.data();
-    T* vz      = d.vz.data();
-    T* x_m1    = d.x_m1.data();
-    T* y_m1    = d.y_m1.data();
-    T* z_m1    = d.z_m1.data();
-    T* u       = d.u.data();
-    T* du_m1   = d.du_m1.data();
-    T* FBCdata = d.hasFBC.data();
+    T* x     = d.x.data();
+    T* y     = d.y.data();
+    T* z     = d.z.data();
+    T* vx    = d.vx.data();
+    T* vy    = d.vy.data();
+    T* vz    = d.vz.data();
+    T* x_m1  = d.x_m1.data();
+    T* y_m1  = d.y_m1.data();
+    T* z_m1  = d.z_m1.data();
+    T* u     = d.u.data();
+    T* du_m1 = d.du_m1.data();
+    T* h     = d.h.data();
 
-    T hasFBC;
+    bool anyFBC = box.fbcX() || box.fbcY() || box.fbcZ();
+    T    hasFBC;
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        if (FBCdata[i] == 1.0) { hasFBC = 0.0; }
+        if (anyFBC) { hasFBC = fbcCheck(x[i], y[i], z[i], vx[i], vy[i], vz[i], h[i], box); }
         else { hasFBC = 1.0; }
+
         Vec3T A{d.ax[i], d.ay[i], d.az[i]};
         Vec3T X{x[i], y[i], z[i]};
         Vec3T X_m1{x_m1[i], y_m1[i], z_m1[i]};
@@ -144,14 +181,13 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 
 #ifndef NDEBUG
         if (std::isnan(u[i]) || u[i] < 0.0)
-            printf("ERROR::UpdateQuantities(%lu) internal energy: u %f du %f dB %f du_m1 %f dA %f fbc %f\n",
+            printf("ERROR::UpdateQuantities(%lu) internal energy: u %f du %f dB %f du_m1 %f dA %f\n",
                    i,
                    u[i],
                    du[i],
                    deltaB,
                    du_m1[i],
-                   deltaA,
-                   d.hasFBC[i]);
+                   deltaA);
 #endif
     }
 }

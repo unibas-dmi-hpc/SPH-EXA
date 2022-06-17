@@ -87,16 +87,16 @@ public:
         H5PartReadStepAttrib(h5_file, "box", extents);
         int boundaries[3];
         H5PartReadStepAttrib(h5_file, "boundaryType", boundaries);
-        int pbc[3] = {0};
-        int fbc[3] = {0};
-        for (int i = 0; i < 3; ++i)
-        {
-            if (boundaries[i] == 1 /*|| boundaries[i] == 0*/) { pbc[i] = 1; }
-            else if (boundaries[i] == 2) { fbc[i] = 1; }
-            // invalid value handling?
-        }
-        cstone::Box<T> box(
-            extents[0], extents[1], extents[2], extents[3], extents[4], extents[5], pbc[0], pbc[1], pbc[2]);
+
+        cstone::Box<T> box(extents[0],
+                           extents[1],
+                           extents[2],
+                           extents[3],
+                           extents[4],
+                           extents[5],
+                           boundaries[0],
+                           boundaries[1],
+                           boundaries[2]);
 
         d.resize(count);
 
@@ -111,15 +111,15 @@ public:
 
         if (errors != H5PART_SUCCESS) { throw std::runtime_error("Could not read essential fields x,y,z,h,m,u\n"); }
 
-        initField(h5_file, rank, d.vx, "vx", 0.0);
-        initField(h5_file, rank, d.vy, "vy", 0.0);
-        initField(h5_file, rank, d.vz, "vz", 0.0);
+        initField(h5_file, rank, d.vx, "vx", 0.3);
+        initField(h5_file, rank, d.vy, "vy", 0.2);
+        initField(h5_file, rank, d.vz, "vz", 0.1);
 
         initField(h5_file, rank, d.du_m1, "du_m1", 0.0);
         initField(h5_file, rank, d.alpha, "alpha", d.alphamin);
 
         initXm1(h5_file, rank, d);
-        initFBC(h5_file, rank, d, fbc, box);
+        initFBC(h5_file, rank, d, box);
 
         std::fill(d.mue.begin(), d.mue.end(), 2.0);
         std::fill(d.mui.begin(), d.mui.end(), 10.0);
@@ -179,28 +179,15 @@ private:
         }
     }
     template<class T>
-    static void initFBC(H5PartFile* h5_file, int rank, Dataset& d, int fbc[3], cstone::Box<T> box)
+    static void initFBC(H5PartFile* h5_file, int rank, Dataset& d, cstone::Box<T> box)
     {
-        auto names    = fileutils::datasetNames(h5_file);
-        bool hasField = std::count(names.begin(), names.end(), "hasFBC");
-        bool anyFBC   = fbc[0] + fbc[1] + fbc[2];
-        if (hasField)
+        auto names  = fileutils::datasetNames(h5_file);
+        bool anyFBC = box.fbcX() || box.fbcY() || box.fbcZ();
+
+        if (anyFBC)
         {
-            if (rank == 0) std::cout << "loading FBC attributes from file\n";
-            fileutils::readH5PartField(h5_file, "hasFBC", d.hasFBC.data());
-        }
-        else
-        {
-            if (anyFBC)
-            {
-                if (rank == 0) std::cout << "applying FBC\n";
-                applyFixedBoundaries(d, fbc, box);
-            }
-            else
-            {
-                if (rank == 0) std::cout << "no FBC found, initializing to zero\n";
-                std::fill(d.hasFBC.begin(), d.hasFBC.end(), 0.0);
-            }
+            if (rank == 0) std::cout << "applying FBC\n";
+            applyFixedBoundaries(d, box);
         }
     }
 };

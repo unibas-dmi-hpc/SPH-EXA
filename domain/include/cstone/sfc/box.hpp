@@ -51,7 +51,10 @@ namespace cstone
  * @return
  */
 template<class T>
-HOST_DEVICE_FUN constexpr T normalize(T d, T min, T max) { return (d - min) / (max - min); }
+HOST_DEVICE_FUN constexpr T normalize(T d, T min, T max)
+{
+    return (d - min) / (max - min);
+}
 
 /*! @brief map x into periodic range 0...R-1
  *
@@ -71,7 +74,7 @@ template<int R>
 HOST_DEVICE_FUN constexpr int pbcAdjust(int x)
 {
     // this version handles x outside -R, 2R
-    //return x - R * std::floor(double(x)/R);
+    // return x - R * std::floor(double(x)/R);
     assert(x >= -R);
     assert(x < 2 * R);
     int ret = (x < 0) ? x + R : x;
@@ -83,12 +86,12 @@ template<int R>
 HOST_DEVICE_FUN constexpr int pbcDistance(int x)
 {
     // this version handles x outside -R, R
-    //int roundAwayFromZero = (x > 0) ? x + R/2 : x - R/2;
-    //return x -= R * (roundAwayFromZero / R);
+    // int roundAwayFromZero = (x > 0) ? x + R/2 : x - R/2;
+    // return x -= R * (roundAwayFromZero / R);
     assert(x >= -R);
     assert(x <= R);
-    int ret = (x <= -R/2) ? x + R : x;
-    return (ret > R/2) ? ret - R : ret;
+    int ret = (x <= -R / 2) ? x + R : x;
+    return (ret > R / 2) ? ret - R : ret;
 }
 
 /*! @brief stores the coordinate bounds
@@ -101,23 +104,33 @@ HOST_DEVICE_FUN constexpr int pbcDistance(int x)
 template<class T>
 class Box
 {
-public:
-    HOST_DEVICE_FUN constexpr
-    Box(T xyzMin, T xyzMax, bool hasPbc = false) :
-        limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax},
-        lengths_{xyzMax-xyzMin, xyzMax-xyzMin, xyzMax-xyzMin},
-        inverseLengths_{T(1.)/(xyzMax-xyzMin), T(1.)/(xyzMax-xyzMin), T(1.)/(xyzMax-xyzMin)},
-        pbc{hasPbc, hasPbc, hasPbc}
-    {}
+    static void validateBoundaries(int boundaryX, int boundaryY, int boundaryZ)
+    {
+        if (boundaryX < 0 || boundaryX > 2 || boundaryY < 0 || boundaryY > 2 || boundaryZ < 0 || boundaryZ > 2)
+        {
+            throw std::runtime_error("Invalid boundary types! (not 0, 1, 2)");
+        }
+    }
 
-    HOST_DEVICE_FUN constexpr
-    Box(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax,
-        bool pbcX = false, bool pbcY = false, bool pbcZ = false)
-    : limits{xmin, xmax, ymin, ymax, zmin, zmax},
-      lengths_{xmax-xmin, ymax-ymin, zmax-zmin},
-      inverseLengths_{T(1.)/(xmax-xmin), T(1.)/(ymax-ymin), T(1.)/(zmax-zmin)},
-      pbc{pbcX, pbcY, pbcZ}
-    {}
+public:
+    HOST_DEVICE_FUN constexpr Box(T xyzMin, T xyzMax, int boundaryType = 0)
+        : limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax}
+        , lengths_{xyzMax - xyzMin, xyzMax - xyzMin, xyzMax - xyzMin}
+        , inverseLengths_{T(1.) / (xyzMax - xyzMin), T(1.) / (xyzMax - xyzMin), T(1.) / (xyzMax - xyzMin)}
+        , boundaries{boundaryType, boundaryType, boundaryType}
+    {
+        validateBoundaries(boundaryType, boundaryType, boundaryType);
+    }
+
+    HOST_DEVICE_FUN constexpr Box(
+        T xmin, T xmax, T ymin, T ymax, T zmin, T zmax, int boundaryX = 0, int boundaryY = 0, int boundaryZ = 0)
+        : limits{xmin, xmax, ymin, ymax, zmin, zmax}
+        , lengths_{xmax - xmin, ymax - ymin, zmax - zmin}
+        , inverseLengths_{T(1.) / (xmax - xmin), T(1.) / (ymax - ymin), T(1.) / (zmax - zmin)}
+        , boundaries{boundaryX, boundaryY, boundaryZ}
+    {
+        validateBoundaries(boundaryX, boundaryY, boundaryZ);
+    }
 
     HOST_DEVICE_FUN constexpr T xmin() const { return limits[0]; }
     HOST_DEVICE_FUN constexpr T xmax() const { return limits[1]; }
@@ -136,41 +149,37 @@ public:
     HOST_DEVICE_FUN constexpr T ily() const { return inverseLengths_[1]; }
     HOST_DEVICE_FUN constexpr T ilz() const { return inverseLengths_[2]; }
 
-    HOST_DEVICE_FUN constexpr bool pbcX() const { return pbc[0]; } // NOLINT
-    HOST_DEVICE_FUN constexpr bool pbcY() const { return pbc[1]; } // NOLINT
-    HOST_DEVICE_FUN constexpr bool pbcZ() const { return pbc[2]; } // NOLINT
+    HOST_DEVICE_FUN constexpr int boundaryX() const { return boundaries[0]; } // NOLINT
+    HOST_DEVICE_FUN constexpr int boundaryY() const { return boundaries[1]; } // NOLINT
+    HOST_DEVICE_FUN constexpr int boundaryZ() const { return boundaries[2]; } // NOLINT
+
+    HOST_DEVICE_FUN constexpr bool pbcX() const { return boundaries[0] == 1; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool pbcY() const { return boundaries[1] == 1; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool pbcZ() const { return boundaries[2] == 1; } // NOLINT
+
+    HOST_DEVICE_FUN constexpr bool fbcX() const { return boundaries[0] == 2; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool fbcY() const { return boundaries[1] == 2; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool fbcZ() const { return boundaries[2] == 2; } // NOLINT
 
     //! @brief return the shortest coordinate range in any dimension
-    HOST_DEVICE_FUN constexpr T minExtent() const
-    {
-        return stl::min(stl::min(lengths_[0], lengths_[1]), lengths_[2]);
-    }
+    HOST_DEVICE_FUN constexpr T minExtent() const { return stl::min(stl::min(lengths_[0], lengths_[1]), lengths_[2]); }
 
     //! @brief return the longes coordinate range in any dimension
-    HOST_DEVICE_FUN constexpr T maxExtent() const
-    {
-        return stl::max(stl::max(lengths_[0], lengths_[1]), lengths_[2]);
-    }
+    HOST_DEVICE_FUN constexpr T maxExtent() const { return stl::max(stl::max(lengths_[0], lengths_[1]), lengths_[2]); }
 
 private:
     HOST_DEVICE_FUN
     friend constexpr bool operator==(const Box<T>& a, const Box<T>& b)
     {
-        return    a.limits[0] == b.limits[0]
-               && a.limits[1] == b.limits[1]
-               && a.limits[2] == b.limits[2]
-               && a.limits[3] == b.limits[3]
-               && a.limits[4] == b.limits[4]
-               && a.limits[5] == b.limits[5]
-               && a.pbc[0] == b.pbc[0]
-               && a.pbc[1] == b.pbc[1]
-               && a.pbc[2] == b.pbc[2];
+        return a.limits[0] == b.limits[0] && a.limits[1] == b.limits[1] && a.limits[2] == b.limits[2] &&
+               a.limits[3] == b.limits[3] && a.limits[4] == b.limits[4] && a.limits[5] == b.limits[5] &&
+               a.pbc[0] == b.pbc[0] && a.pbc[1] == b.pbc[1] && a.pbc[2] == b.pbc[2];
     }
 
     T limits[6];
     T lengths_[3];
     T inverseLengths_[3];
-    bool pbc[3];
+    int boundaries[3];
 };
 
 //! @brief Fold X into periodic boundaries,
@@ -226,18 +235,20 @@ template<class T>
 class SimpleBox
 {
 public:
-    HOST_DEVICE_FUN constexpr
-    SimpleBox() : limits{0,0,0,0,0,0} {}
+    HOST_DEVICE_FUN constexpr SimpleBox()
+        : limits{0, 0, 0, 0, 0, 0}
+    {
+    }
 
-    HOST_DEVICE_FUN constexpr
-    SimpleBox(T xyzMin, T xyzMax) :
-        limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax}
-    {}
+    HOST_DEVICE_FUN constexpr SimpleBox(T xyzMin, T xyzMax)
+        : limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax}
+    {
+    }
 
-    HOST_DEVICE_FUN constexpr
-    SimpleBox(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax)
+    HOST_DEVICE_FUN constexpr SimpleBox(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax)
         : limits{xmin, xmax, ymin, ymax, zmin, zmax}
-    {}
+    {
+    }
 
     HOST_DEVICE_FUN constexpr T xmin() const { return limits[0]; } // NOLINT
     HOST_DEVICE_FUN constexpr T xmax() const { return limits[1]; } // NOLINT
@@ -256,12 +267,8 @@ private:
     HOST_DEVICE_FUN
     friend constexpr bool operator==(const SimpleBox& a, const SimpleBox& b)
     {
-        return    a.limits[0] == b.limits[0]
-                  && a.limits[1] == b.limits[1]
-                  && a.limits[2] == b.limits[2]
-                  && a.limits[3] == b.limits[3]
-                  && a.limits[4] == b.limits[4]
-                  && a.limits[5] == b.limits[5];
+        return a.limits[0] == b.limits[0] && a.limits[1] == b.limits[1] && a.limits[2] == b.limits[2] &&
+               a.limits[3] == b.limits[3] && a.limits[4] == b.limits[4] && a.limits[5] == b.limits[5];
     }
 
     HOST_DEVICE_FUN
@@ -292,11 +299,10 @@ constexpr HOST_DEVICE_FUN util::tuple<Vec3<T>, Vec3<T>> centerAndSize(const IBox
     Vec3<T> boxCenter = {box.xmin() + (ibox.xmax() + ibox.xmin()) * halfUnitLengthX,
                          box.ymin() + (ibox.ymax() + ibox.ymin()) * halfUnitLengthY,
                          box.zmin() + (ibox.zmax() + ibox.zmin()) * halfUnitLengthZ};
-    Vec3<T> boxSize = {(ibox.xmax() - ibox.xmin()) * halfUnitLengthX,
-                       (ibox.ymax() - ibox.ymin()) * halfUnitLengthY,
-                       (ibox.zmax() - ibox.zmin()) * halfUnitLengthZ};
+    Vec3<T> boxSize   = {(ibox.xmax() - ibox.xmin()) * halfUnitLengthX, (ibox.ymax() - ibox.ymin()) * halfUnitLengthY,
+                         (ibox.zmax() - ibox.zmin()) * halfUnitLengthZ};
 
-    return { boxCenter, boxSize };
+    return {boxCenter, boxSize};
 }
 
 /*! @brief create a floating point box from and integer box
@@ -317,12 +323,12 @@ constexpr HOST_DEVICE_FUN FBox<T> createFpBox(const IBox& ibox, const Box<T>& bo
     T unitLengthX = uL * box.lx();
     T unitLengthY = uL * box.ly();
     T unitLengthZ = uL * box.lz();
-    T xMin = box.xmin() + ibox.xmin() * unitLengthX;
-    T yMin = box.ymin() + ibox.ymin() * unitLengthY;
-    T zMin = box.zmin() + ibox.zmin() * unitLengthZ;
-    T xMax = box.xmin() + ibox.xmax() * unitLengthX;
-    T yMax = box.ymin() + ibox.ymax() * unitLengthY;
-    T zMax = box.zmin() + ibox.zmax() * unitLengthZ;
+    T xMin        = box.xmin() + ibox.xmin() * unitLengthX;
+    T yMin        = box.ymin() + ibox.ymin() * unitLengthY;
+    T zMin        = box.zmin() + ibox.zmin() * unitLengthZ;
+    T xMax        = box.xmin() + ibox.xmax() * unitLengthX;
+    T yMax        = box.ymin() + ibox.ymax() * unitLengthY;
+    T zMax        = box.zmin() + ibox.zmax() * unitLengthZ;
 
     return {xMin, xMax, yMin, yMax, zMin, zMax};
 }

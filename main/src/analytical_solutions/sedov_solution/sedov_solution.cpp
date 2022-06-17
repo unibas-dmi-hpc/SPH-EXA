@@ -231,10 +231,7 @@ double SedovSolution::sedovSol(const size_t dim, const double time, const double
 
         // In the Kamm equations 57 and 58 for alpha, in a slightly different form.
         if (dim == 1) { alpha = (0.5 * eval1) + (eval2 / gamm1); }
-        else
-        {
-            alpha = (xgeom - 1.) * M_PI * (eval1 + (2. * eval2 / gamm1));
-        }
+        else { alpha = (xgeom - 1.) * M_PI * (eval1 + (2. * eval2 / gamm1)); }
     }
 
     // Immediate post-shock values: Kamm page 14, equations 14, 16, 5, 13

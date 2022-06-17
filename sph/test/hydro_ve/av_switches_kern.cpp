@@ -54,7 +54,7 @@ TEST(AVswitches, JLoop)
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-    cstone::Box<T> box(0, 6, 0, 6, 0, 6, false, false, false);
+    cstone::Box<T> box(0, 6, 0, 6, 0, 6, 0, 0, 0);
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};

@@ -61,7 +61,7 @@ static void generalCollisionTest(const std::vector<KeyType>& tree, const std::ve
     std::vector<std::vector<TreeNodeIndex>> collisions(nNodes(tree));
     for (std::size_t leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
     {
-        T radius = haloRadii[leafIdx];
+        T radius     = haloRadii[leafIdx];
         IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx + 1], radius, box);
 
         auto storeCollisions = [&collisionList = collisions[leafIdx]](TreeNodeIndex i) { collisionList.push_back(i); };
@@ -82,7 +82,7 @@ static void generalCollisionTest(const std::vector<KeyType>& tree, const std::ve
 }
 
 //! @brief an irregular tree with level-3 nodes next to level-1 ones
-template<class I, class T, bool Pbc>
+template<class I, class T, int Pbc>
 void irregularTreeTraversal()
 {
     auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0, 7).makeTree();
@@ -94,22 +94,22 @@ void irregularTreeTraversal()
 
 TEST(Collisions, irregularTreeTraversal)
 {
-    irregularTreeTraversal<unsigned, float, false>();
-    irregularTreeTraversal<uint64_t, float, false>();
-    irregularTreeTraversal<unsigned, double, false>();
-    irregularTreeTraversal<uint64_t, double, false>();
+    irregularTreeTraversal<unsigned, float, 0>();
+    irregularTreeTraversal<uint64_t, float, 0>();
+    irregularTreeTraversal<unsigned, double, 0>();
+    irregularTreeTraversal<uint64_t, double, 0>();
 }
 
 TEST(Collisions, irregularTreeTraversalPbc)
 {
-    irregularTreeTraversal<unsigned, float, true>();
-    irregularTreeTraversal<uint64_t, float, true>();
-    irregularTreeTraversal<unsigned, double, true>();
-    irregularTreeTraversal<uint64_t, double, true>();
+    irregularTreeTraversal<unsigned, float, 1>();
+    irregularTreeTraversal<uint64_t, float, 1>();
+    irregularTreeTraversal<unsigned, double, 1>();
+    irregularTreeTraversal<uint64_t, double, 1>();
 }
 
 //! @brief a regular tree with level-3 nodes, 8x8x8 grid
-template<class I, class T, bool Pbc>
+template<class I, class T, int Pbc>
 void regularTreeTraversal()
 {
     auto tree = makeUniformNLevelTree<I>(512, 1);
@@ -122,18 +122,18 @@ void regularTreeTraversal()
 
 TEST(Collisions, regularTreeTraversal)
 {
-    regularTreeTraversal<unsigned, float, false>();
-    regularTreeTraversal<uint64_t, float, false>();
-    regularTreeTraversal<unsigned, double, false>();
-    regularTreeTraversal<uint64_t, double, false>();
+    regularTreeTraversal<unsigned, float, 0>();
+    regularTreeTraversal<uint64_t, float, 0>();
+    regularTreeTraversal<unsigned, double, 0>();
+    regularTreeTraversal<uint64_t, double, 0>();
 }
 
 TEST(Collisions, regularTreeTraversalPbc)
 {
-    regularTreeTraversal<unsigned, float, true>();
-    regularTreeTraversal<uint64_t, float, true>();
-    regularTreeTraversal<unsigned, double, true>();
-    regularTreeTraversal<uint64_t, double, true>();
+    regularTreeTraversal<unsigned, float, 1>();
+    regularTreeTraversal<uint64_t, float, 1>();
+    regularTreeTraversal<unsigned, double, 1>();
+    regularTreeTraversal<uint64_t, double, 1>();
 }
 
 /*! @brief test tree traversal with anisotropic boxes

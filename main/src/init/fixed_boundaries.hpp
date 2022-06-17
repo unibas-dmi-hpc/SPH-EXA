@@ -36,10 +36,10 @@
 namespace sphexa
 {
 template<class T, class Dataset>
-void applyFixedBoundaries(Dataset& d, int fbc[3], cstone::Box<T>& box)
+void applyFixedBoundaries(Dataset& d, cstone::Box<T>& box)
 {
 
-    if (fbc[0]) // fixed boundaries in x-direction
+    if (box.fbcX()) // fixed boundaries in x-direction
     {
 #pragma omp parallel for
         for (size_t i = 0; i < d.x.size(); i++)
@@ -47,17 +47,15 @@ void applyFixedBoundaries(Dataset& d, int fbc[3], cstone::Box<T>& box)
             T distXmax = std::abs(box.xmax() - d.x[i]);
             T distXmin = std::abs(box.xmin() - d.x[i]);
 
-            if (distXmax < 2.0 * d.h[0] || distXmin < 2.0 * d.h[0])
+            if (distXmax < 2.0 * d.h[i] || distXmin < 2.0 * d.h[i])
             {
-                d.hasFBC[i] = 1.0;
-                d.vx[i]     = 0.0;
-                d.vy[i]     = 0.0;
-                d.vz[i]     = 0.0;
+                d.vx[i] = 0.0;
+                d.vy[i] = 0.0;
+                d.vz[i] = 0.0;
             }
-            else { d.hasFBC[i] = 0.0; }
         }
     }
-    if (fbc[1]) // fixed boundaries in y-direction
+    if (box.fbcY()) // fixed boundaries in y-direction
     {
 #pragma omp parallel for
         for (size_t i = 0; i < d.x.size(); i++)
@@ -65,17 +63,15 @@ void applyFixedBoundaries(Dataset& d, int fbc[3], cstone::Box<T>& box)
             T distYmax = std::abs(box.ymax() - d.y[i]);
             T distYmin = std::abs(box.ymin() - d.y[i]);
 
-            if (distYmax < 2.0 * d.h[0] || distYmin < 2.0 * d.h[0])
+            if (distYmax < 2.0 * d.h[i] || distYmin < 2.0 * d.h[i])
             {
-                d.hasFBC[i] = 1.0;
-                d.vx[i]     = 0.0;
-                d.vy[i]     = 0.0;
-                d.vz[i]     = 0.0;
+                d.vx[i] = 0.0;
+                d.vy[i] = 0.0;
+                d.vz[i] = 0.0;
             }
-            else { d.hasFBC[i] = 0.0; }
         }
     }
-    if (fbc[2]) // fixed boundaries in z-direction
+    if (box.fbcZ()) // fixed boundaries in z-direction
     {
 #pragma omp parallel for
         for (size_t i = 0; i < d.x.size(); i++)
@@ -83,14 +79,12 @@ void applyFixedBoundaries(Dataset& d, int fbc[3], cstone::Box<T>& box)
             T distZmax = std::abs(box.zmax() - d.z[i]);
             T distZmin = std::abs(box.zmin() - d.z[i]);
 
-            if (distZmax < 2.0 * d.h[0] || distZmin < 2.0 * d.h[0])
+            if (distZmax < 2.0 * d.h[i] || distZmin < 2.0 * d.h[i])
             {
-                d.hasFBC[i] = 1.0;
-                d.vx[i]     = 0.0;
-                d.vy[i]     = 0.0;
-                d.vz[i]     = 0.0;
+                d.vx[i] = 0.0;
+                d.vy[i] = 0.0;
+                d.vz[i] = 0.0;
             }
-            else { d.hasFBC[i] = 0.0; }
         }
     }
 }
