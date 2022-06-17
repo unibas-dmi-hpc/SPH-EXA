@@ -1,0 +1,13 @@
+# Trigger actions defined in the associated file "trigger_binning_actions.yaml"
+#
+# Written by Jean M. Favre
+# tested Tue Jun  7 03:32:58 PM CEST 2022
+-
+  action: "add_triggers"
+  triggers:
+    t1:
+      params:
+        condition: "cycle() % 100 == 0"
+        actions_file: "binning_actions.yaml"
+
+

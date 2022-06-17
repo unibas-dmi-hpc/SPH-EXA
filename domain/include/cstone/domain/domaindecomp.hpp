@@ -34,6 +34,8 @@
 #pragma once
 
 #include <algorithm>
+#include <stdio.h>
+#include <string.h>
 #include <vector>
 
 #include "cstone/primitives/gather.hpp"
@@ -338,22 +340,23 @@ SendList createSendList(const SpaceCurveAssignment& assignment,
 
 /*! @brief extract elements from the source array through the ordering
  *
- * @tparam T           float or double
- * @param manifest     contains the index ranges of @p source to put into the send buffer
- * @param source       e.g. x,y,z,h arrays
- * @param ordering     the space curve ordering to handle unsorted source arrays
- *                     if source is space-curve-sorted, @p ordering is the trivial 0,1,...,n sequence
- * @param destination  write buffer for extracted elements
+ * @param manifest        contains the index ranges of @p source to put into the send buffer
+ * @param source          e.g. x,y,z,h arrays
+ * @param ordering        the space curve ordering to handle unsorted source arrays
+ * @param dest            write buffer for extracted elements
+ * @param bytesPerElement size of each element of source and dest in bytes
  */
-template<class T, class IndexType>
-void extractRange(const SendManifest& manifest, const T* source, const IndexType* ordering, T* destination)
+template<class IndexType>
+void extractRange(
+    const SendManifest& manifest, const char* source, const IndexType* ordering, char* dest, size_t bytesPerElement)
 {
-    int idx = 0;
+    size_t byteCounter = 0;
     for (std::size_t rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
     {
         for (IndexType i = manifest.rangeStart(rangeIndex); i < IndexType(manifest.rangeEnd(rangeIndex)); ++i)
         {
-            destination[idx++] = source[ordering[i]];
+            memcpy(dest + byteCounter, source + ordering[i] * bytesPerElement, bytesPerElement);
+            byteCounter += bytesPerElement;
         }
     }
 }

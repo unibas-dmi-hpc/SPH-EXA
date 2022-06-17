@@ -132,13 +132,15 @@ TEST(GlobalDomain, exchangeAllToAll)
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
-template<class T>
 void exchangeCyclicNeighbors(int thisRank, int numRanks)
 {
     int gridSize = 64;
 
     // x and y are filled with one value that is different for each rank
-    std::vector<T> x(gridSize, thisRank), y(gridSize, -thisRank);
+    std::vector<double> x(gridSize, thisRank);
+    std::vector<float> y(gridSize, -thisRank);
+    std::vector<util::array<int, 2>> testArray(gridSize, {thisRank, -thisRank});
+
     std::vector<LocalIndex> ordering(gridSize);
     std::iota(begin(ordering), end(ordering), 0);
 
@@ -152,18 +154,23 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     // send last nex to nextRank
     sendList[nextRank].addRange(gridSize - nex, gridSize);
 
-    exchangeParticles(sendList, Rank(thisRank), 0, gridSize, gridSize, gridSize, ordering.data(), x.data(), y.data());
+    exchangeParticles(sendList, Rank(thisRank), 0, gridSize, gridSize, gridSize, ordering.data(), x.data(), y.data(),
+                      testArray.data());
 
     int incomingRank = (thisRank - 1 + numRanks) % numRanks;
-    std::vector<T> refX(gridSize, thisRank);
+    std::vector<double> refX(gridSize, thisRank);
     std::fill(begin(refX) + gridSize - nex, end(refX), incomingRank);
 
-    auto refY = refX;
-    for (auto& yi : refY)
-        yi = -yi;
+    std::vector<float> refY(gridSize, -thisRank);
+    std::fill(begin(refY) + gridSize - nex, end(refY), -incomingRank);
+
+    std::vector<util::array<int, 2>> testArrayRef(gridSize, {thisRank, -thisRank});
+    std::fill(begin(testArrayRef) + gridSize - nex, end(testArrayRef),
+              util::array<int, 2>{incomingRank, -incomingRank});
 
     EXPECT_EQ(refX, x);
     EXPECT_EQ(refY, y);
+    EXPECT_EQ(testArrayRef, testArray);
 }
 
 TEST(GlobalDomain, exchangeCyclicNeighbors)
@@ -172,10 +179,6 @@ TEST(GlobalDomain, exchangeCyclicNeighbors)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
-    exchangeCyclicNeighbors<double>(rank, numRanks);
-    MPI_Barrier(MPI_COMM_WORLD);
-    exchangeCyclicNeighbors<float>(rank, numRanks);
-    MPI_Barrier(MPI_COMM_WORLD);
-    exchangeCyclicNeighbors<int>(rank, numRanks);
+    exchangeCyclicNeighbors(rank, numRanks);
     MPI_Barrier(MPI_COMM_WORLD);
 }
