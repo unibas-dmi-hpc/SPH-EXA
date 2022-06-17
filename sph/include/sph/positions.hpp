@@ -38,40 +38,26 @@
 
 namespace sph
 {
+
+/*!
+ * @brief checks whether a particle is in the fixed boundary region
+ *          and has zero velocity
+ *
+ */
 template<class T>
-T fbcCheck(T x, T y, T z, T vx, T vy, T vz, T h, const cstone::Box<T> box)
+bool fbcCheck(T coord, T vx, T vy, T vz, T h, T max, T min, bool fbc)
 {
-    if (box.fbcX())
+    if (fbc)
     {
-        T distXmax = std::abs(box.xmax() - x);
-        T distXmin = std::abs(box.xmin() - x);
+        T distMax = std::abs(max - coord);
+        T distMin = std::abs(min - coord);
 
-        if (distXmax < 2.0 * h || distXmin < 2.0 * h)
+        if (distMax < 2.0 * h || distMin < 2.0 * h)
         {
-            if (vx == T(0.0) && vy == vx && vz == vx) { return T(0.0); }
+            if (vx == T(0.0) && vy == vx && vz == vx) { return true; }
         }
     }
-    if (box.fbcY())
-    {
-        T distYmax = std::abs(box.ymax() - y);
-        T distYmin = std::abs(box.ymin() - y);
-
-        if (distYmax < 2.0 * h || distYmin < 2.0 * h)
-        {
-            if (vx == T(0.0) && vy == vx && vz == vx) { return T(0.0); }
-        }
-    }
-    if (box.fbcZ())
-    {
-        T distZmax = std::abs(box.zmax() - z);
-        T distZmin = std::abs(box.zmin() - z);
-
-        if (distZmax < 2.0 * h || distZmin < 2.0 * h)
-        {
-            if (vx == T(0.0) && vy == vx && vz == vy) { return T(0.0); }
-        }
-    }
-    return T(1.0);
+    return false;
 }
 
 template<class T, class Dataset>
@@ -97,13 +83,19 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
     T* h     = d.h.data();
 
     bool anyFBC = box.fbcX() || box.fbcY() || box.fbcZ();
-    T    hasFBC;
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        if (anyFBC) { hasFBC = fbcCheck(x[i], y[i], z[i], vx[i], vy[i], vz[i], h[i], box); }
-        else { hasFBC = 1.0; }
+        if (anyFBC)
+        {
+            if (fbcCheck(x[i], vx[i], vy[i], vz[i], h[i], box.xmax(), box.xmin(), box.fbcX()) ||
+                fbcCheck(y[i], vx[i], vy[i], vz[i], h[i], box.ymax(), box.ymin(), box.fbcY()) ||
+                fbcCheck(z[i], vx[i], vy[i], vz[i], h[i], box.zmax(), box.zmin(), box.fbcZ()))
+            {
+                continue;
+            }
+        }
 
         Vec3T A{d.ax[i], d.ay[i], d.az[i]};
         Vec3T X{x[i], y[i], z[i]};
@@ -113,11 +105,7 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         T deltaA = dt + T(0.5) * dt_m1;
         T deltaB = T(0.5) * (dt + dt_m1);
 
-        Vec3T Val = (X - X_m1) * (T(1) * hasFBC / dt_m1);
-        if (Val[0] == 0 && Val[1] == 0 && Val[2] == 0)
-        {
-            // printf("val zero: i %lu hasFBC %d", i, d.hasFBC[i]);
-        }
+        Vec3T Val = (X - X_m1) * (T(1) / dt_m1);
 
 #ifndef NDEBUG
         if (std::isnan(A[0]) || std::isnan(A[1]) || std::isnan(A[2]))
@@ -126,9 +114,9 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         }
 #endif
 
-        Vec3T V = Val + A * (deltaA * hasFBC);
+        Vec3T V = Val + A * deltaA;
         X_m1    = X;
-        X += (dt * hasFBC) * Val + A * deltaB * (dt * hasFBC);
+        X += dt * Val + A * deltaB * dt;
 
         if (box.pbcX() && X[0] < box.xmin())
         {
@@ -175,7 +163,7 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         deltaA = 0.5 * dt * dt / dt_m1;
         deltaB = dt + deltaA;
 
-        if (hasFBC == T(0.0)) { u[i] += du[i] * deltaB - du_m1[i] * deltaA; }
+        u[i] += du[i] * deltaB - du_m1[i] * deltaA;
 
         du_m1[i] = du[i];
 

@@ -205,7 +205,7 @@ void makeHaloBoxPbc()
     int r = 1 << (maxTreeLevel<KeyType>{} - 3);
 
     IBox nodeBox(r, 2 * r, r, 2 * r, r, 2 * r);
-    Box<double> bbox(0, 1, 1);
+    Box<double> bbox(0, 1, cstone::BoundaryType::periodic);
 
     {
         double radius = 0.999 / r; // normalize(radius) = 7.992

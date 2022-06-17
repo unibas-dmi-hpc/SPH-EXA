@@ -94,6 +94,13 @@ HOST_DEVICE_FUN constexpr int pbcDistance(int x)
     return (ret > R / 2) ? ret - R : ret;
 }
 
+enum class BoundaryType
+{
+    open     = 0,
+    periodic = 1,
+    fixed    = 2
+};
+
 /*! @brief stores the coordinate bounds
  *
  * Needs a slightly different behavior in the PBC case than the existing BBox
@@ -104,32 +111,30 @@ HOST_DEVICE_FUN constexpr int pbcDistance(int x)
 template<class T>
 class Box
 {
-    HOST_DEVICE_FUN void validateBoundaries(int boundaryX, int boundaryY, int boundaryZ)
-    {
-        if (boundaryX < 0 || boundaryX > 2 || boundaryY < 0 || boundaryY > 2 || boundaryZ < 0 || boundaryZ > 2)
-        {
-            throw std::runtime_error("Invalid boundary types! (not 0, 1, 2)");
-        }
-    }
 
 public:
-    HOST_DEVICE_FUN constexpr Box(T xyzMin, T xyzMax, int boundaryType = 0)
+    HOST_DEVICE_FUN constexpr Box(T xyzMin, T xyzMax, BoundaryType b = BoundaryType::open)
         : limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax}
         , lengths_{xyzMax - xyzMin, xyzMax - xyzMin, xyzMax - xyzMin}
         , inverseLengths_{T(1.) / (xyzMax - xyzMin), T(1.) / (xyzMax - xyzMin), T(1.) / (xyzMax - xyzMin)}
-        , boundaries{boundaryType, boundaryType, boundaryType}
+        , boundaries{b, b, b}
     {
-        validateBoundaries(boundaryType, boundaryType, boundaryType);
     }
 
-    HOST_DEVICE_FUN constexpr Box(
-        T xmin, T xmax, T ymin, T ymax, T zmin, T zmax, int boundaryX = 0, int boundaryY = 0, int boundaryZ = 0)
+    HOST_DEVICE_FUN constexpr Box(T xmin,
+                                  T xmax,
+                                  T ymin,
+                                  T ymax,
+                                  T zmin,
+                                  T zmax,
+                                  BoundaryType bx = BoundaryType::open,
+                                  BoundaryType by = BoundaryType::open,
+                                  BoundaryType bz = BoundaryType::open)
         : limits{xmin, xmax, ymin, ymax, zmin, zmax}
         , lengths_{xmax - xmin, ymax - ymin, zmax - zmin}
         , inverseLengths_{T(1.) / (xmax - xmin), T(1.) / (ymax - ymin), T(1.) / (zmax - zmin)}
-        , boundaries{boundaryX, boundaryY, boundaryZ}
+        , boundaries{bx, by, bz}
     {
-        validateBoundaries(boundaryX, boundaryY, boundaryZ);
     }
 
     HOST_DEVICE_FUN constexpr T xmin() const { return limits[0]; }
@@ -149,17 +154,17 @@ public:
     HOST_DEVICE_FUN constexpr T ily() const { return inverseLengths_[1]; }
     HOST_DEVICE_FUN constexpr T ilz() const { return inverseLengths_[2]; }
 
-    HOST_DEVICE_FUN constexpr int boundaryX() const { return boundaries[0]; } // NOLINT
-    HOST_DEVICE_FUN constexpr int boundaryY() const { return boundaries[1]; } // NOLINT
-    HOST_DEVICE_FUN constexpr int boundaryZ() const { return boundaries[2]; } // NOLINT
+    HOST_DEVICE_FUN constexpr BoundaryType boundaryX() const { return boundaries[0]; } // NOLINT
+    HOST_DEVICE_FUN constexpr BoundaryType boundaryY() const { return boundaries[1]; } // NOLINT
+    HOST_DEVICE_FUN constexpr BoundaryType boundaryZ() const { return boundaries[2]; } // NOLINT
 
-    HOST_DEVICE_FUN constexpr bool pbcX() const { return boundaries[0] == 1; } // NOLINT
-    HOST_DEVICE_FUN constexpr bool pbcY() const { return boundaries[1] == 1; } // NOLINT
-    HOST_DEVICE_FUN constexpr bool pbcZ() const { return boundaries[2] == 1; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool pbcX() const { return boundaries[0] == BoundaryType::periodic; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool pbcY() const { return boundaries[1] == BoundaryType::periodic; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool pbcZ() const { return boundaries[2] == BoundaryType::periodic; } // NOLINT
 
-    HOST_DEVICE_FUN constexpr bool fbcX() const { return boundaries[0] == 2; } // NOLINT
-    HOST_DEVICE_FUN constexpr bool fbcY() const { return boundaries[1] == 2; } // NOLINT
-    HOST_DEVICE_FUN constexpr bool fbcZ() const { return boundaries[2] == 2; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool fbcX() const { return boundaries[0] == BoundaryType::fixed; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool fbcY() const { return boundaries[1] == BoundaryType::fixed; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool fbcZ() const { return boundaries[2] == BoundaryType::fixed; } // NOLINT
 
     //! @brief return the shortest coordinate range in any dimension
     HOST_DEVICE_FUN constexpr T minExtent() const { return stl::min(stl::min(lengths_[0], lengths_[1]), lengths_[2]); }
@@ -179,7 +184,7 @@ private:
     T limits[6];
     T lengths_[3];
     T inverseLengths_[3];
-    int boundaries[3];
+    BoundaryType boundaries[3];
 };
 
 //! @brief Fold X into periodic boundaries,

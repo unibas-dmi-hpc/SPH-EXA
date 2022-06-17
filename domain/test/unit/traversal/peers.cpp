@@ -73,7 +73,7 @@ static std::vector<int> findPeersAll2All(int myRank,
 }
 
 template<class KeyType>
-static void findMacPeers64grid(int rank, float theta, int pbc, int /*refNumPeers*/)
+static void findMacPeers64grid(int rank, float theta, cstone::BoundaryType pbc, int /*refNumPeers*/)
 {
     Box<double> box{-1, 1, pbc};
     Octree<KeyType> octree;
@@ -96,21 +96,21 @@ static void findMacPeers64grid(int rank, float theta, int pbc, int /*refNumPeers
 TEST(Peers, findMacGrid64)
 {
     // just the surface
-    findMacPeers64grid<unsigned>(0, 1.1, 0, 7);
-    findMacPeers64grid<uint64_t>(0, 1.1, 0, 7);
+    findMacPeers64grid<unsigned>(0, 1.1, cstone::BoundaryType::open, 7);
+    findMacPeers64grid<uint64_t>(0, 1.1, cstone::BoundaryType::open, 7);
 }
 
 TEST(Peers, findMacGrid64Narrow)
 {
-    findMacPeers64grid<unsigned>(0, 1.0, 0, 19);
-    findMacPeers64grid<uint64_t>(0, 1.0, 0, 19);
+    findMacPeers64grid<unsigned>(0, 1.0, cstone::BoundaryType::open, 19);
+    findMacPeers64grid<uint64_t>(0, 1.0, cstone::BoundaryType::open, 19);
 }
 
 TEST(Peers, findMacGrid64PBC)
 {
     // just the surface + PBC, 26 six peers at the surface
-    findMacPeers64grid<unsigned>(0, 1.1, 1, 26);
-    findMacPeers64grid<uint64_t>(0, 1.1, 1, 26);
+    findMacPeers64grid<unsigned>(0, 1.1, cstone::BoundaryType::periodic, 26);
+    findMacPeers64grid<uint64_t>(0, 1.1, cstone::BoundaryType::periodic, 26);
 }
 
 template<class KeyType>

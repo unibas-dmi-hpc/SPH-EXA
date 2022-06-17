@@ -76,27 +76,83 @@ void makeGlobalBox(int rank, int numRanks)
 
     // PBC case
     {
-        Box<T> pbcBox{0, 1, 0, 1, 0, 1, 1, 1, 1};
+        Box<T> pbcBox{0,
+                      1,
+                      0,
+                      1,
+                      0,
+                      1,
+                      cstone::BoundaryType::periodic,
+                      cstone::BoundaryType::periodic,
+                      cstone::BoundaryType::periodic};
         Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
         EXPECT_EQ(pbcBox, newPbcBox);
     }
     // partial PBC
     {
-        Box<T> pbcBox{0, 1, 0, 1, 0, 1, 0, 1, 1};
+        Box<T> pbcBox{0,
+                      1,
+                      0,
+                      1,
+                      0,
+                      1,
+                      cstone::BoundaryType::open,
+                      cstone::BoundaryType::periodic,
+                      cstone::BoundaryType::periodic};
         Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
-        Box<T> refBox{-rVal, rVal, 0, 1, 0, 1, 0, 1, 1};
+        Box<T> refBox{-rVal,
+                      rVal,
+                      0,
+                      1,
+                      0,
+                      1,
+                      cstone::BoundaryType::open,
+                      cstone::BoundaryType::periodic,
+                      cstone::BoundaryType::periodic};
         EXPECT_EQ(refBox, newPbcBox);
     }
     {
-        Box<T> pbcBox{0, 1, 0, 1, 0, 1, 1, 0, 1};
+        Box<T> pbcBox{0,
+                      1,
+                      0,
+                      1,
+                      0,
+                      1,
+                      cstone::BoundaryType::periodic,
+                      cstone::BoundaryType::open,
+                      cstone::BoundaryType::periodic};
         Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
-        Box<T> refBox{0, 1, T(1), 2 * rVal, 0, 1, 1, 0, 1};
+        Box<T> refBox{0,
+                      1,
+                      T(1),
+                      2 * rVal,
+                      0,
+                      1,
+                      cstone::BoundaryType::periodic,
+                      cstone::BoundaryType::open,
+                      cstone::BoundaryType::periodic};
         EXPECT_EQ(refBox, newPbcBox);
     }
     {
-        Box<T> pbcBox{0, 1, 0, 1, 0, 1, 1, 1, 0};
+        Box<T> pbcBox{0,
+                      1,
+                      0,
+                      1,
+                      0,
+                      1,
+                      cstone::BoundaryType::periodic,
+                      cstone::BoundaryType::periodic,
+                      cstone::BoundaryType::open};
         Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
-        Box<T> refBox{0, 1, 0, 1, -2 * rVal, T(-1), 1, 1, 0};
+        Box<T> refBox{0,
+                      1,
+                      0,
+                      1,
+                      -2 * rVal,
+                      T(-1),
+                      cstone::BoundaryType::periodic,
+                      cstone::BoundaryType::periodic,
+                      cstone::BoundaryType::open};
         EXPECT_EQ(refBox, newPbcBox);
     }
 }

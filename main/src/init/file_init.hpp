@@ -94,9 +94,9 @@ public:
                            extents[3],
                            extents[4],
                            extents[5],
-                           boundaries[0],
-                           boundaries[1],
-                           boundaries[2]);
+                           static_cast<cstone::BoundaryType>(boundaries[0]),
+                           static_cast<cstone::BoundaryType>(boundaries[1]),
+                           static_cast<cstone::BoundaryType>(boundaries[2]));
 
         d.resize(count);
 

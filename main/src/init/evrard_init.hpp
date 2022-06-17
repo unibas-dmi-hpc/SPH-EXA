@@ -122,7 +122,7 @@ public:
         d.g = constants_.at("G");
         T r = constants_.at("r");
 
-        cstone::Box<T> globalBox(-r, r, 0);
+        cstone::Box<T> globalBox(-r, r, cstone::BoundaryType::open);
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);

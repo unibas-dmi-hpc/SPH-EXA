@@ -125,7 +125,8 @@ TEST(Macs, minDistanceSqPbc)
     constexpr T unitLengthSq = T(1.) / (T(maxCoord) * T(maxCoord));
 
     {
-        Box<T> box(0, 1, 0, 1, 0, 1, 1, 0, 0);
+        Box<T> box(0, 1, 0, 1, 0, 1, cstone::BoundaryType::periodic, cstone::BoundaryType::open,
+                   cstone::BoundaryType::open);
         IBox a(0, 1, 0, 1, 0, 1);
         IBox b(maxCoord - 1, maxCoord, 0, 1, 0, 1);
 
@@ -136,7 +137,7 @@ TEST(Macs, minDistanceSqPbc)
         EXPECT_DOUBLE_EQ(probe2, 0.0);
     }
     {
-        Box<T> box(0, 1, 0, 1, 0, 1, 0, 1, 0);
+        Box<T> box(0, 1, 0, 1, 0, 1, cstone::BoundaryType::open, cstone::BoundaryType::periodic, BoundaryType::open);
         IBox a(0, 1);
         IBox b(0, 1, maxCoord - 1, maxCoord, 0, 1);
 
@@ -147,7 +148,7 @@ TEST(Macs, minDistanceSqPbc)
         EXPECT_DOUBLE_EQ(probe2, 0.0);
     }
     {
-        Box<T> box(0, 1, 0, 1, 0, 1, 0, 0, 1);
+        Box<T> box(0, 1, 0, 1, 0, 1, BoundaryType::open, BoundaryType::open, BoundaryType::periodic);
         IBox a(0, 1);
         IBox b(0, 1, 0, 1, maxCoord - 1, maxCoord);
 
@@ -158,7 +159,7 @@ TEST(Macs, minDistanceSqPbc)
         EXPECT_DOUBLE_EQ(probe2, 0.0);
     }
     {
-        Box<T> box(0, 1, 0, 1, 0, 1, 1, 1, 1);
+        Box<T> box(0, 1, 0, 1, 0, 1, BoundaryType::periodic, BoundaryType::periodic, BoundaryType::periodic);
         IBox a(0, 1);
         IBox b(maxCoord / 2 + 1, maxCoord / 2 + 2);
 
@@ -175,8 +176,8 @@ TEST(Macs, evaluateMAC)
 {
     using T = double;
 
-    Box<T> noPbcBox(0, 1, 0);
-    Box<T> box(0, 1, 1);
+    Box<T> noPbcBox(0, 1, cstone::BoundaryType::open);
+    Box<T> box(0, 1, cstone::BoundaryType::periodic);
 
     Vec3<T> tcenter{0.1, 0.1, 0.1};
     Vec3<T> tsize{0.01, 0.01, 0.01};
@@ -213,10 +214,10 @@ TEST(Macs, minMacMutual)
     Vec3<T> cB{3.5, 3.5, 3.5};
     Vec3<T> sB{0.5, 0.5, 0.5};
 
-    EXPECT_TRUE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, 0), 1.0 / 0.29));
-    EXPECT_FALSE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, 0), 1.0 / 0.28));
+    EXPECT_TRUE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, cstone::BoundaryType::open), 1.0 / 0.29));
+    EXPECT_FALSE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, cstone::BoundaryType::open), 1.0 / 0.28));
 
-    EXPECT_FALSE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, 1), 1.0));
+    EXPECT_FALSE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, cstone::BoundaryType::periodic), 1.0));
 }
 
 TEST(Macs, minVecMacMutual)
@@ -229,10 +230,10 @@ TEST(Macs, minVecMacMutual)
     Vec3<T> cB{3.5, 3.5, 3.5};
     Vec3<T> sB{0.5, 0.5, 0.5};
 
-    EXPECT_TRUE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, 0), invThetaVecMac(0.39)));
-    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, 0), invThetaVecMac(0.38)));
+    EXPECT_TRUE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, cstone::BoundaryType::open), invThetaVecMac(0.39)));
+    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, cstone::BoundaryType::open), invThetaVecMac(0.38)));
 
-    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, 1), invThetaVecMac(1.0)));
+    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, cstone::BoundaryType::periodic), invThetaVecMac(1.0)));
 }
 
 template<class KeyType, class T>

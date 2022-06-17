@@ -48,7 +48,8 @@ TEST(MomentumEnergy, JLoop)
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-    cstone::Box<T> box(0, 6, 0, 6, 0, 6, 0, 0, 0);
+    cstone::Box<T> box(
+        0, 6, 0, 6, 0, 6, cstone::BoundaryType::open, cstone::BoundaryType::open, cstone::BoundaryType::open);
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
@@ -141,7 +142,15 @@ TEST(MomentumEnergy, JLoopPBC)
 
     // box length in any dimension must be bigger than 4*h for any particle
     // otherwise the PBC evaluation does not select the closest image
-    cstone::Box<T> box(0, 10.5, 0, 10.5, 0, 10.5, 1, 1, 1);
+    cstone::Box<T> box(0,
+                       10.5,
+                       0,
+                       10.5,
+                       0,
+                       10.5,
+                       cstone::BoundaryType::periodic,
+                       cstone::BoundaryType::periodic,
+                       cstone::BoundaryType::periodic);
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
