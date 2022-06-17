@@ -51,7 +51,6 @@ TEST(GatherCpu, sortInvert)
     EXPECT_EQ(values, reference);
 }
 
-
 template<class ValueType, class CodeType, class IndexType>
 void CpuGatherTest()
 {

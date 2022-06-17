@@ -104,7 +104,7 @@ HOST_DEVICE_FUN constexpr int pbcDistance(int x)
 template<class T>
 class Box
 {
-    static void validateBoundaries(int boundaryX, int boundaryY, int boundaryZ)
+    HOST_DEVICE_FUN void validateBoundaries(int boundaryX, int boundaryY, int boundaryZ)
     {
         if (boundaryX < 0 || boundaryX > 2 || boundaryY < 0 || boundaryY > 2 || boundaryZ < 0 || boundaryZ > 2)
         {
