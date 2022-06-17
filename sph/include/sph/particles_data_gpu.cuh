@@ -195,7 +195,7 @@ const typename ThrustVec::value_type* rawPtr(const ThrustVec& p)
 template<class DataType, std::enable_if_t<HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
 void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
 {
-    auto hostData   = d.data();
+    auto hostData = d.data();
     auto deviceData = d.devData.data();
 
     auto launchTransfer = [first, last](const auto* hostField, auto* deviceField)
@@ -210,7 +210,8 @@ void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<
             CHECK_CUDA_ERR(cudaMemcpy(
                 rawPtr(*deviceField) + first, hostField->data() + first, transferSize, cudaMemcpyHostToDevice));
         }
-        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device"); }
+        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
+        }
     };
 
     for (const auto& field : fields)
@@ -239,7 +240,8 @@ void transferToHost(DataType& d, size_t first, size_t last, const std::vector<st
             CHECK_CUDA_ERR(cudaMemcpy(
                 hostField->data() + first, rawPtr(*deviceField) + first, transferSize, cudaMemcpyDeviceToHost));
         }
-        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device"); }
+        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
+        }
     };
 
     for (const auto& field : fields)
