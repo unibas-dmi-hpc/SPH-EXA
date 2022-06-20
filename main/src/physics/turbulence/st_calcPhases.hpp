@@ -31,7 +31,7 @@
  *             dim:                    number of dimensions
  *             st_OUphases:            Ornstein-Uhlenbeck phases
  *             st_solweight:           solenoidal weight
- *             st_mode:                matrix (st_nmodes x dimension) containing modes        
+ *             st_mode:                matrix (st_nmodes x dimension) containing modes
  *           Output Arguments:
  *             st_aka:                 real part of phases
  *             st_akb:                 imaginary part of phases
@@ -39,10 +39,13 @@
  */
 #include <cmath>
 #include <iostream>
-void st_calcPhases(int st_nmodes,int dim,double st_OUphases[],double st_solweight,double st_mode[][3],double st_aka[][3], double st_akb[][3]){
+namespace sphexa{
+  template <class T>
+void st_calcPhases(size_t st_nmodes,size_t dim,std::vector<T> st_OUphases,std::vector<T> st_solweight,
+  std::vector<T> st_mode,std::vector<T> st_aka, std::vector<T> st_akb){
 
   double ka, kb, kk, diva, divb, curla, curlb;
-  int i,j;
+  size_t i,j;
   const bool Debug = false;
 
   for(i = 0; i< st_nmodes;i++){
@@ -50,33 +53,34 @@ void st_calcPhases(int st_nmodes,int dim,double st_OUphases[],double st_solweigh
      kb = 0.0;
      kk = 0.0;
      for(j = 0; j< dim;j++){
-        kk = kk + st_mode[i][j]*st_mode[i][j];
-        ka = ka + st_mode[i][j]*st_OUphases[6*(i)+2*(j)+1];
-        kb = kb + st_mode[i][j]*st_OUphases[6*(i)+2*(j)+0];
+        kk = kk + st_mode[3*i+j]*st_mode[3*i+j];
+        ka = ka + st_mode[3*i+j]*st_OUphases[6*(i)+2*(j)+1];
+        kb = kb + st_mode[3*i+j]*st_OUphases[6*(i)+2*(j)+0];
      }
      for(j = 0; j< dim;j++){
 
-         diva  = st_mode[i][j]*ka/kk;
-         divb  = st_mode[i][j]*kb/kk;
+         diva  = st_mode[3*i+j]*ka/kk;
+         divb  = st_mode[3*i+j]*kb/kk;
          curla = (st_OUphases[6*(i)+2*(j) + 0 ] - divb);
          curlb = (st_OUphases[6*(i)+2*(j) + 1 ] - diva);
 
-         st_aka[i][j] = st_solweight*curla+(1.0-st_solweight)*divb;
-         st_akb[i][j] = st_solweight*curlb+(1.0-st_solweight)*diva;
-         
+         st_aka[3*i+j] = st_solweight*curla+(1.0-st_solweight)*divb;
+         st_akb[3*i+j] = st_solweight*curlb+(1.0-st_solweight)*diva;
+
       }
 
 // purely compressive
-//         st_aka[i][j] = st_mode[i][j]*kb/kk
-//         st_akb[i][j] = st_mode[i][j]*ka/kk
+//         st_aka[3*i+j] = st_mode[3*i+j]*kb/kk
+//         st_akb[3*i+j] = st_mode[3*i+j]*ka/kk
 
 // purely solenoidal
-//         st_aka[i][j] = bjiR - st_mode[i][j]*kb/kk
-//         st_akb[i][j] = bjiI - st_mode[i][j]*ka/kk
+//         st_aka[3*i+j] = bjiR - st_mode[3*i+j]*kb/kk
+//         st_akb[3*i+j] = bjiI - st_mode[3*i+j]*ka/kk
 
 
      }
-  
+
   return;
 
 }
+} //namespace sphexa

@@ -42,39 +42,44 @@
  *             accz:                   vector of z component of accelerations
  * @author Axel Sanz <axel.sanz@estudiantat.upc.edu>
  */
- 
+
 #include <cmath>
 #include <iostream>
-void st_calcAccel(const int npart,double xCoord[],double yCoord[],double zCoord[],double accx[],double accy[],double accz[],
-                  int st_nmodes,double st_mode[][3],double st_aka[][3],double st_akb[][3],double st_ampl[],double st_solweightnorm){
+namespace sphexa{
+template<class T>
+void st_calcAccel(size_t first, size_t last,std::vector<T> xCoord,std::vector<T> yCoord,std::vector<T> zCoord,
+  std::vector<T> accx,std::vector<T> accy,std::vector<T> accz, size_t st_nmodes,
+  std::vector<T> st_mode,std::vector<T> st_aka,std::vector<T> st_akb,std::vector<T> st_ampl,T st_solweightnorm){
 
-  double cosxi[st_nmodes][npart], sinxi[st_nmodes][npart];
-  double cosxj[st_nmodes][npart], sinxj[st_nmodes][npart];
-  double cosxk[st_nmodes][npart], sinxk[st_nmodes][npart];
-  double realtrigterms, imtrigterms;
-  int ib, ie;
-  int i, j, k, m, iii;
-  double ampl[st_nmodes];
+  const size_t npart=last-first+1;
+  size_t i_first;
+  T cosxi[st_nmodes][npart], sinxi[st_nmodes][npart];
+  T cosxj[st_nmodes][npart], sinxj[st_nmodes][npart];
+  T cosxk[st_nmodes][npart], sinxk[st_nmodes][npart];
+  T realtrigterms, imtrigterms;
+  size_t ib, ie;
+  size_t i, j, k, m, iii;
+  T ampl[st_nmodes];
 
   //$omp parallel private (m)
   //$omp do schedule(static) */
   for( m = 0; m<st_nmodes;m++){
     for( i = 0; i<npart; i++){
-  
-       cosxk[m][i] = std::cos(st_mode[m][2]*zCoord[i]);
-       sinxk[m][i] = std::sin(st_mode[m][2]*zCoord[i]);
-  
-       cosxj[m][i] = std::cos(st_mode[m][1]*yCoord[i]);            //HELP (array operations?) HAcer loop
-       sinxj[m][i] = std::sin(st_mode[m][1]*yCoord[i]);
-  
-       cosxi[m][i] = std::cos(st_mode[m][0]*xCoord[i]);
-       sinxi[m][i] = std::sin(st_mode[m][0]*xCoord[i]);
-  
+       i_first=i+first;
+       cosxk[m][i] = std::cos(st_mode[3*m+2]*zCoord[i_first]);
+       sinxk[m][i] = std::sin(st_mode[3*m+2]*zCoord[i_first]);
+
+       cosxj[m][i] = std::cos(st_mode[3*m+1]*yCoord[i_first]);            //HELP (array operations?) HAcer loop
+       sinxj[m][i] = std::sin(st_mode[3*m+1]*yCoord[i_first]);
+
+       cosxi[m][i] = std::cos(st_mode[3*m]*xCoord[i_first]);
+       sinxi[m][i] = std::sin(st_mode[3*m]*xCoord[i_first]);
+
     }
-    //// save some cpu time by precomputing one more multiplication   
+    //// save some cpu time by precomputing one more multiplication
     ampl[m] = 2.0*st_ampl[m];
   }
-  
+
   //$omp end do
   //$omp end parallel
 
@@ -113,33 +118,33 @@ void st_calcAccel(const int npart,double xCoord[],double yCoord[],double zCoord[
         //accx[i]=0.0;
         //accy[i]=0.0;
         //accz[i]=0.0;
-        
+        i_first=i+first;
            for(m = 0; m<st_nmodes; m++){
 
                 //  these are the real and imaginary parts, respectively, of
                 //     e^{ i \vec{k} \cdot \vec{x} }
                 //          = cos(kx*x + ky*y + kz*z) + i sin(kx*x + ky*y + kz*z)
 
-                realtrigterms =    ( cosxi[m][i]*cosxj[m][i] - sinxi[m][i]*sinxj[m][i] ) * cosxk[m][i]  
+                realtrigterms =    ( cosxi[m][i]*cosxj[m][i] - sinxi[m][i]*sinxj[m][i] ) * cosxk[m][i]
                                  - ( sinxi[m][i]*cosxj[m][i] + cosxi[m][i]*sinxj[m][i] ) * sinxk[m][i];
-                                 
-                imtrigterms   =    cosxi[m][i] * ( cosxj[m][i]*sinxk[m][i] + sinxj[m][i]*cosxk[m][i] ) 
+
+                imtrigterms   =    cosxi[m][i] * ( cosxj[m][i]*sinxk[m][i] + sinxj[m][i]*cosxk[m][i] )
                                  + sinxi[m][i] * ( cosxj[m][i]*cosxk[m][i] - sinxj[m][i]*sinxk[m][i] );
-                                 
-                accx[i]   = accx[i] + ampl[m]*(st_aka[m][0]*realtrigterms-st_akb[m][0]*imtrigterms);
-                accy[i]   = accy[i] + ampl[m]*(st_aka[m][1]*realtrigterms-st_akb[m][1]*imtrigterms);
-                accz[i]   = accz[i] + ampl[m]*(st_aka[m][2]*realtrigterms-st_akb[m][2]*imtrigterms);
+
+                accx[i_first]   = accx[i_first] + ampl[m]*(st_aka[3*m]*realtrigterms-st_akb[3*m]*imtrigterms);
+                accy[i_first]   = accy[i_first] + ampl[m]*(st_aka[3*m+1]*realtrigterms-st_akb[3*m+1]*imtrigterms);
+                accz[i_first]   = accz[i_first] + ampl[m]*(st_aka[3*m+2]*realtrigterms-st_akb[3*m+2]*imtrigterms);
 
            }  // end loop over modes
 
-           accx[i] = st_solweightnorm*accx[i];
-           accy[i] = st_solweightnorm*accy[i];
-           accz[i] = st_solweightnorm*accz[i];
+           accx[i_first] = st_solweightnorm*accx[i_first];
+           accy[i_first] = st_solweightnorm*accy[i_first];
+           accz[i_first] = st_solweightnorm*accz[i_first];
       }  // end loop over particles
       //$omp end do
       //$omp end parallel
 
-     // accturb(:)=0.d0;         
+     // accturb(:)=0.d0;
       //for( i=0; i<npart; i++){
        // iii=i+npini;
         //accturb[iii]=accx[i];
@@ -148,8 +153,9 @@ void st_calcAccel(const int npart,double xCoord[],double yCoord[],double zCoord[
       //}
 
       //for (i=npini;i<=npend;i++){
-        //accturb[npini:npend]=accturb[npini:npend]*st_solweightnorm;      
+        //accturb[npini:npend]=accturb[npini:npend]*st_solweightnorm;
       //}
   return;
 
 }
+} //namespace sphexa

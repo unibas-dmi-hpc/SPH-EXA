@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include "sph/particles_data.hpp"
-
+#include "sph/turbulence_data.hpp"
 #ifdef SPH_EXA_USE_CATALYST2
 #include "catalyst_adaptor.h"
 #endif

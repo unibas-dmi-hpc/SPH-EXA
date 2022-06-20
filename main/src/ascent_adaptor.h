@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sph/particles_data.hpp"
+#include "sph/turbulence_data.hpp"
 
 #include <ascent/ascent.hpp>
 #include "conduit_blueprint.hpp"

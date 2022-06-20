@@ -65,7 +65,7 @@ public:
     size_t iteration{1};
     size_t numParticlesGlobal;
     size_t totalNeighbors;
-
+    
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
     T linmom{0.0}, angmom{0.0};
 

@@ -33,7 +33,7 @@
 
 
 #include "cstone/cuda/annotation.hpp"
-
+#include <type_traits>
 namespace stl
 {
 
@@ -138,4 +138,3 @@ void exclusive_scan(InputIterator in1, InputIterator in2, OutputIterator out, T 
 }
 
 }
-

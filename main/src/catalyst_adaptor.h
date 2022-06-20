@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sph/particles_data.hpp"
+#include "sph/turbulence_data.hpp"
 
 #include <catalyst.hpp>
 #include <cstring>

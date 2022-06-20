@@ -43,10 +43,14 @@
  * @author Axel Sanz <axel.sanz@estudiantat.upc.edu>
  */
 
-
+#pragma once
 #include <cmath>
 #include <iostream>
-double ran1s(int &idum){
+
+namespace sphexa
+{
+template<class T>
+T ran1s(size_t& idum){
 /* @brief  ran1s: uniform random number generator in range (0,1)
  *           Input/Output Arguments:
  *             idum:                   seed of the generator
@@ -54,14 +58,14 @@ double ran1s(int &idum){
                rand:                   random number
  */
 
-  int k, iy;
-  const int IA=16807, IM=2147483647, IQ=127773, IR=2836, NTAB=32;
-  const double AM=1./IM, EPS=1.2e-7, RNMX=1.-EPS;
-  double rand;
-  
+  size_t k, iy;
+  const size_t IA=16807, IM=2147483647, IQ=127773, IR=2836, NTAB=32;
+  const T AM=1./IM, EPS=1.2e-7, RNMX=1.-EPS;
+  T rand;
+
   if (idum <= 0) {
-    idum = std::max(-idum, 1);
-  } 
+    idum = std::max(-idum, size_t(1));
+  }
   k = idum/IQ;
   idum = IA*(idum-k*IQ)-IR*k;
   if (idum < 0){
@@ -72,25 +76,27 @@ double ran1s(int &idum){
   return rand;
 }
 
-double st_grn(int &seed){
+template<class T>
+T st_grn(size_t &seed){
 /* @brief  ran1s: guassian random number generator  with unit variance and mean 0
  *           Input/Output Arguments:
  *             idum:                   seed of the generator
              Returns:
                rand:                   random number
  */
-  double r1, r2, g1;
-  double twopi = 8.0*std::atan(1.0);  
+  T r1, r2, g1;
+  T twopi = 8.0*std::atan(1.0);
 
-  r1 = ran1s(seed);
-  r2 = ran1s(seed);
+  r1 = ran1s<T>(seed);
+  r2 = ran1s<T>(seed);
   g1 = std::sqrt(-2.0*std::log(r1))*std::cos(twopi*r2);
 
   return g1;
 }
 
 /******************************************************/
-void st_ounoiseupdate(double vector[], int vectorlength, double variance, double dt, double ts, int &seed){
+template<class T>
+void st_ounoiseupdate(std::vector<T> vector, size_t vectorlength, T variance, T dt, T ts, size_t &seed){
 /******************************************************
 !! Subroutine updates a vector of real values according to an algorithm
 !!   that generates an Ornstein-Uhlenbeck sequence.
@@ -132,17 +138,17 @@ void st_ounoiseupdate(double vector[], int vectorlength, double variance, double
 !!   ts :           autocorrelation time
 !!
 !!***/
-  double damping_factor;
+  T damping_factor;
   damping_factor = std::exp(-dt/ts);
-  for(int i=0;i<vectorlength;i++){
-     vector[i] = vector[i]*damping_factor + variance*sqrt(1.0-damping_factor*damping_factor)*st_grn(seed);
+  for(size_t i=0;i<vectorlength;i++){
+     vector[i] = vector[i]*damping_factor + variance*sqrt(1.0-damping_factor*damping_factor)*st_grn<T>(seed);
   }
 
   return;
 }
 /************************************************************************/
-
-void st_ounoiseinit(double vector[], int vectorlength, double variance,int &seed){
+template<class T>
+void st_ounoiseinit(std::vector<T> vector, size_t vectorlength, T variance,size_t &seed){
 /******************************************************
 !! initialize pseudo random sequence for the Ornstein-Uhlenbeck process
  ARGUMENTS
@@ -152,8 +158,10 @@ void st_ounoiseinit(double vector[], int vectorlength, double variance,int &seed
 !!   variance :     variance of the distribution
 
      seed:          seed for the gaussian random noise */
-  for(int i = 0; i<vectorlength;i++){
-     vector[i] = st_grn(seed)*variance;
+  for(size_t i = 0; i<vectorlength;i++){
+     vector[i] = st_grn<T>(seed)*variance;
   }
   return;
+}
+
 }
