@@ -35,57 +35,23 @@
 
 namespace sphexa
 {
-template<class T, class Dataset>
-void applyFixedBoundaries(Dataset& d, cstone::Box<T>& box)
+template<class T>
+void applyFixedBoundaries(T* pos, T* vx, T* vy, T* vz, T* h, cstone::Box<T>& box, size_t first, size_t last)
 {
 
-    if (box.fbcX()) // fixed boundaries in x-direction
-    {
 #pragma omp parallel for
-        for (size_t i = 0; i < d.x.size(); i++)
-        {
-            T distXmax = std::abs(box.xmax() - d.x[i]);
-            T distXmin = std::abs(box.xmin() - d.x[i]);
-
-            if (distXmax < 2.0 * d.h[i] || distXmin < 2.0 * d.h[i])
-            {
-                d.vx[i] = 0.0;
-                d.vy[i] = 0.0;
-                d.vz[i] = 0.0;
-            }
-        }
-    }
-    if (box.fbcY()) // fixed boundaries in y-direction
+    for (size_t i = first; i < last; i++)
     {
-#pragma omp parallel for
-        for (size_t i = 0; i < d.x.size(); i++)
-        {
-            T distYmax = std::abs(box.ymax() - d.y[i]);
-            T distYmin = std::abs(box.ymin() - d.y[i]);
+        T distMax = std::abs(box.xmax() - pos[i]);
+        T distMin = std::abs(box.xmin() - pos[i]);
 
-            if (distYmax < 2.0 * d.h[i] || distYmin < 2.0 * d.h[i])
-            {
-                d.vx[i] = 0.0;
-                d.vy[i] = 0.0;
-                d.vz[i] = 0.0;
-            }
-        }
-    }
-    if (box.fbcZ()) // fixed boundaries in z-direction
-    {
-#pragma omp parallel for
-        for (size_t i = 0; i < d.x.size(); i++)
+        if (distMax < 2.0 * h[i] || distMin < 2.0 * h[i])
         {
-            T distZmax = std::abs(box.zmax() - d.z[i]);
-            T distZmin = std::abs(box.zmin() - d.z[i]);
-
-            if (distZmax < 2.0 * d.h[i] || distZmin < 2.0 * d.h[i])
-            {
-                d.vx[i] = 0.0;
-                d.vy[i] = 0.0;
-                d.vz[i] = 0.0;
-            }
+            vx[i] = 0.0;
+            vy[i] = 0.0;
+            vz[i] = 0.0;
         }
     }
 }
+
 } // namespace sphexa
