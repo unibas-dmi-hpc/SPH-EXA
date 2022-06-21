@@ -40,11 +40,11 @@
 namespace cstone
 {
 
-template<class T, class LocalIndex>
+template<class LocalIndex>
 class DeviceMemory
 {
-    static constexpr int alignment = 4096/sizeof(T);
 public:
+    static constexpr size_t ElementSize = 8;
 
     DeviceMemory() = default;
 
@@ -64,17 +64,16 @@ public:
             // allocate 5% extra to avoid reallocation on small increase
             newSize = double(newSize) * 1.05;
             // round up newSize to next 4K boundary
-            newSize += newSize%alignment;
+            newSize += newSize % alignment;
 
             if (allocatedSize_ > 0)
             {
                 checkGpuErrors(cudaFree(d_ordering_));
-
                 checkGpuErrors(cudaFree(d_buffer_));
             }
 
-            checkGpuErrors(cudaMalloc((void**)&d_ordering_,  newSize * sizeof(LocalIndex)));
-            checkGpuErrors(cudaMalloc((void**)&(d_buffer_), 2 * newSize * sizeof(T)));
+            checkGpuErrors(cudaMalloc((void**)&d_ordering_, newSize * sizeof(LocalIndex)));
+            checkGpuErrors(cudaMalloc((void**)&(d_buffer_), 2 * newSize * ElementSize));
 
             allocatedSize_ = newSize;
         }
@@ -82,41 +81,42 @@ public:
 
     LocalIndex* ordering() { return d_ordering_; }
 
-    T* deviceBuffer(int i)
+    char* deviceBuffer(int i)
     {
         if (i > 1) throw std::runtime_error("buffer index out of bounds\n");
-        return d_buffer_ + i * allocatedSize_;
+        return d_buffer_ + i * allocatedSize_ * ElementSize;
     }
 
 private:
-    std::size_t allocatedSize_{0} ;
+    static constexpr int alignment = 4096 / ElementSize;
+
+    std::size_t allocatedSize_{0};
 
     //! @brief reorder map
     LocalIndex* d_ordering_;
 
     //! @brief device buffers
-    T* d_buffer_;
+    char* d_buffer_;
 };
 
-
-template<class ValueType, class CodeType, class IndexType>
-DeviceGather<ValueType, CodeType, IndexType>::DeviceGather()
-    : deviceMemory_(std::make_unique<DeviceMemory<ValueType, IndexType>>())
-{}
-
-template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::setReorderMap(const IndexType* map_first,
-                                                                 const IndexType* map_last)
+template<class KeyType, class IndexType>
+DeviceGather<KeyType, IndexType>::DeviceGather()
+    : deviceMemory_(std::make_unique<DeviceMemory<IndexType>>())
 {
-    mapSize_      = map_last - map_first;
+}
+
+template<class KeyType, class IndexType>
+void DeviceGather<KeyType, IndexType>::setReorderMap(const IndexType* map_first, const IndexType* map_last)
+{
+    mapSize_ = map_last - map_first;
     deviceMemory_->reallocate(mapSize_);
     // upload new ordering to the device
     cudaMemcpy(deviceMemory_->ordering(), map_first, mapSize_ * sizeof(IndexType), cudaMemcpyHostToDevice);
     checkGpuErrors(cudaGetLastError());
 }
 
-template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::getReorderMap(IndexType* map_first, IndexType first, IndexType last)
+template<class KeyType, class IndexType>
+void DeviceGather<KeyType, IndexType>::getReorderMap(IndexType* map_first, IndexType first, IndexType last)
 {
     cudaMemcpy(map_first, deviceMemory_->ordering() + first, (last - first) * sizeof(IndexType),
                cudaMemcpyDeviceToHost);
@@ -127,14 +127,11 @@ __global__ void iotaKernel(I* buffer, size_t n, size_t offset)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (tid < n)
-    {
-        buffer[tid] = offset + tid;
-    }
+    if (tid < n) { buffer[tid] = offset + tid; }
 }
 
-template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::setMapFromCodes(CodeType* codes_first, CodeType* codes_last)
+template<class KeyType, class IndexType>
+void DeviceGather<KeyType, IndexType>::setMapFromCodes(KeyType* codes_first, KeyType* codes_last)
 {
     offset_     = 0;
     mapSize_    = codes_last - codes_first;
@@ -143,77 +140,77 @@ void DeviceGather<ValueType, CodeType, IndexType>::setMapFromCodes(CodeType* cod
 
     // the deviceBuffer is allocated as a single chunk of size 2 * mapSize_ * sizeof(T)
     // so we can reuse it for mapSize_ elements of KeyType, as long as the static assert holds
-    static_assert(sizeof(CodeType) <= 2 * sizeof(ValueType), "buffer size not big enough for codes device array\n");
-    CodeType* d_codes = reinterpret_cast<CodeType*>(deviceMemory_->deviceBuffer(0));
+    static_assert(sizeof(KeyType) <= 2 * DeviceMemory<IndexType>::ElementSize,
+                  "buffer size not big enough for codes device array\n");
+    KeyType* d_codes = reinterpret_cast<KeyType*>(deviceMemory_->deviceBuffer(0));
 
     // send Morton codes to the device
-    cudaMemcpy(d_codes, codes_first, mapSize_ * sizeof(CodeType), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_codes, codes_first, mapSize_ * sizeof(KeyType), cudaMemcpyHostToDevice);
     checkGpuErrors(cudaGetLastError());
 
     constexpr int nThreads = 256;
-    int nBlocks = (mapSize_ + nThreads - 1) / nThreads;
+    int nBlocks            = (mapSize_ + nThreads - 1) / nThreads;
     iotaKernel<<<nBlocks, nThreads>>>(deviceMemory_->ordering(), mapSize_, 0);
     checkGpuErrors(cudaGetLastError());
 
-    // sort Morton codes on device as keys, track new ordering on the device
-    thrust::sort_by_key(thrust::device,
-                        thrust::device_pointer_cast(d_codes),
-                        thrust::device_pointer_cast(d_codes+mapSize_),
+    // sort SFC keys on device, track new ordering on the device
+    thrust::sort_by_key(thrust::device, thrust::device_pointer_cast(d_codes),
+                        thrust::device_pointer_cast(d_codes + mapSize_),
                         thrust::device_pointer_cast(deviceMemory_->ordering()));
     checkGpuErrors(cudaGetLastError());
 
     // send sorted codes back to host
-    cudaMemcpy(codes_first, d_codes, mapSize_ * sizeof(CodeType), cudaMemcpyDeviceToHost);
+    cudaMemcpy(codes_first, d_codes, mapSize_ * sizeof(KeyType), cudaMemcpyDeviceToHost);
     checkGpuErrors(cudaGetLastError());
 }
 
-template<class ValueType, class CodeType, class IndexType>
-DeviceGather<ValueType, CodeType, IndexType>::~DeviceGather() = default;
-
+template<class KeyType, class IndexType>
+DeviceGather<KeyType, IndexType>::~DeviceGather() = default;
 
 template<class T, class I>
 __global__ void reorder(I* map, T* source, T* destination, size_t n)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (tid < n)
-    {
-        destination[tid] = source[map[tid]];
-    }
+    if (tid < n) { destination[tid] = source[map[tid]]; }
 }
 
-template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values, ValueType* destination,
-                                                              IndexType offset, IndexType numExtract) const
+template<class KeyType, class IndexType>
+template<class T>
+void DeviceGather<KeyType, IndexType>::operator()(const T* values,
+                                                  T* destination,
+                                                  IndexType offset,
+                                                  IndexType numExtract) const
 {
+    static_assert(sizeof(T) <= DeviceMemory<IndexType>::ElementSize);
+
     constexpr int nThreads = 256;
-    int nBlocks = (numExtract + nThreads - 1) / nThreads;
+    int nBlocks            = (numExtract + nThreads - 1) / nThreads;
 
     // upload to device
-    cudaMemcpy(deviceMemory_->deviceBuffer(0), values, mapSize_ * sizeof(ValueType), cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceMemory_->deviceBuffer(0), values, mapSize_ * sizeof(T), cudaMemcpyHostToDevice);
     checkGpuErrors(cudaGetLastError());
 
     // reorder on device
     reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset,
-                                   deviceMemory_->deviceBuffer(0),
-                                   deviceMemory_->deviceBuffer(1),
-                                   numExtract);
+                                   reinterpret_cast<T*>(deviceMemory_->deviceBuffer(0)),
+                                   reinterpret_cast<T*>(deviceMemory_->deviceBuffer(1)), numExtract);
     checkGpuErrors(cudaGetLastError());
 
     // download to host
-    cudaMemcpy(destination, deviceMemory_->deviceBuffer(1),
-               numExtract * sizeof(ValueType), cudaMemcpyDeviceToHost);
+    cudaMemcpy(destination, deviceMemory_->deviceBuffer(1), numExtract * sizeof(T), cudaMemcpyDeviceToHost);
     checkGpuErrors(cudaGetLastError());
 }
 
-template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values, ValueType* destination) const
+template<class KeyType, class IndexType>
+template<class T>
+void DeviceGather<KeyType, IndexType>::operator()(const T* values, T* destination) const
 {
     this->operator()(values, destination, offset_, numExtract_);
 }
 
-template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::restrictRange(std::size_t offset, std::size_t numExtract)
+template<class KeyType, class IndexType>
+void DeviceGather<KeyType, IndexType>::restrictRange(std::size_t offset, std::size_t numExtract)
 {
     assert(offset + numExtract <= mapSize_);
 
@@ -221,13 +218,13 @@ void DeviceGather<ValueType, CodeType, IndexType>::restrictRange(std::size_t off
     numExtract_ = numExtract;
 }
 
-template class DeviceGather<float,  unsigned, unsigned>;
-template class DeviceGather<float,  uint64_t, unsigned>;
-template class DeviceGather<double, unsigned, unsigned>;
-template class DeviceGather<double, uint64_t, unsigned>;
-template class DeviceGather<float,  unsigned, uint64_t>;
-template class DeviceGather<float,  uint64_t, uint64_t>;
-template class DeviceGather<double, unsigned, uint64_t>;
-template class DeviceGather<double, uint64_t, uint64_t>;
+template class DeviceGather<unsigned, unsigned>;
+template class DeviceGather<uint64_t, unsigned>;
+
+template void DeviceGather<unsigned, unsigned>::operator()(const double*, double*) const;
+template void DeviceGather<unsigned, unsigned>::operator()(const float*, float*) const;
+
+template void DeviceGather<uint64_t, unsigned>::operator()(const double*, double*) const;
+template void DeviceGather<uint64_t, unsigned>::operator()(const float*, float*) const;
 
 } // namespace cstone

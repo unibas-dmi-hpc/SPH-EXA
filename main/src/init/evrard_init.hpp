@@ -135,7 +135,7 @@ public:
         cstone::BufferDescription bufDesc{0, cstone::LocalIndex(d.x.size()), cstone::LocalIndex(d.x.size())};
 
         cstone::GlobalAssignment<KeyType, T> distributor(rank, numRanks, bucketSize, globalBox);
-        cstone::ReorderFunctor_t<cstone::CpuTag, T, KeyType, cstone::LocalIndex> reorderFunctor;
+        cstone::ReorderFunctor_t<cstone::CpuTag, KeyType, cstone::LocalIndex> reorderFunctor;
 
         std::vector<KeyType> particleKeys(d.x.size());
         cstone::LocalIndex   newNParticlesAssigned =
