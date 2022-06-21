@@ -16,3 +16,5 @@
 #include "sph/hydro_ve/iad_divv_curlv.hpp"
 #include "sph/hydro_ve/momentum_energy.hpp"
 #include "sph/hydro_ve/xmass.hpp"
+
+#include "sph/hydro_turb/driver_turbulence.hpp"

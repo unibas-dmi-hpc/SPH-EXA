@@ -36,7 +36,6 @@
 
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"
-#include "physics/turbulence/driver_turbulence.hpp"
 
 namespace sphexa
 {
@@ -89,7 +88,7 @@ public:
                        "curlv",
                        "keys",
                        "nc"
-                       "stOUPhases", "stMode", "stAmpl");
+                       );
 
         d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz", "alpha");
         d.devData.setDependent(
@@ -115,12 +114,10 @@ public:
         timer.start();
         sync(domain, d);
         timer.step("domain::sync");
-
         d.resize(domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * ngmax_);
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
-
         std::fill(begin(d.m), begin(d.m) + first, d.m[first]);
         std::fill(begin(d.m) + last, end(d.m), d.m[first]);
 
@@ -192,7 +189,7 @@ public:
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
-        driver_turbulence(first, last, d);
+        driver_turbulence2(first, last, d);
         timer.step("Turbulence Stirring");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");

@@ -77,8 +77,8 @@ int main(int argc, char** argv)
 
     using Real    = double;
     using KeyType = uint64_t;
-    //using Dataset = ParticlesData<Real, KeyType, AccType>;
-    using Dataset = TurbulenceData<Real, KeyType, AccType>;
+    using Dataset = ParticlesData<Real, KeyType, AccType>;
+    //using Dataset = TurbulenceData<Real, KeyType, AccType>;
     using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
     const std::string        initCond          = parser.get("--init");
@@ -138,11 +138,10 @@ int main(int argc, char** argv)
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
     size_t startIteration = d.iteration;
-    getchar();
     for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
     {
         propagator->step(domain, d);
-getchar();
+
         observables->computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
         propagator->printIterationTimings(domain, d);
 

@@ -40,7 +40,7 @@
 #include "isim_init.hpp"
 #include "grid.hpp"
 
-#include "physics/turbulence/st_ounoise.hpp"
+#include "sph/hydro_turb/st_ounoise.hpp"
 namespace sphexa
 {
 
@@ -62,7 +62,6 @@ void stir_init(Dataset& d,T Lx,T Ly,T Lz,size_t st_maxmodes,T st_energy,T st_sti
   // initialize some variables, allocate random seed
 
   d.stOUvar = std::sqrt(st_energy/d.stDecay);
-  //std::cout << st_energy << ' ' << d.stDecay << ' ' << d.stOUvar << ' ' << 1.0/d.stOUvar << std::endl;
 
   // this is for st_spectform = 1 (paraboloid) only
   // prefactor for amplitude normalistion to 1 at kc = 0.5*(st_stirmin+st_stirmax)
@@ -186,6 +185,7 @@ void stir_init(Dataset& d,T Lx,T Ly,T Lz,size_t st_maxmodes,T st_energy,T st_sti
                     d.stMode[ndim*d.stNModes] = kx;
                     d.stMode[ndim*d.stNModes+1] = -ky;
                     d.stMode[ndim*d.stNModes+2] = -kz;
+                    //std::cout << kx << std::endl;
 
                  }
 
@@ -211,6 +211,8 @@ template<class Dataset>
 void initTurbulenceFields(Dataset& d, const std::map<std::string, double>& constants)
 {
     using T = typename Dataset::RealType;
+
+    size_t ng0            = 100;
     T firstTimeStep       = constants.at("firstTimeStep");
     T eps                 = constants.at("epsilon");
     size_t stMaxModes     = constants.at("stMaxModes");
@@ -218,7 +220,9 @@ void initTurbulenceFields(Dataset& d, const std::map<std::string, double>& const
     T velocity            = constants.at("stMachVelocity");
     size_t seed           = constants.at("stSeedIni");
     size_t stSpectForm    = constants.at("stSpectForm");
-    size_t nmodes;
+    T mPart               = constants.at("mTotal") / d.numParticlesGlobal;
+    T hInit               = std::cbrt(3.0 / (4 * M_PI) * ng0 * pow(Lbox,3) / d.numParticlesGlobal) * 0.5;
+
     T twopi=8.0*std::atan(1.0);
     T stEnergy = 5.0e-3 * pow(velocity,3)/Lbox;
     T stStirMin = (1.e0-eps) * twopi/Lbox;
@@ -231,19 +235,18 @@ void initTurbulenceFields(Dataset& d, const std::map<std::string, double>& const
     d.stAmpl.resize(stMaxModes);
     d.stMode.resize(stMaxModes*d.ndim);
 
-  //stir_init(Lbox,Lbox,Lbox,stMaxModes,d.stOUvar,stEnergy,d.stDecay,stStirMax,stStirMin,
-    //          ndim,d.stSolWeightNorm,d.stSolWeight,d.stNModes,d.stAmpl,d.stMode,stSpectForm);
-    std::cout << "stir_init: " << std::endl;
     stir_init(d,Lbox,Lbox,Lbox,stMaxModes,stEnergy,stStirMax,stStirMin,d.ndim,stSpectForm);
-    d.stNModes=nmodes;
 
     d.stAmpl.resize(d.stNModes);
     d.stMode.resize(d.stNModes*d.ndim);
     d.stOUPhases.resize(6*d.stNModes);
-    std::cout << "st_ounoiseinit: " << std::endl;
-    st_ounoiseinit(d.stOUPhases, 6*d.stNModes, d.stOUvar, d.stSeed);
 
+    sph::st_ounoiseinit(d.stOUPhases, 6*d.stNModes, d.stOUvar, d.stSeed);
+
+    std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
+    std::fill(d.h.begin(), d.h.end(), hInit);
+    std::fill(d.mui.begin(), d.mui.end(), 10.0);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
 
     d.minDt    = firstTimeStep;
@@ -273,7 +276,8 @@ std::map<std::string, double> TurbulenceConstants()
             {"firstTimeStep", 1e-4},
             {"epsilon", 1e-15},
             {"stSeedIni", 251299},
-            {"stSpectForm", 1}};
+            {"stSpectForm", 1},
+            {"mTotal", 1.0}};
 }
 
 /*! @brief compute the shift factor towards the center for point X in a capped pyramid

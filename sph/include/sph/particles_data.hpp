@@ -65,7 +65,7 @@ public:
     size_t iteration{1};
     size_t numParticlesGlobal;
     size_t totalNeighbors;
-    
+
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
     T linmom{0.0}, angmom{0.0};
 
@@ -112,6 +112,17 @@ public:
 
     const std::array<T, ::sph::lt::size> wh  = ::sph::lt::createWharmonicLookupTable<T, ::sph::lt::size>();
     const std::array<T, ::sph::lt::size> whd = ::sph::lt::createWharmonicDerivativeLookupTable<T, ::sph::lt::size>();
+
+    T stSolWeight;
+    size_t stSeed;                 // seed for random number generator             //
+    size_t stNModes;               // Number of computed nodes
+    size_t ndim;
+    T stOUvar;
+    T stDecay;
+    T stSolWeightNorm;
+    std::vector<T> stOUPhases;
+    std::vector<T> stMode;
+    std::vector<T> stAmpl;
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
