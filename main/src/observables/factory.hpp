@@ -51,8 +51,12 @@ static bool haveH5Attribute(const std::string& fname, const std::string& attribu
 
     if (std::filesystem::exists(fname))
     {
-        H5PartFile* h5_file  = nullptr;
-        h5_file              = H5PartOpenFile(fname.c_str(), H5PART_READ);
+        H5PartFile* h5_file = nullptr;
+#ifdef H5PART_PARALLEL_IO
+        h5_file = H5PartOpenFileParallel(fname.c_str(), H5PART_READ, MPI_COMM_WORLD);
+#else
+        h5_file = H5PartOpenFile(fname.c_str(), H5PART_READ);
+#endif
         size_t numAttributes = H5PartGetNumFileAttribs(h5_file);
 
         h5part_int64_t maxlen = 256;
@@ -101,7 +105,11 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
     {
         h5part_int64_t attrValue;
         H5PartFile*    h5_file = nullptr;
-        h5_file                = H5PartOpenFile(testCase.c_str(), H5PART_READ);
+#ifdef H5PART_PARALLEL_IO
+        h5_file = H5PartOpenFileParallel(testCase.c_str(), H5PART_READ, MPI_COMM_WORLD);
+#else
+        h5_file = H5PartOpenFile(testCase.c_str(), H5PART_READ);
+#endif
         H5PartReadFileAttrib(h5_file, khGrowthRate.c_str(), &attrValue);
         H5PartCloseFile(h5_file);
 
@@ -112,7 +120,11 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
     {
         double      attrValue[3];
         H5PartFile* h5_file = nullptr;
-        h5_file             = H5PartOpenFile(testCase.c_str(), H5PART_READ);
+#ifdef H5PART_PARALLEL_IO
+        h5_file = H5PartOpenFileParallel(testCase.c_str(), H5PART_READ, MPI_COMM_WORLD);
+#else
+        h5_file = H5PartOpenFile(testCase.c_str(), H5PART_READ);
+#endif
         H5PartReadFileAttrib(h5_file, gravWaves.c_str(), attrValue);
         H5PartCloseFile(h5_file);
         if (attrValue[0] != 0)
