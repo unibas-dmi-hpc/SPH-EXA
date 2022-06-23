@@ -70,15 +70,15 @@ void st_calcAccel(size_t first, size_t last,size_t ndim, std::vector<T> xCoord,s
     for(i = 0; i<npart; i++){
        i_first=i+first;
        m_ndim=m*ndim;
-       cosxk[m][i] = std::cos(st_mode[m_ndim+2]*zCoord[i_first]);
-       sinxk[m][i] = std::sin(st_mode[m_ndim+2]*zCoord[i_first]);
+       cosxk[m][i] = std::cos(st_mode[m_ndim+2]*(zCoord[i_first]+0.5));
+       sinxk[m][i] = std::sin(st_mode[m_ndim+2]*(zCoord[i_first]+0.5));
 
-       cosxj[m][i] = std::cos(st_mode[m_ndim+1]*yCoord[i_first]);            //HELP (array operations?) HAcer loop
-       sinxj[m][i] = std::sin(st_mode[m_ndim+1]*yCoord[i_first]);
+       cosxj[m][i] = std::cos(st_mode[m_ndim+1]*(yCoord[i_first]+0.5));  // +0.5 needed to have particles between 0 and 1
+       sinxj[m][i] = std::sin(st_mode[m_ndim+1]*(yCoord[i_first]+0.5));
 
-       cosxi[m][i] = std::cos(st_mode[m_ndim]*xCoord[i_first]);
-       sinxi[m][i] = std::sin(st_mode[m_ndim]*xCoord[i_first]);
-       //std::cout << st_mode[m_ndim] << ' ' << st_mode[m_ndim+1] << ' ' << st_mode[m_ndim+2]<< std::endl;
+       cosxi[m][i] = std::cos(st_mode[m_ndim]*(xCoord[i_first]+0.5));
+       sinxi[m][i] = std::sin(st_mode[m_ndim]*(xCoord[i_first]+0.5));
+
     }
     //// save some cpu time by precomputing one more multiplication
     ampl[m] = 2.0*st_ampl[m];
