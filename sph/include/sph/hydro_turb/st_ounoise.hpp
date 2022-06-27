@@ -50,7 +50,7 @@
 namespace sph
 {
 template<class T>
-T ran1s(size_t& idum){
+T ran1s(int& idum){
 /* @brief  ran1s: uniform random number generator in range (0,1)
  *           Input/Output Arguments:
  *             idum:                   seed of the generator
@@ -58,13 +58,13 @@ T ran1s(size_t& idum){
                rand:                   random number
  */
 
-  size_t k, iy;
-  const size_t IA=16807, IM=2147483647, IQ=127773, IR=2836, NTAB=32;
+  int k, iy;
+  const int IA=16807, IM=2147483647, IQ=127773, IR=2836, NTAB=32;
   const T AM=1./IM, EPS=1.2e-7, RNMX=1.-EPS;
   T rand;
 
   if (idum <= 0) {
-    idum = std::max(-idum, size_t(1));
+    idum = std::max(-idum, 1);
   }
   k = idum/IQ;
   idum = IA*(idum-k*IQ)-IR*k;
@@ -77,7 +77,7 @@ T ran1s(size_t& idum){
 }
 
 template<class T>
-T st_grn(size_t &seed){
+T st_grn(int& seed){
 /* @brief  ran1s: guassian random number generator  with unit variance and mean 0
  *           Input/Output Arguments:
  *             idum:                   seed of the generator
@@ -96,7 +96,7 @@ T st_grn(size_t &seed){
 
 /******************************************************/
 template<class T>
-void st_ounoiseupdate(std::vector<T>& vector, size_t vectorlength, T variance, T dt, T ts, size_t &seed){
+void st_ounoiseupdate(std::vector<T>& vector, size_t vectorlength, T variance, T dt, T ts, int& seed){
 /******************************************************
 !! Subroutine updates a vector of real values according to an algorithm
 !!   that generates an Ornstein-Uhlenbeck sequence.
@@ -138,7 +138,6 @@ void st_ounoiseupdate(std::vector<T>& vector, size_t vectorlength, T variance, T
 !!   ts :           autocorrelation time
 !!
 !!***/
-//using T = typename Dataset::RealType;
   T damping_factor;
   damping_factor = std::exp(-dt/ts);
   for(size_t i=0;i<vectorlength;i++){
@@ -149,7 +148,7 @@ void st_ounoiseupdate(std::vector<T>& vector, size_t vectorlength, T variance, T
 }
 /************************************************************************/
 template<class T>
-void st_ounoiseinit(std::vector<T>& vector, size_t vectorlength, T variance,size_t &seed){
+void st_ounoiseinit(std::vector<T>& vector, size_t vectorlength, T variance,int &seed){
 /******************************************************
 !! initialize pseudo random sequence for the Ornstein-Uhlenbeck process
  ARGUMENTS

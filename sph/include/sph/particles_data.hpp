@@ -114,7 +114,7 @@ public:
     const std::array<T, ::sph::lt::size> whd = ::sph::lt::createWharmonicDerivativeLookupTable<T, ::sph::lt::size>();
 
     T stSolWeight;
-    size_t stSeed;                 // seed for random number generator             //
+    int stSeed;                 // seed for random number generator             //
     size_t stNModes;               // Number of computed nodes
     size_t ndim;
     T stOUvar;

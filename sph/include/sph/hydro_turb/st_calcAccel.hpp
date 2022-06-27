@@ -70,14 +70,14 @@ void st_calcAccel(size_t first, size_t last,size_t ndim, std::vector<T> xCoord,s
     for(i = 0; i<npart; i++){
        i_first=i+first;
        m_ndim=m*ndim;
-       cosxk[m][i] = std::cos(st_mode[m_ndim+2]*(zCoord[i_first]+0.5));
-       sinxk[m][i] = std::sin(st_mode[m_ndim+2]*(zCoord[i_first]+0.5));
+       cosxk[m][i] = std::cos(st_mode[m_ndim+2]*zCoord[i_first]);
+       sinxk[m][i] = std::sin(st_mode[m_ndim+2]*zCoord[i_first]);
 
-       cosxj[m][i] = std::cos(st_mode[m_ndim+1]*(yCoord[i_first]+0.5));  // +0.5 needed to have particles between 0 and 1
-       sinxj[m][i] = std::sin(st_mode[m_ndim+1]*(yCoord[i_first]+0.5));
+       cosxj[m][i] = std::cos(st_mode[m_ndim+1]*yCoord[i_first]);
+       sinxj[m][i] = std::sin(st_mode[m_ndim+1]*yCoord[i_first]);
 
-       cosxi[m][i] = std::cos(st_mode[m_ndim]*(xCoord[i_first]+0.5));
-       sinxi[m][i] = std::sin(st_mode[m_ndim]*(xCoord[i_first]+0.5));
+       cosxi[m][i] = std::cos(st_mode[m_ndim]*xCoord[i_first]);
+       sinxi[m][i] = std::sin(st_mode[m_ndim]*xCoord[i_first]);
 
     }
     //// save some cpu time by precomputing one more multiplication
