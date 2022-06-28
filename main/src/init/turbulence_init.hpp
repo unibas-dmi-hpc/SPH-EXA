@@ -54,31 +54,23 @@ void stir_init(Dataset& d,T Lx,T Ly,T Lz,size_t st_maxmodes,T st_energy,T st_sti
   // for uniform random numbers in case of power law (st_spectform .eq. 2)
   size_t iang, nang, ik, ikmin, ikmax;
   T rand, phi, theta;
-  const T twopi = 8.e0 * std::atan(1.0);
+  const T twopi = 2.0 * M_PI;
 
   // the amplitude of the modes at kmin and kmax for a parabolic Fourier spectrum wrt 1.0 at the centre kc
-  bool Debug = false;
-
   // initialize some variables, allocate random seed
 
-  d.stOUvar = std::sqrt(st_energy/d.stDecay);
+  d.stOUvar = std::sqrt(st_energy / d.stDecay);
 
   // this is for st_spectform = 1 (paraboloid) only
   // prefactor for amplitude normalistion to 1 at kc = 0.5*(st_stirmin+st_stirmax)
-  parab_prefact = -4.0 / ((st_stirmax-st_stirmin)*(st_stirmax-st_stirmin));
+  parab_prefact = -4.0 / ((st_stirmax - st_stirmin) * (st_stirmax - st_stirmin));
 
   // characteristic k for scaling the amplitude below
   kc = st_stirmin;
-  if (st_spectform == 1){ kc = 0.5*(st_stirmin+st_stirmax);}
+  if (st_spectform == 1){ kc = 0.5 * (st_stirmin + st_stirmax);}
 
   // this makes the rms force const irrespective of the solenoidal weight
-  //if (ndim == 3){ d.stSolWeightNorm = std::sqrt(3.0/3.0)*std::sqrt(3.0)*1.0/std::sqrt(1.0-2.0*d.stSolWeight+3.0*d.stSolWeight*d.stSolWeight); }
-  //if (ndim == 2){ d.stSolWeightNorm = std::sqrt(3.0/2.0)*std::sqrt(3.0)*1.0/std::sqrt(1.0-2.0*d.stSolWeight+2.0*d.stSolWeight*d.stSolWeight); }
-  //if (ndim == 1){ d.stSolWeightNorm = std::sqrt(3.0/1.0)*std::sqrt(3.0)*1.0/std::sqrt(1.0-2.0*d.stSolWeight+1.0*d.stSolWeight*d.stSolWeight); }
-
-  if (ndim == 3){ d.stSolWeightNorm = std::sqrt(3.0)/std::sqrt(1.0-2.0*d.stSolWeight+3.0*d.stSolWeight*d.stSolWeight); }
-  if (ndim == 2){ d.stSolWeightNorm = std::sqrt(0.5)*3.0/std::sqrt(1.0-2.0*d.stSolWeight+2.0*d.stSolWeight*d.stSolWeight); }
-  if (ndim == 1){ d.stSolWeightNorm = 3.0/std::sqrt(1.0-2.0*d.stSolWeight+1.0*d.stSolWeight*d.stSolWeight); }
+  d.stSolWeightNorm = std::sqrt(3.0) * std::sqrt(3.0/T(ndim)) / std::sqrt(1.0 - 2.0 * d.stSolWeight + T(ndim) * d.stSolWeight * d.stSolWeight);
 
   ikxmin = 0;
   ikymin = 0;
@@ -92,17 +84,17 @@ void stir_init(Dataset& d,T Lx,T Ly,T Lz,size_t st_maxmodes,T st_energy,T st_sti
 
   // determine the number of required modes (in case of full sampling)
   d.stNModes = 0;
-  for(ikx = ikxmin; ikx<=ikxmax; ikx++){
+  for(ikx = ikxmin; ikx <= ikxmax; ikx++){
      kx = twopi * ikx / Lx;
-     for(iky = ikymin; iky<=ikymax; iky++){
+     for(iky = ikymin; iky <= ikymax; iky++){
         ky = twopi * iky / Ly;
-        for(ikz = ikzmin; ikz<=ikzmax; ikz++){
+        for(ikz = ikzmin; ikz <= ikzmax; ikz++){
            kz = twopi * ikz / Lz;
-           k = std::sqrt( kx*kx + ky*ky + kz*kz );
+           k = std::sqrt( kx * kx + ky * ky + kz * kz );
            if ((k >= st_stirmin) && (k <= st_stirmax)){
-              d.stNModes = d.stNModes + 1;
-              if (ndim > 1){ d.stNModes = d.stNModes + 1; }
-              if (ndim > 2){ d.stNModes = d.stNModes + 2; }
+              d.stNModes += 1;
+              if (ndim > 1){ d.stNModes += 1; }
+              if (ndim > 2){ d.stNModes += 2; }
            }
         }
      }
@@ -120,17 +112,17 @@ void stir_init(Dataset& d,T Lx,T Ly,T Lz,size_t st_maxmodes,T st_energy,T st_sti
       //close(13)
 
       // loop over all kx, ky, kz to generate driving modes
-     for(ikx = ikxmin; ikx<=ikxmax; ikx++){
+     for(ikx = ikxmin; ikx <= ikxmax; ikx++){
        kx = twopi * ikx / Lx;
-       for(iky = ikymin; iky<=ikymax; iky++){
+       for(iky = ikymin; iky <= ikymax; iky++){
          ky = twopi * iky / Ly;
-         for(ikz = ikzmin; ikz<=ikzmax; ikz++){
+         for(ikz = ikzmin; ikz <= ikzmax; ikz++){
            kz = twopi * ikz / Lz;
-           k = std::sqrt( kx*kx + ky*ky + kz*kz );
+           k = std::sqrt( kx * kx + ky * ky + kz * kz );
 
               if ((k >= st_stirmin) && (k <= st_stirmax)){
 
-                 if ((d.stNModes+1 + std::pow(2,ndim-1)) > st_maxmodes){
+                 if ((d.stNModes + 1 + std::pow(2,ndim-1)) > st_maxmodes){
 
                     std::cout << "init_stir:  number of modes: = " << d.stNModes+1 << " maxstirmodes = " << st_maxmodes << std::endl;
                     std::cout << "Too many stirring modes" << std::endl;
@@ -139,70 +131,61 @@ void stir_init(Dataset& d,T Lx,T Ly,T Lz,size_t st_maxmodes,T st_energy,T st_sti
                  }
 
                  if (st_spectform == 0){ amplitude = 1.0; }                               // Band
-                 if (st_spectform == 1){ amplitude = std::abs(parab_prefact*(k-kc)*(k-kc)+1.0); } // Parabola
+                 if (st_spectform == 1){ amplitude = std::abs(parab_prefact * (k - kc) * (k - kc) + 1.0); } // Parabola
 
                  // note: power spectrum ~ amplitude^2 (1D), amplitude^2 * 2pi k (2D), amplitude^2 * 4pi k^2 (3D)
-                 amplitude = std::sqrt(amplitude) * std::pow((kc/k),0.5*(ndim-1));
+                 amplitude  = std::sqrt(amplitude) * std::pow((kc / k), 0.5 * (ndim - 1));
 
-                 d.stNModes = d.stNModes + 1;
+                 d.stNModes += 1;
 
                  d.stAmpl[d.stNModes] = amplitude;
                  //if (Debug) print *, "init_stir:  d.stAmpl(",d.stNModes,") = ", d.stAmpl(d.stNModes);        //HELP!
 
-                 d.stMode[ndim*d.stNModes] = kx;
-                 d.stMode[ndim*d.stNModes+1] = ky;
-                 d.stMode[ndim*d.stNModes+2] = kz;
+                 d.stMode[ndim * d.stNModes]     = kx;
+                 d.stMode[ndim * d.stNModes + 1] = ky;
+                 d.stMode[ndim * d.stNModes + 2] = kz;
 
                  if (ndim>1){
 
-                    d.stNModes = d.stNModes + 1;
+                    d.stNModes += 1;
 
                     d.stAmpl[d.stNModes] = amplitude;
                     //if (Debug) print *, "init_stir:  d.stAmpl(",d.stNModes,") = ", d.stAmpl[d.stNModes];
 
-                    d.stMode[ndim*d.stNModes] = kx;
-                    d.stMode[ndim*d.stNModes+1] = -ky;
-                    d.stMode[ndim*d.stNModes+2] = kz;
+                    d.stMode[ndim * d.stNModes]     =  kx;
+                    d.stMode[ndim * d.stNModes + 1] = -ky;
+                    d.stMode[ndim * d.stNModes + 2] =  kz;
 
                  }
 
                  if (ndim>2) {
 
-                    d.stNModes = d.stNModes + 1;
+                    d.stNModes += 1;
 
                     d.stAmpl[d.stNModes] = amplitude;
                     //if (Debug) print *, "init_stir:  d.stAmpl(",d.stNModes,") = ", d.stAmpl[d.stNModes];
 
-                    d.stMode[ndim*d.stNModes] = kx;
-                    d.stMode[ndim*d.stNModes+1] = ky;
-                    d.stMode[ndim*d.stNModes+2] = -kz;
+                    d.stMode[ndim * d.stNModes]     =  kx;
+                    d.stMode[ndim * d.stNModes + 1] =  ky;
+                    d.stMode[ndim * d.stNModes + 2] = -kz;
 
-                    d.stNModes = d.stNModes + 1;
+                    d.stNModes += 1;
 
                     d.stAmpl[d.stNModes] = amplitude;
-                    //if (Debug) print *, "init_stir:  d.stAmpl(",d.stNModes,") = ", d.stAmpl(d.stNModes);
 
                     d.stMode[ndim*d.stNModes] = kx;
                     d.stMode[ndim*d.stNModes+1] = -ky;
                     d.stMode[ndim*d.stNModes+2] = -kz;
-                    //std::cout << kx << std::endl;
-
                  }
 
-                 //open(13, file='power.txt', action='write', access='append')
-                 //write(13, '(6E16.6)') k, amplitude**2*(k/kc)**(ndim-1), amplitude, kx, ky, kz
-                 //close(13)
-
-                 if (d.stNModes%1000 == 0){
-                       //write(*,'(A,I6,A,I6,A)') ' ...', d.stNModes, ' of total ', st_tot_nmodes, ' modes generated...'}
+                 if (d.stNModes %  1000 == 0){
                        std::cout << " ..." << d.stNModes << " of total " << st_tot_nmodes << " modes generated..." << std::endl;}
-
               } // in k range
            } // ikz
         }// iky
      } // ikx
   }
-  d.stNModes = d.stNModes + 1;
+  d.stNModes += 1;
   return;
 
 }
@@ -221,19 +204,20 @@ void initTurbulenceFields(Dataset& d, const std::map<std::string, double>& const
     int seed              = constants.at("stSeedIni");
     size_t stSpectForm    = constants.at("stSpectForm");
     T mPart               = constants.at("mTotal") / d.numParticlesGlobal;
-    T hInit               = std::cbrt(3.0 / (4 * M_PI) * ng0 * pow(Lbox,3) / d.numParticlesGlobal) * 0.5;
+    T hInit               = std::cbrt(3.0 / (4. * M_PI) * ng0 * std::pow(Lbox, 3) / d.numParticlesGlobal) * 0.5;
 
-    T twopi=8.0*std::atan(1.0);
-    T stEnergy = 5.0e-3 * pow(velocity,3)/Lbox;
-    T stStirMin = (1.e0-eps) * twopi/Lbox;
-    T stStirMax = (3.e0+eps) * twopi/Lbox;
+    T twopi       = 2.0 * M_PI;
+    T stEnergy    = 5.0e-3 * std::pow(velocity, 3) / Lbox;
+    T stStirMin   = (1.0 - eps) * twopi / Lbox;
+    T stStirMax   = (3.0 + eps) * twopi / Lbox;
 
-    d.ndim = constants.at("dim");
-    d.stDecay = Lbox/(2.0*velocity);
-    d.stSolWeight=constants.at("stSolWeight");
-    d.stSeed=seed;
+    d.ndim        = constants.at("dim");
+    d.stDecay     = Lbox / (2.0 * velocity);
+    d.stSolWeight = constants.at("stSolWeight");
+    d.stSeed      = seed;
+
     d.stAmpl.resize(stMaxModes);
-    d.stMode.resize(stMaxModes*d.ndim);
+    d.stMode.resize(stMaxModes * d.ndim);
 
     stir_init(d,Lbox,Lbox,Lbox,stMaxModes,stEnergy,stStirMax,stStirMin,d.ndim,stSpectForm);
 
@@ -257,10 +241,9 @@ void initTurbulenceFields(Dataset& d, const std::map<std::string, double>& const
     for (size_t i = 0; i < d.x.size(); i++)
     {
 
-        d.vx[i] = 0.;
-        d.vy[i] = 0.;
-        d.vz[i] = 0.;
-
+        d.vx[i]   = 0.;
+        d.vy[i]   = 0.;
+        d.vz[i]   = 0.;
         d.x_m1[i] = d.x[i] - d.vx[i] * firstTimeStep;
         d.y_m1[i] = d.y[i] - d.vy[i] * firstTimeStep;
         d.z_m1[i] = d.z[i] - d.vz[i] * firstTimeStep;
