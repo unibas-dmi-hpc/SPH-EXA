@@ -43,23 +43,11 @@ template<class Dataset>
 void driver_turbulence2(size_t startIndex, size_t endIndex, Dataset& d)// const cstone::Box<T>& box)
 {
   using T = typename Dataset::RealType;
-  std::vector<T> st_aka(d.ndim*d.stNModes);
-  std::vector<T> st_akb(d.ndim*d.stNModes);
+  std::vector<T> st_aka(d.ndim * d.stNModes);
+  std::vector<T> st_akb(d.ndim * d.stNModes);
 
-  st_ounoiseupdate(d.stOUPhases, 6*d.stNModes, d.stOUvar, d.minDt, d.stDecay,d.stSeed);
-  st_calcPhases(d.stNModes,d.ndim,d.stOUPhases,d.stSolWeight,d.stMode,st_aka,st_akb);
-  st_calcAccel(startIndex,endIndex,d.ndim,d.x,d.y,d.z,d.ax,d.ay,d.az,d.stNModes,d.stMode,st_aka,st_akb,d.stAmpl,d.stSolWeightNorm);
-
+  st_ounoiseupdate(d.stOUPhases, 6 * d.stNModes, d.stOUvar, d.minDt, d.stDecay,d.stSeed);
+  st_calcPhases(d.stNModes, d.ndim, d.stOUPhases, d.stSolWeight, d.stMode, st_aka, st_akb);
+  st_calcAccel(startIndex, endIndex, d.ndim, d.x, d.y, d.z, d.ax, d.ay, d.az, d.stNModes, d.stMode, st_aka, st_akb, d.stAmpl, d.stSolWeightNorm);
 }
-/*
-template<typename T, class Dataset>
-void computeVeDefGradh(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
-{
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
-    {
-        cuda::computeVeDefGradh(startIndex, endIndex, ngmax, d, box);
-    }
-    else { computeVeDefGradhImpl(startIndex, endIndex, ngmax, d, box); }
-}
-*/
 } // namespace sph

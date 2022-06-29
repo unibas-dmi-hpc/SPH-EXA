@@ -134,7 +134,7 @@ void stir_init(Dataset& d,T Lx,T Ly,T Lz,size_t st_maxmodes,T st_energy,T st_sti
                  if (st_spectform == 1){ amplitude = std::abs(parab_prefact * (k - kc) * (k - kc) + 1.0); } // Parabola
 
                  // note: power spectrum ~ amplitude^2 (1D), amplitude^2 * 2pi k (2D), amplitude^2 * 4pi k^2 (3D)
-                 amplitude  = std::sqrt(amplitude) * std::pow((kc / k), 0.5 * (ndim - 1));
+                 amplitude  = 2.0 * std::sqrt(amplitude) * std::pow((kc / k), 0.5 * (ndim - 1));
 
                  d.stNModes += 1;
 
@@ -240,7 +240,6 @@ void initTurbulenceFields(Dataset& d, const std::map<std::string, double>& const
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-
         d.vx[i]   = 0.;
         d.vy[i]   = 0.;
         d.vz[i]   = 0.;

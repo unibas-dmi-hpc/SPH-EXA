@@ -43,10 +43,10 @@
 namespace sph{
 
 template <class T>
-void st_calcPhases(size_t st_nmodes,size_t dim,std::vector<T> st_OUphases,T st_solweight,
-  std::vector<T> st_mode,std::vector<T>& st_aka, std::vector<T>& st_akb){
+void st_calcPhases(size_t st_nmodes, size_t dim, std::vector<T> st_OUphases, T st_solweight,
+  std::vector<T> st_mode, std::vector<T>& st_aka, std::vector<T>& st_akb){
 
-  double ka, kb, kk, diva, divb, curla, curlb;
+  T ka, kb, kk, diva, divb, curla, curlb;
   size_t i,j;
   const bool Debug = false;
 
@@ -55,20 +55,19 @@ void st_calcPhases(size_t st_nmodes,size_t dim,std::vector<T> st_OUphases,T st_s
      kb = 0.0;
      kk = 0.0;
      for(j = 0; j< dim;j++){
-        kk = kk + st_mode[3*i+j]*st_mode[3*i+j];
-        ka = ka + st_mode[3*i+j]*st_OUphases[6*(i)+2*(j)+1];
-        kb = kb + st_mode[3*i+j]*st_OUphases[6*(i)+2*(j)+0];
-        //std::cout << st_OUphases[6*(i)+2*(j)+0] << ' ' << st_OUphases[6*(i)+2*(j)+1] << std::endl;
+        kk = kk + st_mode[3 * i + j] * st_mode[3 * i + j];
+        ka = ka + st_mode[3 * i + j] * st_OUphases[6 * i + 2 * j + 1];
+        kb = kb + st_mode[3 * i + j] * st_OUphases[6 * i + 2 * j];
      }
      for(j = 0; j< dim;j++){
 
-         diva  = st_mode[3*i+j]*ka/kk;
-         divb  = st_mode[3*i+j]*kb/kk;
-         curla = (st_OUphases[6*(i)+2*(j) + 0 ] - divb);
-         curlb = (st_OUphases[6*(i)+2*(j) + 1 ] - diva);
+         diva  = st_mode[3 * i + j] * ka / kk;
+         divb  = st_mode[3 * i + j] * kb / kk;
+         curla = st_OUphases[6 * i + 2 * j] - divb;
+         curlb = st_OUphases[6 * i + 2 * j + 1] - diva;
 
-         st_aka[3*i+j] = st_solweight*curla+(1.0-st_solweight)*divb;
-         st_akb[3*i+j] = st_solweight*curlb+(1.0-st_solweight)*diva;
+         st_aka[3 * i + j] = st_solweight * curla + ( 1.0 - st_solweight ) * divb;
+         st_akb[3 * i + j] = st_solweight * curlb + ( 1.0 - st_solweight ) * diva;
 
       }
 
@@ -80,9 +79,7 @@ void st_calcPhases(size_t st_nmodes,size_t dim,std::vector<T> st_OUphases,T st_s
 //         st_aka[3*i+j] = bjiR - st_mode[3*i+j]*kb/kk
 //         st_akb[3*i+j] = bjiI - st_mode[3*i+j]*ka/kk
 
-
      }
-
   return;
 
 }

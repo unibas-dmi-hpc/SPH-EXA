@@ -66,13 +66,13 @@ T ran1s(int& idum){
   if (idum <= 0) {
     idum = std::max(-idum, 1);
   }
-  k = idum/IQ;
-  idum = IA*(idum-k*IQ)-IR*k;
+  k = idum / IQ;
+  idum = IA * (idum - k * IQ) - IR * k;
   if (idum < 0){
-    idum = idum+IM;
+    idum = idum + IM;
   }
   iy = idum;
-  rand = std::min(AM*iy, RNMX);
+  rand = std::min(AM * iy, RNMX);
   return rand;
 }
 
@@ -85,11 +85,11 @@ T st_grn(int& seed){
                rand:                   random number
  */
   T r1, r2, g1;
-  T twopi = 8.0*std::atan(1.0);
+  const T twopi = 2.0 * M_PI;
 
   r1 = ran1s<T>(seed);
   r2 = ran1s<T>(seed);
-  g1 = std::sqrt(-2.0*std::log(r1))*std::cos(twopi*r2);
+  g1 = std::sqrt(-2.0 * std::log(r1)) * std::cos( twopi * r2);
 
   return g1;
 }
@@ -139,9 +139,9 @@ void st_ounoiseupdate(std::vector<T>& vector, size_t vectorlength, T variance, T
 !!
 !!***/
   T damping_factor;
-  damping_factor = std::exp(-dt/ts);
-  for(size_t i=0;i<vectorlength;i++){
-     vector[i] = vector[i]*damping_factor + variance*sqrt(1.0-damping_factor*damping_factor)*st_grn<T>(seed);
+  damping_factor = std::exp(- dt / ts);
+  for(size_t i = 0; i < vectorlength; i++){
+     vector[i] = vector[i] * damping_factor + variance * sqrt( 1.0 - damping_factor * damping_factor) * st_grn<T>(seed);
   }
 
   return;
@@ -158,8 +158,8 @@ void st_ounoiseinit(std::vector<T>& vector, size_t vectorlength, T variance,int 
 !!   variance :     variance of the distribution
 
      seed:          seed for the gaussian random noise */
-  for(size_t i = 0; i<vectorlength;i++){
-     vector[i]= st_grn<T>(seed)*variance;
+  for(size_t i = 0; i<vectorlength; i++){
+     vector[i] = st_grn<T>(seed) * variance;
   }
   return;
 }
