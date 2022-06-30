@@ -89,7 +89,7 @@ T st_grn(int& seed){
 
   r1 = ran1s<T>(seed);
   r2 = ran1s<T>(seed);
-  g1 = std::sqrt(-2.0 * std::log(r1)) * std::cos( twopi * r2);
+  g1 = std::sqrt(-2.0 * std::log(r1)) * std::cos(twopi * r2);
 
   return g1;
 }
@@ -139,7 +139,7 @@ void st_ounoiseupdate(std::vector<T>& vector, size_t vectorlength, T variance, T
 !!
 !!***/
   T damping_factor;
-  damping_factor = std::exp(- dt / ts);
+  damping_factor = std::exp(-dt / ts);
   for(size_t i = 0; i < vectorlength; i++){
      vector[i] = vector[i] * damping_factor + variance * sqrt( 1.0 - damping_factor * damping_factor) * st_grn<T>(seed);
   }

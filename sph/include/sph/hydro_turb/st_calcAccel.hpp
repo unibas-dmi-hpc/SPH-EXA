@@ -54,60 +54,50 @@ void st_calcAccel(size_t first, size_t last,size_t ndim, std::vector<T> xCoord,s
   std::vector<T> st_mode,std::vector<T> st_aka,std::vector<T> st_akb,std::vector<T> st_ampl,T st_solweightnorm){
 
   const size_t npart=last-first;
-  T cosxi[npart][st_nmodes], sinxi[npart][st_nmodes];
-  T cosxj[npart][st_nmodes], sinxj[npart][st_nmodes];
-  T cosxk[npart][st_nmodes], sinxk[npart][st_nmodes];
+  //T cosxi[npart][st_nmodes], sinxi[npart][st_nmodes];
+  //T cosxj[npart][st_nmodes], sinxj[npart][st_nmodes];
+  //T cosxk[npart][st_nmodes], sinxk[npart][st_nmodes];
   //T ampl[st_nmodes];
-  T accturbx[npart], accturby[npart], accturbz[npart];
+  //T accturbx[npart], accturby[npart], accturbz[npart];
 
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < npart; ++i){
     size_t i_first = i + first;
+    T accturbx = 0.0;
+    T accturby = 0.0;
+    T accturbz = 0.0;
 
     for (size_t m = 0; m < st_nmodes ; ++m){
        size_t m_ndim  = m * ndim;
 
-       cosxk[i][m] = std::cos(st_mode[m_ndim + 2] * zCoord[i_first]);
-       sinxk[i][m] = std::sin(st_mode[m_ndim + 2] * zCoord[i_first]);
+       T cosxk_im = std::cos(st_mode[m_ndim + 2] * zCoord[i_first]);
+       T sinxk_im = std::sin(st_mode[m_ndim + 2] * zCoord[i_first]);
 
-       cosxj[i][m] = std::cos(st_mode[m_ndim + 1] * yCoord[i_first]);
-       sinxj[i][m] = std::sin(st_mode[m_ndim + 1] * yCoord[i_first]);
+       T cosxj_im = std::cos(st_mode[m_ndim + 1] * yCoord[i_first]);
+       T sinxj_im = std::sin(st_mode[m_ndim + 1] * yCoord[i_first]);
 
-       cosxi[i][m] = std::cos(st_mode[m_ndim] * xCoord[i_first]);
-       sinxi[i][m] = std::sin(st_mode[m_ndim] * xCoord[i_first]);
+       T cosxi_im = std::cos(st_mode[m_ndim] * xCoord[i_first]);
+       T sinxi_im = std::sin(st_mode[m_ndim] * xCoord[i_first]);
 
-    }
-  }
-// Loop over particles
+       //  these are the real and imaginary parts, respectively, of
+       //     e^{ i \vec{k} \cdot \vec{x} }
+       //          = cos(kx*x + ky*y + kz*z) + i sin(kx*x + ky*y + kz*z)
+       T realtrigterms = ( cosxi_im * cosxj_im - sinxi_im * sinxj_im ) * cosxk_im
+                       - ( sinxi_im * cosxj_im + cosxi_im * sinxj_im ) * sinxk_im;
 
-  #pragma omp parallel for schedule(static)
-      for (size_t i = 0; i < npart; i++){
-           accturbx[i] = 0.0;
-           accturby[i] = 0.0;
-           accturbz[i] = 0.0;
-           size_t i_first = i + first;
-           for (size_t m = 0; m < st_nmodes; m++){
-                size_t m_ndim = m * ndim;
-                //  these are the real and imaginary parts, respectively, of
-                //     e^{ i \vec{k} \cdot \vec{x} }
-                //          = cos(kx*x + ky*y + kz*z) + i sin(kx*x + ky*y + kz*z)
+       T imtrigterms   =  cosxi_im * ( cosxj_im * sinxk_im + sinxj_im * cosxk_im )
+                       +  sinxi_im * ( cosxj_im * cosxk_im - sinxj_im * sinxk_im );
 
-                T realtrigterms = ( cosxi[i][m] * cosxj[i][m] - sinxi[i][m] * sinxj[i][m] ) * cosxk[i][m]
-                                - ( sinxi[i][m] * cosxj[i][m] + cosxi[i][m] * sinxj[i][m] ) * sinxk[i][m];
+       accturbx += st_ampl[m] * (st_aka[m_ndim]     * realtrigterms - st_akb[m_ndim]     * imtrigterms);
+       accturby += st_ampl[m] * (st_aka[m_ndim + 1] * realtrigterms - st_akb[m_ndim + 1] * imtrigterms);
+       accturbz += st_ampl[m] * (st_aka[m_ndim + 2] * realtrigterms - st_akb[m_ndim + 2] * imtrigterms);
+    } // Loop over modes
 
-                T imtrigterms   =  cosxi[i][m] * ( cosxj[i][m] * sinxk[i][m] + sinxj[i][m] * cosxk[i][m] )
-                                +  sinxi[i][m] * ( cosxj[i][m] * cosxk[i][m] - sinxj[i][m] * sinxk[i][m] );
+    accx[i_first] += st_solweightnorm * accturbx;
+    accy[i_first] += st_solweightnorm * accturby;
+    accz[i_first] += st_solweightnorm * accturbz;
+  } // Loop over particles
 
-                accturbx[i] += st_ampl[m] * (st_aka[m_ndim] * realtrigterms - st_akb[m_ndim] * imtrigterms);
-                accturby[i] += st_ampl[m] * (st_aka[m_ndim + 1] * realtrigterms - st_akb[m_ndim + 1] * imtrigterms);
-                accturbz[i] += st_ampl[m] * (st_aka[m_ndim + 2] * realtrigterms - st_akb[m_ndim + 2] * imtrigterms);
-                //std::cout  << st_aka[m_ndim] << ' ' << st_aka[m_ndim+1] << ' ' << st_aka[m_ndim+2] << std::endl;
-           }  // end loop over modes
-
-           accx[i_first] += st_solweightnorm * accturbx[i];
-           accy[i_first] += st_solweightnorm * accturby[i];
-           accz[i_first] += st_solweightnorm * accturbz[i];
-      }  // end loop over particles
 
   return;
 
