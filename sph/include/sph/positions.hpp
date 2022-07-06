@@ -82,16 +82,24 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
     T* du_m1 = d.du_m1.data();
     T* h     = d.h.data();
 
-    bool anyFBC = box.fbcX() || box.fbcY() || box.fbcZ();
+    bool pbcX = (box.boundaryX() == cstone::BoundaryType::periodic);
+    bool pbcY = (box.boundaryY() == cstone::BoundaryType::periodic);
+    bool pbcZ = (box.boundaryZ() == cstone::BoundaryType::periodic);
+
+    bool fbcX = (box.boundaryX() == cstone::BoundaryType::fixed);
+    bool fbcY = (box.boundaryY() == cstone::BoundaryType::fixed);
+    bool fbcZ = (box.boundaryZ() == cstone::BoundaryType::fixed);
+
+    bool anyFBC = fbcX || fbcY || fbcZ;
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
         if (anyFBC)
         {
-            if (fbcCheck(x[i], vx[i], vy[i], vz[i], h[i], box.xmax(), box.xmin(), box.fbcX()) ||
-                fbcCheck(y[i], vx[i], vy[i], vz[i], h[i], box.ymax(), box.ymin(), box.fbcY()) ||
-                fbcCheck(z[i], vx[i], vy[i], vz[i], h[i], box.zmax(), box.zmin(), box.fbcZ()))
+            if (fbcCheck(x[i], vx[i], vy[i], vz[i], h[i], box.xmax(), box.xmin(), fbcX) ||
+                fbcCheck(y[i], vx[i], vy[i], vz[i], h[i], box.ymax(), box.ymin(), fbcY) ||
+                fbcCheck(z[i], vx[i], vy[i], vz[i], h[i], box.zmax(), box.zmin(), fbcZ))
             {
                 continue;
             }
@@ -118,32 +126,32 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         X_m1    = X;
         X += dt * Val + A * deltaB * dt;
 
-        if (box.pbcX() && X[0] < box.xmin())
+        if (pbcX && X[0] < box.xmin())
         {
             X[0] += box.lx();
             X_m1[0] += box.lx();
         }
-        else if (box.pbcX() && X[0] > box.xmax())
+        else if (pbcX && X[0] > box.xmax())
         {
             X[0] -= box.lx();
             X_m1[0] -= box.lx();
         }
-        if (box.pbcY() && X[1] < box.ymin())
+        if (pbcY && X[1] < box.ymin())
         {
             X[1] += box.ly();
             X_m1[1] += box.ly();
         }
-        else if (box.pbcY() && X[1] > box.ymax())
+        else if (pbcY && X[1] > box.ymax())
         {
             X[1] -= box.ly();
             X_m1[1] -= box.ly();
         }
-        if (box.pbcZ() && X[2] < box.zmin())
+        if (pbcZ && X[2] < box.zmin())
         {
             X[2] += box.lz();
             X_m1[2] += box.lz();
         }
-        else if (box.pbcZ() && X[2] > box.zmax())
+        else if (pbcZ && X[2] > box.zmax())
         {
             X[2] -= box.lz();
             X_m1[2] -= box.lz();

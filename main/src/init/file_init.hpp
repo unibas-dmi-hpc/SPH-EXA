@@ -119,7 +119,6 @@ public:
         initField(h5_file, rank, d.alpha, "alpha", d.alphamin);
 
         initXm1(h5_file, rank, d);
-        initFBC(h5_file, rank, first, last, d, box);
 
         std::fill(d.mue.begin(), d.mue.end(), 2.0);
         std::fill(d.mui.begin(), d.mui.end(), 10.0);
@@ -178,29 +177,7 @@ private:
             }
         }
     }
-    template<class T>
-    static void initFBC(H5PartFile* h5_file, int rank, size_t first, size_t last, Dataset& d, cstone::Box<T> box)
-    {
-        auto names  = fileutils::datasetNames(h5_file);
-        bool anyFBC = box.fbcX() || box.fbcY() || box.fbcZ();
 
-        if (anyFBC)
-        {
-            if (rank == 0) std::cout << "applying FBC\n";
-            if (box.fbcX())
-            {
-                applyFixedBoundaries(d.x.data(), d.vx.data(), d.vy.data(), d.vz.data(), d.h.data(), box, first, last);
-            }
-            if (box.fbcY())
-            {
-                applyFixedBoundaries(d.y.data(), d.vx.data(), d.vy.data(), d.vz.data(), d.h.data(), box, first, last);
-            }
-            if (box.fbcZ())
-            {
-                applyFixedBoundaries(d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(), d.h.data(), box, first, last);
-            }
-        }
-    }
 };
 
 #else

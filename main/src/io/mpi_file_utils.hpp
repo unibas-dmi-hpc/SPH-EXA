@@ -124,8 +124,9 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     // record the global coordinate bounding box
     double extents[6] = {box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax()};
     H5PartWriteStepAttrib(h5_file, "box", H5PART_FLOAT64, extents, 6);
-    h5part_int32_t boundaries[3] = {
-        static_cast<int>(box.boundaryX()), static_cast<int>(box.boundaryY()), static_cast<int>(box.boundaryZ())};
+    h5part_int32_t boundaries[3] = {static_cast<h5part_int32_t>(box.boundaryX()),
+                                    static_cast<h5part_int32_t>(box.boundaryY()),
+                                    static_cast<h5part_int32_t>(box.boundaryZ())};
     H5PartWriteStepAttrib(h5_file, "boundaryType", H5PART_INT32, boundaries, 3);
 
     const h5_int64_t h5_num_particles = lastIndex - firstIndex;

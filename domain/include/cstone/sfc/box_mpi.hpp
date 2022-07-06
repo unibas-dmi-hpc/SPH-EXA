@@ -84,15 +84,19 @@ auto makeGlobalBox(Iterator xB, Iterator xE, Iterator yB, Iterator zB, const Box
 {
     std::size_t nElements = xE - xB;
 
+    bool pbcX = (previousBox.boundaryX() == cstone::BoundaryType::periodic);
+    bool pbcY = (previousBox.boundaryY() == cstone::BoundaryType::periodic);
+    bool pbcZ = (previousBox.boundaryZ() == cstone::BoundaryType::periodic);
+
     std::array<T, 6> extrema;
     std::tie(extrema[0], extrema[1]) =
-        previousBox.pbcX() ? std::make_tuple(previousBox.xmin(), previousBox.xmax()) : localMinMax(xB, xB + nElements);
+        pbcX ? std::make_tuple(previousBox.xmin(), previousBox.xmax()) : localMinMax(xB, xB + nElements);
     std::tie(extrema[2], extrema[3]) =
-        previousBox.pbcY() ? std::make_tuple(previousBox.ymin(), previousBox.ymax()) : localMinMax(yB, yB + nElements);
+        pbcY ? std::make_tuple(previousBox.ymin(), previousBox.ymax()) : localMinMax(yB, yB + nElements);
     std::tie(extrema[4], extrema[5]) =
-        previousBox.pbcZ() ? std::make_tuple(previousBox.zmin(), previousBox.zmax()) : localMinMax(zB, zB + nElements);
+        pbcZ ? std::make_tuple(previousBox.zmin(), previousBox.zmax()) : localMinMax(zB, zB + nElements);
 
-    if (!previousBox.pbcX() || !previousBox.pbcY() || !previousBox.pbcZ())
+    if (!pbcX || !pbcY || !pbcZ)
     {
         extrema[1] = -extrema[1];
         extrema[3] = -extrema[3];

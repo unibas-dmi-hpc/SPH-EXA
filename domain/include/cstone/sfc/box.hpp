@@ -158,13 +158,6 @@ public:
     HOST_DEVICE_FUN constexpr BoundaryType boundaryY() const { return boundaries[1]; } // NOLINT
     HOST_DEVICE_FUN constexpr BoundaryType boundaryZ() const { return boundaries[2]; } // NOLINT
 
-    HOST_DEVICE_FUN constexpr bool pbcX() const { return boundaries[0] == BoundaryType::periodic; } // NOLINT
-    HOST_DEVICE_FUN constexpr bool pbcY() const { return boundaries[1] == BoundaryType::periodic; } // NOLINT
-    HOST_DEVICE_FUN constexpr bool pbcZ() const { return boundaries[2] == BoundaryType::periodic; } // NOLINT
-
-    HOST_DEVICE_FUN constexpr bool fbcX() const { return boundaries[0] == BoundaryType::fixed; } // NOLINT
-    HOST_DEVICE_FUN constexpr bool fbcY() const { return boundaries[1] == BoundaryType::fixed; } // NOLINT
-    HOST_DEVICE_FUN constexpr bool fbcZ() const { return boundaries[2] == BoundaryType::fixed; } // NOLINT
 
     //! @brief return the shortest coordinate range in any dimension
     HOST_DEVICE_FUN constexpr T minExtent() const { return stl::min(stl::min(lengths_[0], lengths_[1]), lengths_[2]); }
@@ -192,9 +185,13 @@ private:
 template<class T>
 HOST_DEVICE_FUN inline Vec3<T> applyPbc(Vec3<T> X, const Box<T>& box)
 {
-    X[0] -= box.pbcX() * box.lx() * std::rint(X[0] * box.ilx());
-    X[1] -= box.pbcY() * box.ly() * std::rint(X[1] * box.ily());
-    X[2] -= box.pbcZ() * box.lz() * std::rint(X[2] * box.ilz());
+    bool pbcX = (box.boundaryX() == cstone::BoundaryType::periodic);
+    bool pbcY = (box.boundaryY() == cstone::BoundaryType::periodic);
+    bool pbcZ = (box.boundaryZ() == cstone::BoundaryType::periodic);
+
+    X[0] -= pbcX * box.lx() * std::rint(X[0] * box.ilx());
+    X[1] -= pbcY * box.ly() * std::rint(X[1] * box.ily());
+    X[2] -= pbcZ * box.lz() * std::rint(X[2] * box.ilz());
 
     return X;
 }
@@ -203,19 +200,24 @@ HOST_DEVICE_FUN inline Vec3<T> applyPbc(Vec3<T> X, const Box<T>& box)
 template<class T>
 HOST_DEVICE_FUN inline void applyPBC(const cstone::Box<T>& box, T r, T& xx, T& yy, T& zz)
 {
-    if (box.pbcX() && xx > r)
+
+    bool pbcX = (box.boundaryX() == cstone::BoundaryType::periodic);
+    bool pbcY = (box.boundaryY() == cstone::BoundaryType::periodic);
+    bool pbcZ = (box.boundaryZ() == cstone::BoundaryType::periodic);
+
+    if (pbcX && xx > r)
         xx -= box.lx();
-    else if (box.pbcX() && xx < -r)
+    else if (pbcX && xx < -r)
         xx += box.lx();
 
-    if (box.pbcY() && yy > r)
+    if (pbcY && yy > r)
         yy -= box.ly();
-    else if (box.pbcY() && yy < -r)
+    else if (pbcY && yy < -r)
         yy += box.ly();
 
-    if (box.pbcZ() && zz > r)
+    if (pbcZ && zz > r)
         zz -= box.lz();
-    else if (box.pbcZ() && zz < -r)
+    else if (pbcZ && zz < -r)
         zz += box.lz();
 
     // xx += bbox.PBCx * ((xx < -r) - (xx > r)) * (bbox.xmax-bbox.xmin);

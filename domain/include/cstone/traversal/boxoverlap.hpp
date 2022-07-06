@@ -41,7 +41,7 @@ namespace cstone
 template<class T>
 HOST_DEVICE_FUN constexpr bool overlapTwoRanges(T a, T b, T c, T d)
 {
-    assert(a<=b && c<=d);
+    assert(a <= b && c <= d);
     return b > c && d > a;
 }
 
@@ -59,16 +59,14 @@ HOST_DEVICE_FUN constexpr bool overlapRange(int a, int b, int c, int d)
     assert(a >= -R);
     assert(a < R);
     assert(b > 0);
-    assert(b <= 2*R);
+    assert(b <= 2 * R);
 
     assert(c >= -R);
     assert(c < R);
     assert(d > 0);
-    assert(d <= 2*R);
+    assert(d <= 2 * R);
 
-    return overlapTwoRanges(a,b,c,d) ||
-           overlapTwoRanges(a+R, b+R, c, d) ||
-           overlapTwoRanges(a, b, c+R, d+R);
+    return overlapTwoRanges(a, b, c, d) || overlapTwoRanges(a + R, b + R, c, d) || overlapTwoRanges(a, b, c + R, d + R);
 }
 
 //! @brief check whether two boxes overlap. takes PBC into account, boxes can wrap around
@@ -140,7 +138,7 @@ containedIn(KeyType prefixBitKey, KeyType codeStart, KeyType codeEnd)
 {
     unsigned prefixLength = decodePrefixLength(prefixBitKey);
     KeyType firstPrefix   = decodePlaceholderBit(prefixBitKey);
-    KeyType secondPrefix  = firstPrefix + (KeyType(1) << (3*maxTreeLevel<KeyType>{} - prefixLength));
+    KeyType secondPrefix  = firstPrefix + (KeyType(1) << (3 * maxTreeLevel<KeyType>{} - prefixLength));
     return !(firstPrefix < codeStart || secondPrefix > codeEnd);
 }
 
@@ -150,8 +148,10 @@ HOST_DEVICE_FUN inline int addDelta(int value, int delta, bool pbc)
     constexpr int maxCoordinate = (1u << maxTreeLevel<KeyType>{});
 
     int temp = value + delta;
-    if (pbc) return temp;
-    else     return stl::min(stl::max(0, temp), maxCoordinate);
+    if (pbc)
+        return temp;
+    else
+        return stl::min(stl::max(0, temp), maxCoordinate);
 }
 
 //! @brief create a box with specified radius around node delineated by codeStart/End
@@ -162,9 +162,13 @@ HOST_DEVICE_FUN IBox makeHaloBox(const IBox& nodeBox, RadiusType radius, const B
     int dy = toNBitIntCeil<KeyType>(radius * box.ily());
     int dz = toNBitIntCeil<KeyType>(radius * box.ilz());
 
-    return IBox(addDelta<KeyType>(nodeBox.xmin(), -dx, box.pbcX()), addDelta<KeyType>(nodeBox.xmax(), dx, box.pbcX()),
-                addDelta<KeyType>(nodeBox.ymin(), -dy, box.pbcY()), addDelta<KeyType>(nodeBox.ymax(), dy, box.pbcY()),
-                addDelta<KeyType>(nodeBox.zmin(), -dz, box.pbcZ()), addDelta<KeyType>(nodeBox.zmax(), dz, box.pbcZ()));
+    bool pbcX = (box.boundaryX() == cstone::BoundaryType::periodic);
+    bool pbcY = (box.boundaryY() == cstone::BoundaryType::periodic);
+    bool pbcZ = (box.boundaryZ() == cstone::BoundaryType::periodic);
+
+    return IBox(addDelta<KeyType>(nodeBox.xmin(), -dx, pbcX), addDelta<KeyType>(nodeBox.xmax(), dx, pbcX),
+                addDelta<KeyType>(nodeBox.ymin(), -dy, pbcY), addDelta<KeyType>(nodeBox.ymax(), dy, pbcY),
+                addDelta<KeyType>(nodeBox.zmin(), -dz, pbcZ), addDelta<KeyType>(nodeBox.zmax(), dz, pbcZ));
 }
 
 //! @brief create a box with specified radius around node delineated by codeStart/End
@@ -178,4 +182,3 @@ HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType 
 }
 
 } // namespace cstone
-
