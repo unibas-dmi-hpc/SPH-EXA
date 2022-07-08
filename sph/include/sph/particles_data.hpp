@@ -62,6 +62,9 @@ public:
     template<class ValueType>
     using PinnedVec = std::vector<ValueType, PinnedAlloc_t<AcceleratorType, ValueType>>;
 
+    template<class ValueType>
+    using FieldVector = std::vector<ValueType, std::allocator<ValueType>>;
+
     size_t iteration{1};
     size_t numParticlesGlobal;
     size_t totalNeighbors;
@@ -82,26 +85,26 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    std::vector<T>       x, y, z, x_m1, y_m1, z_m1;    // Positions
-    std::vector<T>       vx, vy, vz;                   // Velocities
-    std::vector<T>       rho;                          // Density
-    std::vector<T>       temp;                         // Temperature
-    std::vector<T>       u;                            // Internal Energy
-    std::vector<T>       p;                            // Pressure
-    std::vector<T>       prho;                         // p / (kx * m^2 * gradh)
-    std::vector<T>       h;                            // Smoothing Length
-    std::vector<T>       m;                            // Mass
-    std::vector<T>       c;                            // Speed of sound
-    std::vector<T>       cv;                           // Specific heat
-    std::vector<T>       mue, mui;                     // mean molecular weight (electrons, ions)
-    std::vector<T>       divv, curlv;                  // Div(velocity), Curl(velocity)
-    std::vector<T>       ax, ay, az;                   // acceleration
-    std::vector<T>       du, du_m1;                    // energy rate of change (du/dt)
-    std::vector<T>       c11, c12, c13, c22, c23, c33; // IAD components
-    std::vector<T>       alpha;                        // AV coeficient
-    std::vector<T>       xm;                           // Volume element definition
-    std::vector<T>       kx;                           // Volume element normalization
-    std::vector<T>       gradh;                        // grad(h) term
+    FieldVector<T>       x, y, z, x_m1, y_m1, z_m1;    // Positions
+    FieldVector<T>       vx, vy, vz;                   // Velocities
+    FieldVector<T>       rho;                          // Density
+    FieldVector<T>       temp;                         // Temperature
+    FieldVector<T>       u;                            // Internal Energy
+    FieldVector<T>       p;                            // Pressure
+    FieldVector<T>       prho;                         // p / (kx * m^2 * gradh)
+    FieldVector<T>       h;                            // Smoothing Length
+    FieldVector<T>       m;                            // Mass
+    FieldVector<T>       c;                            // Speed of sound
+    FieldVector<T>       cv;                           // Specific heat
+    FieldVector<T>       mue, mui;                     // mean molecular weight (electrons, ions)
+    FieldVector<T>       divv, curlv;                  // Div(velocity), Curl(velocity)
+    FieldVector<T>       ax, ay, az;                   // acceleration
+    FieldVector<T>       du, du_m1;                    // energy rate of change (du/dt)
+    FieldVector<T>       c11, c12, c13, c22, c23, c33; // IAD components
+    FieldVector<T>       alpha;                        // AV coeficient
+    FieldVector<T>       xm;                           // Volume element definition
+    FieldVector<T>       kx;                           // Volume element normalization
+    FieldVector<T>       gradh;                        // grad(h) term
     std::vector<KeyType> codes;                        // Particle space-filling-curve keys
     PinnedVec<int>       neighborsCount;               // number of neighbors of each particle
 
@@ -146,15 +149,16 @@ public:
      */
     auto data()
     {
-        using IntVecType     = std::decay_t<decltype(neighborsCount)>;
-        using KeyVecType     = std::decay_t<decltype(codes)>;
-        using FieldAllocType = typename std::decay_t<decltype(x)>::allocator_type;
-        using FieldType      = std::variant<std::vector<float, FieldAllocType>*, std::vector<double, FieldAllocType>*,
-                                       KeyVecType*, IntVecType*>;
+        using IntVecType = std::decay_t<decltype(neighborsCount)>;
+        using KeyVecType = std::decay_t<decltype(codes)>;
+
+        using FieldType = std::variant<FieldVector<float>*, FieldVector<double>*, KeyVecType*, IntVecType*>;
 
         return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
                           dataTuple());
     }
+
+    // constexpr int id(std::string_view f) const { return getFieldIndex(f, fieldNames); }
 
     void setOutputFields(const std::vector<std::string>& outFields)
     {
