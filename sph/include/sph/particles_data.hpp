@@ -158,8 +158,6 @@ public:
                           dataTuple());
     }
 
-    // constexpr int id(std::string_view f) const { return getFieldIndex(f, fieldNames); }
-
     void setOutputFields(const std::vector<std::string>& outFields)
     {
         outputFieldNames   = outFields;

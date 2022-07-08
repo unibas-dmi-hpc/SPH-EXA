@@ -151,3 +151,32 @@ TEST(ParticlesData, typeMismatch)
     // cannot acquire "nc" from released "x": types do not match
     EXPECT_ANY_THROW(d.acquire("nc"));
 }
+
+TEST(ParticlesData, fieldSequence)
+{
+    constexpr std::array                      queries{"x", "y"};
+    constexpr std::array<std::string_view, 6> list{"x", "y", "z", "rho", "p", "c"};
+
+    constexpr auto ids = fieldNamesToIndices(list, queries);
+    static_assert(std::get<0>(ids) == 0);
+    static_assert(ids[1] == 1);
+}
+
+TEST(ParticlesData, accessFields)
+{
+    ParticlesData<double, unsigned, cstone::CpuTag> d;
+    d.setConserved("x", "y", "rho");
+
+    d.resize(1);
+    d.rho[0] = 1;
+
+    constexpr std::array fields{"x", "y", "rho"};
+    constexpr auto       fieldIndices = fieldNamesToIndices(fields, d.fieldNames);
+
+    auto dat = d.dataTuple();
+    auto acc = accessFields<fieldIndices>(dat);
+
+    std::get<2>(acc)[0] = 2;
+
+    EXPECT_EQ(d.rho[0], 2);
+}
