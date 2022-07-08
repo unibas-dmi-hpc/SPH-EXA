@@ -60,6 +60,16 @@ class HydroProp final : public Propagator<DomainType, ParticleDataType>
                                                                                                      KeyType, T, T, T>;
     MHolder_t mHolder_;
 
+    /*! @brief the list of conserved particles fields with values preserved between iterations
+     *
+     * x, y, z, h and m are automatically considered conserved and must not be specified in this list
+     */
+    inline static constexpr std::array conservedFields{"u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1"};
+
+    //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
+    inline static constexpr std::array dependentFields{"rho", "p",   "c",   "ax",  "ay",  "az",  "du",
+                                                       "c11", "c12", "c13", "c22", "c23", "c33", "nc"};
+
 public:
     HydroProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
@@ -68,36 +78,36 @@ public:
 
     void activateFields(ParticleDataType& d) override
     {
-        d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1");
-        d.setDependent("rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys", "nc");
+        //! @brief Fields accessed in domain sync are not part of extensible lists.
+        d.setConserved("x", "y", "z", "h", "m");
+        d.setDependent("keys");
+
+        std::apply([&d](auto&... f) { d.setConserved(f...); }, conservedFields);
+        std::apply([&d](auto&... f) { d.setDependent(f...); }, dependentFields);
 
         d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz");
-        d.devData.setDependent(
-            "rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys");
+        d.devData.setDependent("rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33",
+                               "keys");
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
     {
+        constexpr auto scratchIndices = fieldNamesToIndices(dependentFields, ParticleDataType::fieldNames);
+        auto           scratchFields  = accessFields<scratchIndices>(d.dataTuple());
+
         if (d.g != 0.0)
         {
-            domain.syncGrav(d.codes,
-                            d.x,
-                            d.y,
-                            d.z,
-                            d.h,
-                            d.m,
-                            std::tie(d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1),
-                            std::tie(d.du));
+            constexpr auto syncIndices = fieldNamesToIndices(conservedFields, ParticleDataType::fieldNames);
+            auto           syncFields  = accessFields<syncIndices>(d.dataTuple());
+
+            domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, syncFields, scratchFields);
         }
         else
         {
-            domain.sync(d.codes,
-                        d.x,
-                        d.y,
-                        d.z,
-                        d.h,
-                        std::tie(d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1),
-                        std::tie(d.du));
+            constexpr auto syncIndices = fieldNamesToIndices(conservedFields, ParticleDataType::fieldNames);
+            auto           syncFields  = accessFields<syncIndices>(d.dataTuple());
+
+            domain.sync(d.codes, d.x, d.y, d.z, d.h, std::tuple_cat(std::tie(d.m), syncFields), scratchFields);
         }
     }
 
@@ -115,8 +125,8 @@ public:
         std::fill(begin(d.m), begin(d.m) + first, d.m[first]);
         std::fill(begin(d.m) + last, end(d.m), d.m[first]);
 
-        findNeighborsSfc<T, KeyType>(
-            first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
+        findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount,
+                                     domain.box());
         timer.step("FindNeighbors");
 
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"x", "y", "z", "h", "m", "keys"});

@@ -32,6 +32,7 @@
 #include <vector>
 #include <variant>
 
+#include "cstone/util/traits.hpp"
 #include "traits.hpp"
 
 namespace sphexa
@@ -89,6 +90,43 @@ void resizeNeighbors(Dataset& d, size_t size)
     double growthRate = 1.05;
     //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
     reallocate(d.neighbors, HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
+}
+
+//! @brief compile-time index look-up of a string literal in a list of strings
+template<class Array>
+constexpr size_t getFieldIndex(std::string_view field, const Array& fieldNames)
+{
+    for (size_t i = 0; i < fieldNames.size(); ++i)
+    {
+        if (field == fieldNames[i]) { return i; }
+    }
+    return fieldNames.size();
+}
+
+//! @brief translate string fields to an array with the field indices
+template<class Array1, class Array2>
+constexpr auto fieldNamesToIndices(const Array1& queries, const Array2& fieldNames)
+{
+    typename util::SwapArg<Array1, size_t>::type ret;
+    for (size_t i = 0; i < queries.size(); ++i)
+    {
+        ret[i] = getFieldIndex(queries[i], fieldNames);
+    }
+    return ret;
+}
+
+template<auto Indices, class Tuple, size_t... Is>
+auto accessFields_helper(Tuple&& tuple, std::index_sequence<Is...>)
+{
+    return std::tie(std::get<Indices[Is]>(std::forward<Tuple>(tuple))...);
+}
+
+//! @brief return a tuple of references to the elements of @p tuple specified by compile-time Indices
+template<auto Indices, class Tuple>
+auto accessFields(Tuple&& tuple)
+{
+    constexpr size_t numIndices = Indices.size();
+    return accessFields_helper<Indices>(std::forward<Tuple>(tuple), std::make_index_sequence<numIndices>{});
 }
 
 } // namespace sphexa
