@@ -180,4 +180,10 @@ TEST(ParticlesData, accessFields)
     std::get<2>(acc)[0] = 2;
 
     EXPECT_EQ(d.rho[0], 2);
+
+    auto acc2 = accessFields<fieldIndices>(d.dataTuple());
+    EXPECT_EQ(std::get<2>(acc2)[0], 2);
+
+    // rvalue tuple without reference element not possible because the result would be a dangling reference
+    // auto a2 = accessFields<std::array<size_t, 1>{0}>(std::make_tuple(std::vector<int>(10000, 1)));
 }
