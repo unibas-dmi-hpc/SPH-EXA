@@ -165,13 +165,14 @@ TEST(ParticlesData, fieldSequence)
 TEST(ParticlesData, accessFields)
 {
     ParticlesData<double, unsigned, cstone::CpuTag> d;
-    d.setConserved("x", "y", "rho");
+
+    constexpr std::array conservedFields{"x", "y", "rho"};
+    std::apply([&d](auto&... f) { d.setConserved(f...); }, conservedFields);
 
     d.resize(1);
     d.rho[0] = 1;
 
-    constexpr std::array fields{"x", "y", "rho"};
-    constexpr auto       fieldIndices = fieldNamesToIndices(fields, d.fieldNames);
+    constexpr auto fieldIndices = fieldNamesToIndices(conservedFields, d.fieldNames);
 
     auto dat = d.dataTuple();
     auto acc = accessFields<fieldIndices>(dat);
