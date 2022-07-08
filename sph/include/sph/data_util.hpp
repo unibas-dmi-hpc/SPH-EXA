@@ -116,14 +116,14 @@ constexpr auto fieldNamesToIndices(const Array1& queries, const Array2& fieldNam
 }
 
 template<auto Indices, class Tuple, size_t... Is>
-auto accessFields_helper(Tuple& tuple, std::index_sequence<Is...>)
+auto accessFields_helper(Tuple&& tuple, std::index_sequence<Is...>)
 {
     return std::tie(std::get<Indices[Is]>(tuple)...);
 }
 
 //! @brief return a tuple of references to the elements of @p tuple specified by compile-time Indices
 template<auto Indices, class Tuple>
-auto accessFields(Tuple& tuple)
+auto accessFields(Tuple&& tuple)
 {
     constexpr size_t numIndices = Indices.size();
     return accessFields_helper<Indices>(tuple, std::make_index_sequence<numIndices>{});
