@@ -39,6 +39,37 @@
 
 using namespace cstone;
 
+TEST(HaloExchange, gpuDirect)
+{
+    int rank = 0, nRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    constexpr int thisExampleRanks = 2;
+
+    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
+
+    thrust::device_vector<int> src = std::vector<int>{0,1,2,3,4};
+    thrust::device_vector<int> dest(5);
+
+    std::vector<MPI_Request> sendRequests;
+    int tag = 0;
+
+    if (rank == 0)
+    {
+        mpiSendAsync(thrust::raw_pointer_cast(src.data()), src.size(), 1, tag, sendRequests);
+    }
+    else
+    {
+        mpiRecvSync(thrust::raw_pointer_cast(dest.data()), src.size(), 0, tag, MPI_STATUS_IGNORE);
+
+        thrust::host_vector<int> probe = dest;
+        thrust::host_vector<int> ref   = src;
+
+        EXPECT_EQ(probe, ref);
+    }
+}
+
 TEST(HaloExchange, gatherSend)
 {
     // list of marked halo cells/ranges
@@ -51,9 +82,9 @@ TEST(HaloExchange, gatherSend)
 
     thrust::device_vector<int> buffer(totalCount);
 
-    gatherSend<<<1, totalCount>>>(thrust::raw_pointer_cast(rangeScan.data()),
-                                  thrust::raw_pointer_cast(rangeOffsets.data()), rangeScan.size(),
-                                  thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(buffer.data()));
+    gatherSend<<<1, totalCount>>>(
+        thrust::raw_pointer_cast(rangeScan.data()), thrust::raw_pointer_cast(rangeOffsets.data()), rangeScan.size(),
+        thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(buffer.data()), totalCount);
 
     thrust::host_vector<int> h_buffer = buffer;
     thrust::host_vector<int> ref      = std::vector<int>{4, 5, 6, 7, 12, 13, 14, 22, 23, 24};
@@ -126,15 +157,19 @@ void simpleTest(int thisRank)
         EXPECT_EQ(yOrig, y);
     }
 
-    haloexchange(0, incomingHalos, outgoingHalos, x.data(), y.data(), velocity.data());
+    thrust::device_vector<double> d_x = x;
+    //haloexchange(0, incomingHalos, outgoingHalos, x.data(), y.data(), velocity.data());
+    haloexchange(0, incomingHalos, outgoingHalos, thrust::raw_pointer_cast(d_x.data()));
+
+    cudaMemcpy(x.data(), thrust::raw_pointer_cast(d_x.data()), x.size() * sizeof(double), cudaMemcpyDeviceToHost);
 
     std::vector<double> xRef{20, 21, 22, 23, 24, 25, 26, 27, 28, 29};
     std::vector<float> yRef{30, 31, 32, 33, 34, 35, 36, 37, 38, 39};
     std::vector<util::array<int, 3>> velocityRef{{0, 1, 2}, {1, 2, 3}, {2, 3, 4}, {3, 4, 5},  {4, 5, 6},
                                                  {5, 6, 7}, {6, 7, 8}, {7, 8, 9}, {8, 9, 10}, {9, 10, 11}};
     EXPECT_EQ(xRef, x);
-    EXPECT_EQ(yRef, y);
-    EXPECT_EQ(velocityRef, velocity);
+    //EXPECT_EQ(yRef, y);
+    //EXPECT_EQ(velocityRef, velocity);
 }
 
 TEST(HaloExchange, simpleTest)

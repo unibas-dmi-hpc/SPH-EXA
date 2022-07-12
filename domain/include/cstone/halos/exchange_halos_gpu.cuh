@@ -41,13 +41,37 @@ namespace cstone
 {
 
 template<class T, class IndexType>
-__global__ void gatherSend(const IndexType* rangeScan, const IndexType* rangeOffsets, int numRanges, const T* src, T* buffer)
+__global__ void gatherSend(const IndexType* rangeScan,
+                           const IndexType* rangeOffsets,
+                           int numRanges,
+                           const T* src,
+                           T* buffer,
+                           IndexType bufferSize)
 {
-    IndexType tid      = blockIdx.x * blockDim.x + threadIdx.x;
-    IndexType rangeIdx = stl::upper_bound(rangeScan, rangeScan + numRanges, tid) - rangeScan - 1;
+    IndexType tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < bufferSize)
+    {
+        IndexType rangeIdx = stl::upper_bound(rangeScan, rangeScan + numRanges, tid) - rangeScan - 1;
 
-    IndexType srcIdx = rangeOffsets[rangeIdx] + tid - rangeScan[rangeIdx];
-    buffer[tid] = src[srcIdx];
+        IndexType srcIdx = rangeOffsets[rangeIdx] + tid - rangeScan[rangeIdx];
+        buffer[tid]      = src[srcIdx];
+    }
+}
+
+auto createRanges(const SendManifest& ranges)
+{
+    using IndexType = SendManifest::IndexType;
+    std::vector<IndexType> offsets(ranges.nRanges());
+    std::vector<IndexType> scan(ranges.nRanges());
+
+    for (IndexType i = 0; i < ranges.nRanges(); ++i)
+    {
+        offsets[i] = ranges.rangeStart(i);
+        scan[i]    = ranges.count(i);
+    }
+
+    std::exclusive_scan(scan.begin(), scan.end(), scan.begin(), IndexType(0));
+    return std::make_tuple(std::move(offsets), std::move(scan));
 }
 
 template<class... Arrays>
@@ -59,35 +83,55 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
 
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
-    std::vector<std::vector<char>> sendBuffers;
+    std::vector<thrust::device_vector<char>> sendBuffers;
     std::vector<MPI_Request> sendRequests;
 
     int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
+
+    //thrust::device_vector<IndexType> d_rangeOffsets;
+    //thrust::device_vector<IndexType> d_rangeScan;
 
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
         size_t sendCount = outgoingHalos[destinationRank].totalCount();
         if (sendCount == 0) continue;
 
+        // compute indices to extract and upload to GPU
+        //auto [rangeOffsets, rangeScan] = createRanges(outgoingHalos[destinationRank]);
+        //d_rangeOffsets                 = rangeOffsets;
+        //d_rangeScan                    = rangeScan;
+
         util::array<size_t, numArrays> arrayByteOffsets = sendCount * elementSizes;
         size_t totalBytes = std::accumulate(arrayByteOffsets.begin(), arrayByteOffsets.end(), size_t(0));
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
 
-        std::vector<char> buffer(totalBytes);
+        thrust::device_vector<char> buffer(totalBytes);
         for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
         {
             size_t outputOffset = arrayByteOffsets[arrayIndex];
+            //char* bufferPtr     = thrust::raw_pointer_cast(buffer.data()) + outputOffset;
+
+            //using ElementType = util::array<float, elementSizes[0] / sizeof(float)>;
+            //int numThreads    = 256;
+            //int numBlocks     = iceil(sendCount, numThreads);
+            //gatherSend<<<numBlocks, numThreads>>>(thrust::raw_pointer_cast(d_rangeScan.data()),
+            //                                      thrust::raw_pointer_cast(d_rangeOffsets.data()), rangeOffsets.size(),
+            //                                      reinterpret_cast<ElementType*>(data[arrayIndex]),
+            //                                      reinterpret_cast<ElementType*>(bufferPtr), sendCount);
+
             for (std::size_t rangeIdx = 0; rangeIdx < outgoingHalos[destinationRank].nRanges(); ++rangeIdx)
             {
                 size_t lowerIndex = outgoingHalos[destinationRank].rangeStart(rangeIdx) * elementSizes[arrayIndex];
                 size_t upperIndex = outgoingHalos[destinationRank].rangeEnd(rangeIdx) * elementSizes[arrayIndex];
 
-                std::copy(data[arrayIndex] + lowerIndex, data[arrayIndex] + upperIndex, buffer.data() + outputOffset);
+                thrust::copy(thrust::device, data[arrayIndex] + lowerIndex, data[arrayIndex] + upperIndex,
+                             buffer.data() + outputOffset);
                 outputOffset += upperIndex - lowerIndex;
             }
         }
 
-        mpiSendAsync(buffer.data(), totalBytes, destinationRank, haloExchangeTag, sendRequests);
+        mpiSendAsync(thrust::raw_pointer_cast(buffer.data()), totalBytes, destinationRank, haloExchangeTag,
+                     sendRequests);
         sendBuffers.push_back(std::move(buffer));
     }
 
@@ -101,12 +145,13 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
         }
 
     size_t bytesPerParticle = std::accumulate(elementSizes.begin(), elementSizes.end(), size_t(0));
-    std::vector<char> receiveBuffer(maxReceiveSize * bytesPerParticle);
+    thrust::device_vector<char> receiveBuffer(maxReceiveSize * bytesPerParticle);
 
     while (numMessages > 0)
     {
         MPI_Status status;
-        mpiRecvSync(receiveBuffer.data(), receiveBuffer.size(), MPI_ANY_SOURCE, haloExchangeTag, &status);
+        mpiRecvSync(thrust::raw_pointer_cast(receiveBuffer.data()), receiveBuffer.size(), MPI_ANY_SOURCE,
+                    haloExchangeTag, &status);
         int receiveRank     = status.MPI_SOURCE;
         size_t receiveCount = incomingHalos[receiveRank].totalCount();
 
@@ -121,8 +166,8 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
                 IndexType offset  = incomingHalos[receiveRank].rangeStart(rangeIdx) * elementSizes[arrayIndex];
                 size_t countBytes = incomingHalos[receiveRank].count(rangeIdx) * elementSizes[arrayIndex];
 
-                std::copy(receiveBuffer.data() + inputOffset, receiveBuffer.data() + inputOffset + countBytes,
-                          data[arrayIndex] + offset);
+                thrust::copy(thrust::device, receiveBuffer.data() + inputOffset,
+                             receiveBuffer.data() + inputOffset + countBytes, data[arrayIndex] + offset);
 
                 inputOffset += countBytes;
             }
