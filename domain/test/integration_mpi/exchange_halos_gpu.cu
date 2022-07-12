@@ -158,18 +158,25 @@ void simpleTest(int thisRank)
     }
 
     thrust::device_vector<double> d_x = x;
-    //haloexchange(0, incomingHalos, outgoingHalos, x.data(), y.data(), velocity.data());
-    haloexchange(0, incomingHalos, outgoingHalos, thrust::raw_pointer_cast(d_x.data()));
+    thrust::device_vector<float> d_y = y;
+    thrust::device_vector<util::array<int, 3>> d_velocity = velocity;
+    haloexchange(0, incomingHalos, outgoingHalos,
+                 thrust::raw_pointer_cast(d_x.data()),
+                 thrust::raw_pointer_cast(d_y.data()),
+                 thrust::raw_pointer_cast(d_velocity.data()));
 
     cudaMemcpy(x.data(), thrust::raw_pointer_cast(d_x.data()), x.size() * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(y.data(), thrust::raw_pointer_cast(d_y.data()), y.size() * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(velocity.data(), thrust::raw_pointer_cast(d_velocity.data()),
+               velocity.size() * sizeof(util::array<int, 3>), cudaMemcpyDeviceToHost);
 
     std::vector<double> xRef{20, 21, 22, 23, 24, 25, 26, 27, 28, 29};
     std::vector<float> yRef{30, 31, 32, 33, 34, 35, 36, 37, 38, 39};
     std::vector<util::array<int, 3>> velocityRef{{0, 1, 2}, {1, 2, 3}, {2, 3, 4}, {3, 4, 5},  {4, 5, 6},
                                                  {5, 6, 7}, {6, 7, 8}, {7, 8, 9}, {8, 9, 10}, {9, 10, 11}};
     EXPECT_EQ(xRef, x);
-    //EXPECT_EQ(yRef, y);
-    //EXPECT_EQ(velocityRef, velocity);
+    EXPECT_EQ(yRef, y);
+    EXPECT_EQ(velocityRef, velocity);
 }
 
 TEST(HaloExchange, simpleTest)
