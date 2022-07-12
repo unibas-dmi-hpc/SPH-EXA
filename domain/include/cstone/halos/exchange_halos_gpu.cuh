@@ -74,16 +74,28 @@ auto createRanges(const SendManifest& ranges)
     return std::make_tuple(std::move(offsets), std::move(scan));
 }
 
+size_t sendCountSum(const SendList& outgoingHalos)
+{
+    size_t sendCount = 0;
+    for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
+    {
+        sendCount += outgoingHalos[destinationRank].totalCount();
+    }
+    return sendCount;
+}
+
 template<class... Arrays>
 void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outgoingHalos, Arrays... arrays)
 {
     using IndexType         = SendManifest::IndexType;
     constexpr int numArrays = sizeof...(Arrays);
     constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
+    int bytesPerElement = std::accumulate(elementSizes.begin(), elementSizes.end(), 0);
 
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
-    std::vector<thrust::device_vector<char>> sendBuffers;
+    size_t totalSendCount = sendCountSum(outgoingHalos);
+    thrust::device_vector<char> sendBuffer(bytesPerElement * totalSendCount);
     std::vector<MPI_Request> sendRequests;
 
     int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
@@ -91,6 +103,7 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
     //thrust::device_vector<IndexType> d_rangeOffsets;
     //thrust::device_vector<IndexType> d_rangeScan;
 
+    char* sendPtr = thrust::raw_pointer_cast(sendBuffer.data());
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
         size_t sendCount = outgoingHalos[destinationRank].totalCount();
@@ -102,10 +115,9 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
         //d_rangeScan                    = rangeScan;
 
         util::array<size_t, numArrays> arrayByteOffsets = sendCount * elementSizes;
-        size_t totalBytes = std::accumulate(arrayByteOffsets.begin(), arrayByteOffsets.end(), size_t(0));
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
+        size_t sendBytes = sendCount * bytesPerElement;
 
-        thrust::device_vector<char> buffer(totalBytes);
         for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
         {
             size_t outputOffset = arrayByteOffsets[arrayIndex];
@@ -125,14 +137,13 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
                 size_t upperIndex = outgoingHalos[destinationRank].rangeEnd(rangeIdx) * elementSizes[arrayIndex];
 
                 thrust::copy(thrust::device, data[arrayIndex] + lowerIndex, data[arrayIndex] + upperIndex,
-                             buffer.data() + outputOffset);
+                             sendPtr + outputOffset);
                 outputOffset += upperIndex - lowerIndex;
             }
         }
 
-        mpiSendAsync(thrust::raw_pointer_cast(buffer.data()), totalBytes, destinationRank, haloExchangeTag,
-                     sendRequests);
-        sendBuffers.push_back(std::move(buffer));
+        mpiSendAsync(sendPtr, sendBytes, destinationRank, haloExchangeTag, sendRequests);
+        sendPtr += sendBytes;
     }
 
     int numMessages            = 0;
