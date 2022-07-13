@@ -135,7 +135,7 @@ public:
         timer.step("Density");
         computeEOS_HydroStd(first, last, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
+        domain.exchangeHalos(std::tie(d.vx, d.vy, d.vz, d.rho, d.p, d.c));
         timer.step("mpi::synchronizeHalos");
 
         transferToDevice(d, 0, first, {"rho"});
@@ -144,7 +144,7 @@ public:
         transferToHost(d, first, last, {"c11", "c12", "c13", "c22", "c23", "c33"});
         timer.step("IAD");
 
-        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
+        domain.exchangeHalos(std::tie(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33));
         timer.step("mpi::synchronizeHalos");
 
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz", "p", "c"});

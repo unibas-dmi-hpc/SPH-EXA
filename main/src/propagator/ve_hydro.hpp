@@ -134,7 +134,7 @@ public:
         computeXMass(first, last, ngmax_, d, domain.box());
         transferToHost(d, first, last, {"xm"});
         timer.step("XMass");
-        domain.exchangeHalos(d.xm);
+        domain.exchangeHalos(std::tie(d.xm));
         timer.step("mpi::synchronizeHalos");
 
         d.release("ax", "ay");
@@ -149,7 +149,7 @@ public:
         computeEOS(first, last, d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.prho, d.c, d.kx);
+        domain.exchangeHalos(std::tie(d.vx, d.vy, d.vz, d.prho, d.c, d.kx));
         timer.step("mpi::synchronizeHalos");
 
         d.release("p", "gradh");
@@ -163,7 +163,7 @@ public:
         transferToHost(d, first, last, {"c11", "c12", "c13", "c22", "c23", "c33", "divv", "curlv"});
         timer.step("IadVelocityDivCurl");
 
-        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv);
+        domain.exchangeHalos(std::tie(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv));
         timer.step("mpi::synchronizeHalos");
 
         transferToDevice(d, 0, first, {"divv"});
@@ -172,7 +172,7 @@ public:
         transferToHost(d, first, last, {"alpha"});
         timer.step("AVswitches");
 
-        domain.exchangeHalos(d.alpha);
+        domain.exchangeHalos(std::tie(d.alpha));
         timer.step("mpi::synchronizeHalos");
 
         d.devData.release("divv", "curlv");
