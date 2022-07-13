@@ -134,7 +134,7 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax,
 template<class T, class Dataset>
 void computeMomentumEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeMomentumEnergy(startIndex, endIndex, ngmax, d, box);
     }

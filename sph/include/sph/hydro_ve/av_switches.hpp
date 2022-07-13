@@ -115,7 +115,7 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dat
 template<class T, class Dataset>
 void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeAVswitches(startIndex, endIndex, ngmax, d, box);
     }

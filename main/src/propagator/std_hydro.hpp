@@ -56,7 +56,7 @@ class HydroProp final : public Propagator<DomainType, ParticleDataType>
 
     using Acc = typename ParticleDataType::AcceleratorType;
     using MHolder_t =
-        typename detail::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<MultipoleType,
+        typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<MultipoleType,
                                                                                                      KeyType, T, T, T>;
     MHolder_t mHolder_;
 

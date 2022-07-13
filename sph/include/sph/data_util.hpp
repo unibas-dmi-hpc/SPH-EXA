@@ -89,7 +89,7 @@ void resizeNeighbors(Dataset& d, size_t size)
 {
     double growthRate = 1.05;
     //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
-    reallocate(d.neighbors, HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
+    reallocate(d.neighbors, cstone::HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
 }
 
 //! @brief compile-time index look-up of a string literal in a list of strings

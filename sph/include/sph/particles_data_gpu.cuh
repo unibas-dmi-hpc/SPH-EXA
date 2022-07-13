@@ -192,7 +192,7 @@ const typename ThrustVec::value_type* rawPtr(const ThrustVec& p)
     return thrust::raw_pointer_cast(p.data());
 }
 
-template<class DataType, std::enable_if_t<HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
+template<class DataType, std::enable_if_t<cstone::HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
 void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
 {
     auto hostData = d.data();
@@ -222,7 +222,7 @@ void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<
     }
 }
 
-template<class DataType, std::enable_if_t<HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
+template<class DataType, std::enable_if_t<cstone::HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
 void transferToHost(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
 {
     auto hostData   = d.data();

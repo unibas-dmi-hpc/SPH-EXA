@@ -46,32 +46,34 @@ struct GpuTag
 {
 };
 
-namespace detail
-{
-
-template<class Accelerator, class = void>
-struct ReorderFunctor
+template<class AccType>
+struct HaveGpu : public stl::integral_constant<int, std::is_same_v<AccType, GpuTag>>
 {
 };
 
-template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
+//! @brief The type member of this trait evaluates to CpuCaseType if Accelerator == CpuTag and GpuCaseType otherwise
+template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType, class = void>
+struct AccelSwitchType
 {
-    template<class KeyType, class IndexType>
-    using type = CpuGather<KeyType, IndexType>;
 };
 
-template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, GpuTag>{}>>
+template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType>
+struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<!HaveGpu<Accelerator>{}>>
 {
-    template<class KeyType, class IndexType>
-    using type = DeviceGather<KeyType, IndexType>;
+    template<class... Args>
+    using type = CpuCaseType<Args...>;
 };
 
-} // namespace detail
+template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType>
+struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<HaveGpu<Accelerator>{}>>
+{
+    template<class... Args>
+    using type = GpuCaseType<Args...>;
+};
 
 //! @brief returns reorder functor type to be used, depending on the accelerator
 template<class Accelerator, class KeyType, class IndexType>
-using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<KeyType, IndexType>;
+using ReorderFunctor_t =
+    typename AccelSwitchType<Accelerator, CpuGather, DeviceGather>::template type<KeyType, IndexType>;
 
 } // namespace cstone
