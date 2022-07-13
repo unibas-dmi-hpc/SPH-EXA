@@ -24,52 +24,19 @@
  */
 
 /*! @file
- * @brief Traits classes for Domain to manage GPU device acceleration behavior
+ * @brief CPU/GPU reorder functor
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include <type_traits>
-
+#include "cstone/tree/accel_switch.hpp"
 #include "cstone/primitives/gather.hpp"
 #include "cstone/cuda/gather.cuh"
 
 namespace cstone
 {
-
-struct CpuTag
-{
-};
-struct GpuTag
-{
-};
-
-template<class AccType>
-struct HaveGpu : public stl::integral_constant<int, std::is_same_v<AccType, GpuTag>>
-{
-};
-
-//! @brief The type member of this trait evaluates to CpuCaseType if Accelerator == CpuTag and GpuCaseType otherwise
-template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType, class = void>
-struct AccelSwitchType
-{
-};
-
-template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType>
-struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<!HaveGpu<Accelerator>{}>>
-{
-    template<class... Args>
-    using type = CpuCaseType<Args...>;
-};
-
-template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType>
-struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<HaveGpu<Accelerator>{}>>
-{
-    template<class... Args>
-    using type = GpuCaseType<Args...>;
-};
 
 //! @brief returns reorder functor type to be used, depending on the accelerator
 template<class Accelerator, class KeyType, class IndexType>

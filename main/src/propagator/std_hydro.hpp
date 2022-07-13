@@ -34,6 +34,8 @@
 
 #include <variant>
 
+#include "sph/sph.hpp"
+
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"
 

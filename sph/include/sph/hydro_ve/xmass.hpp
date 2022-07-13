@@ -32,7 +32,7 @@
 #pragma once
 
 #include "sph/kernels.hpp"
-#include "sph/traits.hpp"
+#include "sph/particles_data_stubs.hpp"
 #include "xmass_kern.hpp"
 #include "sph/sph.cuh"
 

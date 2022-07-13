@@ -39,7 +39,6 @@
 #include "data_util.hpp"
 #include "field_states.hpp"
 #include "tables.hpp"
-#include "traits.hpp"
 
 namespace sphexa
 {

@@ -33,7 +33,7 @@
 #include <variant>
 
 #include "cstone/util/traits.hpp"
-#include "traits.hpp"
+#include "particles_data_stubs.hpp"
 
 namespace sphexa
 {

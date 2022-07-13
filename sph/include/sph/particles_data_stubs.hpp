@@ -24,22 +24,24 @@
  */
 
 /*! @file
- * @brief Traits classes for ParticlesData to abstract and manage GPU device acceleration behavior
+ * @brief Switch and stub classes for ParticlesData to abstract and manage GPU device acceleration behavior
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include <type_traits>
-
-#include "cstone/domain/domain_traits.hpp"
+#include "cstone/tree/accel_switch.hpp"
 
 template<class T>
 class pinned_allocator;
 
 namespace sphexa
 {
+
+//! @brief std::allocator on the CPU, pinned_allocator on the GPU
+template<class Accelerator, class T>
+using PinnedAlloc_t = typename cstone::AccelSwitchType<Accelerator, std::allocator, pinned_allocator>::template type<T>;
 
 //! @brief stub for use in CPU code
 template<class T, class KeyType>
@@ -77,9 +79,5 @@ class DeviceParticlesData;
 template<class Accelerator, class T, class KeyType>
 using DeviceData_t =
     typename cstone::AccelSwitchType<Accelerator, DeviceDataFacade, DeviceParticlesData>::template type<T, KeyType>;
-
-//! @brief std::allocator on the CPU, pinned_allocator on the GPU
-template<class Accelerator, class T>
-using PinnedAlloc_t = typename cstone::AccelSwitchType<Accelerator, std::allocator, pinned_allocator>::template type<T>;
 
 } // namespace sphexa

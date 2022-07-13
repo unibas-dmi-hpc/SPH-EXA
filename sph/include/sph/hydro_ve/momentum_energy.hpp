@@ -33,7 +33,7 @@
 
 #include "momentum_energy_kern.hpp"
 #include "sph/sph.cuh"
-#include "sph/traits.hpp"
+#include "sph/particles_data_stubs.hpp"
 
 namespace sph
 {

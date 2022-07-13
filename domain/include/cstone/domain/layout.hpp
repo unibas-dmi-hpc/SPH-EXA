@@ -51,7 +51,7 @@
 #include <vector>
 
 #include "cstone/domain/domaindecomp.hpp"
-#include "cstone/domain/domain_traits.hpp"
+#include "cstone/domain/gather.hpp"
 #include "cstone/util/traits.hpp"
 
 namespace cstone

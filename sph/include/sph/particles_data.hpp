@@ -41,7 +41,7 @@
 
 #include "data_util.hpp"
 #include "field_states.hpp"
-#include "traits.hpp"
+#include "particles_data_stubs.hpp"
 
 #if defined(USE_CUDA)
 #include "sph/util/pinned_allocator.h"

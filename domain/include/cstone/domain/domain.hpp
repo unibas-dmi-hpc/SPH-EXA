@@ -35,7 +35,7 @@
 #pragma once
 
 #include "cstone/domain/assignment.hpp"
-#include "cstone/domain/domain_traits.hpp"
+#include "cstone/domain/gather.hpp"
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/focus/octree_focus_mpi.hpp"
