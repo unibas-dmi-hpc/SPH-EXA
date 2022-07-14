@@ -35,7 +35,7 @@
 #pragma once
 
 #include "cstone/domain/assignment.hpp"
-#include "cstone/domain/domain_traits.hpp"
+#include "cstone/domain/gather.hpp"
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/focus/octree_focus_mpi.hpp"
@@ -259,11 +259,11 @@ public:
     }
 
     //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
-    template<class... Arrays>
-    void exchangeHalos(Arrays&... arrays) const
+    template<class... Vectors>
+    void exchangeHalos(std::tuple<Vectors&...> arrays) const
     {
-        checkSizesEqual(bufDesc_.size, arrays...);
-        halos_.exchangeHalos(arrays.data()...);
+        std::apply([this](auto&... arrays) { this->template checkSizesEqual(this->bufDesc_.size, arrays...); }, arrays);
+        std::apply([this](auto&... arrays) { this->halos_.exchangeHalos(arrays.data()...); }, arrays);
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
@@ -335,7 +335,7 @@ private:
     template<class KeyVec, class VectorX, class VectorH>
     void setupHalos(KeyVec& keys, VectorX& x, VectorX& y, VectorX& z, VectorH& h)
     {
-        exchangeHalos(x, y, z, h);
+        exchangeHalos(std::tie(x, y, z, h));
 
         // compute SFC keys of received halo particles
         computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(keys.data()), bufDesc_.start, box());

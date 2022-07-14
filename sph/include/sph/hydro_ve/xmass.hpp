@@ -32,7 +32,7 @@
 #pragma once
 
 #include "sph/kernels.hpp"
-#include "sph/traits.hpp"
+#include "sph/particles_data_stubs.hpp"
 #include "xmass_kern.hpp"
 #include "sph/sph.cuh"
 
@@ -73,7 +73,7 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
 template<typename T, class Dataset>
 void computeXMass(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeXMass(startIndex, endIndex, ngmax, d, box);
     }

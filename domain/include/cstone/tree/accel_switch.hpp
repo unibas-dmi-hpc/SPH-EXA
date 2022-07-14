@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Traits classes for ParticlesData to abstract and manage GPU device acceleration behavior
+ * @brief Traits classes to manage GPU device acceleration behavior
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -33,56 +33,23 @@
 
 #include <type_traits>
 
-#include "cstone/domain/domain_traits.hpp"
+#include "cstone/primitives/gather.hpp"
+#include "cstone/cuda/gather.cuh"
 
-template<class T>
-class pinned_allocator;
-
-namespace sphexa
+namespace cstone
 {
 
-using cstone::CpuTag;
-using cstone::GpuTag;
+struct CpuTag
+{
+};
+struct GpuTag
+{
+};
 
 template<class AccType>
 struct HaveGpu : public stl::integral_constant<int, std::is_same_v<AccType, GpuTag>>
 {
 };
-
-//! @brief stub for use in CPU code
-template<class T, class KeyType>
-struct DeviceDataFacade
-{
-    void resize(size_t) {}
-
-    template<class... Ts>
-    void setConserved(Ts...)
-    {
-    }
-
-    template<class... Ts>
-    void setDependent(Ts...)
-    {
-    }
-
-    template<class... Ts>
-    void release(Ts...)
-    {
-    }
-
-    template<class... Ts>
-    void acquire(Ts...)
-    {
-    }
-
-    inline static constexpr std::array fieldNames{0};
-};
-
-template<class T, class KeyType>
-class DeviceParticlesData;
-
-namespace detail
-{
 
 //! @brief The type member of this trait evaluates to CpuCaseType if Accelerator == CpuTag and GpuCaseType otherwise
 template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType, class = void>
@@ -104,15 +71,4 @@ struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<H
     using type = GpuCaseType<Args...>;
 };
 
-} // namespace detail
-
-//! @brief Just a facade on the CPU, DeviceParticlesData on the GPU
-template<class Accelerator, class T, class KeyType>
-using DeviceData_t =
-    typename detail::AccelSwitchType<Accelerator, DeviceDataFacade, DeviceParticlesData>::template type<T, KeyType>;
-
-//! @brief std::allocator on the CPU, pinned_allocator on the GPU
-template<class Accelerator, class T>
-using PinnedAlloc_t = typename detail::AccelSwitchType<Accelerator, std::allocator, pinned_allocator>::template type<T>;
-
-} // namespace sphexa
+} // namespace cstone

@@ -34,9 +34,6 @@
 
 #include <variant>
 
-#include "cstone/domain/domain.hpp"
-#include "sph/sph.hpp"
-#include "sph/traits.hpp"
 #include "util/timer.hpp"
 
 namespace sphexa

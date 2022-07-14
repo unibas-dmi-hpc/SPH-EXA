@@ -33,7 +33,7 @@
 #include <variant>
 
 #include "cstone/util/traits.hpp"
-#include "traits.hpp"
+#include "particles_data_stubs.hpp"
 
 namespace sphexa
 {
@@ -89,7 +89,7 @@ void resizeNeighbors(Dataset& d, size_t size)
 {
     double growthRate = 1.05;
     //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
-    reallocate(d.neighbors, HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
+    reallocate(d.neighbors, cstone::HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
 }
 
 //! @brief compile-time index look-up of a string literal in a list of strings
@@ -127,6 +127,21 @@ auto accessFields(Tuple&& tuple)
 {
     constexpr size_t numIndices = Indices.size();
     return accessFields_helper<Indices>(std::forward<Tuple>(tuple), std::make_index_sequence<numIndices>{});
+}
+
+//! @brief Return a tuple of references to the specified particle field indices, to GPU fields if GPU is enabled
+template<auto Indices, class Dataset>
+auto accessFieldsPlatform(Dataset& d)
+{
+    using AcceleratorType = typename Dataset::AcceleratorType;
+    if constexpr (std::is_same_v<AcceleratorType, cstone::CpuTag>)
+    {
+        return accessFields<Indices>(d.dataTuple());
+    }
+    else
+    {
+        return accessFields<Indices>(d.devData.dataTuple());
+    }
 }
 
 } // namespace sphexa

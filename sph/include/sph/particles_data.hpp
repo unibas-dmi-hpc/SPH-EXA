@@ -41,7 +41,7 @@
 
 #include "data_util.hpp"
 #include "field_states.hpp"
-#include "traits.hpp"
+#include "particles_data_stubs.hpp"
 
 #if defined(USE_CUDA)
 #include "sph/util/pinned_allocator.h"
@@ -124,7 +124,7 @@ public:
         "h",   "m",   "c",   "ax",   "ay",   "az",   "du", "du_m1", "c11",   "c12",   "c13",   "c22",  "c23",
         "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
 
-    static_assert(std::is_same_v<AcceleratorType, CpuTag> ||
+    static_assert(!cstone::HaveGpu<AcceleratorType>{} ||
                       fieldNames.size() == DeviceData_t<AccType, T, KeyType>::fieldNames.size(),
                   "ParticlesData on CPU and GPU must have the same fields");
 
@@ -211,12 +211,12 @@ public:
 template<typename T, typename I, class Acc>
 const T ParticlesData<T, I, Acc>::K = ::sph::compute_3d_k(sincIndex);
 
-template<class Dataset, std::enable_if_t<not HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
+template<class Dataset, std::enable_if_t<not cstone::HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
 void transferToDevice(Dataset&, size_t, size_t, const std::vector<std::string>&)
 {
 }
 
-template<class Dataset, std::enable_if_t<not HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
+template<class Dataset, std::enable_if_t<not cstone::HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
 void transferToHost(Dataset&, size_t, size_t, const std::vector<std::string>&)
 {
 }
