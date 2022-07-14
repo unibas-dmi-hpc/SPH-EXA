@@ -181,6 +181,9 @@ public:
         haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays...);
     }
 
+    template<class... Arrays>
+    void exchangeHalosGpu(Arrays... arrays) const;
+
     gsl::span<int> haloFlags() { return haloFlags_; }
 
 private:

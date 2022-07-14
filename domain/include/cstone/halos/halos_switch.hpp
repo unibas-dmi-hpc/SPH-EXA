@@ -40,10 +40,5 @@
 namespace cstone
 {
 
-template<class KeyType>
-class HalosGpu;
-
-template<class Accelerator, class KeyType>
-using Halos_t = typename AccelSwitchType<Accelerator, Halos, HalosGpu>::template type<KeyType>;
 
 } // namespace cstone

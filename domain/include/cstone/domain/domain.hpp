@@ -266,6 +266,14 @@ public:
         std::apply([this](auto&... arrays) { this->halos_.exchangeHalos(arrays.data()...); }, arrays);
     }
 
+    //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
+    template<class... Vectors>
+    void exchangeHalosGpu(std::tuple<Vectors&...> arrays) const
+    {
+        std::apply([this](auto&... arrays) { this->template checkSizesEqual(this->bufDesc_.size, arrays...); }, arrays);
+        std::apply([this](auto&... arrays) { this->halos_.exchangeHalosGpu(arrays.data()...); }, arrays);
+    }
+
     //! @brief return the index of the first particle that's part of the local assignment
     [[nodiscard]] LocalIndex startIndex() const { return bufDesc_.start; }
     //! @brief return one past the index of the last particle that's part of the local assignment
@@ -457,7 +465,7 @@ private:
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalIndex> layout_;
 
-    Halos_t<Accelerator, KeyType> halos_{myRank_};
+    Halos<KeyType> halos_{myRank_};
 
     bool firstCall_{true};
 
