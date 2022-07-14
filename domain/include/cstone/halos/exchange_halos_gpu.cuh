@@ -34,29 +34,32 @@
 #include <numeric>
 #include <vector>
 
+#include <thrust/device_vector.h>
+#include <thrust/execution_policy.h>
+
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/util/index_ranges.hpp"
 
 namespace cstone
 {
 
-template<class T, class IndexType>
-__global__ void gatherSend(const IndexType* rangeScan,
-                           const IndexType* rangeOffsets,
-                           int numRanges,
-                           const T* src,
-                           T* buffer,
-                           IndexType bufferSize)
-{
-    IndexType tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < bufferSize)
-    {
-        IndexType rangeIdx = stl::upper_bound(rangeScan, rangeScan + numRanges, tid) - rangeScan - 1;
-
-        IndexType srcIdx = rangeOffsets[rangeIdx] + tid - rangeScan[rangeIdx];
-        buffer[tid]      = src[srcIdx];
-    }
-}
+//template<class T, class IndexType>
+//__global__ void gatherSend(const IndexType* rangeScan,
+//                           const IndexType* rangeOffsets,
+//                           int numRanges,
+//                           const T* src,
+//                           T* buffer,
+//                           IndexType bufferSize)
+//{
+//    IndexType tid = blockIdx.x * blockDim.x + threadIdx.x;
+//    if (tid < bufferSize)
+//    {
+//        IndexType rangeIdx = stl::upper_bound(rangeScan, rangeScan + numRanges, tid) - rangeScan - 1;
+//
+//        IndexType srcIdx = rangeOffsets[rangeIdx] + tid - rangeScan[rangeIdx];
+//        buffer[tid]      = src[srcIdx];
+//    }
+//}
 
 auto createRanges(const SendManifest& ranges)
 {
@@ -85,7 +88,7 @@ size_t sendCountSum(const SendList& outgoingHalos)
 }
 
 template<class... Arrays>
-void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outgoingHalos, Arrays... arrays)
+void haloExchangeGpu(int epoch, const SendList& incomingHalos, const SendList& outgoingHalos, Arrays... arrays)
 {
     using IndexType         = SendManifest::IndexType;
     constexpr int numArrays = sizeof...(Arrays);

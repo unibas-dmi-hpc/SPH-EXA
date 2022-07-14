@@ -40,7 +40,7 @@
 #include "cstone/domain/layout.hpp"
 #include "cstone/focus/octree_focus_mpi.hpp"
 #include "cstone/halos/exchange_halos.hpp"
-#include "cstone/halos/halos.hpp"
+#include "cstone/halos/halos_switch.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/traversal/peers.hpp"
 #include "cstone/sfc/box_mpi.hpp"
@@ -457,7 +457,7 @@ private:
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalIndex> layout_;
 
-    Halos<KeyType> halos_{myRank_};
+    Halos_t<Accelerator, KeyType> halos_{myRank_};
 
     bool firstCall_{true};
 

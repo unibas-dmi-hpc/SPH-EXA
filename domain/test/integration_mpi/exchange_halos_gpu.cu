@@ -49,16 +49,13 @@ TEST(HaloExchange, gpuDirect)
 
     if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
-    thrust::device_vector<int> src = std::vector<int>{0,1,2,3,4};
+    thrust::device_vector<int> src = std::vector<int>{0, 1, 2, 3, 4};
     thrust::device_vector<int> dest(5);
 
     std::vector<MPI_Request> sendRequests;
     int tag = 0;
 
-    if (rank == 0)
-    {
-        mpiSendAsync(thrust::raw_pointer_cast(src.data()), src.size(), 1, tag, sendRequests);
-    }
+    if (rank == 0) { mpiSendAsync(thrust::raw_pointer_cast(src.data()), src.size(), 1, tag, sendRequests); }
     else
     {
         mpiRecvSync(thrust::raw_pointer_cast(dest.data()), src.size(), 0, tag, MPI_STATUS_IGNORE);
@@ -70,27 +67,27 @@ TEST(HaloExchange, gpuDirect)
     }
 }
 
-TEST(HaloExchange, gatherSend)
-{
-    // list of marked halo cells/ranges
-    thrust::device_vector<int> src(30);
-    thrust::sequence(thrust::device, src.begin(), src.end(), 0);
-
-    thrust::device_vector<int> rangeScan    = std::vector<int>{0, 4, 7};
-    thrust::device_vector<int> rangeOffsets = std::vector<int>{4, 12, 22};
-    int totalCount                        = 10;
-
-    thrust::device_vector<int> buffer(totalCount);
-
-    gatherSend<<<1, totalCount>>>(
-        thrust::raw_pointer_cast(rangeScan.data()), thrust::raw_pointer_cast(rangeOffsets.data()), rangeScan.size(),
-        thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(buffer.data()), totalCount);
-
-    thrust::host_vector<int> h_buffer = buffer;
-    thrust::host_vector<int> ref      = std::vector<int>{4, 5, 6, 7, 12, 13, 14, 22, 23, 24};
-
-    EXPECT_EQ(h_buffer, ref);
-}
+//TEST(HaloExchange, gatherSend)
+//{
+//    // list of marked halo cells/ranges
+//    thrust::device_vector<int> src(30);
+//    thrust::sequence(thrust::device, src.begin(), src.end(), 0);
+//
+//    thrust::device_vector<int> rangeScan    = std::vector<int>{0, 4, 7};
+//    thrust::device_vector<int> rangeOffsets = std::vector<int>{4, 12, 22};
+//    int totalCount                        = 10;
+//
+//    thrust::device_vector<int> buffer(totalCount);
+//
+//    gatherSend<<<1, totalCount>>>(
+//        thrust::raw_pointer_cast(rangeScan.data()), thrust::raw_pointer_cast(rangeOffsets.data()), rangeScan.size(),
+//        thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(buffer.data()), totalCount);
+//
+//    thrust::host_vector<int> h_buffer = buffer;
+//    thrust::host_vector<int> ref      = std::vector<int>{4, 5, 6, 7, 12, 13, 14, 22, 23, 24};
+//
+//    EXPECT_EQ(h_buffer, ref);
+//}
 
 void simpleTest(int thisRank)
 {
@@ -157,13 +154,11 @@ void simpleTest(int thisRank)
         EXPECT_EQ(yOrig, y);
     }
 
-    thrust::device_vector<double> d_x = x;
-    thrust::device_vector<float> d_y = y;
+    thrust::device_vector<double> d_x                     = x;
+    thrust::device_vector<float> d_y                      = y;
     thrust::device_vector<util::array<int, 3>> d_velocity = velocity;
-    haloexchange(0, incomingHalos, outgoingHalos,
-                 thrust::raw_pointer_cast(d_x.data()),
-                 thrust::raw_pointer_cast(d_y.data()),
-                 thrust::raw_pointer_cast(d_velocity.data()));
+    haloExchangeGpu(0, incomingHalos, outgoingHalos, thrust::raw_pointer_cast(d_x.data()),
+                    thrust::raw_pointer_cast(d_y.data()), thrust::raw_pointer_cast(d_velocity.data()));
 
     cudaMemcpy(x.data(), thrust::raw_pointer_cast(d_x.data()), x.size() * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(y.data(), thrust::raw_pointer_cast(d_y.data()), y.size() * sizeof(float), cudaMemcpyDeviceToHost);
