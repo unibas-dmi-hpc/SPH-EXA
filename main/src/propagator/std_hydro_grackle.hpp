@@ -147,6 +147,17 @@ public:
         std::fill(begin(d.m), begin(d.m) + first, d.m[first]);
         std::fill(begin(d.m) + last, end(d.m), d.m[first]);
 
+        //Create sample data
+        util::array<T, 21> gr_test;
+        std::fill(gr_test.begin(), gr_test.end(), 0.);
+        gr_test[gr_data::HI_fraction] = 0.76;
+        gr_test[gr_data::HeI_fraction] = 0.24;
+        gr_test[gr_data::DI_fraction] = 2.0 * 3.4e-5;
+        gr_test[gr_data::metal_fraction] = 0.01295;
+        for (size_t i = first; i < last; i++) {
+            d.grackleData[i] = gr_test;
+        }
+
         findNeighborsSfc<T, KeyType>(
             first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
@@ -191,6 +202,7 @@ public:
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 
+
 #pragma omp parallel for schedule(static)
         for (size_t i = first; i < last; i++)
         {
@@ -218,6 +230,7 @@ public:
                           d.grackleData[i][gr_data::RT_HeII_ionization_rate],
                           d.grackleData[i][gr_data::RT_H2_dissociation_rate],
                           d.grackleData[i][gr_data::H2_self_shielding_length]);
+
         }
         timer.stop();
     }

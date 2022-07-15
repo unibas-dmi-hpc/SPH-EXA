@@ -95,7 +95,7 @@ int main(int argc, char** argv)
     //prop needs to be set to std_grackle
     const std::string grackleOptionFile = parser.get("--grackleOpt", std::string(""));
 
-    if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
+    if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c", "grackleData"}; }
 
     const std::string outFile = outDirectory + "dump_" + initCond;
 

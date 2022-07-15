@@ -399,7 +399,7 @@ template<class T, size_t N>
 HOST_DEVICE_FUN std::ostream& operator<<(std::ostream& os, const util::array<T, N>& array)
 {
     for (size_t i = 0; i < N; i++) {
-        os << array[i] << std::endl;
+        os << array[i] << " ";
     }
     return os;
 }
