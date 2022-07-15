@@ -111,7 +111,7 @@ public:
         : Base(ngmax, ng0, output, rank)
     {
         grackle_options options = getGrackleArgumentsFromFile(grackleOptionFile);
-        initGrackle(/*PROJECT_SOURCE_DIR "/grackle_repo/input/CloudyData_UVB=HM2012.h5",*/ options);
+        initGrackle(options);
     }
 
     void activateFields(ParticleDataType& d) override
@@ -190,8 +190,8 @@ public:
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
-//#pragma omp parallel for schedule(static)
 
+#pragma omp parallel for schedule(static)
         for (size_t i = first; i < last; i++)
         {
             cool_particle(d.minDt,//d.dt,
