@@ -37,13 +37,14 @@
 #include "ipropagator.hpp"
 #include "std_hydro.hpp"
 #include "ve_hydro.hpp"
+#include "std_hydro_grackle.hpp"
 
 namespace sphexa
 {
 
 template<class DomainType, class ParticleDataType>
 std::unique_ptr<Propagator<DomainType, ParticleDataType>>
-propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostream& output, size_t rank, const std::string& grackleOptionFile)
 {
     if (choice == "ve")
     {
@@ -52,6 +53,10 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
     else if (choice == "std")
     {
         return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+    }
+    else if (choice == "std_cooling")
+    {
+        return std::make_unique<HydroGrackleProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank, grackleOptionFile);
     }
     else { throw std::runtime_error("Unknown propagator choice: " + choice); }
 }

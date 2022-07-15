@@ -1,0 +1,45 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install"
+		],
+		"files" : 
+		[
+			"physics/cooling/test/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 21,
+				"parent" : 0
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "Unspecified",
+			"destination" : "sbin/physics",
+			"paths" : 
+			[
+				"physics/cooling/test/cooling_tests"
+			],
+			"targetId" : "cooling_tests::@b3785703c539ce718076",
+			"targetIndex" : 32,
+			"type" : "target"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "physics/cooling/test",
+		"source" : "physics/cooling/test"
+	}
+}

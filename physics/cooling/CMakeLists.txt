@@ -8,6 +8,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 #include(CTest)
 #include(CheckLanguage)
+set(CSTONE_DIR ${PROJECT_SOURCE_DIR}/domain/include)
+set(RYOANJI_DIR ${PROJECT_SOURCE_DIR}/ryoanji/src)
+set(SPH_DIR ${PROJECT_SOURCE_DIR}/sph/include)
 
 if (BUILD_TESTING)
     add_subdirectory(test)

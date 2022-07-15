@@ -91,6 +91,9 @@ int main(int argc, char** argv)
     const bool               ascii             = parser.exists("--ascii");
     const std::string        outDirectory      = parser.get("--outDir");
     const bool               quiet             = parser.exists("--quiet");
+    //Input file for grackle-specific parameters
+    //prop needs to be set to std_grackle
+    const std::string grackleOptionFile = parser.get("--grackleOpt", std::string(""));
 
     if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
 
@@ -105,7 +108,7 @@ int main(int argc, char** argv)
 
     //! @brief evaluate user choice for different kind of actions
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
-    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, ngmax, ng0, output, rank);
+    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, ngmax, ng0, output, rank, grackleOptionFile);
     auto fileWriter  = fileWriterFactory<Dataset>(ascii);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 

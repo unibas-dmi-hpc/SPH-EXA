@@ -46,7 +46,7 @@ namespace sphexa
  * @param N   the total number of segments
  * @return    the start and end index (subrange of R) of the i-th segment
  */
-inline auto partitionRange(size_t R, size_t i, size_t N)
+/*inline auto partitionRange(size_t R, size_t i, size_t N)
 {
     size_t s = R / N;
     size_t r = R % N;
@@ -62,7 +62,26 @@ inline auto partitionRange(size_t R, size_t i, size_t N)
         size_t end   = start + s;
         return std::make_tuple(start, end);
     }
+}*/
+template<class T>
+inline auto partitionRange(T R, size_t i, size_t N)
+{
+    T s = R / N;
+    T r = R % N;
+    if (i < r)
+    {
+        T start = (s + 1) * i;
+        T end   = start + s + 1;
+        return std::make_tuple(start, end);
+    }
+    else
+    {
+        T start = (s + 1) * r + s * (i - r);
+        T end   = start + s;
+        return std::make_tuple(start, end);
+    }
 }
+
 
 /*! @brief create regular cubic grid centered on (0,0,0), spanning [-r, r)^3, in the x,y,z arrays
  *

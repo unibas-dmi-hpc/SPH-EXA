@@ -395,4 +395,13 @@ constexpr HOST_DEVICE_FUN array<T, 3> makeVec3(array<T, 4> v)
     return array<T, 3>{v[0], v[1], v[2]};
 }
 
+template<class T, size_t N>
+HOST_DEVICE_FUN std::ostream& operator<<(std::ostream& os, const util::array<T, N>& array)
+{
+    for (size_t i = 0; i < N; i++) {
+        os << array[i] << std::endl;
+    }
+    return os;
+}
+
 } // namespace util

@@ -65,7 +65,7 @@ template<class Dataset>
 auto getOutputArrays(Dataset& dataset)
 {
     auto fieldPointers = dataset.data();
-    using FieldType    = std::variant<float*, double*, int*, unsigned*, uint64_t*>;
+    using FieldType    = std::variant<float*, double*, int*, unsigned*, uint64_t*, util::array<double, 21> *>;
 
     std::vector<FieldType> outputFields;
     outputFields.reserve(dataset.outputFieldIndices.size());

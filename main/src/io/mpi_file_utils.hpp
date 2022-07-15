@@ -76,6 +76,11 @@ inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& f
     return H5PartWriteDataFloat64(h5_file, fieldName.c_str(), field);
 }
 
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const util::array<double, 21>* field)
+{
+    return 0.;
+}
+
 void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, double* value, size_t numElements)
 {
     H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);

@@ -32,8 +32,8 @@
 
 #include <cmath>
 #include <optional>
-#include <string>
-
+#include <cstring>
+#include "grackle_deps/version.h"
 #define CONFIG_BFLOAT_8
 
 extern "C"
@@ -47,7 +47,34 @@ static constexpr double G_cgs = 6.674e-8;
 
 static code_units      code_units_simulation;
 static chemistry_data* chemistry_data_simulation;
-
+struct gr_data
+{
+    enum IndexNames
+    {
+        HI_fraction = 0,
+        HII_fraction  = 1,
+        HIII_fraction  = 2,
+        HM_fraction  = 3,
+        HeI_fraction  = 4,
+        HeII_fraction  = 5,
+        HeIII_fraction  = 6,
+        H2I_fraction = 7,
+        H2II_fraction  = 8,
+        DI_fraction  = 9,
+        DII_fraction  = 10,
+        HDI_fraction  = 11,
+        e_fraction  = 12,
+        metal_fraction  = 13,
+        volumetric_heating_rate = 14,
+        specific_heating_rate  = 15,
+        RT_heating_rate  = 16,
+        RT_HI_ionization_rate  = 17,
+        RT_HeI_ionization_rate  = 18,
+        RT_HeII_ionization_rate  = 19,
+        RT_H2_dissociation_rate  = 20,
+        H2_self_shielding_length = 21
+    };
+};
 template<typename T>
 void cool_particle(const T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction,
                    T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction,
@@ -150,6 +177,7 @@ void cool_particle(const T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T
 
 struct grackle_options
 {
+    std::string          grackle_data_file_path = PROJECT_SOURCE_DIR "/grackle_repo/input/CloudyData_UVB=HM2012.h5";
     std::optional<int>   with_radiative_cooling                 = std::nullopt;
     std::optional<int>   primordial_chemistry                   = std::nullopt;
     std::optional<int>   h2_on_dust                             = std::nullopt;
@@ -178,7 +206,7 @@ struct grackle_options
     std::optional<int>   dust_chemistry                         = std::nullopt;
 };
 
-void initGrackle(const std::string grackle_data_file_path, const grackle_options options,
+void initGrackle(const grackle_options& options,
                  const double density_units = 1.67e-24, const double length_units = 1.0, const double time_units = 1e12,
                  const double a_units = 1., const double a_value = 1., const int comoving_coordinates = 0)
 {
@@ -195,8 +223,9 @@ void initGrackle(const std::string grackle_data_file_path, const grackle_options
     chemistry_data_simulation = new chemistry_data;
     set_default_chemistry_parameters(chemistry_data_simulation);
 
-    char* grackle_data_file_path_copy = new char[grackle_data_file_path.size()];
-    strncpy(grackle_data_file_path_copy, grackle_data_file_path.c_str(), grackle_data_file_path.size());
+
+    char* grackle_data_file_path_copy = new char[options.grackle_data_file_path.size()];
+    std::strncpy(grackle_data_file_path_copy, options.grackle_data_file_path.c_str(), options.grackle_data_file_path.size());
     chemistry_data_simulation->grackle_data_file = grackle_data_file_path_copy;
 
     chemistry_data_simulation->use_grackle = 1;
@@ -232,7 +261,6 @@ void initGrackle(const std::string grackle_data_file_path, const grackle_options
     set_option(chemistry_data_simulation->radiative_transfer_hydrogen_only, options.radiative_transfer_hydrogen_only);
     set_option(chemistry_data_simulation->H2_self_shielding, options.H2_self_shielding);
     set_option(chemistry_data_simulation->dust_chemistry, options.dust_chemistry);
-
     initialize_chemistry_data(&code_units_simulation);
 }
 

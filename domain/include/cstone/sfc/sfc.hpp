@@ -82,6 +82,13 @@ template<>
 struct unusedBits<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 1> {};
 
 template<>
+struct unusedBits<MortonKey<size_t>> : stl::integral_constant<unsigned, 1> {};
+template<>
+struct unusedBits<HilbertKey<size_t>> : stl::integral_constant<unsigned, 1> {};
+
+
+
+template<>
 struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
 template<>
 struct maxTreeLevel<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
@@ -90,6 +97,12 @@ template<>
 struct maxTreeLevel<MortonKey<uint64_t>> : stl::integral_constant<unsigned, 21> {};
 template<>
 struct maxTreeLevel<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 21> {};
+
+//If size_t ≠ uint64_t
+template<>
+struct maxTreeLevel<MortonKey<size_t>> : stl::integral_constant<unsigned, 21> {};
+template<>
+struct maxTreeLevel<HilbertKey<size_t>> : stl::integral_constant<unsigned, 21> {};
 
 //! @brief Meta function to detect Morton key types
 template<class KeyType>

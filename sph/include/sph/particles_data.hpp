@@ -104,9 +104,9 @@ public:
     std::vector<T>       gradh;                        // grad(h) term
     std::vector<KeyType> codes;                        // Particle space-filling-curve keys
     PinnedVec<int>       neighborsCount;               // number of neighbors of each particle
-
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
     std::vector<int> neighbors;
+    std::vector<util::array<T, 21>> grackleData;
 
     DeviceData_t<AccType, T, KeyType> devData;
 
@@ -119,7 +119,8 @@ public:
     inline static constexpr std::array fieldNames{
         "x",   "y",   "z",   "x_m1", "y_m1", "z_m1", "vx", "vy",    "vz",    "rho",   "u",     "p",    "prho",
         "h",   "m",   "c",   "ax",   "ay",   "az",   "du", "du_m1", "c11",   "c12",   "c13",   "c22",  "c23",
-        "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
+        "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc",
+        "grackleData"};
 
     static_assert(std::is_same_v<AcceleratorType, CpuTag> ||
                       fieldNames.size() == DeviceData_t<AccType, T, KeyType>::fieldNames.size(),
@@ -135,15 +136,19 @@ public:
         using IntVecType     = std::decay_t<decltype(neighborsCount)>;
         using KeyVecType     = std::decay_t<decltype(codes)>;
         using FieldAllocType = typename std::decay_t<decltype(x)>::allocator_type;
+        using FieldAllocTypeGrackle = typename std::decay_t<decltype(grackleData)>::allocator_type;
+
         using FieldType      = std::variant<std::vector<float, FieldAllocType>*,
                                        std::vector<double, FieldAllocType>*,
                                        KeyVecType*,
-                                       IntVecType*>;
+                                       IntVecType*,
+                                       std::vector<util::array<T, 21>, FieldAllocTypeGrackle>* >;
 
         std::array<FieldType, fieldNames.size()> ret{
             &x,   &y,   &z,   &x_m1, &y_m1, &z_m1, &vx, &vy,    &vz,    &rho,   &u,     &p,     &prho,
             &h,   &m,   &c,   &ax,   &ay,   &az,   &du, &du_m1, &c11,   &c12,   &c13,   &c22,   &c23,
-            &c33, &mue, &mui, &temp, &cv,   &xm,   &kx, &divv,  &curlv, &alpha, &gradh, &codes, &neighborsCount};
+            &c33, &mue, &mui, &temp, &cv,   &xm,   &kx, &divv,  &curlv, &alpha, &gradh, &codes, &neighborsCount,
+        &grackleData};
 
         static_assert(ret.size() == fieldNames.size());
 

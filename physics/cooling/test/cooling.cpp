@@ -34,18 +34,19 @@
 #include "gtest/gtest.h"
 
 #include "grackle_deps/version.h"
-#include "cooling.hpp"
+#include "cooling/include/cooling.hpp"
 
 TEST(cooling_grackle, test1a)
 {
     grackle_options options;
+    options.grackle_data_file_path = PROJECT_SOURCE_DIR "/grackle_repo/input/CloudyData_UVB=HM2012.h5";
     options.with_radiative_cooling = 1;
     options.primordial_chemistry   = 3;
     options.dust_chemistry         = 1;
     options.metal_cooling          = 1;
     options.UVbackground           = 1;
 
-    initGrackle(PROJECT_SOURCE_DIR "/grackle_repo/input/CloudyData_UVB=HM2012.h5", options);
+    initGrackle(options);
 
     using Real = double;
 
