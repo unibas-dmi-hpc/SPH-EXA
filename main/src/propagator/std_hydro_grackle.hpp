@@ -80,12 +80,13 @@ void setGrackleOption(grackle_options &options, const char *key, const char *val
 grackle_options getGrackleArgumentsFromFile(const std::string path)
 {
     grackle_options options;
-    FILE *file = fopen(path.c_str(), "r");
+    FILE* file = fopen(path.c_str(), "r");
     char key[32], value[64];
     while (fscanf(file, "%31s = %63s", key, value) == 2) {
         setGrackleOption(options, key, value);
     }
     std::cout << options.grackle_data_file_path << std::endl;
+    fclose(file);
     return options;
 }
 template<class DomainType, class ParticleDataType>
