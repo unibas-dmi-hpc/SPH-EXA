@@ -38,6 +38,7 @@
 #include <thrust/execution_policy.h>
 
 #include "cstone/primitives/mpi_wrappers.hpp"
+#include "cstone/primitives/mpi_cuda.cuh"
 #include "cstone/util/index_ranges.hpp"
 
 namespace cstone
@@ -87,20 +88,33 @@ size_t sendCountSum(const SendList& outgoingHalos)
     return sendCount;
 }
 
-template<class... Arrays>
-void haloExchangeGpu(int epoch, const SendList& incomingHalos, const SendList& outgoingHalos, Arrays... arrays)
+template<class DeviceVector, class... Arrays>
+void haloExchangeGpu(int epoch,
+                     const SendList& incomingHalos,
+                     const SendList& outgoingHalos,
+                     DeviceVector& sendScratchBuffer,
+                     DeviceVector& receiveScratchBuffer,
+                     Arrays... arrays)
 {
     using IndexType         = SendManifest::IndexType;
     constexpr int numArrays = sizeof...(Arrays);
     constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
-    int bytesPerElement = std::accumulate(elementSizes.begin(), elementSizes.end(), 0);
+    const int bytesPerElement = std::accumulate(elementSizes.begin(), elementSizes.end(), 0);
 
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
-    size_t totalSendCount = sendCountSum(outgoingHalos);
-    char* sendBuffer;
-    cudaMalloc((void**)&sendBuffer, bytesPerElement * totalSendCount);
+    const size_t totalSendCount = sendCountSum(outgoingHalos);
+    char* sendBuffer            = reinterpret_cast<char*>(thrust::raw_pointer_cast(sendScratchBuffer.data()));
+    bool allocateSend =
+        totalSendCount * bytesPerElement > sendScratchBuffer.size() * sizeof(typename DeviceVector::value_type);
+    if (allocateSend)
+    {
+        std::cout << "Allocating send buffer" << std::endl;
+        cudaMalloc((void**)&sendBuffer, totalSendCount * bytesPerElement);
+    }
+
     std::vector<MPI_Request> sendRequests;
+    std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
 
     int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
 
@@ -146,26 +160,34 @@ void haloExchangeGpu(int epoch, const SendList& incomingHalos, const SendList& o
             }
         }
 
-        mpiSendAsync(sendPtr, sendBytes, destinationRank, haloExchangeTag, sendRequests);
+        mpiSendGpuDirect(sendPtr, sendBytes, destinationRank, haloExchangeTag, sendRequests, sendBuffers);
         sendPtr += sendBytes;
     }
 
     int numMessages            = 0;
     std::size_t maxReceiveSize = 0;
     for (std::size_t sourceRank = 0; sourceRank < incomingHalos.size(); ++sourceRank)
+    {
         if (incomingHalos[sourceRank].totalCount() > 0)
         {
             numMessages++;
             maxReceiveSize = std::max(maxReceiveSize, incomingHalos[sourceRank].totalCount());
         }
+    }
 
-    char* receiveBuffer;
-    cudaMalloc((void**)&receiveBuffer, bytesPerElement * maxReceiveSize);
+    char* receiveBuffer = reinterpret_cast<char*>(thrust::raw_pointer_cast(sendScratchBuffer.data()));
+    bool allocateReceive =
+        maxReceiveSize * bytesPerElement > receiveScratchBuffer.size() * sizeof(typename DeviceVector::value_type);
+    if (allocateReceive)
+    {
+        std::cout << "Allocating receive buffer" << std::endl;
+        cudaMalloc((void**)&receiveBuffer, bytesPerElement * maxReceiveSize);
+    }
 
     while (numMessages > 0)
     {
         MPI_Status status;
-        mpiRecvSync(receiveBuffer, maxReceiveSize * bytesPerElement, MPI_ANY_SOURCE, haloExchangeTag, &status);
+        mpiRecvGpuDirect(receiveBuffer, maxReceiveSize * bytesPerElement, MPI_ANY_SOURCE, haloExchangeTag, &status);
         int receiveRank     = status.MPI_SOURCE;
         size_t receiveCount = incomingHalos[receiveRank].totalCount();
 
@@ -195,8 +217,8 @@ void haloExchangeGpu(int epoch, const SendList& incomingHalos, const SendList& o
         MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
     }
 
-    cudaFree(sendBuffer);
-    cudaFree(receiveBuffer);
+    if (allocateSend) { cudaFree(sendBuffer); }
+    if (allocateReceive) { cudaFree(receiveBuffer); }
 
     // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
     // across all ranks before calling this function again.

@@ -147,7 +147,9 @@ public:
 
         if constexpr (cstone::HaveGpu<Acc>{})
         {
-            domain.exchangeHalosGpu(std::tie(d.devData.c11, d.devData.c12, d.devData.c13, d.devData.c22, d.devData.c23, d.devData.c33));
+            domain.exchangeHalosGpu(
+                std::tie(d.devData.c11, d.devData.c12, d.devData.c13, d.devData.c22, d.devData.c23, d.devData.c33),
+                d.devData.ax, d.devData.ay);
         }
         else
         {

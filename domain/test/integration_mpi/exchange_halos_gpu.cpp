@@ -183,7 +183,11 @@ void simpleTest(int thisRank)
     thrust::device_vector<double> d_x                     = x;
     thrust::device_vector<float> d_y                      = y;
     thrust::device_vector<util::array<int, 3>> d_velocity = velocity;
-    haloExchangeGpu(0, incomingHalos, outgoingHalos, thrust::raw_pointer_cast(d_x.data()),
+
+    thrust::device_vector<char> sendBuffer    = std::vector<char>(7 * 24);
+    thrust::device_vector<char> receiveBuffer = std::vector<char>(7 * 24);
+
+    haloExchangeGpu(0, incomingHalos, outgoingHalos, sendBuffer, receiveBuffer, thrust::raw_pointer_cast(d_x.data()),
                     thrust::raw_pointer_cast(d_y.data()), thrust::raw_pointer_cast(d_velocity.data()));
 
     cudaMemcpy(x.data(), thrust::raw_pointer_cast(d_x.data()), x.size() * sizeof(double), cudaMemcpyDeviceToHost);

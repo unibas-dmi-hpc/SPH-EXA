@@ -45,10 +45,18 @@ namespace cstone
 {
 
 template<class KeyType>
-template<class... Arrays>
-void Halos<KeyType>::exchangeHalosGpu(Arrays... arrays) const
+template<class... DeviceVectors, class DeviceVector>
+void Halos<KeyType>::exchangeHalosGpu(std::tuple<DeviceVectors&...> arrays,
+                                      DeviceVector& sendBuffer,
+                                      DeviceVector& receiveBuffer) const
 {
-    haloExchangeGpu(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, thrust::raw_pointer_cast(arrays)...);
+    std::apply(
+        [this, &sendBuffer, &receiveBuffer](auto&... arrays)
+        {
+            haloExchangeGpu(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, sendBuffer, receiveBuffer,
+                            thrust::raw_pointer_cast(arrays.data())...);
+        },
+        arrays);
 }
 
 } // namespace cstone

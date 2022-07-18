@@ -181,8 +181,9 @@ public:
         haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays...);
     }
 
-    template<class... Arrays>
-    void exchangeHalosGpu(Arrays... arrays) const;
+    template<class... DeviceVectors, class DeviceVector>
+    void
+    exchangeHalosGpu(std::tuple<DeviceVectors&...> arrays, DeviceVector& sendBuffer, DeviceVector& receiveBuffer) const;
 
     gsl::span<int> haloFlags() { return haloFlags_; }
 
