@@ -71,6 +71,12 @@ size_t sendCountSum(const SendList& outgoingHalos)
     return sendCount;
 }
 
+template<size_t... Is>
+constexpr auto makeIntegralTuple(std::index_sequence<Is...>)
+{
+    return std::make_tuple(std::integral_constant<size_t, Is>{}...);
+}
+
 template<class DeviceVector, class... Arrays>
 void haloExchangeGpu(int epoch,
                      const SendList& incomingHalos,
@@ -101,8 +107,8 @@ void haloExchangeGpu(int epoch,
 
     int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
 
-    //thrust::device_vector<IndexType> d_rangeOffsets;
-    //thrust::device_vector<IndexType> d_rangeScan;
+    thrust::device_vector<IndexType> d_rangeOffsets;
+    thrust::device_vector<IndexType> d_rangeScan;
 
     char* sendPtr = sendBuffer;
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
@@ -111,37 +117,29 @@ void haloExchangeGpu(int epoch,
         if (sendCount == 0) continue;
 
         // compute indices to extract and upload to GPU
-        //auto [rangeOffsets, rangeScan] = createRanges(outgoingHalos[destinationRank]);
-        //d_rangeOffsets                 = rangeOffsets;
-        //d_rangeScan                    = rangeScan;
+        auto [rangeOffsets, rangeScan] = createRanges(outgoingHalos[destinationRank]);
+        d_rangeOffsets                 = rangeOffsets;
+        d_rangeScan                    = rangeScan;
 
         util::array<size_t, numArrays> arrayByteOffsets = sendCount * elementSizes;
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
         size_t sendBytes = sendCount * bytesPerElement;
 
-        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
+        constexpr auto indices = makeIntegralTuple(std::make_index_sequence<numArrays>{});
+
+        auto gatherArray = [sendPtr, sendCount, &data, &arrayByteOffsets, &elementSizes, &d_rangeOffsets,
+                            &d_rangeScan](auto arrayIndex)
         {
             size_t outputOffset = arrayByteOffsets[arrayIndex];
-            //char* bufferPtr     = thrust::raw_pointer_cast(buffer.data()) + outputOffset;
+            char* bufferPtr     = sendPtr + outputOffset;
 
-            //using ElementType = util::array<float, elementSizes[0] / sizeof(float)>;
-            //int numThreads    = 256;
-            //int numBlocks     = iceil(sendCount, numThreads);
-            //gatherSend<<<numBlocks, numThreads>>>(thrust::raw_pointer_cast(d_rangeScan.data()),
-            //                                      thrust::raw_pointer_cast(d_rangeOffsets.data()), rangeOffsets.size(),
-            //                                      reinterpret_cast<ElementType*>(data[arrayIndex]),
-            //                                      reinterpret_cast<ElementType*>(bufferPtr), sendCount);
+            using ElementType = util::array<float, elementSizes[arrayIndex] / sizeof(float)>;
+            gatherSend(thrust::raw_pointer_cast(d_rangeScan.data()), thrust::raw_pointer_cast(d_rangeOffsets.data()),
+                       d_rangeOffsets.size(), reinterpret_cast<ElementType*>(data[arrayIndex]),
+                       reinterpret_cast<ElementType*>(bufferPtr), sendCount);
+        };
 
-            for (std::size_t rangeIdx = 0; rangeIdx < outgoingHalos[destinationRank].nRanges(); ++rangeIdx)
-            {
-                size_t lowerIndex = outgoingHalos[destinationRank].rangeStart(rangeIdx) * elementSizes[arrayIndex];
-                size_t upperIndex = outgoingHalos[destinationRank].rangeEnd(rangeIdx) * elementSizes[arrayIndex];
-
-                cudaMemcpy(sendPtr + outputOffset, data[arrayIndex] + lowerIndex, upperIndex - lowerIndex,
-                           cudaMemcpyDeviceToDevice);
-                outputOffset += upperIndex - lowerIndex;
-            }
-        }
+        for_each_tuple(gatherArray, indices);
 
         mpiSendGpuDirect(sendPtr, sendBytes, destinationRank, haloExchangeTag, sendRequests, sendBuffers);
         sendPtr += sendBytes;
