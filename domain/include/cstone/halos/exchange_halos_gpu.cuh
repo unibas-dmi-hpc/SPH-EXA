@@ -40,7 +40,7 @@
 #include "cstone/primitives/mpi_cuda.cuh"
 #include "cstone/util/index_ranges.hpp"
 
-#include "gather_send.cuh"
+#include "gather_scatter.cuh"
 
 namespace cstone
 {
@@ -89,6 +89,7 @@ void haloExchangeGpu(int epoch,
     constexpr int numArrays = sizeof...(Arrays);
     constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
     const int bytesPerElement = std::accumulate(elementSizes.begin(), elementSizes.end(), 0);
+    constexpr auto indices    = makeIntegralTuple(std::make_index_sequence<numArrays>{});
 
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
@@ -98,7 +99,7 @@ void haloExchangeGpu(int epoch,
         totalSendCount * bytesPerElement > sendScratchBuffer.size() * sizeof(typename DeviceVector::value_type);
     if (allocateSend)
     {
-        std::cout << "Allocating send buffer" << std::endl;
+        //std::cout << "Allocating send buffer" << std::endl;
         cudaMalloc((void**)&sendBuffer, totalSendCount * bytesPerElement);
     }
 
@@ -125,8 +126,6 @@ void haloExchangeGpu(int epoch,
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
         size_t sendBytes = sendCount * bytesPerElement;
 
-        constexpr auto indices = makeIntegralTuple(std::make_index_sequence<numArrays>{});
-
         auto gatherArray = [sendPtr, sendCount, &data, &arrayByteOffsets, &elementSizes, &d_rangeOffsets,
                             &d_rangeScan](auto arrayIndex)
         {
@@ -134,9 +133,9 @@ void haloExchangeGpu(int epoch,
             char* bufferPtr     = sendPtr + outputOffset;
 
             using ElementType = util::array<float, elementSizes[arrayIndex] / sizeof(float)>;
-            gatherSend(thrust::raw_pointer_cast(d_rangeScan.data()), thrust::raw_pointer_cast(d_rangeOffsets.data()),
-                       d_rangeOffsets.size(), reinterpret_cast<ElementType*>(data[arrayIndex]),
-                       reinterpret_cast<ElementType*>(bufferPtr), sendCount);
+            gatherRanges(thrust::raw_pointer_cast(d_rangeScan.data()), thrust::raw_pointer_cast(d_rangeOffsets.data()),
+                         d_rangeOffsets.size(), reinterpret_cast<ElementType*>(data[arrayIndex]),
+                         reinterpret_cast<ElementType*>(bufferPtr), sendCount);
         };
 
         for_each_tuple(gatherArray, indices);
@@ -161,7 +160,7 @@ void haloExchangeGpu(int epoch,
         maxReceiveSize * bytesPerElement > receiveScratchBuffer.size() * sizeof(typename DeviceVector::value_type);
     if (allocateReceive)
     {
-        std::cout << "Allocating receive buffer" << std::endl;
+        //std::cout << "Allocating receive buffer" << std::endl;
         cudaMalloc((void**)&receiveBuffer, bytesPerElement * maxReceiveSize);
     }
 
@@ -175,20 +174,25 @@ void haloExchangeGpu(int epoch,
         util::array<size_t, numArrays> arrayByteOffsets = receiveCount * elementSizes;
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
 
-        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
+        // compute indices to extract and upload to GPU
+        auto [rangeOffsets, rangeScan] = createRanges(incomingHalos[receiveRank]);
+        d_rangeOffsets                 = rangeOffsets;
+        d_rangeScan                    = rangeScan;
+
+        auto scatterArray = [receiveBuffer, receiveCount, &data, &arrayByteOffsets, &elementSizes, &d_rangeOffsets,
+                             &d_rangeScan](auto arrayIndex)
         {
-            size_t inputOffset = arrayByteOffsets[arrayIndex];
-            for (std::size_t rangeIdx = 0; rangeIdx < incomingHalos[receiveRank].nRanges(); ++rangeIdx)
-            {
-                IndexType offset  = incomingHalos[receiveRank].rangeStart(rangeIdx) * elementSizes[arrayIndex];
-                size_t countBytes = incomingHalos[receiveRank].count(rangeIdx) * elementSizes[arrayIndex];
+            size_t outputOffset = arrayByteOffsets[arrayIndex];
+            char* bufferPtr     = receiveBuffer + outputOffset;
 
-                cudaMemcpy(data[arrayIndex] + offset, receiveBuffer + inputOffset, countBytes,
-                           cudaMemcpyDeviceToDevice);
+            using ElementType = util::array<float, elementSizes[arrayIndex] / sizeof(float)>;
+            scatterRanges(thrust::raw_pointer_cast(d_rangeScan.data()), thrust::raw_pointer_cast(d_rangeOffsets.data()),
+                          d_rangeOffsets.size(), reinterpret_cast<ElementType*>(data[arrayIndex]),
+                          reinterpret_cast<ElementType*>(bufferPtr), receiveCount);
+        };
 
-                inputOffset += countBytes;
-            }
-        }
+        for_each_tuple(scatterArray, indices);
+
         numMessages--;
     }
 

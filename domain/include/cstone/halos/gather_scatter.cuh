@@ -37,11 +37,19 @@ namespace cstone
 {
 
 template<class T, class IndexType>
-extern void gatherSend(const IndexType* rangeScan,
-                       const IndexType* rangeOffsets,
-                       int numRanges,
-                       const T* src,
-                       T* buffer,
-                       size_t bufferSize);
+extern void gatherRanges(const IndexType* rangeScan,
+                         const IndexType* rangeOffsets,
+                         int numRanges,
+                         const T* src,
+                         T* buffer,
+                         size_t bufferSize);
+
+template<class T, class IndexType>
+extern void scatterRanges(const IndexType* rangeScan,
+                          const IndexType* rangeOffsets,
+                          int numRanges,
+                          T* dest,
+                          const T* buffer,
+                          size_t bufferSize);
 
 } // namespace cstone

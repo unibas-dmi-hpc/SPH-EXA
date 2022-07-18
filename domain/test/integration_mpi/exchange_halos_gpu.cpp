@@ -92,7 +92,7 @@ TEST(HaloExchange, gpuDirect)
     // gpuDirect(rank);
 }
 
-TEST(HaloExchange, gatherSend)
+TEST(HaloExchange, gatherRanges)
 {
     // list of marked halo cells/ranges
     std::vector<int> seq(30);
@@ -105,9 +105,9 @@ TEST(HaloExchange, gatherSend)
 
     thrust::device_vector<int> buffer = std::vector<int>(totalCount);
 
-    gatherSend(thrust::raw_pointer_cast(rangeScan.data()), thrust::raw_pointer_cast(rangeOffsets.data()),
-               rangeScan.size(), thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(buffer.data()),
-               totalCount);
+    gatherRanges(thrust::raw_pointer_cast(rangeScan.data()), thrust::raw_pointer_cast(rangeOffsets.data()),
+                 rangeScan.size(), thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(buffer.data()),
+                 totalCount);
 
     thrust::host_vector<int> h_buffer = buffer;
     thrust::host_vector<int> ref      = std::vector<int>{4, 5, 6, 7, 12, 13, 14, 22, 23, 24};
