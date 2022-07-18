@@ -143,15 +143,23 @@ public:
         transferToDevice(d, 0, first, {"rho"});
         transferToDevice(d, last, domain.nParticlesWithHalos(), {"rho"});
         computeIAD(first, last, ngmax_, d, domain.box());
-        transferToHost(d, first, last, {"c11", "c12", "c13", "c22", "c23", "c33"});
         timer.step("IAD");
 
-        domain.exchangeHalos(std::tie(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33));
+        if constexpr (cstone::HaveGpu<Acc>{})
+        {
+            domain.exchangeHalosGpu(std::tie(d.devData.c11, d.devData.c12, d.devData.c13, d.devData.c22, d.devData.c23, d.devData.c33));
+        }
+        else
+        {
+            transferToHost(d, first, last, {"c11", "c12", "c13", "c22", "c23", "c33"});
+            domain.exchangeHalos(std::tie(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33));
+            transferToDevice(d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33"});
+            transferToDevice(d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33"});
+        }
+
         timer.step("mpi::synchronizeHalos");
 
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz", "p", "c"});
-        transferToDevice(d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33"});
-        transferToDevice(d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33"});
         computeMomentumEnergySTD(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 

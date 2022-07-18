@@ -98,8 +98,8 @@ void haloExchangeGpu(int epoch, const SendList& incomingHalos, const SendList& o
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
     size_t totalSendCount = sendCountSum(outgoingHalos);
-    char* sendPtr;
-    cudaMalloc((void**)&sendPtr, bytesPerElement * totalSendCount);
+    char* sendBuffer;
+    cudaMalloc((void**)&sendBuffer, bytesPerElement * totalSendCount);
     std::vector<MPI_Request> sendRequests;
 
     int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
@@ -107,6 +107,7 @@ void haloExchangeGpu(int epoch, const SendList& incomingHalos, const SendList& o
     //thrust::device_vector<IndexType> d_rangeOffsets;
     //thrust::device_vector<IndexType> d_rangeScan;
 
+    char* sendPtr = sendBuffer;
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
         size_t sendCount = outgoingHalos[destinationRank].totalCount();
@@ -164,7 +165,7 @@ void haloExchangeGpu(int epoch, const SendList& incomingHalos, const SendList& o
     while (numMessages > 0)
     {
         MPI_Status status;
-        mpiRecvSync(receiveBuffer, maxReceiveSize, MPI_ANY_SOURCE, haloExchangeTag, &status);
+        mpiRecvSync(receiveBuffer, maxReceiveSize * bytesPerElement, MPI_ANY_SOURCE, haloExchangeTag, &status);
         int receiveRank     = status.MPI_SOURCE;
         size_t receiveCount = incomingHalos[receiveRank].totalCount();
 
@@ -194,7 +195,7 @@ void haloExchangeGpu(int epoch, const SendList& incomingHalos, const SendList& o
         MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
     }
 
-    cudaFree(sendPtr);
+    cudaFree(sendBuffer);
     cudaFree(receiveBuffer);
 
     // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization

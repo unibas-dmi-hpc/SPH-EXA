@@ -132,6 +132,7 @@ void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                                        rawPtr(d.devData.c23),
                                        rawPtr(d.devData.c33));
     CHECK_CUDA_ERR(cudaGetLastError());
+    cudaDeviceSynchronize();
 }
 
 template void computeIAD(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

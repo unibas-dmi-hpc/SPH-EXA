@@ -29,15 +29,56 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <cassert>
+#include <numeric>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <thrust/sequence.h>
 
+#include "cstone/cuda/errorcheck.cuh"
 #include "cstone/halos/exchange_halos_gpu.cuh"
 
 using namespace cstone;
+
+void gpuDirect(int rank)
+{
+    int* src;
+    int* dest;
+    checkGpuErrors(cudaMalloc((void**)&src, 5 * sizeof(int)));
+    checkGpuErrors(cudaMalloc((void**)&dest, 5 * sizeof(int)));
+
+    std::vector<int> init(5, -1);
+    checkGpuErrors(cudaMemcpy(src, init.data(), 5 * sizeof(int), cudaMemcpyHostToDevice));
+    checkGpuErrors(cudaMemcpy(dest, init.data(), 5 * sizeof(int), cudaMemcpyHostToDevice));
+
+    std::vector<int> ref{0,1,2,3,4};
+    std::vector<int> probe(5);
+
+    std::vector<MPI_Request> sendRequests;
+    int tag = 0;
+
+    if (rank == 0)
+    {
+        checkGpuErrors(cudaMemcpy(src, ref.data(), 5 * sizeof(int), cudaMemcpyHostToDevice));
+        int err = MPI_Send(src, 5, MPI_INT, 1, tag, MPI_COMM_WORLD);
+        assert(err == MPI_SUCCESS);
+    }
+    else
+    {
+        int err = mpiRecvSync(dest, 5, 0, tag, MPI_STATUS_IGNORE);
+        assert(err == MPI_SUCCESS);
+        checkGpuErrors(cudaMemcpy(probe.data(), dest, 5 * sizeof(int), cudaMemcpyDeviceToHost));
+        EXPECT_EQ(probe, ref);
+    }
+
+    checkGpuErrors(cudaFree(src));
+    checkGpuErrors(cudaFree(dest));
+    MPI_Barrier(MPI_COMM_WORLD);
+}
 
 TEST(HaloExchange, gpuDirect)
 {
@@ -49,22 +90,7 @@ TEST(HaloExchange, gpuDirect)
 
     if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
-    thrust::device_vector<int> src = std::vector<int>{0, 1, 2, 3, 4};
-    thrust::device_vector<int> dest(5);
-
-    std::vector<MPI_Request> sendRequests;
-    int tag = 0;
-
-    if (rank == 0) { mpiSendAsync(thrust::raw_pointer_cast(src.data()), src.size(), 1, tag, sendRequests); }
-    else
-    {
-        mpiRecvSync(thrust::raw_pointer_cast(dest.data()), src.size(), 0, tag, MPI_STATUS_IGNORE);
-
-        thrust::host_vector<int> probe = dest;
-        thrust::host_vector<int> ref   = src;
-
-        EXPECT_EQ(probe, ref);
-    }
+    //gpuDirect(rank);
 }
 
 //TEST(HaloExchange, gatherSend)
@@ -186,3 +212,4 @@ TEST(HaloExchange, simpleTest)
 
     simpleTest(rank);
 }
+

@@ -25,17 +25,6 @@ addMpiTest(exchange_domain.cpp exchange_domain GlobalDomainExchange 5)
 addMpiTest(focus_tree.cpp focus_tree FocusTreeIntregration 5)
 addMpiTest(domain_nranks.cpp domain_nranks GlobalDomainNRanks 5)
 
-function(addMpiGpuTest source exename testname ranks)
-    add_executable(${exename} ${source} test_main.cpp)
-    target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/include)
-    target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/test)
-    target_include_directories(${exename} PRIVATE ${MPI_CXX_INCLUDE_PATH})
-    #target_compile_options(${exename} PRIVATE -Wno-unknown-pragmas)
-    target_link_libraries(${exename} ${MPI_CXX_LIBRARIES} CUDA::cudart GTest::gtest_main)
-    cstone_add_test(${testname} EXECUTABLE ${exename} RANKS ${ranks})
-    install(TARGETS ${exename} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/integration_mpi)
-endfunction()
-
 if (CMAKE_CUDA_COMPILER)
     # workaround for compiling MPI with nvcc on cray systems
     if (MPI_CXX_INCLUDE_PATH STREQUAL "" AND DEFINED ENV{CRAY_MPICH2_DIR})
@@ -43,5 +32,7 @@ if (CMAKE_CUDA_COMPILER)
         set(MPI_CXX_INCLUDE_PATH $ENV{MPICH_DIR}/include)
     endif()
 
-    addMpiGpuTest(exchange_halos_gpu.cu exchange_halos_gpu GlobalHaloExchangeGpu 2)
+    addMpiTest(exchange_halos_gpu.cpp exchange_halos_gpu GlobalHaloExchangeGpu 2)
+    target_link_libraries(exchange_halos_gpu CUDA::cudart)
 endif()
+
