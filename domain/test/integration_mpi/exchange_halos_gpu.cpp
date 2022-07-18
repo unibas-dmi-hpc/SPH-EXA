@@ -37,7 +37,6 @@
 
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
-#include <thrust/sequence.h>
 
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/halos/exchange_halos_gpu.cuh"
@@ -93,27 +92,28 @@ TEST(HaloExchange, gpuDirect)
     // gpuDirect(rank);
 }
 
-// TEST(HaloExchange, gatherSend)
-//{
-//     // list of marked halo cells/ranges
-//     thrust::device_vector<int> src(30);
-//     thrust::sequence(thrust::device, src.begin(), src.end(), 0);
-//
-//     thrust::device_vector<int> rangeScan    = std::vector<int>{0, 4, 7};
-//     thrust::device_vector<int> rangeOffsets = std::vector<int>{4, 12, 22};
-//     int totalCount                        = 10;
-//
-//     thrust::device_vector<int> buffer(totalCount);
-//
-//     gatherSend<<<1, totalCount>>>(
-//         thrust::raw_pointer_cast(rangeScan.data()), thrust::raw_pointer_cast(rangeOffsets.data()), rangeScan.size(),
-//         thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(buffer.data()), totalCount);
-//
-//     thrust::host_vector<int> h_buffer = buffer;
-//     thrust::host_vector<int> ref      = std::vector<int>{4, 5, 6, 7, 12, 13, 14, 22, 23, 24};
-//
-//     EXPECT_EQ(h_buffer, ref);
-// }
+TEST(HaloExchange, gatherSend)
+{
+    // list of marked halo cells/ranges
+    std::vector<int> seq(30);
+    std::iota(seq.begin(), seq.end(), 0);
+    thrust::device_vector<int> src = seq;
+
+    thrust::device_vector<unsigned> rangeScan    = std::vector<unsigned>{0, 4, 7};
+    thrust::device_vector<unsigned> rangeOffsets = std::vector<unsigned>{4, 12, 22};
+    int totalCount                               = 10;
+
+    thrust::device_vector<int> buffer = std::vector<int>(totalCount);
+
+    gatherSend(thrust::raw_pointer_cast(rangeScan.data()), thrust::raw_pointer_cast(rangeOffsets.data()),
+               rangeScan.size(), thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(buffer.data()),
+               totalCount);
+
+    thrust::host_vector<int> h_buffer = buffer;
+    thrust::host_vector<int> ref      = std::vector<int>{4, 5, 6, 7, 12, 13, 14, 22, 23, 24};
+
+    EXPECT_EQ(h_buffer, ref);
+}
 
 void simpleTest(int thisRank)
 {

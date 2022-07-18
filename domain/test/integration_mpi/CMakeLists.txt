@@ -33,6 +33,6 @@ if (CMAKE_CUDA_COMPILER)
     endif()
 
     addMpiTest(exchange_halos_gpu.cpp exchange_halos_gpu GlobalHaloExchangeGpu 2)
-    target_link_libraries(exchange_halos_gpu CUDA::cudart)
+    target_link_libraries(exchange_halos_gpu cstone_gpu CUDA::cudart)
 endif()
 
