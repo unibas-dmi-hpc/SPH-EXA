@@ -186,9 +186,9 @@ public:
         timer.step("IAD");
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
+
         computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
-
 /*#ifdef USE_CUDA
             size_t sizeWithHalos = d.x.size();
             size_t size_np_T     = sizeWithHalos * sizeof(decltype(d.grad_P_x[0]));

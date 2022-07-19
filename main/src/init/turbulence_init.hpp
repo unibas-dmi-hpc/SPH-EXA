@@ -201,7 +201,7 @@ void initTurbulenceFields(Dataset& d, const std::map<std::string, double>& const
     size_t stMaxModes     = constants.at("stMaxModes");
     T Lbox                = constants.at("Lbox");
     T velocity            = constants.at("stMachVelocity");
-    int seed              = constants.at("stSeedIni");
+    long int seed         = constants.at("stSeedIni");
     size_t stSpectForm    = constants.at("stSpectForm");
     T mPart               = constants.at("mTotal") / d.numParticlesGlobal;
     T hInit               = std::cbrt(3.0 / (4. * M_PI) * ng0 * std::pow(Lbox, 3) / d.numParticlesGlobal) * 0.5;
@@ -233,6 +233,7 @@ void initTurbulenceFields(Dataset& d, const std::map<std::string, double>& const
     std::fill(d.h.begin(), d.h.end(), hInit);
     std::fill(d.mui.begin(), d.mui.end(), 10.0);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
+    std::fill(d.u.begin(), d.u.end(), 1000.0);
 
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;

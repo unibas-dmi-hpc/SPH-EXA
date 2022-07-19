@@ -19,7 +19,7 @@ template<class T1, class T2>
 CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho)
 {
     using Tc           = std::common_type_t<T1, T2>;
-    constexpr Tc gamma = (5.0 / 3.0);
+    constexpr Tc gamma = 1.001;
 
     Tc tmp = u * (gamma - Tc(1));
     Tc p   = rho * tmp;
@@ -42,7 +42,7 @@ CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho, T3 mui)
     using Tc = std::common_type_t<T1, T2, T3>;
 
     constexpr Tc R     = 8.317e7;
-    constexpr Tc gamma = (5.0 / 3.0);
+    constexpr Tc gamma = 1.001;
 
     Tc cv   = Tc(1.5) * R / mui;
     Tc temp = u / cv;
