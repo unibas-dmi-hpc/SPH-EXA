@@ -67,11 +67,11 @@ class HydroProp final : public Propagator<DomainType, ParticleDataType>
      *
      * x, y, z, h and m are automatically considered conserved and must not be specified in this list
      */
-    inline static constexpr std::array conservedFields{"u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1"};
+    using ConservedFields = FieldList<"u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1">;
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
-    inline static constexpr std::array dependentFields{"rho", "p",   "c",   "ax",  "ay",  "az",  "du",
-                                                       "c11", "c12", "c13", "c22", "c23", "c33", "nc"};
+    using DependentFields =
+        FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
 
 public:
     HydroProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
@@ -85,8 +85,8 @@ public:
         d.setConserved("x", "y", "z", "h", "m");
         d.setDependent("keys");
 
-        std::apply([&d](auto&... f) { d.setConserved(f...); }, conservedFields);
-        std::apply([&d](auto&... f) { d.setDependent(f...); }, dependentFields);
+        std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
+        std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
         d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz");
         d.devData.setDependent("rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33",
@@ -95,22 +95,14 @@ public:
 
     void sync(DomainType& domain, ParticleDataType& d) override
     {
-        constexpr auto scratchIndices = fieldNamesToIndices(dependentFields, ParticleDataType::fieldNames);
-        auto           scratchFields  = accessFields<scratchIndices>(d.dataTuple());
-
         if (d.g != 0.0)
         {
-            constexpr auto syncIndices = fieldNamesToIndices(conservedFields, ParticleDataType::fieldNames);
-            auto           syncFields  = accessFields<syncIndices>(d.dataTuple());
-
-            domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, syncFields, scratchFields);
+            domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, getHost<ConservedFields>(d), getHost<DependentFields>(d));
         }
         else
         {
-            constexpr auto syncIndices = fieldNamesToIndices(conservedFields, ParticleDataType::fieldNames);
-            auto           syncFields  = accessFields<syncIndices>(d.dataTuple());
-
-            domain.sync(d.codes, d.x, d.y, d.z, d.h, std::tuple_cat(std::tie(d.m), syncFields), scratchFields);
+            domain.sync(d.codes, d.x, d.y, d.z, d.h, std::tuple_cat(std::tie(d.m), getHost<ConservedFields>(d)),
+                        getHost<DependentFields>(d));
         }
     }
 
@@ -148,11 +140,9 @@ public:
 
         if constexpr (cstone::HaveGpu<Acc>{})
         {
-            domain.exchangeHalosGpu(
-                std::tie(d.devData.c11, d.devData.c12, d.devData.c13, d.devData.c22, d.devData.c23, d.devData.c33),
-                d.devData.ax, d.devData.ay);
+            domain.exchangeHalosGpu(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), d.devData.ax, d.devData.ay);
         }
-        else { domain.exchangeHalos(std::tie(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33)); }
+        else { domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d)); }
 
         timer.step("mpi::synchronizeHalos");
 
