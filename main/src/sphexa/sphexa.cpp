@@ -50,6 +50,7 @@
 #include "io/ifile_writer.hpp"
 #include "util/timer.hpp"
 #include "util/utils.hpp"
+#include "sph/particles_data.hpp"
 
 #include "insitu_viz.h"
 

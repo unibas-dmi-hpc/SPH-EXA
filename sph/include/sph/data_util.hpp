@@ -129,19 +129,4 @@ auto accessFields(Tuple&& tuple)
     return accessFields_helper<Indices>(std::forward<Tuple>(tuple), std::make_index_sequence<numIndices>{});
 }
 
-//! @brief Return a tuple of references to the specified particle field indices, to GPU fields if GPU is enabled
-template<auto Indices, class Dataset>
-auto accessFieldsPlatform(Dataset& d)
-{
-    using AcceleratorType = typename Dataset::AcceleratorType;
-    if constexpr (std::is_same_v<AcceleratorType, cstone::CpuTag>)
-    {
-        return accessFields<Indices>(d.dataTuple());
-    }
-    else
-    {
-        return accessFields<Indices>(d.devData.dataTuple());
-    }
-}
-
 } // namespace sphexa

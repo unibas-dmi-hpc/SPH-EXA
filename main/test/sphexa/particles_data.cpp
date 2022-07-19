@@ -34,6 +34,7 @@
 #include "gtest/gtest.h"
 
 #include "sph/particles_data.hpp"
+#include "sph/particles_get.hpp"
 
 using namespace sphexa;
 
@@ -178,7 +179,6 @@ TEST(ParticlesData, accessFields)
     auto acc = accessFields<fieldIndices>(dat);
 
     std::get<2>(acc)[0] = 2;
-
     EXPECT_EQ(d.rho[0], 2);
 
     auto acc2 = accessFields<fieldIndices>(d.dataTuple());
@@ -186,4 +186,23 @@ TEST(ParticlesData, accessFields)
 
     // rvalue tuple without reference element not possible because the result would be a dangling reference
     // auto a2 = accessFields<std::array<size_t, 1>{0}>(std::make_tuple(std::vector<int>(10000, 1)));
+}
+
+TEST(ParticlesData, get)
+{
+    ParticlesData<double, unsigned, cstone::CpuTag> d;
+
+    constexpr std::array conservedFields{"x", "y", "rho"};
+    std::apply([&d](auto&... f) { d.setConserved(f...); }, conservedFields);
+
+    d.resize(1);
+    d.rho[0] = 1;
+
+    auto acc = get<"x", "y", "rho">(d);
+
+    std::get<2>(acc)[0] = 2;
+    EXPECT_EQ(d.rho[0], 2);
+
+    auto acc2 = get<"x", "y", "rho">(d);
+    EXPECT_EQ(std::get<2>(acc2)[0], 2);
 }

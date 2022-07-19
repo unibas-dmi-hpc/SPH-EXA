@@ -34,6 +34,7 @@
 
 #include <variant>
 
+#include "sph/particles_get.hpp"
 #include "sph/sph.hpp"
 
 #include "ipropagator.hpp"
@@ -151,13 +152,7 @@ public:
                 std::tie(d.devData.c11, d.devData.c12, d.devData.c13, d.devData.c22, d.devData.c23, d.devData.c33),
                 d.devData.ax, d.devData.ay);
         }
-        else
-        {
-            transferToHost(d, first, last, {"c11", "c12", "c13", "c22", "c23", "c33"});
-            domain.exchangeHalos(std::tie(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33));
-            transferToDevice(d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33"});
-            transferToDevice(d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33"});
-        }
+        else { domain.exchangeHalos(std::tie(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33)); }
 
         timer.step("mpi::synchronizeHalos");
 
