@@ -39,6 +39,7 @@
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/primitives/mpi_cuda.cuh"
 #include "cstone/util/index_ranges.hpp"
+#include "cstone/util/thrust_noinit_alloc.cuh"
 
 #include "gather_scatter.cuh"
 
@@ -108,8 +109,8 @@ void haloExchangeGpu(int epoch,
 
     int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
 
-    thrust::device_vector<IndexType> d_rangeOffsets;
-    thrust::device_vector<IndexType> d_rangeScan;
+    thrust::device_vector<IndexType, util::uninitialized_allocator<IndexType>> d_rangeOffsets;
+    thrust::device_vector<IndexType, util::uninitialized_allocator<IndexType>> d_rangeScan;
 
     char* sendPtr = sendBuffer;
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)

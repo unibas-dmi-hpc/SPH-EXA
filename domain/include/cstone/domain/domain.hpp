@@ -274,6 +274,13 @@ public:
         this->halos_.exchangeHalosGpu(arrays, sendBuffer, receiveBuffer);
     }
 
+    template<class... Vectors, class SendBuffer, class ReceiveBuffer>
+    void exchangeHalosAuto(std::tuple<Vectors&...> arrays, SendBuffer& sendBuffer, ReceiveBuffer& receiveBuffer) const
+    {
+        if constexpr (HaveGpu<Accelerator>{}) { exchangeHalosGpu(arrays, sendBuffer, receiveBuffer); }
+        else { exchangeHalos(arrays); }
+    }
+
     //! @brief return the index of the first particle that's part of the local assignment
     [[nodiscard]] LocalIndex startIndex() const { return bufDesc_.start; }
     //! @brief return one past the index of the last particle that's part of the local assignment

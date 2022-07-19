@@ -138,12 +138,8 @@ public:
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
 
-        if constexpr (cstone::HaveGpu<Acc>{})
-        {
-            domain.exchangeHalosGpu(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), d.devData.ax, d.devData.ay);
-        }
-        else { domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d)); }
-
+        domain.exchangeHalosAuto(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), std::get<0>(get<"ax">(d)),
+                                 std::get<0>(get<"ay">(d)));
         timer.step("mpi::synchronizeHalos");
 
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz", "p", "c"});
