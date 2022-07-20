@@ -14,6 +14,7 @@ list(APPEND CMAKE_MODULE_PATH
 option(BUILD_TESTING "build unit and integration tests" ON)
 option(BUILD_ANALYTICAL "build analytical solution" ON)
 option(SPH_EXA_WITH_HIP "Build SPH-EXA with HIP" OFF)
+option(GPU_DIRECT "Enable CUDA-aware MPI communication" OFF)
 
 if (BUILD_TESTING)
     include(setup_GTest)
