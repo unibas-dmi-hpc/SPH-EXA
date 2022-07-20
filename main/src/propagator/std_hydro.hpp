@@ -122,19 +122,22 @@ public:
 
         findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount,
                                      domain.box());
+        d.devData.release("du");
+        d.devData.acquire("u");
+        transferToDevice(d, first, last, {"vx", "vy", "vz", "u"});
         timer.step("FindNeighbors");
 
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"x", "y", "z", "h", "m", "keys"});
         computeDensity(first, last, ngmax_, d, domain.box());
-        transferToHost(d, first, last, {"rho"});
         timer.step("Density");
         computeEOS_HydroStd(first, last, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(std::tie(d.vx, d.vy, d.vz, d.rho, d.p, d.c));
+        domain.exchangeHalosAuto(get<"vx", "vy", "vz", "rho", "p", "c">(d), std::get<0>(get<"ax">(d)),
+                                 std::get<0>(get<"ay">(d)));
         timer.step("mpi::synchronizeHalos");
+        d.devData.release("u");
+        d.devData.acquire("du");
 
-        transferToDevice(d, 0, first, {"rho"});
-        transferToDevice(d, last, domain.nParticlesWithHalos(), {"rho"});
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
 
@@ -142,7 +145,6 @@ public:
                                  std::get<0>(get<"ay">(d)));
         timer.step("mpi::synchronizeHalos");
 
-        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz", "p", "c"});
         computeMomentumEnergySTD(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 

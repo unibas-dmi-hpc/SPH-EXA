@@ -123,6 +123,7 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
                                        cudaMemcpyDeviceToHost,
                                        stream));
     }
+    cudaDeviceSynchronize();
 }
 
 template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>&,

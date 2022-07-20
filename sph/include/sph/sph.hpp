@@ -8,6 +8,7 @@
 #include "sph/update_h.hpp"
 
 #include "sph/hydro_std/density.hpp"
+#include "sph/hydro_std/eos.hpp"
 #include "sph/hydro_std/iad.hpp"
 #include "sph/hydro_std/momentum_energy.hpp"
 
