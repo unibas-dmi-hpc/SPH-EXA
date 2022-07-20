@@ -65,7 +65,7 @@ void gatherRanges(const IndexType* rangeScan,
 {
     int numThreads = 256;
     int numBlocks  = iceil(bufferSize, numThreads);
-    gatherRangesKernel<<<numThreads, numBlocks>>>(rangeScan, rangeOffsets, numRanges, src, buffer, bufferSize);
+    gatherRangesKernel<<<numBlocks, numThreads>>>(rangeScan, rangeOffsets, numRanges, src, buffer, bufferSize);
 }
 
 template void
@@ -111,7 +111,7 @@ void scatterRanges(const IndexType* rangeScan,
 {
     int numThreads = 256;
     int numBlocks  = iceil(bufferSize, numThreads);
-    scatterRangesKernel<<<numThreads, numBlocks>>>(rangeScan, rangeOffsets, numRanges, dest, buffer, bufferSize);
+    scatterRangesKernel<<<numBlocks, numThreads>>>(rangeScan, rangeOffsets, numRanges, dest, buffer, bufferSize);
 }
 
 template void
