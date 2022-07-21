@@ -63,13 +63,14 @@ __global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, siz
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-    rho[i] = sph::densityJLoop(i, sincIndex, K, box, neighbors, neighborsCount_, x, y, z, h, m, wh, whd);
+    int nc = stl::min(neighborsCount_, ngmax);
+    rho[i] = sph::densityJLoop(i, sincIndex, K, box, neighbors, nc, x, y, z, h, m, wh, whd);
 
     neighborsCount[tid] = neighborsCount_;
 }
 
 template<class Dataset>
-void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeDensity(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
                     const cstone::Box<typename Dataset::RealType>& box)
 {
     using T       = typename Dataset::RealType;
@@ -126,13 +127,13 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     cudaDeviceSynchronize();
 }
 
-template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>&,
                              const cstone::Box<double>&);
-template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>&,
                              const cstone::Box<double>&);
-template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>&,
                              const cstone::Box<float>&);
-template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>&,
                              const cstone::Box<float>&);
 
 } // namespace cuda

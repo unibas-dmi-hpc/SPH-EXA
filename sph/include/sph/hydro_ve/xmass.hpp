@@ -39,7 +39,7 @@
 namespace sph
 {
 template<typename T, class Dataset>
-void computeXMassImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeXMassImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -62,7 +62,8 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
     for (size_t i = startIndex; i < endIndex; i++)
     {
         size_t ni = i - startIndex;
-        xm[i]     = xmassJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd);
+        int    nc = stl::min(neighborsCount[i], ngmax);
+        xm[i]     = xmassJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd);
 #ifndef NDEBUG
         if (std::isnan(xm[i]))
             printf("ERROR::Rho0(%zu) rho0 %f, position: (%f %f %f), h: %f\n", i, xm[i], x[i], y[i], z[i], h[i]);
@@ -71,7 +72,7 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
 }
 
 template<typename T, class Dataset>
-void computeXMass(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

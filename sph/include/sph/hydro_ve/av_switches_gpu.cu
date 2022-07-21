@@ -65,7 +65,8 @@ __global__ void AVswitchesGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> 
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
 
-    alpha[i] = AVswitchesJLoop(i,
+    neighborsCount = stl::min(neighborsCount, ngmax);
+    alpha[i]       = AVswitchesJLoop(i,
                                sincIndex,
                                K,
                                box,
@@ -98,7 +99,7 @@ __global__ void AVswitchesGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> 
 }
 
 template<class Dataset>
-void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeAVswitches(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
                        const cstone::Box<typename Dataset::RealType>& box)
 {
     // number of locally present particles, including halos
@@ -143,13 +144,13 @@ void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset
     CHECK_CUDA_ERR(cudaGetLastError());
 }
 
-template void computeAVswitches(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeAVswitches(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                 const cstone::Box<double>&);
-template void computeAVswitches(size_t, size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeAVswitches(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                 const cstone::Box<double>&);
-template void computeAVswitches(size_t, size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeAVswitches(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                 const cstone::Box<float>&);
-template void computeAVswitches(size_t, size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeAVswitches(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                 const cstone::Box<float>&);
 
 } // namespace cuda

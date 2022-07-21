@@ -40,7 +40,7 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -75,13 +75,14 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, D
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
+        int    nc = stl::min(neighborsCount[i], ngmax);
 
         IADJLoop(i,
                  sincIndex,
                  K,
                  box,
                  neighbors + ngmax * ni,
-                 neighborsCount[i],
+                 nc,
                  x,
                  y,
                  z,
@@ -102,7 +103,7 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, D
                         K,
                         box,
                         neighbors + ngmax * ni,
-                        neighborsCount[i],
+                        nc,
                         x,
                         y,
                         z,
@@ -126,7 +127,7 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, D
 }
 
 template<class T, class Dataset>
-void computeIadDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIadDivvCurlv(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

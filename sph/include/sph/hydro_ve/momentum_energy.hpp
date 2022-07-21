@@ -39,7 +39,7 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -85,6 +85,7 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax,
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
+        int    nc = stl::min(neighborsCount[i], ngmax);
 
         T maxvsignal = 0;
 
@@ -93,7 +94,7 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax,
                                K,
                                box,
                                neighbors + ngmax * ni,
-                               neighborsCount[i],
+                               nc,
                                x,
                                y,
                                z,
@@ -132,7 +133,7 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax,
 }
 
 template<class T, class Dataset>
-void computeMomentumEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergy(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
