@@ -42,8 +42,7 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
-                                  const cstone::Box<T>& box)
+void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -87,12 +86,13 @@ void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, size_t ngm
 
         T maxvsignal = 0;
 
+        int nc = stl::min(neighborsCount[i], ngmax);
         momentumAndEnergyJLoop(i,
                                sincIndex,
                                K,
                                box,
                                neighbors + ngmax * ni,
-                               neighborsCount[i],
+                               nc,
                                x,
                                y,
                                z,
@@ -126,7 +126,7 @@ void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, size_t ngm
 }
 
 template<class T, class Dataset>
-void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
     {

@@ -64,6 +64,7 @@ __global__ void iadDivvCurlvGpu(T sincIndex, T K, int ngmax, const cstone::Box<T
 
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+    neighborsCount = stl::min(neighborsCount, ngmax);
 
     IADJLoop(
         i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22, c23, c33);
@@ -95,7 +96,7 @@ __global__ void iadDivvCurlvGpu(T sincIndex, T K, int ngmax, const cstone::Box<T
 }
 
 template<class Dataset>
-void computeIadDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeIadDivvCurlv(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
                          const cstone::Box<typename Dataset::RealType>& box)
 {
     using T = typename Dataset::RealType;
@@ -138,13 +139,13 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Datas
     CHECK_CUDA_ERR(cudaGetLastError());
 }
 
-template void computeIadDivvCurlv(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeIadDivvCurlv(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                   const cstone::Box<double>&);
-template void computeIadDivvCurlv(size_t, size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeIadDivvCurlv(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                   const cstone::Box<double>&);
-template void computeIadDivvCurlv(size_t, size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeIadDivvCurlv(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                   const cstone::Box<float>&);
-template void computeIadDivvCurlv(size_t, size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeIadDivvCurlv(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                   const cstone::Box<float>&);
 
 } // namespace cuda
