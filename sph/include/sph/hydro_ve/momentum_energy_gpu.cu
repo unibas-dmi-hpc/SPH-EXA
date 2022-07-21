@@ -75,6 +75,7 @@ momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, int ngmax
     {
         cstone::findNeighbors(
             i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+        neighborsCount = stl::min(neighborsCount, ngmax);
 
         T maxvsignal;
         momentumAndEnergyJLoop(i,
@@ -127,7 +128,7 @@ momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, int ngmax
 }
 
 template<class Dataset>
-void computeMomentumEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeMomentumEnergy(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
                            const cstone::Box<typename Dataset::RealType>& box)
 {
     size_t sizeWithHalos       = d.x.size();
@@ -183,13 +184,13 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dat
     d.minDt_loc = minDt;
 }
 
-template void computeMomentumEnergy(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeMomentumEnergy(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                     const cstone::Box<double>&);
-template void computeMomentumEnergy(size_t, size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumEnergy(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                     const cstone::Box<double>&);
-template void computeMomentumEnergy(size_t, size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeMomentumEnergy(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                     const cstone::Box<float>&);
-template void computeMomentumEnergy(size_t, size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumEnergy(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                     const cstone::Box<float>&);
 
 } // namespace cuda

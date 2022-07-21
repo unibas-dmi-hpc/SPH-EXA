@@ -74,6 +74,7 @@ __global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> b
         cstone::findNeighbors(
             i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
 
+        neighborsCount = stl::min(neighborsCount, ngmax);
         T maxvsignal;
         momentumAndEnergyJLoop(i,
                                sincIndex,
@@ -120,7 +121,7 @@ __global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> b
 }
 
 template<class Dataset>
-void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
                               const cstone::Box<typename Dataset::RealType>& box)
 {
     size_t sizeWithHalos       = d.x.size();
@@ -172,16 +173,16 @@ void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, size_t ngmax, 
     d.minDt_loc = minDt;
 }
 
-template void computeMomentumEnergySTD(size_t, size_t, size_t,
+template void computeMomentumEnergySTD(size_t, size_t, int,
                                        sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
-template void computeMomentumEnergySTD(size_t, size_t, size_t,
+template void computeMomentumEnergySTD(size_t, size_t, int,
                                        sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
-template void computeMomentumEnergySTD(size_t, size_t, size_t,
+template void computeMomentumEnergySTD(size_t, size_t, int,
                                        sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                        const cstone::Box<float>&);
-template void computeMomentumEnergySTD(size_t, size_t, size_t,
+template void computeMomentumEnergySTD(size_t, size_t, int,
                                        sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<float>&);
 
