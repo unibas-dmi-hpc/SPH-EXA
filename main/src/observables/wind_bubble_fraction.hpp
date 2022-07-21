@@ -40,14 +40,16 @@ namespace sphexa
 {
 //!@brief counts the number of particles that still belong to the cloud on each rank
 template<class T>
-size_t localSurvivors(size_t first, size_t last, const T* u, const T* rho, double rhoBubble, double uWind)
+size_t localSurvivors(size_t first, size_t last, const T* u, const T* kx, const T* xmass, const T* m, double rhoBubble, double uWind)
 {
     size_t survivors = 0;
 
 #pragma omp parallel for reduction(+ : survivors)
     for (size_t i = first; i < last; i++)
     {
-        if (rho[i] >= 0.64 * rhoBubble && u[i] <= 0.9 * uWind) survivors++;
+        T rhoi = kx[i] / xmass[i] * m[i];
+
+        if (rhoi >= 0.64 * rhoBubble && u[i] <= 0.9 * uWind) survivors++;
     }
 
     return survivors;
@@ -67,7 +69,7 @@ auto calculateSurvivingFraction(size_t startIndex, size_t endIndex, Dataset& d, 
                                 double initialMass)
 {
 
-    size_t localSurvived = localSurvivors<T>(startIndex, endIndex, d.u.data(), d.rho.data(), rhoBubble, uWind);
+    size_t localSurvived = localSurvivors<T>(startIndex, endIndex, d.u.data(), d.kx.data(), d.xm.data(), d.m.data(), rhoBubble, uWind);
 
     int    rootRank = 0;
     size_t globalSurvivors;
