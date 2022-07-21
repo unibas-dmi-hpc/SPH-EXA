@@ -132,8 +132,10 @@ public:
         timer.step("Density");
         computeEOS_HydroStd(first, last, d);
         timer.step("EquationOfState");
+
         domain.exchangeHalosAuto(get<"vx", "vy", "vz", "rho", "p", "c">(d), std::get<0>(get<"ax">(d)),
                                  std::get<0>(get<"ay">(d)));
+
         timer.step("mpi::synchronizeHalos");
         d.devData.release("u");
         d.devData.acquire("du");
@@ -143,6 +145,7 @@ public:
 
         domain.exchangeHalosAuto(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), std::get<0>(get<"ax">(d)),
                                  std::get<0>(get<"ay">(d)));
+
         timer.step("mpi::synchronizeHalos");
 
         computeMomentumEnergySTD(first, last, ngmax_, d, domain.box());
@@ -169,3 +172,4 @@ public:
 };
 
 } // namespace sphexa
+

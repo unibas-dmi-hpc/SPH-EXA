@@ -56,7 +56,7 @@ void computeEOS_HydroStd(size_t firstParticle, size_t lastParticle, const Tu* u,
     int numThreads = 256;
     int numBlocks  = iceil(lastParticle - firstParticle, numThreads);
     cudaEOS_HydroStd<<<numBlocks, numThreads>>>(firstParticle, lastParticle, u, rho, p, c);
-    CHECK_CUDA_ERR(cudaGetLastError());
+    CHECK_CUDA_ERR(cudaDeviceSynchronize());
 }
 
 template void computeEOS_HydroStd(size_t, size_t, const double*, const double*, double*, double*);

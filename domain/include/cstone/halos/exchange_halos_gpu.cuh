@@ -150,6 +150,7 @@ void haloExchangeGpu(int epoch,
         };
 
         for_each_tuple(gatherArray, indices);
+        checkGpuErrors(cudaDeviceSynchronize());
 
         mpiSendGpuDirect(sendPtr, sendBytes, destinationRank, haloExchangeTag, sendRequests, sendBuffers);
         sendPtr += sendBytes;
@@ -166,7 +167,7 @@ void haloExchangeGpu(int epoch,
         }
     }
 
-    char* receiveBuffer = reinterpret_cast<char*>(thrust::raw_pointer_cast(sendScratchBuffer.data()));
+    char* receiveBuffer = reinterpret_cast<char*>(thrust::raw_pointer_cast(receiveScratchBuffer.data()));
     bool allocateReceive =
         maxReceiveSize * bytesPerElement > receiveScratchBuffer.size() * sizeof(typename DeviceVector::value_type);
     if (allocateReceive)
@@ -204,6 +205,7 @@ void haloExchangeGpu(int epoch,
         };
 
         for_each_tuple(scatterArray, indices);
+        checkGpuErrors(cudaDeviceSynchronize());
 
         numMessages--;
     }
