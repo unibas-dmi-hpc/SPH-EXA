@@ -61,14 +61,15 @@ __global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> box, 
 
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
+    int nc = stl::min(neighborsCount_, ngmax);
 
-    xm[i] = sph::xmassJLoop(i, sincIndex, K, box, neighbors, neighborsCount_, x, y, z, h, m, wh, whd);
+    xm[i] = sph::xmassJLoop(i, sincIndex, K, box, neighbors, nc, x, y, z, h, m, wh, whd);
 
     neighborsCount[tid] = neighborsCount_;
 }
 
 template<class Dataset>
-void computeXMass(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
                   const cstone::Box<typename Dataset::RealType>& box)
 {
     using T       = typename Dataset::RealType;
@@ -122,15 +123,16 @@ void computeXMass(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                                        cudaMemcpyDeviceToHost,
                                        stream));
     }
+    CHECK_CUDA_ERR(cudaDeviceSynchronize());
 }
 
-template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeXMass(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                            const cstone::Box<double>&);
-template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeXMass(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                            const cstone::Box<double>&);
-template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeXMass(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                            const cstone::Box<float>&);
-template void computeXMass(size_t, size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeXMass(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                            const cstone::Box<float>&);
 
 } // namespace cuda
