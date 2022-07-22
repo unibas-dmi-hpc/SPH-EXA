@@ -61,6 +61,7 @@ __global__ void veDefGradhGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> 
 
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+    neighborsCount = stl::min(neighborsCount, ngmax);
 
     auto [kxi, gradhi] = veDefGradhJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, wh, whd, xm);
 
@@ -69,7 +70,7 @@ __global__ void veDefGradhGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> 
 }
 
 template<class Dataset>
-void computeVeDefGradh(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeVeDefGradh(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
                        const cstone::Box<typename Dataset::RealType>& box)
 {
     using T = typename Dataset::RealType;
@@ -103,13 +104,13 @@ void computeVeDefGradh(size_t startIndex, size_t endIndex, size_t ngmax, Dataset
     CHECK_CUDA_ERR(cudaGetLastError());
 }
 
-template void computeVeDefGradh(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeVeDefGradh(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                 const cstone::Box<double>&);
-template void computeVeDefGradh(size_t, size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeVeDefGradh(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                 const cstone::Box<double>&);
-template void computeVeDefGradh(size_t, size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeVeDefGradh(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                 const cstone::Box<float>&);
-template void computeVeDefGradh(size_t, size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeVeDefGradh(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                 const cstone::Box<float>&);
 
 } // namespace cuda
