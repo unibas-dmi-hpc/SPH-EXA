@@ -113,16 +113,17 @@ public:
     const std::array<T, ::sph::lt::size> wh  = ::sph::lt::createWharmonicLookupTable<T, ::sph::lt::size>();
     const std::array<T, ::sph::lt::size> whd = ::sph::lt::createWharmonicDerivativeLookupTable<T, ::sph::lt::size>();
 
-    T stSolWeight;
-    long int stSeed;                 // seed for random number generator             //
+    //Turbulence Data
+    T stSolWeight;                 // Solenoidal Weight
+    long int stSeed;               // seed for random number generator             //
     size_t stNModes;               // Number of computed nodes
-    size_t ndim;
-    T stOUvar;
-    T stDecay;
-    T stSolWeightNorm;
-    std::vector<T> stOUPhases;
-    std::vector<T> stMode;
-    std::vector<T> stAmpl;
+    size_t ndim;                   // Number of dimensions
+    T stOUvar;                     // Variance of Ornstein-Uhlenbeck process
+    T stDecay;                     // Decay Time
+    T stSolWeightNorm;             // Normalized Solenoidal weight
+    std::vector<T> stOUPhases;     // O-U Phases
+    std::vector<T> stMode;         // Stirring Modes
+    std::vector<T> stAmpl;         // Amplitude of the modes
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().

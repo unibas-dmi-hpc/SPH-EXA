@@ -26,9 +26,7 @@
 /*! @file
  * @brief  st_calcAccel: Adds the stirring accelerations to the provided accelerations
  *           Input Arguments:
- *             startindex:             first index of particles
- *             endindex:               last index of particles
- *             ndim:                   number of dimensions
+ *             npart:                  number of particles
  *             xCoord:                 vector of x components of particle positions
  *             yCoord:                 vector of y components of particle positions
  *             zCoord:                 vector of z components of particle positions
@@ -44,16 +42,21 @@
  *             accz:                   vector of z component of accelerations
  * @author Axel Sanz <axel.sanz@estudiantat.upc.edu>
  */
-
+#pragma once
 #include <cmath>
 #include <iostream>
-
-namespace sph{
+#include <vector>
 
 template<class T>
 void st_calcAccel(size_t startindex, size_t endindex,size_t ndim, std::vector<T> xCoord,std::vector<T> yCoord,std::vector<T> zCoord,
   std::vector<T>& accx,std::vector<T>& accy,std::vector<T>& accz, size_t st_nmodes,
   std::vector<T> st_mode,std::vector<T> st_aka,std::vector<T> st_akb,std::vector<T> st_ampl,T st_solweightnorm){
+
+  //T cosxi[npart][st_nmodes], sinxi[npart][st_nmodes];
+  //T cosxj[npart][st_nmodes], sinxj[npart][st_nmodes];
+  //T cosxk[npart][st_nmodes], sinxk[npart][st_nmodes];
+  //T ampl[st_nmodes];
+  //T accturbx[npart], accturby[npart], accturbz[npart];
 
   #pragma omp parallel for schedule(static)
   for (size_t i = startindex; i < endindex; ++i){
@@ -95,4 +98,3 @@ void st_calcAccel(size_t startindex, size_t endindex,size_t ndim, std::vector<T>
   return;
 
 }
-} //namespace sphexa

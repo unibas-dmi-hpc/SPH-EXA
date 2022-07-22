@@ -28,22 +28,22 @@
 ////                                   It copies them over and applies the projection operator.
  *           Input Arguments:
  *             st_nmodes:              computed number of modes
- *             ndim:                   number of dimensions
+ *             dim:                    number of dimensions
  *             st_OUphases:            Ornstein-Uhlenbeck phases
  *             st_solweight:           solenoidal weight
- *             st_mode:                vector containing modes
+ *             st_mode:                matrix (st_nmodes x dimension) containing modes
  *           Output Arguments:
  *             st_aka:                 real part of phases
  *             st_akb:                 imaginary part of phases
  * @author Axel Sanz <axel.sanz@estudiantat.upc.edu>
  */
+#pragma once
 #include <cmath>
 #include <iostream>
-
-namespace sph{
+#include <vector>
 
 template <class T>
-void st_calcPhases(size_t st_nmodes, size_t ndim, std::vector<T> st_OUphases, T st_solweight,
+void st_calcPhases(size_t st_nmodes, size_t dim, std::vector<T> st_OUphases, T st_solweight,
   std::vector<T> st_mode, std::vector<T>& st_aka, std::vector<T>& st_akb){
 
   T ka, kb, kk, diva, divb, curla, curlb;
@@ -54,12 +54,12 @@ void st_calcPhases(size_t st_nmodes, size_t ndim, std::vector<T> st_OUphases, T 
      ka = 0.0;
      kb = 0.0;
      kk = 0.0;
-     for(j = 0; j< ndim;j++){
+     for(j = 0; j< dim;j++){
         kk = kk + st_mode[3 * i + j] * st_mode[3 * i + j];
         ka = ka + st_mode[3 * i + j] * st_OUphases[6 * i + 2 * j + 1];
         kb = kb + st_mode[3 * i + j] * st_OUphases[6 * i + 2 * j];
      }
-     for(j = 0; j< ndim;j++){
+     for(j = 0; j< dim;j++){
 
          diva  = st_mode[3 * i + j] * ka / kk;
          divb  = st_mode[3 * i + j] * kb / kk;
@@ -70,8 +70,16 @@ void st_calcPhases(size_t st_nmodes, size_t ndim, std::vector<T> st_OUphases, T 
          st_akb[3 * i + j] = st_solweight * curlb + ( 1.0 - st_solweight ) * diva;
 
       }
+
+// purely compressive
+//         st_aka[3*i+j] = st_mode[3*i+j]*kb/kk
+//         st_akb[3*i+j] = st_mode[3*i+j]*ka/kk
+
+// purely solenoidal
+//         st_aka[3*i+j] = bjiR - st_mode[3*i+j]*kb/kk
+//         st_akb[3*i+j] = bjiI - st_mode[3*i+j]*ka/kk
+
      }
   return;
 
 }
-} //namespace sphexa

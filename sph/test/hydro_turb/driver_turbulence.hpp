@@ -24,28 +24,44 @@
  */
 
 /*! @file
- * @brief Turublence Driver calling all Stirring Subroutines
+ * @brief Volume element definition i-loop driver
  *
- * @author Axel Sanz <axelsanzlechuga@gmail.com>
+ * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
  */
 
 #pragma once
-
+#include <chrono>
 #include "st_calcAccel.hpp"
 #include "st_calcPhases.hpp"
 #include "st_ounoise.hpp"
+//#include "sph/sph.cuh"
+//#include "sph/traits.hpp"
 
 namespace sph
 {
 template<class Dataset>
-void driver_turbulence2(size_t startIndex, size_t endIndex, Dataset& d)
+void driver_turbulence2(size_t startIndex, size_t endIndex, Dataset& d)// const cstone::Box<T>& box)
 {
   using T = typename Dataset::RealType;
   std::vector<T> st_aka(d.ndim * d.stNModes);
   std::vector<T> st_akb(d.ndim * d.stNModes);
 
+  auto start = std::chrono::high_resolution_clock::now();
   st_ounoiseupdate(d.stOUPhases, 6 * d.stNModes, d.stOUvar, d.minDt, d.stDecay,d.stSeed);
+  auto stop = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+  std::cout << "Time taken by st_ounoiseupdate: " << duration.count() << " microseconds" << std::endl;
+
+  start = std::chrono::high_resolution_clock::now();
   st_calcPhases(d.stNModes, d.ndim, d.stOUPhases, d.stSolWeight, d.stMode, st_aka, st_akb);
+  stop = std::chrono::high_resolution_clock::now();
+  duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+  std::cout << "Time taken by calcPhases: " << duration.count() << " microseconds" << std::endl;
+
+  start = std::chrono::high_resolution_clock::now();
   st_calcAccel(startIndex, endIndex, d.ndim, d.x, d.y, d.z, d.ax, d.ay, d.az, d.stNModes, d.stMode, st_aka, st_akb, d.stAmpl, d.stSolWeightNorm);
+  stop = std::chrono::high_resolution_clock::now();
+  duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+  std::cout << "Time taken by calcAccel: " << duration.count() << " microseconds" << std::endl;
 }
 } // namespace sph
