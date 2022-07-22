@@ -38,7 +38,7 @@
 namespace sph
 {
 template<class T, class Dataset>
-void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -63,9 +63,10 @@ void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dat
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        size_t ni          = i - startIndex;
-        auto [kxi, gradhi] = veDefGradhJLoop(
-            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd, xm);
+        size_t ni = i - startIndex;
+        int    nc = stl::min(neighborsCount[i], ngmax);
+        auto [kxi, gradhi] =
+            veDefGradhJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd, xm);
 
         kx[i]    = kxi;
         gradh[i] = gradhi;
@@ -79,7 +80,7 @@ void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dat
 }
 
 template<typename T, class Dataset>
-void computeVeDefGradh(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeVeDefGradh(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
     {
