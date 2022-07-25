@@ -77,3 +77,6 @@ struct uninitialized_allocator : thrust::device_allocator<T>
 };
 
 } // namespace util
+
+template<class Vector>
+extern void reallocateDevice(Vector&, size_t, double);

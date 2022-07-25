@@ -36,10 +36,11 @@
 
 #include <thrust/device_vector.h>
 
+#include "cstone/cuda/errorcheck.cuh"
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/primitives/mpi_cuda.cuh"
 #include "cstone/util/index_ranges.hpp"
-#include "cstone/cuda/errorcheck.cuh"
+#include "cstone/util/thrust_alloc.cuh"
 
 #include "gather_scatter.cuh"
 
@@ -102,14 +103,11 @@ void haloExchangeGpu(int epoch,
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
     const size_t totalSendCount = sendCountSum(outgoingHalos);
-    char* sendBuffer            = reinterpret_cast<char*>(thrust::raw_pointer_cast(sendScratchBuffer.data()));
-    bool allocateSend =
-        totalSendCount * bytesPerElement > sendScratchBuffer.size() * sizeof(typename DeviceVector::value_type);
-    if (allocateSend)
-    {
-        //std::cout << "Allocating send buffer" << std::endl;
-        cudaMalloc((void**)&sendBuffer, totalSendCount * bytesPerElement);
-    }
+    const size_t oldSendSize    = sendScratchBuffer.size();
+    reallocateDevice(sendScratchBuffer, totalSendCount * bytesPerElement / sizeof(typename DeviceVector::value_type),
+                     1.01);
+
+    char* sendBuffer = reinterpret_cast<char*>(thrust::raw_pointer_cast(sendScratchBuffer.data()));
 
     std::vector<MPI_Request> sendRequests;
     std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
@@ -167,14 +165,10 @@ void haloExchangeGpu(int epoch,
         }
     }
 
+    const size_t oldRecvSize = receiveScratchBuffer.size();
+    reallocateDevice(receiveScratchBuffer, maxReceiveSize * bytesPerElement / sizeof(typename DeviceVector::value_type),
+                     1.01);
     char* receiveBuffer = reinterpret_cast<char*>(thrust::raw_pointer_cast(receiveScratchBuffer.data()));
-    bool allocateReceive =
-        maxReceiveSize * bytesPerElement > receiveScratchBuffer.size() * sizeof(typename DeviceVector::value_type);
-    if (allocateReceive)
-    {
-        //std::cout << "Allocating receive buffer" << std::endl;
-        cudaMalloc((void**)&receiveBuffer, bytesPerElement * maxReceiveSize);
-    }
 
     while (numMessages > 0)
     {
@@ -217,8 +211,8 @@ void haloExchangeGpu(int epoch,
     }
 
     checkGpuErrors(cudaFree(d_range));
-    if (allocateSend) { checkGpuErrors(cudaFree(sendBuffer)); }
-    if (allocateReceive) { checkGpuErrors(cudaFree(receiveBuffer)); }
+    reallocateDevice(sendScratchBuffer, oldSendSize, 1.01);
+    reallocateDevice(receiveScratchBuffer, oldRecvSize, 1.01);
 
     // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
     // across all ranks before calling this function again.

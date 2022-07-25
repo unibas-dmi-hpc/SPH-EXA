@@ -30,12 +30,6 @@
 
 #include <thrust/device_vector.h>
 
-#include "thrust_noinit_alloc.cuh"
-
-template class thrust::device_vector<double>;
-template class thrust::device_vector<float>;
-template class thrust::device_vector<int>;
-
 //! @brief resizes a vector with a determined growth rate upon reallocation
 template<class Vector>
 void reallocateDevice(Vector& vector, size_t size, double growthRate)
@@ -55,29 +49,3 @@ template void reallocateDevice(thrust::device_vector<float>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<int>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<unsigned>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<char>&, size_t, double);
-
-template void reallocateDevice(thrust::device_vector<double>&, size_t, double);
-template void reallocateDevice(thrust::device_vector<float>&, size_t, double);
-template void reallocateDevice(thrust::device_vector<int>&, size_t, double);
-template void reallocateDevice(thrust::device_vector<unsigned>&, size_t, double);
-template void reallocateDevice(thrust::device_vector<char>&, size_t, double);
-
-//template class thrust::device_vector<double, >;
-//template class thrust::device_vector<float>;
-//template class thrust::device_vector<int>;
-
-//template void thrust::device_vector<double>::resize(size_t);
-//template void thrust::device_vector<float>::resize(size_t);
-//template void thrust::device_vector<int>::resize(size_t);
-//
-//template void thrust::device_vector<double, util::uninitialized_allocator<double>>::resize(size_t);
-//template void thrust::device_vector<float, util::uninitialized_allocator<float>>::resize(size_t);
-//template void thrust::device_vector<int, util::uninitialized_allocator<int>>::resize(size_t);
-//
-//template void thrust::device_vector<double>::reserve(size_t);
-//template void thrust::device_vector<float>::reserve(size_t);
-//template void thrust::device_vector<int>::reserve(size_t);
-//
-//template void thrust::device_vector<double, util::uninitialized_allocator<double>>::reserve(size_t);
-//template void thrust::device_vector<float, util::uninitialized_allocator<float>>::reserve(size_t);
-//template void thrust::device_vector<int, util::uninitialized_allocator<int>>::reserve(size_t);
