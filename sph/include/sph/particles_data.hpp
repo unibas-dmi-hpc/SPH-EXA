@@ -65,6 +65,9 @@ public:
     template<class ValueType>
     using FieldVector = std::vector<ValueType, std::allocator<ValueType>>;
 
+    ParticlesData()                     = default;
+    ParticlesData(const ParticlesData&) = delete;
+
     size_t iteration{1};
     size_t numParticlesGlobal;
     size_t totalNeighbors;

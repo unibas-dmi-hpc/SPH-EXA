@@ -35,7 +35,6 @@
 #include <thrust/host_vector.h>
 
 #include "cstone/util/util.hpp"
-#include "cstone/util/thrust_noinit_alloc.cuh"
 #include "util/cuda_utils.cuh"
 #include "data_util.hpp"
 #include "field_states.hpp"
