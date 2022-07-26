@@ -67,11 +67,11 @@ class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
      *
      * x, y, z, h and m are automatically considered conserved and must not be specified in this list
      */
-    inline static constexpr std::array conservedFields{"u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha"};
+    using ConservedFields = FieldList<"u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha">;
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
-    inline static constexpr std::array dependentFields{"prho", "c",   "ax",  "ay", "az", "du",   "c11",   "c12", "c13",
-                                                       "c22",  "c23", "c33", "xm", "kx", "divv", "curlv", "nc"};
+    using DependentFields = FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33",
+                                      "xm", "kx", "divv", "curlv", "nc">;
 
 public:
     HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
@@ -85,8 +85,8 @@ public:
         d.setConserved("x", "y", "z", "h", "m");
         d.setDependent("keys");
 
-        std::apply([&d](auto&... f) { d.setConserved(f...); }, conservedFields);
-        std::apply([&d](auto&... f) { d.setDependent(f...); }, dependentFields);
+        std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
+        std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
         d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz", "alpha");
         d.devData.setDependent("prho", "c", "kx", "xm", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23",
@@ -95,22 +95,14 @@ public:
 
     void sync(DomainType& domain, ParticleDataType& d) override
     {
-        constexpr auto scratchIndices = fieldNamesToIndices(dependentFields, ParticleDataType::fieldNames);
-        auto           scratchFields  = accessFields<scratchIndices>(d.dataTuple());
-
         if (d.g != 0.0)
         {
-            constexpr auto syncIndices = fieldNamesToIndices(conservedFields, ParticleDataType::fieldNames);
-            auto           syncFields  = accessFields<syncIndices>(d.dataTuple());
-
-            domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, syncFields, scratchFields);
+            domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, getHost<ConservedFields>(d), getHost<DependentFields>(d));
         }
         else
         {
-            constexpr auto syncIndices = fieldNamesToIndices(conservedFields, ParticleDataType::fieldNames);
-            auto           syncFields  = accessFields<syncIndices>(d.dataTuple());
-
-            domain.sync(d.codes, d.x, d.y, d.z, d.h, std::tuple_cat(std::tie(d.m), syncFields), scratchFields);
+            domain.sync(d.codes, d.x, d.y, d.z, d.h, std::tuple_cat(std::tie(d.m), getHost<ConservedFields>(d)),
+                        getHost<DependentFields>(d));
         }
     }
 
@@ -162,26 +154,23 @@ public:
         transferToDevice(d, 0, first, {"kx"});
         transferToDevice(d, last, domain.nParticlesWithHalos(), {"kx"});
         computeIadDivvCurlv(first, last, ngmax_, d, domain.box());
-        transferToHost(d, first, last, {"c11", "c12", "c13", "c22", "c23", "c33", "divv", "curlv"});
+        transferToHost(d, first, last, {"divv", "curlv"});
         timer.step("IadVelocityDivCurl");
 
-        domain.exchangeHalos(std::tie(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv));
+        domain.exchangeHalosAuto(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), std::get<0>(get<"az">(d)),
+                                 std::get<0>(get<"du">(d)));
         timer.step("mpi::synchronizeHalos");
 
-        transferToDevice(d, 0, first, {"divv"});
-        transferToDevice(d, last, domain.nParticlesWithHalos(), {"divv"});
         computeAVswitches(first, last, ngmax_, d, domain.box());
         transferToHost(d, first, last, {"alpha"});
         timer.step("AVswitches");
 
-        domain.exchangeHalos(std::tie(d.alpha));
+        domain.exchangeHalosAuto(get<"alpha">(d), std::get<0>(get<"az">(d)), std::get<0>(get<"du">(d)));
         timer.step("mpi::synchronizeHalos");
 
         d.devData.release("divv", "curlv");
         d.devData.acquire("ax", "ay");
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"c", "prho"});
-        transferToDevice(d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33", "alpha"});
-        transferToDevice(d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33", "alpha"});
         computeMomentumEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
 
