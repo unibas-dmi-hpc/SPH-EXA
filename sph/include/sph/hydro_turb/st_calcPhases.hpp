@@ -25,7 +25,7 @@
 
 /*! @file
  * @brief  st_calcPhases:              This routine updates the stirring phases from the OU phases.
-////                                   It copies them over and applies the projection operator.
+ *                                     It copies them over and applies the projection operator.
  *           Input Arguments:
  *             st_nmodes:              computed number of modes
  *             ndim:                   number of dimensions
@@ -37,41 +37,41 @@
  *             st_akb:                 imaginary part of phases
  * @author Axel Sanz <axel.sanz@estudiantat.upc.edu>
  */
-#include <cmath>
-#include <iostream>
 
-namespace sph{
+#pragma once
 
-template <class T>
-void st_calcPhases(size_t st_nmodes, size_t ndim, std::vector<T> st_OUphases, T st_solweight,
-  std::vector<T> st_mode, std::vector<T>& st_aka, std::vector<T>& st_akb){
+namespace sph
+{
 
-  T ka, kb, kk, diva, divb, curla, curlb;
-  size_t i,j;
-  const bool Debug = false;
+template<class T>
+void st_calcPhases(size_t st_nmodes, size_t ndim, std::vector<T> st_OUphases, T st_solweight, std::vector<T> st_mode,
+                   std::vector<T>& st_aka, std::vector<T>& st_akb)
+{
+    T ka, kb, kk, diva, divb, curla, curlb;
 
-  for(i = 0; i< st_nmodes;i++){
-     ka = 0.0;
-     kb = 0.0;
-     kk = 0.0;
-     for(j = 0; j< ndim;j++){
-        kk = kk + st_mode[3 * i + j] * st_mode[3 * i + j];
-        ka = ka + st_mode[3 * i + j] * st_OUphases[6 * i + 2 * j + 1];
-        kb = kb + st_mode[3 * i + j] * st_OUphases[6 * i + 2 * j];
-     }
-     for(j = 0; j< ndim;j++){
+    for (size_t i = 0; i < st_nmodes; i++)
+    {
+        ka = 0.0;
+        kb = 0.0;
+        kk = 0.0;
+        for (size_t j = 0; j < ndim; j++)
+        {
+            kk = kk + st_mode[3 * i + j] * st_mode[3 * i + j];
+            ka = ka + st_mode[3 * i + j] * st_OUphases[6 * i + 2 * j + 1];
+            kb = kb + st_mode[3 * i + j] * st_OUphases[6 * i + 2 * j];
+        }
+        for (size_t j = 0; j < ndim; j++)
+        {
 
-         diva  = st_mode[3 * i + j] * ka / kk;
-         divb  = st_mode[3 * i + j] * kb / kk;
-         curla = st_OUphases[6 * i + 2 * j] - divb;
-         curlb = st_OUphases[6 * i + 2 * j + 1] - diva;
+            diva  = st_mode[3 * i + j] * ka / kk;
+            divb  = st_mode[3 * i + j] * kb / kk;
+            curla = st_OUphases[6 * i + 2 * j] - divb;
+            curlb = st_OUphases[6 * i + 2 * j + 1] - diva;
 
-         st_aka[3 * i + j] = st_solweight * curla + ( 1.0 - st_solweight ) * divb;
-         st_akb[3 * i + j] = st_solweight * curlb + ( 1.0 - st_solweight ) * diva;
-
-      }
-     }
-  return;
-
+            st_aka[3 * i + j] = st_solweight * curla + (1.0 - st_solweight) * divb;
+            st_akb[3 * i + j] = st_solweight * curlb + (1.0 - st_solweight) * diva;
+        }
+    }
 }
-} //namespace sphexa
+
+} // namespace sph

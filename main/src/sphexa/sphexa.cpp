@@ -78,7 +78,6 @@ int main(int argc, char** argv)
     using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
-    //using Dataset = TurbulenceData<Real, KeyType, AccType>;
     using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
     const std::string        initCond          = parser.get("--init");
@@ -109,12 +108,13 @@ int main(int argc, char** argv)
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, ngmax, ng0, output, rank);
     auto fileWriter  = fileWriterFactory<Dataset>(ascii);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
+
     Dataset d;
     d.comm = MPI_COMM_WORLD;
-
     propagator->activateFields(d);
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, d);
     d.setOutputFields(outputFields);
+
     bool  haveGrav = (d.g != 0.0);
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 

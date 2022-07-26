@@ -87,8 +87,7 @@ public:
                        "divv",
                        "curlv",
                        "keys",
-                       "nc"
-                       );
+                       "nc");
 
         d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz", "alpha");
         d.devData.setDependent(

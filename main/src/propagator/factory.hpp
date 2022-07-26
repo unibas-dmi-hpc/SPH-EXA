@@ -54,7 +54,7 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
     {
         return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
     }
-    else if (choice == "turb")
+    else if (choice == "turbulence")
     {
         return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
     }

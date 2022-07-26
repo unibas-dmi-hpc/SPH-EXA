@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2022 Politechnical University of Catalonia UPC
  *               2022 University of Basel
+ *               2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,110 +46,102 @@
 
 #pragma once
 #include <cmath>
-#include <iostream>
 
 namespace sph
 {
-template<class T>
-T ran1s(long int& idum){
-/* @brief  ran1s: uniform random number generator in range (0,1)
+
+/*! @brief  uniform random number generator in range (0,1)
  *           Input/Output Arguments:
  *             idum:                   seed of the generator
-             Returns:
-               rand:                   random number
+ *            Returns:
+ *              rand:                   random number
  */
+template<class T>
+T ran1s(long int& idum)
+{
 
-  int k, iy;
-  const int IA=16807, IM=2147483647, IQ=127773, IR=2836, NTAB=32;
-  const T AM=1./IM, EPS=1.2e-7, RNMX=1.-EPS;
-  T rand;
+    int       k, iy;
+    const int IA = 16807, IM = 2147483647, IQ = 127773, IR = 2836;
+    const T   AM = 1. / IM, EPS = 1.2e-7, RNMX = 1. - EPS;
+    T         rand;
 
-  if (idum <= 0) {
-    idum = std::max(-idum, long(1));
-  }
-  k = idum / IQ;
-  idum = IA * (idum - k * IQ) - IR * k;
-  if (idum < 0){
-    idum = idum + IM;
-  }
-  iy = idum;
-  rand = std::min(AM * iy, RNMX);
-  return rand;
+    if (idum <= 0) { idum = std::max(-idum, long(1)); }
+    k    = idum / IQ;
+    idum = IA * (idum - k * IQ) - IR * k;
+    if (idum < 0) { idum = idum + IM; }
+    iy   = idum;
+    rand = std::min(AM * iy, RNMX);
+    return rand;
 }
 
-template<class T>
-T st_grn(long int& seed){
-/* @brief  ran1s: guassian random number generator  with unit variance and mean 0
+/*! @brief  ran1s: guassian random number generator  with unit variance and mean 0
  *           Input/Output Arguments:
  *             idum:                   seed of the generator
-             Returns:
-               rand:                   random number
+ *           Returns:
+ *             rand:                   random number
  */
-  T r1, r2, g1;
-  const T twopi = 2.0 * M_PI;
+template<class T>
+T st_grn(long int& seed)
+{
+    T       r1, r2, g1;
+    const T twopi = 2.0 * M_PI;
 
-  r1 = ran1s<T>(seed);
-  r2 = ran1s<T>(seed);
-  g1 = std::sqrt(-2.0 * std::log(r1)) * std::cos(twopi * r2);
+    r1 = ran1s<T>(seed);
+    r2 = ran1s<T>(seed);
+    g1 = std::sqrt(-2.0 * std::log(r1)) * std::cos(twopi * r2);
 
-  return g1;
+    return g1;
 }
 
-/******************************************************/
+/*! @brief Generates an Ornstein-Uhlenbeck sequence.
+ *
+ *   @param[inout] vector        vector to be updated
+ *   @param[in] vectorlength  length of vector to be updated
+ *   @param[in] variance      variance of the distribution
+ *   @param[in] dt            timestep
+ *   @param[in] ts            autocorrelation time
+ *
+ * The sequence x_n is a Markov process that takes the previous value,
+ *   weights by an exponential damping factor with a given correlation
+ *   time "ts", and drives by adding a Gaussian random variable with
+ *   variance "variance", weighted by a second damping factor, also
+ *   with correlation time "ts". For a timestep of dt, this sequence
+ *   can be written as :
+ *
+ *     x_n+1 = f x_n + sigma * sqrt (1 - f**2) z_n
+ *
+ * where f = exp (-dt / ts), z_n is a Gaussian random variable drawn
+ * from a Gaussian distribution with unit variance, and sigma is the
+ * desired variance of the OU sequence. (See Bartosch, 2001).
+ *
+ * The resulting sequence should satisfy the properties of zero mean,
+ *   and stationary (independent of portion of sequence) RMS equal to
+ *   "variance". Its power spectrum in the time domain can vary from
+ *   white noise to "brown" noise (P (f) = const. to 1 / f^2).
+ *
+ * References :
+ *    Bartosch, 2001
+ * http://octopus.th.physik.uni-frankfurt.de/~bartosch/publications/IntJMP01.pdf
+ *   Finch, 2004
+ * http://pauillac.inria.fr/algo/csolve/ou.pdf
+ *         Uhlenbeck & Ornstein, 1930
+ * http://prola.aps.org/abstract/PR/v36/i5/p823_1
+ *
+ * Eswaran & Pope 1988
+ *
+ */
 template<class T>
-void st_ounoiseupdate(std::vector<T>& vector, size_t vectorlength, T variance, T dt, T ts, long int& seed){
-/******************************************************
-!! Subroutine updates a vector of real values according to an algorithm
-!!   that generates an Ornstein-Uhlenbeck sequence.
-!!
-!! The sequence x_n is a Markov process that takes the previous value,
-!!   weights by an exponential damping factor with a given correlation
-!!   time "ts", and drives by adding a Gaussian random variable with
-!!   variance "variance", weighted by a second damping factor, also
-!!   with correlation time "ts". For a timestep of dt, this sequence
-!!   can be written as :
-!!
-!!     x_n+1 = f x_n + sigma * sqrt (1 - f**2) z_n
-!!
-!! where f = exp (-dt / ts), z_n is a Gaussian random variable drawn
-!! from a Gaussian distribution with unit variance, and sigma is the
-!! desired variance of the OU sequence. (See Bartosch, 2001).
-!!
-!! The resulting sequence should satisfy the properties of zero mean,
-!!   and stationary (independent of portion of sequence) RMS equal to
-!!   "variance". Its power spectrum in the time domain can vary from
-!!   white noise to "brown" noise (P (f) = const. to 1 / f^2).
-!!
-!! References :
-!!    Bartosch, 2001
-!! http://octopus.th.physik.uni-frankfurt.de/~bartosch/publications/IntJMP01.pdf
-!!   Finch, 2004
-!! http://pauillac.inria.fr/algo/csolve/ou.pdf
-!!         Uhlenbeck & Ornstein, 1930
-!! http://prola.aps.org/abstract/PR/v36/i5/p823_1
-!!
-!! Eswaran & Pope 1988
-!!
-!! ARGUMENTS
-!!
-!!   vector :       vector to be updated
-!!   vectorlength : length of vector to be updated
-!!   variance :     variance of the distribution
-!!   dt :           timestep
-!!   ts :           autocorrelation time
-!!
-!!***/
-  T damping_factor;
-  damping_factor = std::exp(-dt / ts);
-  for(size_t i = 0; i < vectorlength; i++){
-     vector[i] = vector[i] * damping_factor + variance * sqrt( 1.0 - damping_factor * damping_factor) * st_grn<T>(seed);
-  }
-
-  return;
+void st_ounoiseupdate(std::vector<T>& vector, size_t vectorlength, T variance, T dt, T ts, long int& seed)
+{
+    T damping_factor;
+    damping_factor = std::exp(-dt / ts);
+    for (size_t i = 0; i < vectorlength; i++)
+    {
+        vector[i] =
+            vector[i] * damping_factor + variance * sqrt(1.0 - damping_factor * damping_factor) * st_grn<T>(seed);
+    }
 }
-/************************************************************************/
-template<class T>
-void st_ounoiseinit(std::vector<T>& vector, size_t vectorlength, T variance,long int &seed){
+
 /******************************************************
 !! initialize pseudo random sequence for the Ornstein-Uhlenbeck process
  ARGUMENTS
@@ -158,10 +151,13 @@ void st_ounoiseinit(std::vector<T>& vector, size_t vectorlength, T variance,long
 !!   variance :     variance of the distribution
 
      seed:          seed for the gaussian random noise */
-  for(size_t i = 0; i<vectorlength; i++){
-     vector[i] = st_grn<T>(seed) * variance;
-  }
-  return;
+template<class T>
+void st_ounoiseinit(std::vector<T>& vector, size_t vectorlength, T variance, long int& seed)
+{
+    for (size_t i = 0; i < vectorlength; i++)
+    {
+        vector[i] = st_grn<T>(seed) * variance;
+    }
 }
 
-}
+} // namespace sph

@@ -31,14 +31,15 @@
 
 #pragma once
 
-
-#include "cstone/cuda/annotation.hpp"
 #include <type_traits>
+#include "cstone/cuda/annotation.hpp"
+
 namespace stl
 {
 
 template<typename T, T v>
-struct integral_constant {
+struct integral_constant
+{
     static constexpr T value = v;
     typedef T value_type;
     typedef integral_constant<T, v> type;
@@ -51,17 +52,15 @@ struct integral_constant {
 template<class T>
 HOST_DEVICE_FUN constexpr const T& min(const T& a, const T& b)
 {
-  if (b < a)
-      return b;
-  return a;
+    if (b < a) return b;
+    return a;
 }
 
 //! @brief This does what you think it does
 template<class T>
 HOST_DEVICE_FUN constexpr const T& max(const T& a, const T& b)
 {
-    if (a < b)
-        return b;
+    if (a < b) return b;
     return a;
 }
 
@@ -69,17 +68,17 @@ HOST_DEVICE_FUN constexpr const T& max(const T& a, const T& b)
 template<class T>
 HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_signed_v<T>, T> abs(T a)
 {
-    #ifdef __CUDA_ARCH__
-    if constexpr(std::is_same_v<T, int>) { return ::abs(a); }
+#ifdef __CUDA_ARCH__
+    if constexpr (std::is_same_v<T, int>) { return ::abs(a); }
     else { return ::labs(a); }
-    #else
+#else
     T mask = a >> (sizeof(T) * 8 - 1);
     return (a ^ mask) - mask;
-    #endif
+#endif
 }
 
 //! @brief a simplified version of std::lower_bound that can be compiled as device code
-template <class ForwardIt, class T>
+template<class ForwardIt, class T>
 HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, const T& value)
 {
     ForwardIt it;
@@ -88,7 +87,7 @@ HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, const T& 
 
     while (count > 0)
     {
-        it = first;
+        it   = first;
         step = count / 2;
         it += step;
         if (*it < value)
@@ -112,7 +111,7 @@ HOST_DEVICE_FUN ForwardIt upper_bound(ForwardIt first, ForwardIt last, const T& 
 
     while (count > 0)
     {
-        it = first;
+        it   = first;
         step = count / 2;
         it += step;
         if (!(value < *it)) // NOLINT
@@ -137,4 +136,4 @@ void exclusive_scan(InputIterator in1, InputIterator in2, OutputIterator out, T 
     }
 }
 
-}
+} // namespace stl

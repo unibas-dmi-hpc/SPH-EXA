@@ -69,8 +69,7 @@ public:
     void activateFields(ParticleDataType& d) override
     {
         d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1");
-        d.setDependent("rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys", "nc",
-                       "stOUPhases", "stMode", "stAmpl");
+        d.setDependent("rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys", "nc");
 
         d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz");
         d.devData.setDependent(
