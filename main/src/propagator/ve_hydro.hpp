@@ -126,33 +126,29 @@ public:
 
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"x", "y", "z", "h", "m", "keys"});
         computeXMass(first, last, ngmax_, d, domain.box());
-        transferToHost(d, first, last, {"xm"});
         timer.step("XMass");
-        domain.exchangeHalos(std::tie(d.xm));
+        domain.exchangeHalosAuto(get<"xm">(d), std::get<0>(get<"ax">(d)), std::get<0>(get<"ay">(d)));
         timer.step("mpi::synchronizeHalos");
 
         d.release("ax");
         d.acquire("gradh");
-        d.devData.release("ax");
-        d.devData.acquire("gradh");
-        transferToDevice(d, 0, first, {"xm"});
-        transferToDevice(d, last, domain.nParticlesWithHalos(), {"xm"});
+        d.devData.release("ax", "du");
+        d.devData.acquire("gradh", "u");
         computeVeDefGradh(first, last, ngmax_, d, domain.box());
         timer.step("Normalization & Gradh");
-        transferToHost(d, first, last, {"kx", "gradh"});
-        computeEOS_Impl(first, last, d);
+
+        transferToDevice(d, first, last, {"vx", "vy", "vz", "u"});
+        computeEOS(first, last, d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(std::tie(d.vx, d.vy, d.vz, d.prho, d.c, d.kx));
+        domain.exchangeHalosAuto(get<"vx", "vy", "vz", "prho", "c", "kx">(d), std::get<0>(get<"gradh">(d)),
+                                 std::get<0>(get<"ay">(d)));
         timer.step("mpi::synchronizeHalos");
 
         d.release("gradh");
         d.acquire("ax");
-        d.devData.release("gradh", "ay");
-        d.devData.acquire("divv", "curlv");
-        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz"});
-        transferToDevice(d, 0, first, {"kx"});
-        transferToDevice(d, last, domain.nParticlesWithHalos(), {"kx"});
+        d.devData.release("gradh", "ay", "u");
+        d.devData.acquire("divv", "curlv", "du");
         computeIadDivvCurlv(first, last, ngmax_, d, domain.box());
         transferToHost(d, first, last, {"divv", "curlv"});
         timer.step("IadVelocityDivCurl");
@@ -170,7 +166,6 @@ public:
 
         d.devData.release("divv", "curlv");
         d.devData.acquire("ax", "ay");
-        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"c", "prho"});
         computeMomentumEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
 
@@ -198,6 +193,7 @@ public:
     {
         d.release("c11", "c12", "c13");
         d.acquire("rho", "p", "gradh");
+        transferToHost(d, startIndex, endIndex, {"kx", "xm"});
         computeEOS_Impl(startIndex, endIndex, d);
     }
 
