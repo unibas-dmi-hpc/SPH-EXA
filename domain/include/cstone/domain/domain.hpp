@@ -40,7 +40,10 @@
 #include "cstone/domain/layout.hpp"
 #include "cstone/focus/octree_focus_mpi.hpp"
 #include "cstone/halos/exchange_halos.hpp"
-#include "cstone/halos/halos_switch.hpp"
+#include "cstone/halos/halos.hpp"
+#ifdef USE_CUDA
+#include "cstone/halos/halos_gpu.hpp"
+#endif
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/traversal/peers.hpp"
 #include "cstone/sfc/box_mpi.hpp"
