@@ -73,46 +73,14 @@ momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, int ngmax
 
     if (i < last)
     {
-        cstone::findNeighbors(
-            i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+        cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount,
+                              numParticles, ngmax);
         neighborsCount = stl::min(neighborsCount, ngmax);
 
         T maxvsignal;
-        momentumAndEnergyJLoop(i,
-                               sincIndex,
-                               K,
-                               box,
-                               neighbors,
-                               neighborsCount,
-                               x,
-                               y,
-                               z,
-                               vx,
-                               vy,
-                               vz,
-                               h,
-                               m,
-                               prho,
-                               c,
-                               c11,
-                               c12,
-                               c13,
-                               c22,
-                               c23,
-                               c33,
-                               Atmin,
-                               Atmax,
-                               ramp,
-                               wh,
-                               whd,
-                               kx,
-                               xm,
-                               alpha,
-                               grad_P_x,
-                               grad_P_y,
-                               grad_P_z,
-                               du,
-                               &maxvsignal);
+        momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, m, prho, c, c11,
+                               c12, c13, c22, c23, c33, Atmin, Atmax, ramp, wh, whd, kx, xm, alpha, grad_P_x, grad_P_y,
+                               grad_P_z, du, &maxvsignal);
 
         dt_i = tsKCourant(maxvsignal, h[i], c[i], Kcour);
     }
@@ -140,43 +108,14 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, int ngmax, Datase
     float huge = 1e10;
     CHECK_CUDA_ERR(cudaMemcpyToSymbol(minDt_ve_device, &huge, sizeof(huge)));
 
-    momentumEnergyGpu<<<numBlocks, numThreads>>>(d.sincIndex,
-                                                 d.K,
-                                                 d.Kcour,
-                                                 d.Atmin,
-                                                 d.Atmax,
-                                                 d.ramp,
-                                                 ngmax,
-                                                 box,
-                                                 startIndex,
-                                                 endIndex,
-                                                 sizeWithHalos,
-                                                 rawPtr(d.devData.codes),
-                                                 rawPtr(d.devData.x),
-                                                 rawPtr(d.devData.y),
-                                                 rawPtr(d.devData.z),
-                                                 rawPtr(d.devData.vx),
-                                                 rawPtr(d.devData.vy),
-                                                 rawPtr(d.devData.vz),
-                                                 rawPtr(d.devData.h),
-                                                 rawPtr(d.devData.m),
-                                                 rawPtr(d.devData.prho),
-                                                 rawPtr(d.devData.c),
-                                                 rawPtr(d.devData.c11),
-                                                 rawPtr(d.devData.c12),
-                                                 rawPtr(d.devData.c13),
-                                                 rawPtr(d.devData.c22),
-                                                 rawPtr(d.devData.c23),
-                                                 rawPtr(d.devData.c33),
-                                                 rawPtr(d.devData.wh),
-                                                 rawPtr(d.devData.whd),
-                                                 rawPtr(d.devData.kx),
-                                                 rawPtr(d.devData.xm),
-                                                 rawPtr(d.devData.alpha),
-                                                 rawPtr(d.devData.ax),
-                                                 rawPtr(d.devData.ay),
-                                                 rawPtr(d.devData.az),
-                                                 rawPtr(d.devData.du));
+    momentumEnergyGpu<<<numBlocks, numThreads>>>(
+        d.sincIndex, d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, ngmax, box, startIndex, endIndex, sizeWithHalos,
+        rawPtr(d.devData.codes), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx),
+        rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.prho),
+        rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
+        rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.kx),
+        rawPtr(d.devData.xm), rawPtr(d.devData.alpha), rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az),
+        rawPtr(d.devData.du));
     CHECK_CUDA_ERR(cudaGetLastError());
 
     float minDt;

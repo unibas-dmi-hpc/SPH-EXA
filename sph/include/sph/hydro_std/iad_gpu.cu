@@ -71,9 +71,9 @@ namespace cuda
  */
 template<class T, class KeyType>
 __global__ void cudaIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box, size_t firstParticle, size_t lastParticle,
-                        size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z, const T* h,
-                        const T* m, const T* rho, const T* wh, const T* whd, T* c11, T* c12, T* c13, T* c22, T* c23,
-                        T* c33)
+                        size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
+                        const T* h, const T* m, const T* rho, const T* wh, const T* whd, T* c11, T* c12, T* c13, T* c22,
+                        T* c23, T* c33)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
@@ -88,12 +88,12 @@ __global__ void cudaIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box, size_t 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount,
+                          numParticles, ngmax);
 
     neighborsCount = stl::min(neighborsCount, ngmax);
-    sph::IADJLoopSTD(
-        i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22, c23, c33);
+    sph::IADJLoopSTD(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22,
+                     c23, c33);
 }
 
 template<class Dataset>
@@ -110,28 +110,11 @@ void computeIAD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
     unsigned numThreads = 128;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-    cudaIAD<<<numBlocks, numThreads>>>(d.sincIndex,
-                                       d.K,
-                                       ngmax,
-                                       box,
-                                       startIndex,
-                                       endIndex,
-                                       sizeWithHalos,
-                                       rawPtr(d.devData.codes),
-                                       rawPtr(d.devData.x),
-                                       rawPtr(d.devData.y),
-                                       rawPtr(d.devData.z),
-                                       rawPtr(d.devData.h),
-                                       rawPtr(d.devData.m),
-                                       rawPtr(d.devData.rho),
-                                       rawPtr(d.devData.wh),
-                                       rawPtr(d.devData.whd),
-                                       rawPtr(d.devData.c11),
-                                       rawPtr(d.devData.c12),
-                                       rawPtr(d.devData.c13),
-                                       rawPtr(d.devData.c22),
-                                       rawPtr(d.devData.c23),
-                                       rawPtr(d.devData.c33));
+    cudaIAD<<<numBlocks, numThreads>>>(
+        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes), rawPtr(d.devData.x),
+        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho),
+        rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.c11), rawPtr(d.devData.c12),
+        rawPtr(d.devData.c13), rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33));
     CHECK_CUDA_ERR(cudaGetLastError());
     cudaDeviceSynchronize();
 }

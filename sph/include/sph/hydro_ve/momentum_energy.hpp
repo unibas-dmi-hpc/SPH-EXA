@@ -89,41 +89,9 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, int ngmax, Da
 
         T maxvsignal = 0;
 
-        momentumAndEnergyJLoop(i,
-                               sincIndex,
-                               K,
-                               box,
-                               neighbors + ngmax * ni,
-                               nc,
-                               x,
-                               y,
-                               z,
-                               vx,
-                               vy,
-                               vz,
-                               h,
-                               m,
-                               prho,
-                               c,
-                               c11,
-                               c12,
-                               c13,
-                               c22,
-                               c23,
-                               c33,
-                               Atmin,
-                               Atmax,
-                               ramp,
-                               wh,
-                               whd,
-                               kx,
-                               xm,
-                               alpha,
-                               grad_P_x,
-                               grad_P_y,
-                               grad_P_z,
-                               du,
-                               &maxvsignal);
+        momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, m, prho, c,
+                               c11, c12, c13, c22, c23, c33, Atmin, Atmax, ramp, wh, whd, kx, xm, alpha, grad_P_x,
+                               grad_P_y, grad_P_z, du, &maxvsignal);
 
         T dt_i = tsKCourant(maxvsignal, h[i], c[i], d.Kcour);
         minDt  = std::min(minDt, dt_i);

@@ -172,4 +172,3 @@ public:
 };
 
 } // namespace sphexa
-

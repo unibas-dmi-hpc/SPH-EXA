@@ -77,52 +77,11 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, int ngmax, Data
         size_t ni = i - startIndex;
         int    nc = stl::min(neighborsCount[i], ngmax);
 
-        IADJLoop(i,
-                 sincIndex,
-                 K,
-                 box,
-                 neighbors + ngmax * ni,
-                 nc,
-                 x,
-                 y,
-                 z,
-                 h,
-                 wh,
-                 whd,
-                 xm,
-                 kx,
-                 c11,
-                 c12,
-                 c13,
-                 c22,
-                 c23,
+        IADJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22, c23,
                  c33);
 
-        divV_curlVJLoop(i,
-                        sincIndex,
-                        K,
-                        box,
-                        neighbors + ngmax * ni,
-                        nc,
-                        x,
-                        y,
-                        z,
-                        vx,
-                        vy,
-                        vz,
-                        h,
-                        c11,
-                        c12,
-                        c13,
-                        c22,
-                        c23,
-                        c33,
-                        wh,
-                        whd,
-                        kx,
-                        xm,
-                        divv,
-                        curlv);
+        divV_curlVJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, c11, c12, c13, c22,
+                        c23, c33, wh, whd, kx, xm, divv, curlv);
     }
 }
 

@@ -71,41 +71,13 @@ __global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> b
 
     if (i < lastParticle)
     {
-        cstone::findNeighbors(
-            i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+        cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount,
+                              numParticles, ngmax);
 
         neighborsCount = stl::min(neighborsCount, ngmax);
         T maxvsignal;
-        momentumAndEnergyJLoop(i,
-                               sincIndex,
-                               K,
-                               box,
-                               neighbors,
-                               neighborsCount,
-                               x,
-                               y,
-                               z,
-                               vx,
-                               vy,
-                               vz,
-                               h,
-                               m,
-                               rho,
-                               p,
-                               c,
-                               c11,
-                               c12,
-                               c13,
-                               c22,
-                               c23,
-                               c33,
-                               wh,
-                               whd,
-                               grad_P_x,
-                               grad_P_y,
-                               grad_P_z,
-                               du,
-                               &maxvsignal);
+        momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, m, rho, p, c,
+                               c11, c12, c13, c22, c23, c33, wh, whd, grad_P_x, grad_P_y, grad_P_z, du, &maxvsignal);
 
         dt_i = tsKCourant(maxvsignal, h[i], c[i], Kcour);
     }
@@ -133,38 +105,13 @@ void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dat
     float huge = 1e10;
     CHECK_CUDA_ERR(cudaMemcpyToSymbol(minDt_device, &huge, sizeof(huge)));
 
-    cudaGradP<<<numBlocks, numThreads>>>(d.sincIndex,
-                                         d.K,
-                                         d.Kcour,
-                                         ngmax,
-                                         box,
-                                         startIndex,
-                                         endIndex,
-                                         sizeWithHalos,
-                                         rawPtr(d.devData.codes),
-                                         rawPtr(d.devData.x),
-                                         rawPtr(d.devData.y),
-                                         rawPtr(d.devData.z),
-                                         rawPtr(d.devData.vx),
-                                         rawPtr(d.devData.vy),
-                                         rawPtr(d.devData.vz),
-                                         rawPtr(d.devData.h),
-                                         rawPtr(d.devData.m),
-                                         rawPtr(d.devData.rho),
-                                         rawPtr(d.devData.p),
-                                         rawPtr(d.devData.c),
-                                         rawPtr(d.devData.c11),
-                                         rawPtr(d.devData.c12),
-                                         rawPtr(d.devData.c13),
-                                         rawPtr(d.devData.c22),
-                                         rawPtr(d.devData.c23),
-                                         rawPtr(d.devData.c33),
-                                         rawPtr(d.devData.wh),
-                                         rawPtr(d.devData.whd),
-                                         rawPtr(d.devData.ax),
-                                         rawPtr(d.devData.ay),
-                                         rawPtr(d.devData.az),
-                                         rawPtr(d.devData.du));
+    cudaGradP<<<numBlocks, numThreads>>>(
+        d.sincIndex, d.K, d.Kcour, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes),
+        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
+        rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho), rawPtr(d.devData.p),
+        rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
+        rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.ax),
+        rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.du));
 
     CHECK_CUDA_ERR(cudaGetLastError());
 
@@ -173,17 +120,13 @@ void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dat
     d.minDt_loc = minDt;
 }
 
-template void computeMomentumEnergySTD(size_t, size_t, int,
-                                       sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeMomentumEnergySTD(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
-template void computeMomentumEnergySTD(size_t, size_t, int,
-                                       sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumEnergySTD(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
-template void computeMomentumEnergySTD(size_t, size_t, int,
-                                       sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeMomentumEnergySTD(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                        const cstone::Box<float>&);
-template void computeMomentumEnergySTD(size_t, size_t, int,
-                                       sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumEnergySTD(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<float>&);
 
 } // namespace cuda

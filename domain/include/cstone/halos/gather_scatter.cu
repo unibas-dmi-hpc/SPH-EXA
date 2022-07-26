@@ -68,8 +68,7 @@ void gatherRanges(const IndexType* rangeScan,
     gatherRangesKernel<<<numBlocks, numThreads>>>(rangeScan, rangeOffsets, numRanges, src, buffer, bufferSize);
 }
 
-template void
-gatherRanges(const unsigned*, const unsigned*, int, const int*, int*, size_t);
+template void gatherRanges(const unsigned*, const unsigned*, int, const int*, int*, size_t);
 
 template void
 gatherRanges(const unsigned*, const unsigned*, int, const util::array<float, 1>*, util::array<float, 1>*, size_t);
@@ -85,11 +84,11 @@ gatherRanges(const unsigned*, const unsigned*, int, const util::array<float, 4>*
 
 template<class T, class IndexType>
 __global__ void scatterRangesKernel(const IndexType* rangeScan,
-                                  const IndexType* rangeOffsets,
-                                  int numRanges,
-                                  T* dest,
-                                  const T* buffer,
-                                  size_t bufferSize)
+                                    const IndexType* rangeOffsets,
+                                    int numRanges,
+                                    T* dest,
+                                    const T* buffer,
+                                    size_t bufferSize)
 {
     IndexType tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < bufferSize)
@@ -114,8 +113,7 @@ void scatterRanges(const IndexType* rangeScan,
     scatterRangesKernel<<<numBlocks, numThreads>>>(rangeScan, rangeOffsets, numRanges, dest, buffer, bufferSize);
 }
 
-template void
-scatterRanges(const unsigned*, const unsigned*, int, int*, const int*, size_t);
+template void scatterRanges(const unsigned*, const unsigned*, int, int*, const int*, size_t);
 
 template void
 scatterRanges(const unsigned*, const unsigned*, int, util::array<float, 1>*, const util::array<float, 1>*, size_t);

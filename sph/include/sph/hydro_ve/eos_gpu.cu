@@ -68,10 +68,10 @@ template void computeEOS(size_t, size_t, const double*, const double*, const dou
                          double*, double*);
 template void computeEOS(size_t, size_t, const double*, const float*, const double*, const double*, const double*,
                          double*, double*);
-template void computeEOS(size_t, size_t, const double*, const float*, const float*, const float*, const float*,
-                         float*, float*);
-template void computeEOS(size_t, size_t, const float*, const float*, const float*, const float*, const float*,
-                         float*, float*);
+template void computeEOS(size_t, size_t, const double*, const float*, const float*, const float*, const float*, float*,
+                         float*);
+template void computeEOS(size_t, size_t, const float*, const float*, const float*, const float*, const float*, float*,
+                         float*);
 
 } // namespace cuda
 } // namespace sph

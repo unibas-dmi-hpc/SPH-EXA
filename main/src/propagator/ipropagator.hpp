@@ -67,18 +67,9 @@ public:
     {
         if (rank_ == 0)
         {
-            printCheck(d.ttot,
-                       d.minDt,
-                       d.etot,
-                       d.eint,
-                       d.ecin,
-                       d.egrav,
-                       domain.box(),
-                       d.numParticlesGlobal,
-                       domain.nParticles(),
-                       domain.globalTree().numLeafNodes(),
-                       domain.nParticlesWithHalos() - domain.nParticles(),
-                       d.totalNeighbors);
+            printCheck(d.ttot, d.minDt, d.etot, d.eint, d.ecin, d.egrav, domain.box(), d.numParticlesGlobal,
+                       domain.nParticles(), domain.globalTree().numLeafNodes(),
+                       domain.nParticlesWithHalos() - domain.nParticles(), d.totalNeighbors);
 
             std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().octree().numLeafNodes() << std::endl;
             printTotalIterationTime(d.iteration, timer.duration());

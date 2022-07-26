@@ -80,36 +80,9 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, int ngmax, Datase
     {
         size_t ni = i - startIndex;
         int    nc = stl::min(neighborsCount[i], ngmax);
-        alpha[i]  = AVswitchesJLoop(i,
-                                   sincIndex,
-                                   K,
-                                   box,
-                                   neighbors + ngmax * ni,
-                                   nc,
-                                   x,
-                                   y,
-                                   z,
-                                   vx,
-                                   vy,
-                                   vz,
-                                   h,
-                                   c,
-                                   c11,
-                                   c12,
-                                   c13,
-                                   c22,
-                                   c23,
-                                   c33,
-                                   wh,
-                                   whd,
-                                   kx,
-                                   xm,
-                                   divv,
-                                   d.minDt,
-                                   alphamin,
-                                   alphamax,
-                                   decay_constant,
-                                   alpha[i]);
+        alpha[i]  = AVswitchesJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, c, c11,
+                                    c12, c13, c22, c23, c33, wh, whd, kx, xm, divv, d.minDt, alphamin, alphamax,
+                                    decay_constant, alpha[i]);
     }
 }
 
