@@ -7,7 +7,7 @@ if (CMAKE_CUDA_COMPILER)
     add_library(ryoanji multipole_holder.cu)
 
     # workaround for compiling MPI with nvcc on cray systems
-    if (MPI_CXX_INCLUDE_PATH STREQUAL "" AND DEFINED ENV{CRAY_MPICH2_DIR})
+    if (MPI_CXX_INCLUDE_PATH STREQUAL "" AND DEFINED ENV{CRAY_MPICH2_DIR} OR DEFINED ENV{CRAY_MPICH_DIR})
         message(STATUS "Applying MPI include workaround on CRAY")
         set(MPI_CXX_INCLUDE_PATH $ENV{MPICH_DIR}/include)
     endif()
