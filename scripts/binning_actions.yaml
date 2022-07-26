@@ -1,0 +1,49 @@
+# Adding a pipeline to compute the radius, given the x,y,and z components
+# of the particles
+# Adding queries to evaluate the min(), max() and average of a scalar field
+# and a 2D binning of the pdf (probability density function) of
+# one variable (Density), against a second variable (radius)
+#
+# Written by Jean M. Favre, tested with the associated trigger action file defined
+# in "trigger_binning_actions.yaml"
+# tested Tue Jun  7 03:32:58 PM CEST 2022
+-
+  action: "add_pipelines"
+  pipelines:
+    pl1:
+      f1:
+        type: "composite_vector"
+        params:
+          field1: "x"
+          field2: "y"
+          field3: "z"
+          output_name: "point3D"
+      f2:
+        type: "vector_magnitude"
+        params:
+          field: "point3D"
+          output_name: "radius"
+-
+  action: "add_queries"
+  queries:
+    q1:
+      pipeline: "pl1"
+      params:
+        expression: "binning('Density', 'pdf', [axis('radius',num_bins=256), axis('Density', num_bins=256)])"
+        name: "pdf_density"
+    q2:
+      pipeline: "pl1"
+      params:
+        expression: "binning('Density', 'min', [axis('radius', num_bins=256)])"
+        name: "min_density"
+    q3:
+      pipeline: "pl1"
+      params:
+        expression: "binning('Density', 'avg', [axis('radius', num_bins=256)])"
+        name: "avg_density"
+    q4:
+      pipeline: "pl1"
+      params:
+        expression: "binning('Density', 'max', [axis('radius', num_bins=256)])"
+        name: "max_density"
+
