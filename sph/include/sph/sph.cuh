@@ -44,5 +44,9 @@ extern void computeMomentumEnergy(size_t, size_t, int, Dataset& d, const cstone:
 template<class Tu, class Trho, class Tp, class Tc>
 extern void computeEOS_HydroStd(size_t, size_t, const Tu*, const Trho*, Tp*, Tc*);
 
+template<class Tu, class Tm, class Thydro>
+extern void computeEOS(size_t, size_t, const Tu*, const Tm*, const Thydro*, const Thydro*, const Thydro*, Thydro*,
+                       Thydro*);
+
 } // namespace cuda
 } // namespace sph

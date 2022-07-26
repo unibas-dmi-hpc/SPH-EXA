@@ -131,8 +131,8 @@ public:
         domain.exchangeHalos(std::tie(d.xm));
         timer.step("mpi::synchronizeHalos");
 
-        d.release("ax", "ay");
-        d.acquire("p", "gradh");
+        d.release("ax");
+        d.acquire("gradh");
         d.devData.release("ax");
         d.devData.acquire("gradh");
         transferToDevice(d, 0, first, {"xm"});
@@ -140,14 +140,14 @@ public:
         computeVeDefGradh(first, last, ngmax_, d, domain.box());
         timer.step("Normalization & Gradh");
         transferToHost(d, first, last, {"kx", "gradh"});
-        computeEOS(first, last, d);
+        computeEOS_Impl(first, last, d);
         timer.step("EquationOfState");
 
         domain.exchangeHalos(std::tie(d.vx, d.vy, d.vz, d.prho, d.c, d.kx));
         timer.step("mpi::synchronizeHalos");
 
-        d.release("p", "gradh");
-        d.acquire("ax", "ay");
+        d.release("gradh");
+        d.acquire("ax");
         d.devData.release("gradh", "ay");
         d.devData.acquire("divv", "curlv");
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz"});
@@ -198,7 +198,7 @@ public:
     {
         d.release("c11", "c12", "c13");
         d.acquire("rho", "p", "gradh");
-        computeEOS(startIndex, endIndex, d);
+        computeEOS_Impl(startIndex, endIndex, d);
     }
 
     //! @brief undo output configuration and restore compute configuration
