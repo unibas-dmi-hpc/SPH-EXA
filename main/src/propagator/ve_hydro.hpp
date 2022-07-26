@@ -137,7 +137,7 @@ public:
         computeVeDefGradh(first, last, ngmax_, d, domain.box());
         timer.step("Normalization & Gradh");
 
-        transferToDevice(d, first, last, {"vx", "vy", "vz", "u"});
+        transferToDevice(d, first, last, {"vx", "vy", "vz", "u", "alpha"});
         computeEOS(first, last, d);
         timer.step("EquationOfState");
 
