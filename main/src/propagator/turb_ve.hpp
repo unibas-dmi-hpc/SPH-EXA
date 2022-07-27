@@ -87,8 +87,7 @@ public:
                        "divv",
                        "curlv",
                        "keys",
-                       "nc"
-                       );
+                       "nc");
 
         d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz", "alpha");
         d.devData.setDependent(
@@ -189,7 +188,7 @@ public:
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
-        driver_turbulence2(first, last, d);
+        driveTurbulence(first, last, d);
         timer.step("Turbulence Stirring");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");

@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Turublence Driver calling all Stirring Subroutines
+ * @brief Turbulence driver calling all stirring subroutines
  *
  * @author Axel Sanz <axelsanzlechuga@gmail.com>
  */
@@ -38,30 +38,39 @@
 namespace sph
 {
 
+/*! @brief Adds the stirring motion to particle accelerations
+ *
+ * @tparam Dataset
+ * @param  startIndex
+ * @param  endIndex
+ * @param  d
+ */
 template<class Dataset>
-void driver_turbulence2(size_t startIndex, size_t endIndex, Dataset& d)
+void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
 {
     using T = typename Dataset::RealType;
-    std::vector<T> st_aka(d.ndim * d.stNModes);
-    std::vector<T> st_akb(d.ndim * d.stNModes);
 
-    st_ounoiseupdate(d.stOUPhases, 6 * d.stNModes, d.stOUvar, d.minDt, d.stDecay, d.stSeed);
-    st_calcPhases(d.stNModes, d.ndim, d.stOUPhases, d.stSolWeight, d.stMode, st_aka, st_akb);
+    auto&          turb = d.turbulenceData;
+    std::vector<T> st_aka(turb.ndim * turb.stNModes);
+    std::vector<T> st_akb(turb.ndim * turb.stNModes);
+
+    st_ounoiseupdate(turb.stOUPhases, 6 * turb.stNModes, turb.stOUvar, d.minDt, turb.stDecay, turb.stSeed);
+    st_calcPhases(turb.stNModes, turb.ndim, turb.stOUPhases, turb.stSolWeight, turb.stMode, st_aka, st_akb);
     st_calcAccel(startIndex,
                  endIndex,
-                 d.ndim,
+                 turb.ndim,
                  d.x,
                  d.y,
                  d.z,
                  d.ax,
                  d.ay,
                  d.az,
-                 d.stNModes,
-                 d.stMode,
+                 turb.stNModes,
+                 turb.stMode,
                  st_aka,
                  st_akb,
-                 d.stAmpl,
-                 d.stSolWeightNorm);
+                 turb.stAmpl,
+                 turb.stSolWeightNorm);
 }
 
 } // namespace sph

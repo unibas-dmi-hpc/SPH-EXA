@@ -24,24 +24,7 @@
  */
 
 /*! @file
- * @brief  st_calcAccel: Adds the stirring accelerations to the provided accelerations
- *           Input Arguments:
- *             startindex:             first index of particles
- *             endindex:               last index of particles
- *             ndim:                   number of dimensions
- *             xCoord:                 vector of x components of particle positions
- *             yCoord:                 vector of y components of particle positions
- *             zCoord:                 vector of z components of particle positions
- *             st_nmodes:              number of modes
- *             st_mode:                matrix (st_nmodes x dimension) containing modes
- *             st_aka:                 matrix (st_nmodes x dimension) containing real phases
- *             st_akb:                 matrix (st_nmodes x dimension) containing imaginary phases
- *             st_ampl:                vector of amplitudes of modes
- *             st_solweightnorm:       normalized solenoidal weight
- *           Input/Output Arguments:
- *             accx:                   vector of x component of accelerations
- *             accy:                   vector of y component of accelerations
- *             accz:                   vector of z component of accelerations
+ * @brief  Implementation of stirring accelerations
  * @author Axel Sanz <axel.sanz@estudiantat.upc.edu>
  */
 
@@ -52,14 +35,33 @@
 namespace sph
 {
 
+/*! @brief Adds the stirring accelerations to the provided particle accelerations
+ *
+ * @tparam        T                 float or double
+ * @param[in]     startIndex        first index of particles
+ * @param[in]     endIndex          last index of particles
+ * @param[in]     ndim              number of dimensions
+ * @param[in]     x                 vector of x components of particle positions
+ * @param[in]     y                 vector of y components of particle positions
+ * @param[in]     z                 vector of z components of particle positionSs
+ * @param[inout]  ax                vector of x component of accelerations
+ * @param[inout]  ay                vector of y component of accelerations
+ * @param[inout]  az                vector of z component of accelerations
+ * @param[in]     st_nmodes         number of modes
+ * @param[in]     st_mode           matrix (st_nmodes x dimension) containing modes
+ * @param[in]     st_aka            matrix (st_nmodes x dimension) containing real phases
+ * @param[in]     st_akb            matrix (st_nmodes x dimension) containing imaginary phases
+ * @param[in]     st_ampl           vector of amplitudes of modes
+ * @param[in]     st_solweightnorm  normalized solenoidal weight
+ *
+ */
 template<class T>
-void st_calcAccel(size_t startindex, size_t endindex, size_t ndim, std::vector<T> xCoord, std::vector<T> yCoord,
-                  std::vector<T> zCoord, std::vector<T>& accx, std::vector<T>& accy, std::vector<T>& accz,
-                  size_t st_nmodes, std::vector<T> st_mode, std::vector<T> st_aka, std::vector<T> st_akb,
-                  std::vector<T> st_ampl, T st_solweightnorm)
+void st_calcAccel(size_t startIndex, size_t endIndex, size_t ndim, std::vector<T> x, std::vector<T> y, std::vector<T> z,
+                  std::vector<T>& ax, std::vector<T>& ay, std::vector<T>& az, size_t st_nmodes, std::vector<T> st_mode,
+                  std::vector<T> st_aka, std::vector<T> st_akb, std::vector<T> st_ampl, T st_solweightnorm)
 {
 #pragma omp parallel for schedule(static)
-    for (size_t i = startindex; i < endindex; ++i)
+    for (size_t i = startIndex; i < endIndex; ++i)
     {
         T accturbx = 0.0;
         T accturby = 0.0;
@@ -69,14 +71,14 @@ void st_calcAccel(size_t startindex, size_t endindex, size_t ndim, std::vector<T
         {
             size_t m_ndim = m * ndim;
 
-            T cosxk_im = std::cos(st_mode[m_ndim + 2] * zCoord[i]);
-            T sinxk_im = std::sin(st_mode[m_ndim + 2] * zCoord[i]);
+            T cosxk_im = std::cos(st_mode[m_ndim + 2] * z[i]);
+            T sinxk_im = std::sin(st_mode[m_ndim + 2] * z[i]);
 
-            T cosxj_im = std::cos(st_mode[m_ndim + 1] * yCoord[i]);
-            T sinxj_im = std::sin(st_mode[m_ndim + 1] * yCoord[i]);
+            T cosxj_im = std::cos(st_mode[m_ndim + 1] * y[i]);
+            T sinxj_im = std::sin(st_mode[m_ndim + 1] * y[i]);
 
-            T cosxi_im = std::cos(st_mode[m_ndim] * xCoord[i]);
-            T sinxi_im = std::sin(st_mode[m_ndim] * xCoord[i]);
+            T cosxi_im = std::cos(st_mode[m_ndim] * x[i]);
+            T sinxi_im = std::sin(st_mode[m_ndim] * x[i]);
 
             //  these are the real and imaginary parts, respectively, of
             //     e^{ i \vec{k} \cdot \vec{x} }
@@ -92,9 +94,9 @@ void st_calcAccel(size_t startindex, size_t endindex, size_t ndim, std::vector<T
             accturbz += st_ampl[m] * (st_aka[m_ndim + 2] * realtrigterms - st_akb[m_ndim + 2] * imtrigterms);
         }
 
-        accx[i] += st_solweightnorm * accturbx;
-        accy[i] += st_solweightnorm * accturby;
-        accz[i] += st_solweightnorm * accturbz;
+        ax[i] += st_solweightnorm * accturbx;
+        ay[i] += st_solweightnorm * accturby;
+        az[i] += st_solweightnorm * accturbz;
     }
 }
 
