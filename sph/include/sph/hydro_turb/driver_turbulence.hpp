@@ -56,21 +56,21 @@ void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
 
     st_ounoiseupdate(turb.stOUPhases, turb.stOUvar, d.minDt, turb.stDecay, turb.stSeed);
     st_calcPhases(turb.stNModes, turb.ndim, turb.stOUPhases, turb.stSolWeight, turb.stMode, st_aka, st_akb);
-    st_calcAccel(startIndex,
-                 endIndex,
-                 turb.ndim,
-                 d.x,
-                 d.y,
-                 d.z,
-                 d.ax,
-                 d.ay,
-                 d.az,
-                 turb.stNModes,
-                 turb.stMode,
-                 st_aka,
-                 st_akb,
-                 turb.stAmpl,
-                 turb.stSolWeightNorm);
+    computeStirring(startIndex,
+                    endIndex,
+                    turb.ndim,
+                    d.x,
+                    d.y,
+                    d.z,
+                    d.ax,
+                    d.ay,
+                    d.az,
+                    turb.stNModes,
+                    turb.stMode,
+                    st_aka,
+                    st_akb,
+                    turb.stAmpl,
+                    turb.stSolWeightNorm);
 }
 
 } // namespace sph

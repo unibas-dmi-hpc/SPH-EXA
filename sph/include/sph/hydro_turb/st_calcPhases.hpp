@@ -45,7 +45,7 @@ namespace sph
 
 template<class T>
 void st_calcPhases(size_t st_nmodes, size_t ndim, const std::vector<T>& st_OUphases, T st_solweight,
-                   const std::vector<T>& st_mode, std::vector<T>& st_aka, std::vector<T>& st_akb)
+                   const std::vector<T>& modes, std::vector<T>& st_aka, std::vector<T>& st_akb)
 {
     for (size_t i = 0; i < st_nmodes; i++)
     {
@@ -54,14 +54,14 @@ void st_calcPhases(size_t st_nmodes, size_t ndim, const std::vector<T>& st_OUpha
         T kk = 0.0;
         for (size_t j = 0; j < ndim; j++)
         {
-            kk = kk + st_mode[3 * i + j] * st_mode[3 * i + j];
-            ka = ka + st_mode[3 * i + j] * st_OUphases[6 * i + 2 * j + 1];
-            kb = kb + st_mode[3 * i + j] * st_OUphases[6 * i + 2 * j];
+            kk = kk + modes[3 * i + j] * modes[3 * i + j];
+            ka = ka + modes[3 * i + j] * st_OUphases[6 * i + 2 * j + 1];
+            kb = kb + modes[3 * i + j] * st_OUphases[6 * i + 2 * j];
         }
         for (size_t j = 0; j < ndim; j++)
         {
-            T diva  = st_mode[3 * i + j] * ka / kk;
-            T divb  = st_mode[3 * i + j] * kb / kk;
+            T diva  = modes[3 * i + j] * ka / kk;
+            T divb  = modes[3 * i + j] * kb / kk;
             T curla = st_OUphases[6 * i + 2 * j] - divb;
             T curlb = st_OUphases[6 * i + 2 * j + 1] - diva;
 
