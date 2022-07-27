@@ -59,8 +59,8 @@ __global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> box, 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
+    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_,
+                          numParticles, ngmax);
     int nc = stl::min(neighborsCount_, ngmax);
 
     xm[i] = sph::xmassJLoop(i, sincIndex, K, box, neighbors, nc, x, y, z, h, m, wh, whd);
@@ -98,30 +98,15 @@ void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
         unsigned numThreads = 256;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-        xmassGpu<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
-                                                       d.K,
-                                                       ngmax,
-                                                       box,
-                                                       firstParticle,
-                                                       lastParticle,
-                                                       sizeWithHalos,
-                                                       rawPtr(d.devData.codes),
-                                                       d_neighborsCount_use,
-                                                       rawPtr(d.devData.x),
-                                                       rawPtr(d.devData.y),
-                                                       rawPtr(d.devData.z),
-                                                       rawPtr(d.devData.h),
-                                                       rawPtr(d.devData.m),
-                                                       rawPtr(d.devData.wh),
-                                                       rawPtr(d.devData.whd),
-                                                       rawPtr(d.devData.xm));
+        xmassGpu<<<numBlocks, numThreads, 0, stream>>>(
+            d.sincIndex, d.K, ngmax, box, firstParticle, lastParticle, sizeWithHalos, rawPtr(d.devData.codes),
+            d_neighborsCount_use, rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
+            rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm));
         CHECK_CUDA_ERR(cudaGetLastError());
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
-                                       d_neighborsCount_use,
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle, d_neighborsCount_use,
                                        numParticlesCompute * sizeof(decltype(d.neighborsCount.front())),
-                                       cudaMemcpyDeviceToHost,
-                                       stream));
+                                       cudaMemcpyDeviceToHost, stream));
     }
     CHECK_CUDA_ERR(cudaDeviceSynchronize());
 }

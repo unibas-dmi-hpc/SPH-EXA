@@ -24,61 +24,57 @@
  */
 
 /*! @file
- * @brief Generalized volume element definition i-loop driver
+ * @brief Density i-loop OpenMP driver
  *
  * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include "sph/kernels.hpp"
-#include "sph/particles_data_stubs.hpp"
-#include "xmass_kern.hpp"
 #include "sph/sph.cuh"
+#include "sph/particles_data_stubs.hpp"
+#include "sph/eos.hpp"
 
 namespace sph
 {
-template<typename T, class Dataset>
-void computeXMassImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+
+/*! @brief Ideal gas EOS interface w/o temperature for SPH where rho is stored
+ *
+ * @tparam Dataset
+ * @param startIndex  index of first locally owned particle
+ * @param endIndex    index of last locally owned particle
+ * @param d           the dataset with the particle buffers
+ *
+ * In this simple version of state equation, we calculate all depended quantities
+ * also for halos, not just assigned particles in [startIndex:endIndex], so that
+ * we could potentially avoid halo exchange of p and c in return for exchanging halos of u.
+ */
+template<typename Dataset>
+void computeEOS_HydroStdImpl(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    const int* neighbors      = d.neighbors.data();
-    const int* neighborsCount = d.neighborsCount.data();
+    const auto* u   = d.u.data();
+    const auto* rho = d.rho.data();
 
-    const T* h = d.h.data();
-    const T* m = d.m.data();
-    const T* x = d.x.data();
-    const T* y = d.y.data();
-    const T* z = d.z.data();
+    auto* p = d.p.data();
+    auto* c = d.c.data();
 
-    const T* wh  = d.wh.data();
-    const T* whd = d.whd.data();
-
-    T* xm = d.xm.data();
-
-    const T K         = d.K;
-    const T sincIndex = d.sincIndex;
-
-#pragma omp parallel for
-    for (size_t i = startIndex; i < endIndex; i++)
+#pragma omp parallel for schedule(static)
+    for (size_t i = startIndex; i < endIndex; ++i)
     {
-        size_t ni = i - startIndex;
-        int    nc = stl::min(neighborsCount[i], ngmax);
-        xm[i]     = xmassJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd);
-#ifndef NDEBUG
-        if (std::isnan(xm[i]))
-            printf("ERROR::Rho0(%zu) rho0 %f, position: (%f %f %f), h: %f\n", i, xm[i], x[i], y[i], z[i], h[i]);
-#endif
+        std::tie(p[i], c[i]) = idealGasEOS(u[i], rho[i]);
     }
 }
 
-template<typename T, class Dataset>
-void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+template<class Dataset>
+void computeEOS_HydroStd(size_t startIndex, size_t endIndex, Dataset& d)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeXMass(startIndex, endIndex, ngmax, d, box);
+        cuda::computeEOS_HydroStd(startIndex, endIndex, rawPtr(d.devData.u), rawPtr(d.devData.rho), rawPtr(d.devData.p),
+                                  rawPtr(d.devData.c));
     }
-    else { computeXMassImpl(startIndex, endIndex, ngmax, d, box); }
+    else { computeEOS_HydroStdImpl(startIndex, endIndex, d); }
 }
 
 } // namespace sph

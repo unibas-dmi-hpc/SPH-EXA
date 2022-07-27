@@ -29,6 +29,8 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#pragma once
+
 #include <cstdint>
 #include <memory>
 

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.17)
 
 project(sphexa CXX C)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
@@ -14,6 +14,7 @@ list(APPEND CMAKE_MODULE_PATH
 option(BUILD_TESTING "build unit and integration tests" ON)
 option(BUILD_ANALYTICAL "build analytical solution" ON)
 option(SPH_EXA_WITH_HIP "Build SPH-EXA with HIP" OFF)
+option(GPU_DIRECT "Enable CUDA-aware MPI communication" OFF)
 
 if (BUILD_TESTING)
     include(setup_GTest)
