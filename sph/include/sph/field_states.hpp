@@ -184,7 +184,7 @@ private:
 
     void setState(const std::string& field, State state)
     {
-        int idx =
+        size_t idx =
             std::find(DataType::fieldNames.begin(), DataType::fieldNames.end(), field) - DataType::fieldNames.begin();
         if (idx == fieldStates_.size())
         {

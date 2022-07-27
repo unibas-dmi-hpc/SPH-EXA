@@ -63,59 +63,13 @@ std::map<std::string, double> TurbulenceConstants()
 }
 
 template<class Dataset>
-void initTurbulenceFields(Dataset& d, const std::map<std::string, double>& constants)
+void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& constants)
 {
-    using T = typename Dataset::RealType;
-
-    size_t   ng0           = 100;
-    T        firstTimeStep = constants.at("firstTimeStep");
-    T        eps           = constants.at("epsilon");
-    size_t   stMaxModes    = constants.at("stMaxModes");
-    T        Lbox          = constants.at("Lbox");
-    T        velocity      = constants.at("stMachVelocity");
-    long int seed          = constants.at("stSeedIni");
-    size_t   stSpectForm   = constants.at("stSpectForm");
-    T        powerLawExp   = constants.at("powerLawExp");
-    T        anglesExp     = constants.at("anglesExp");
-    T        mPart         = constants.at("mTotal") / d.numParticlesGlobal;
-    T        hInit         = std::cbrt(3.0 / (4. * M_PI) * ng0 * std::pow(Lbox, 3) / d.numParticlesGlobal) * 0.5;
-
-    T twopi     = 2.0 * M_PI;
-    T stEnergy  = 5.0e-3 * std::pow(velocity, 3) / Lbox;
-    T stStirMin = (1.0 - eps) * twopi / Lbox;
-    T stStirMax = (3.0 + eps) * twopi / Lbox;
-
-    auto& turbulenceData = d.turbulenceData;
-
-    turbulenceData.ndim        = constants.at("dim");
-    turbulenceData.stDecay     = Lbox / (2.0 * velocity);
-    turbulenceData.stSolWeight = constants.at("stSolWeight");
-    turbulenceData.stSeed      = seed;
-
-    turbulenceData.stAmpl.resize(stMaxModes);
-    turbulenceData.stMode.resize(stMaxModes * turbulenceData.ndim);
-
-    sph::createStirringModes(turbulenceData,
-                             Lbox,
-                             Lbox,
-                             Lbox,
-                             stMaxModes,
-                             stEnergy,
-                             stStirMax,
-                             stStirMin,
-                             turbulenceData.ndim,
-                             turbulenceData.stSeed,
-                             stSpectForm,
-                             powerLawExp,
-                             anglesExp);
-
-    std::cout << "Total Number of Stirring Modes: " << turbulenceData.stNModes << std::endl;
-    turbulenceData.stAmpl.resize(turbulenceData.stNModes);
-    turbulenceData.stMode.resize(turbulenceData.stNModes * turbulenceData.ndim);
-    turbulenceData.stOUPhases.resize(6 * turbulenceData.stNModes);
-
-    sph::st_ounoiseinit(
-        turbulenceData.stOUPhases, 6 * turbulenceData.stNModes, turbulenceData.stOUvar, turbulenceData.stSeed);
+    size_t ng0           = 100;
+    double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
+    double Lbox          = constants.at("Lbox");
+    double hInit         = std::cbrt(3.0 / (4. * M_PI) * ng0 * std::pow(Lbox, 3) / d.numParticlesGlobal) * 0.5;
+    double firstTimeStep = constants.at("firstTimeStep");
 
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
@@ -137,6 +91,53 @@ void initTurbulenceFields(Dataset& d, const std::map<std::string, double>& const
         d.y_m1[i] = d.y[i] - d.vy[i] * firstTimeStep;
         d.z_m1[i] = d.z[i] - d.vz[i] * firstTimeStep;
     }
+}
+
+template<class T>
+void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::string, double>& constants)
+{
+    double   eps         = constants.at("epsilon");
+    size_t   stMaxModes  = constants.at("stMaxModes");
+    double   Lbox        = constants.at("Lbox");
+    double   velocity    = constants.at("stMachVelocity");
+    long int seed        = constants.at("stSeedIni");
+    size_t   stSpectForm = constants.at("stSpectForm");
+    double   powerLawExp = constants.at("powerLawExp");
+    double   anglesExp   = constants.at("anglesExp");
+
+    double twopi     = 2.0 * M_PI;
+    double stEnergy  = 5.0e-3 * std::pow(velocity, 3) / Lbox;
+    double stStirMin = (1.0 - eps) * twopi / Lbox;
+    double stStirMax = (3.0 + eps) * twopi / Lbox;
+
+    turb.ndim        = constants.at("dim");
+    turb.stDecay     = Lbox / (2.0 * velocity);
+    turb.stSolWeight = constants.at("stSolWeight");
+    turb.stSeed      = seed;
+
+    turb.stAmpl.resize(stMaxModes);
+    turb.stMode.resize(stMaxModes * turb.ndim);
+
+    sph::createStirringModes(turb,
+                             Lbox,
+                             Lbox,
+                             Lbox,
+                             stMaxModes,
+                             stEnergy,
+                             stStirMax,
+                             stStirMin,
+                             turb.ndim,
+                             turb.stSeed,
+                             stSpectForm,
+                             powerLawExp,
+                             anglesExp);
+
+    std::cout << "Total Number of Stirring Modes: " << turb.stNModes << std::endl;
+    turb.stAmpl.resize(turb.stNModes);
+    turb.stMode.resize(turb.stNModes * turb.ndim);
+    turb.stOUPhases.resize(6 * turb.stNModes);
+
+    sph::st_ounoiseinit(turb.stOUPhases, 6 * turb.stNModes, turb.stOUvar, turb.stSeed);
 }
 
 template<class Dataset>
@@ -170,7 +171,8 @@ public:
 
         d.resize(d.x.size());
 
-        initTurbulenceFields(d, constants_);
+        initTurbulenceModes(d.turbulenceData, constants_);
+        initTurbulenceHydroFields(d, constants_);
 
         return globalBox;
     }
