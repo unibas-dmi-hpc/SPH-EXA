@@ -137,7 +137,7 @@ void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::strin
     turb.stMode.resize(turb.stNModes * turb.ndim);
     turb.stOUPhases.resize(6 * turb.stNModes);
 
-    sph::st_ounoiseinit(turb.stOUPhases, 6 * turb.stNModes, turb.stOUvar, turb.stSeed);
+    sph::fillRandomGaussian(turb.stOUPhases, turb.stOUvar, turb.stSeed);
 }
 
 template<class Dataset>

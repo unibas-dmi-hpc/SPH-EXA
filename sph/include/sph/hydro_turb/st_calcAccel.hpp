@@ -56,9 +56,10 @@ namespace sph
  *
  */
 template<class T>
-void st_calcAccel(size_t startIndex, size_t endIndex, size_t ndim, std::vector<T> x, std::vector<T> y, std::vector<T> z,
-                  std::vector<T>& ax, std::vector<T>& ay, std::vector<T>& az, size_t st_nmodes, std::vector<T> st_mode,
-                  std::vector<T> st_aka, std::vector<T> st_akb, std::vector<T> st_ampl, T st_solweightnorm)
+void st_calcAccel(size_t startIndex, size_t endIndex, size_t ndim, const std::vector<T>& x, const std::vector<T>& y,
+                  const std::vector<T>& z, std::vector<T>& ax, std::vector<T>& ay, std::vector<T>& az, size_t st_nmodes,
+                  const std::vector<T>& st_mode, const std::vector<T>& st_aka, const std::vector<T>& st_akb,
+                  const std::vector<T>& st_ampl, T st_solweightnorm)
 {
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)

@@ -54,7 +54,7 @@ void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
     std::vector<T> st_aka(turb.ndim * turb.stNModes);
     std::vector<T> st_akb(turb.ndim * turb.stNModes);
 
-    st_ounoiseupdate(turb.stOUPhases, 6 * turb.stNModes, turb.stOUvar, d.minDt, turb.stDecay, turb.stSeed);
+    st_ounoiseupdate(turb.stOUPhases, turb.stOUvar, d.minDt, turb.stDecay, turb.stSeed);
     st_calcPhases(turb.stNModes, turb.ndim, turb.stOUPhases, turb.stSolWeight, turb.stMode, st_aka, st_akb);
     st_calcAccel(startIndex,
                  endIndex,

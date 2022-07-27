@@ -95,8 +95,7 @@ T st_grn(long int& seed)
 
 /*! @brief Generates an Ornstein-Uhlenbeck sequence.
  *
- *   @param[inout] vector        vector to be updated
- *   @param[in] vectorlength  length of vector to be updated
+ *   @param[inout] phases        the Ornstein-Uhlenbeck phases to be updated
  *   @param[in] variance      variance of the distribution
  *   @param[in] dt            timestep
  *   @param[in] ts            autocorrelation time
@@ -131,32 +130,24 @@ T st_grn(long int& seed)
  *
  */
 template<class T>
-void st_ounoiseupdate(std::vector<T>& vector, size_t vectorlength, T variance, T dt, T ts, long int& seed)
+void st_ounoiseupdate(std::vector<T>& phases, T variance, T dt, T ts, long int& seed)
 {
     T damping_factor;
     damping_factor = std::exp(-dt / ts);
-    for (size_t i = 0; i < vectorlength; i++)
+    for (size_t i = 0; i < phases.size(); i++)
     {
-        vector[i] =
-            vector[i] * damping_factor + variance * sqrt(1.0 - damping_factor * damping_factor) * st_grn<T>(seed);
+        phases[i] =
+            phases[i] * damping_factor + variance * sqrt(1.0 - damping_factor * damping_factor) * st_grn<T>(seed);
     }
 }
 
-/******************************************************
-!! initialize pseudo random sequence for the Ornstein-Uhlenbeck process
- ARGUMENTS
-!!
-!!   vector :       vector to be initialised
-!!   vectorlength : length of vector to be initialised
-!!   variance :     variance of the distribution
-
-     seed:          seed for the gaussian random noise */
+//! @brief fills a vector with random gaussian values with mean 0 and variance @p variance
 template<class T>
-void st_ounoiseinit(std::vector<T>& vector, size_t vectorlength, T variance, long int& seed)
+void fillRandomGaussian(std::vector<T>& phases, T variance, long int& seed)
 {
-    for (size_t i = 0; i < vectorlength; i++)
+    for (size_t i = 0; i < phases.size(); i++)
     {
-        vector[i] = st_grn<T>(seed) * variance;
+        phases[i] = st_grn<T>(seed) * variance;
     }
 }
 
