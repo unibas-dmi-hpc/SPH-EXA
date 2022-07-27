@@ -31,8 +31,8 @@
 
 #pragma once
 
-#include "st_calcAccel.hpp"
-#include "st_calcPhases.hpp"
+#include "stirring.hpp"
+#include "phases.hpp"
 #include "st_ounoise.hpp"
 
 namespace sph
@@ -51,26 +51,26 @@ void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
     using T = typename Dataset::RealType;
 
     auto&          turb = d.turbulenceData;
-    std::vector<T> st_aka(turb.ndim * turb.stNModes);
-    std::vector<T> st_akb(turb.ndim * turb.stNModes);
+    std::vector<T> st_aka(turb.numDim * turb.numModes);
+    std::vector<T> st_akb(turb.numDim * turb.numModes);
 
-    st_ounoiseupdate(turb.stOUPhases, turb.stOUvar, d.minDt, turb.stDecay, turb.stSeed);
-    st_calcPhases(turb.stNModes, turb.ndim, turb.stOUPhases, turb.stSolWeight, turb.stMode, st_aka, st_akb);
+    st_ounoiseupdate(turb.phases, turb.variance, d.minDt, turb.decayTime, turb.stSeed);
+    st_calcPhases(turb.numModes, turb.numDim, turb.phases, turb.stSolWeight, turb.modes, st_aka, st_akb);
     computeStirring(startIndex,
                     endIndex,
-                    turb.ndim,
+                    turb.numDim,
                     d.x,
                     d.y,
                     d.z,
                     d.ax,
                     d.ay,
                     d.az,
-                    turb.stNModes,
-                    turb.stMode,
+                    turb.numModes,
+                    turb.modes,
                     st_aka,
                     st_akb,
-                    turb.stAmpl,
-                    turb.stSolWeightNorm);
+                    turb.amplitudes,
+                    turb.solWeight);
 }
 
 } // namespace sph

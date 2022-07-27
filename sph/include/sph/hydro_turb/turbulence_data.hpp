@@ -26,7 +26,7 @@
 /*! @file
  * @brief Contains the object holding all stirring/turbulence related data
  *
- * @author Axel Sanz <axelsanzlechuga@gmail.com>*
+ * @author Axel Sanz <axelsanzlechuga@gmail.com>
  */
 
 #pragma once
@@ -41,17 +41,17 @@ template<class T>
 class TurbulenceData
 {
 public:
-    long int stSeed;          // seed for random number generator
-    size_t   stNModes;        // Number of computed nodes
-    size_t   ndim;            // Number of dimensions
-    T        stSolWeight;     // Solenoidal Weight
-    T        stOUvar;         // Variance of Ornstein-Uhlenbeck process
-    T        stDecay;         // Decay Time
-    T        stSolWeightNorm; // Normalized Solenoidal weight
+    long int stSeed;      // seed for random number generator
+    size_t   numDim;      // Number of dimensions
+    T        stSolWeight; // Solenoidal Weight
+    T        variance;    // Variance of Ornstein-Uhlenbeck process
+    T        decayTime;
+    T        solWeight; // Normalized Solenoidal weight
 
-    std::vector<T> stOUPhases; // O-U Phases
-    std::vector<T> stMode;     // Stirring Modes
-    std::vector<T> stAmpl;     // Amplitude of the modes
+    size_t         numModes;   // Number of computed nodes
+    std::vector<T> modes;      // Stirring Modes
+    std::vector<T> phases;     // O-U Phases
+    std::vector<T> amplitudes; // Amplitude of the modes
 };
 
 } // namespace sph

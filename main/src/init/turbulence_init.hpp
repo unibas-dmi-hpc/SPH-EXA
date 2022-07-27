@@ -110,13 +110,13 @@ void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::strin
     double stStirMin = (1.0 - eps) * twopi / Lbox;
     double stStirMax = (3.0 + eps) * twopi / Lbox;
 
-    turb.ndim        = constants.at("dim");
-    turb.stDecay     = Lbox / (2.0 * velocity);
+    turb.numDim      = constants.at("dim");
+    turb.decayTime   = Lbox / (2.0 * velocity);
     turb.stSolWeight = constants.at("stSolWeight");
     turb.stSeed      = seed;
 
-    turb.stAmpl.resize(stMaxModes);
-    turb.stMode.resize(stMaxModes * turb.ndim);
+    turb.amplitudes.resize(stMaxModes);
+    turb.modes.resize(stMaxModes * turb.numDim);
 
     sph::createStirringModes(turb,
                              Lbox,
@@ -126,18 +126,18 @@ void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::strin
                              stEnergy,
                              stStirMax,
                              stStirMin,
-                             turb.ndim,
+                             turb.numDim,
                              turb.stSeed,
                              stSpectForm,
                              powerLawExp,
                              anglesExp);
 
-    std::cout << "Total Number of Stirring Modes: " << turb.stNModes << std::endl;
-    turb.stAmpl.resize(turb.stNModes);
-    turb.stMode.resize(turb.stNModes * turb.ndim);
-    turb.stOUPhases.resize(6 * turb.stNModes);
+    std::cout << "Total Number of Stirring Modes: " << turb.numModes << std::endl;
+    turb.amplitudes.resize(turb.numModes);
+    turb.modes.resize(turb.numModes * turb.numDim);
+    turb.phases.resize(6 * turb.numModes);
 
-    sph::fillRandomGaussian(turb.stOUPhases, turb.stOUvar, turb.stSeed);
+    sph::fillRandomGaussian(turb.phases, turb.variance, turb.stSeed);
 }
 
 template<class Dataset>

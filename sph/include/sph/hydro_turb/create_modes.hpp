@@ -70,7 +70,7 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
     T       rand, phi, theta;
     const T twopi = 2.0 * M_PI;
 
-    d.stOUvar = std::sqrt(st_energy / d.stDecay);
+    d.variance = std::sqrt(st_energy / d.decayTime);
 
     // prefactor for amplitude normalistion to 1 at kc = 0.5*(st_stirmin+st_stirmax)
     parab_prefact = -4.0 / ((st_stirmax - st_stirmin) * (st_stirmax - st_stirmin));
@@ -80,8 +80,8 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
     if (st_spectform == 1) { kc = 0.5 * (st_stirmin + st_stirmax); }
 
     // this makes the rms force const irrespective of the solenoidal weight
-    d.stSolWeightNorm = std::sqrt(3.0) * std::sqrt(3.0 / T(ndim)) /
-                        std::sqrt(1.0 - 2.0 * d.stSolWeight + T(ndim) * d.stSolWeight * d.stSolWeight);
+    d.solWeight = std::sqrt(3.0) * std::sqrt(3.0 / T(ndim)) /
+                  std::sqrt(1.0 - 2.0 * d.stSolWeight + T(ndim) * d.stSolWeight * d.stSolWeight);
 
     size_t ikxmin = 0;
     size_t ikymin = 0;
@@ -92,7 +92,7 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
     size_t ikzmax = (ndim > 2) ? 256 : 0;
 
     // determine the number of required modes (in case of full sampling)
-    d.stNModes = 0;
+    d.numModes = 0;
     for (ikx = ikxmin; ikx <= ikxmax; ikx++)
     {
         kx = twopi * ikx / Lx;
@@ -105,16 +105,16 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
                 k  = std::sqrt(kx * kx + ky * ky + kz * kz);
                 if (k >= st_stirmin && k <= st_stirmax)
                 {
-                    d.stNModes += 1;
-                    if (ndim > 1) { d.stNModes += 1; }
-                    if (ndim > 2) { d.stNModes += 2; }
+                    d.numModes += 1;
+                    if (ndim > 1) { d.numModes += 1; }
+                    if (ndim > 2) { d.numModes += 2; }
                 }
             }
         }
     }
-    st_tot_nmodes = d.stNModes;
+    st_tot_nmodes = d.numModes;
 
-    d.stNModes = -1;
+    d.numModes = -1;
 
     if (st_spectform != 2)
     {
@@ -135,9 +135,9 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
                     if ((k >= st_stirmin) && (k <= st_stirmax))
                     {
 
-                        if ((d.stNModes + 1 + std::pow(2, ndim - 1)) > st_maxmodes)
+                        if ((d.numModes + 1 + std::pow(2, ndim - 1)) > st_maxmodes)
                         {
-                            std::cout << "init_stir:  number of modes: = " << d.stNModes + 1
+                            std::cout << "init_stir:  number of modes: = " << d.numModes + 1
                                       << " maxstirmodes = " << st_maxmodes << std::endl;
                             std::cout << "Too many stirring modes" << std::endl;
                             break;
@@ -152,43 +152,43 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
                         // note: power spectrum ~ amplitude^2 (1D), amplitude^2 * 2pi k (2D), amplitude^2 * 4pi k^2 (3D)
                         amplitude = 2.0 * std::sqrt(amplitude) * std::pow((kc / k), 0.5 * (ndim - 1));
 
-                        d.stNModes += 1;
-                        d.stAmpl[d.stNModes] = amplitude;
+                        d.numModes += 1;
+                        d.amplitudes[d.numModes] = amplitude;
 
-                        d.stMode[ndim * d.stNModes]     = kx;
-                        d.stMode[ndim * d.stNModes + 1] = ky;
-                        d.stMode[ndim * d.stNModes + 2] = kz;
+                        d.modes[ndim * d.numModes]     = kx;
+                        d.modes[ndim * d.numModes + 1] = ky;
+                        d.modes[ndim * d.numModes + 2] = kz;
 
                         if (ndim > 1)
                         {
-                            d.stNModes += 1;
-                            d.stAmpl[d.stNModes] = amplitude;
+                            d.numModes += 1;
+                            d.amplitudes[d.numModes] = amplitude;
 
-                            d.stMode[ndim * d.stNModes]     = kx;
-                            d.stMode[ndim * d.stNModes + 1] = -ky;
-                            d.stMode[ndim * d.stNModes + 2] = kz;
+                            d.modes[ndim * d.numModes]     = kx;
+                            d.modes[ndim * d.numModes + 1] = -ky;
+                            d.modes[ndim * d.numModes + 2] = kz;
                         }
 
                         if (ndim > 2)
                         {
-                            d.stNModes += 1;
-                            d.stAmpl[d.stNModes] = amplitude;
+                            d.numModes += 1;
+                            d.amplitudes[d.numModes] = amplitude;
 
-                            d.stMode[ndim * d.stNModes]     = kx;
-                            d.stMode[ndim * d.stNModes + 1] = ky;
-                            d.stMode[ndim * d.stNModes + 2] = -kz;
+                            d.modes[ndim * d.numModes]     = kx;
+                            d.modes[ndim * d.numModes + 1] = ky;
+                            d.modes[ndim * d.numModes + 2] = -kz;
 
-                            d.stNModes += 1;
-                            d.stAmpl[d.stNModes] = amplitude;
+                            d.numModes += 1;
+                            d.amplitudes[d.numModes] = amplitude;
 
-                            d.stMode[ndim * d.stNModes]     = kx;
-                            d.stMode[ndim * d.stNModes + 1] = -ky;
-                            d.stMode[ndim * d.stNModes + 2] = -kz;
+                            d.modes[ndim * d.numModes]     = kx;
+                            d.modes[ndim * d.numModes + 1] = -ky;
+                            d.modes[ndim * d.numModes + 2] = -kz;
                         }
 
-                        if (d.stNModes % 1000 == 0)
+                        if (d.numModes % 1000 == 0)
                         {
-                            std::cout << " ..." << d.stNModes << " of total " << st_tot_nmodes << " modes generated..."
+                            std::cout << " ..." << d.numModes << " of total " << st_tot_nmodes << " modes generated..."
                                       << std::endl;
                         }
                     } // in k range
@@ -239,9 +239,9 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
 
                 if ((k >= st_stirmin) && (k <= st_stirmax))
                 {
-                    if ((d.stNModes + 1 + std::pow(2, ndim - 1)) > st_maxmodes)
+                    if ((d.numModes + 1 + std::pow(2, ndim - 1)) > st_maxmodes)
                     {
-                        std::cout << "init_stir:  number of modes: = " << d.stNModes + 1
+                        std::cout << "init_stir:  number of modes: = " << d.numModes + 1
                                   << " maxstirmodes = " << st_maxmodes << std::endl;
                         std::cout << "Too many stirring modes" << std::endl;
                         break;
@@ -255,24 +255,24 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
                     amplitude = std::sqrt(amplitude * (std::pow(ik, ndim - 1) * 4.0 * (std::sqrt(3.0)) / nang)) *
                                 std::pow(kc / k, (ndim - 1) / 2.0);
 
-                    d.stNModes = d.stNModes + 1;
+                    d.numModes = d.numModes + 1;
 
-                    d.stAmpl[d.stNModes] = amplitude;
+                    d.amplitudes[d.numModes] = amplitude;
 
-                    d.stMode[ndim * d.stNModes]     = kx;
-                    d.stMode[ndim * d.stNModes + 1] = ky;
-                    d.stMode[ndim * d.stNModes + 2] = kz;
+                    d.modes[ndim * d.numModes]     = kx;
+                    d.modes[ndim * d.numModes + 1] = ky;
+                    d.modes[ndim * d.numModes + 2] = kz;
 
-                    if ((d.stNModes + 1) % 1000 == 0)
+                    if ((d.numModes + 1) % 1000 == 0)
                     {
-                        std::cout << "... " << d.stNModes << " modes generated..." << std::endl;
+                        std::cout << "... " << d.numModes << " modes generated..." << std::endl;
                     }
 
                 } // in k range
             }     // loop over angles
         }         // loop over k
     }             // st_spectform .eq. 2
-    d.stNModes += 1;
+    d.numModes += 1;
 }
 
 } // namespace sph
