@@ -53,7 +53,7 @@ namespace sph
 template<class Dataset>
 void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    using T = typename Dataset::RealType;
+    using T = typename std::decay_t<decltype(d.turbulenceData)>::RealType;
 
     auto&          turb = d.turbulenceData;
     std::vector<T> phasesReal(turb.numDim * turb.numModes);
@@ -64,6 +64,12 @@ void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
 
     if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
     {
+#ifdef USE_CUDA
+        thrust::device_vector<T> d_modes      = turb.modes;
+        thrust::device_vector<T> d_phasesReal = phasesReal;
+        thrust::device_vector<T> d_phasesImag = phasesImag;
+        thrust::device_vector<T> d_amplitudes = turb.amplitudes;
+
         computeStirringGpu(startIndex,
                            endIndex,
                            turb.numDim,
@@ -74,11 +80,12 @@ void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
                            rawPtr(d.devData.ay),
                            rawPtr(d.devData.az),
                            turb.numModes,
-                           turb.modes.data(),
-                           phasesReal.data(),
-                           phasesImag.data(),
-                           turb.amplitudes.data(),
+                           rawPtr(d_modes),
+                           rawPtr(d_phasesReal),
+                           rawPtr(d_phasesImag),
+                           rawPtr(d_amplitudes),
                            turb.solWeight);
+#endif
     }
     else
     {

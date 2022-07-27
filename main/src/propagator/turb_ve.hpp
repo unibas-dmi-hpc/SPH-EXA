@@ -184,12 +184,13 @@ public:
             mHolder_.traverse(d, domain);
             timer.step("Gravity");
         }
-        transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
         driveTurbulence(first, last, d);
         timer.step("Turbulence Stirring");
+
+        transferToHost(d, first, last, {"ax", "ay", "az", "du"});
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d, ng0_);

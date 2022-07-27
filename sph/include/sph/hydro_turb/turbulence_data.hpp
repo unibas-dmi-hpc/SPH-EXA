@@ -41,6 +41,8 @@ template<class T>
 class TurbulenceData
 {
 public:
+    using RealType = T;
+
     long int stSeed;      // seed for random number generator
     size_t   numDim;      // Number of dimensions
     T        stSolWeight; // Solenoidal Weight
