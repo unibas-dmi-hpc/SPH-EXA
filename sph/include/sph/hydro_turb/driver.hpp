@@ -31,14 +31,10 @@
 
 #pragma once
 
+#include "sph/util/cuda_utils.hpp"
 #include "sph/hydro_turb/stirring.hpp"
 #include "sph/hydro_turb/st_ounoise.hpp"
 #include "sph/hydro_turb/phases.hpp"
-
-#include "sph/util/cuda_stubs.h"
-#ifdef USE_CUDA
-#include "sph/util/cuda_utils.cuh"
-#endif
 
 namespace sph
 {
@@ -62,7 +58,7 @@ void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
     st_ounoiseupdate(turb.phases, turb.variance, d.minDt, turb.decayTime, turb.stSeed);
     computePhases(turb.numModes, turb.numDim, turb.phases, turb.stSolWeight, turb.modes, phasesReal, phasesImag);
 
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
 #ifdef USE_CUDA
         thrust::device_vector<T> d_modes      = turb.modes;
@@ -70,40 +66,17 @@ void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
         thrust::device_vector<T> d_phasesImag = phasesImag;
         thrust::device_vector<T> d_amplitudes = turb.amplitudes;
 
-        computeStirringGpu(startIndex,
-                           endIndex,
-                           turb.numDim,
-                           rawPtr(d.devData.x),
-                           rawPtr(d.devData.y),
-                           rawPtr(d.devData.z),
-                           rawPtr(d.devData.ax),
-                           rawPtr(d.devData.ay),
-                           rawPtr(d.devData.az),
-                           turb.numModes,
-                           rawPtr(d_modes),
-                           rawPtr(d_phasesReal),
-                           rawPtr(d_phasesImag),
-                           rawPtr(d_amplitudes),
-                           turb.solWeight);
+        computeStirringGpu(startIndex, endIndex, turb.numDim, rawPtr(d.devData.x), rawPtr(d.devData.y),
+                           rawPtr(d.devData.z), rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az),
+                           turb.numModes, rawPtr(d_modes), rawPtr(d_phasesReal), rawPtr(d_phasesImag),
+                           rawPtr(d_amplitudes), turb.solWeight);
 #endif
     }
     else
     {
-        computeStirring(startIndex,
-                        endIndex,
-                        turb.numDim,
-                        d.x.data(),
-                        d.y.data(),
-                        d.z.data(),
-                        d.ax.data(),
-                        d.ay.data(),
-                        d.az.data(),
-                        turb.numModes,
-                        turb.modes.data(),
-                        phasesReal.data(),
-                        phasesImag.data(),
-                        turb.amplitudes.data(),
-                        turb.solWeight);
+        computeStirring(startIndex, endIndex, turb.numDim, d.x.data(), d.y.data(), d.z.data(), d.ax.data(), d.ay.data(),
+                        d.az.data(), turb.numModes, turb.modes.data(), phasesReal.data(), phasesImag.data(),
+                        turb.amplitudes.data(), turb.solWeight);
     }
 }
 

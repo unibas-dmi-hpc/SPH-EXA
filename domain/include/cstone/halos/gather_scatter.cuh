@@ -24,54 +24,32 @@
  */
 
 /*! @file
- * @brief Traits classes for Domain to manage GPU device acceleration behavior
+ * @brief  Utility for GPU-direct halo particle exchange
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include <type_traits>
-
-#include "cstone/primitives/gather.hpp"
-#include "cstone/cuda/gather.cuh"
+#include "cstone/util/array.hpp"
 
 namespace cstone
 {
 
-struct CpuTag
-{
-};
-struct GpuTag
-{
-};
+template<class T, class IndexType>
+extern void gatherRanges(const IndexType* rangeScan,
+                         const IndexType* rangeOffsets,
+                         int numRanges,
+                         const T* src,
+                         T* buffer,
+                         size_t bufferSize);
 
-namespace detail
-{
-
-template<class Accelerator, class = void>
-struct ReorderFunctor
-{
-};
-
-template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
-{
-    template<class KeyType, class IndexType>
-    using type = CpuGather<KeyType, IndexType>;
-};
-
-template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, GpuTag>{}>>
-{
-    template<class KeyType, class IndexType>
-    using type = DeviceGather<KeyType, IndexType>;
-};
-
-} // namespace detail
-
-//! @brief returns reorder functor type to be used, depending on the accelerator
-template<class Accelerator, class KeyType, class IndexType>
-using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<KeyType, IndexType>;
+template<class T, class IndexType>
+extern void scatterRanges(const IndexType* rangeScan,
+                          const IndexType* rangeOffsets,
+                          int numRanges,
+                          T* dest,
+                          const T* buffer,
+                          size_t bufferSize);
 
 } // namespace cstone

@@ -39,7 +39,6 @@
 #include "data_util.hpp"
 #include "field_states.hpp"
 #include "tables.hpp"
-#include "traits.hpp"
 
 namespace sphexa
 {
@@ -105,6 +104,20 @@ public:
         "h",   "m",   "c",   "ax",   "ay",   "az",   "du", "du_m1", "c11",   "c12",   "c13",   "c22",  "c23",
         "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
 
+    /*! @brief return a tuple of field references
+     *
+     * Note: this needs to be in the same order as listed in fieldNames
+     */
+    auto dataTuple()
+    {
+        auto ret =
+            std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11, c12,
+                     c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, codes, neighborsCount);
+
+        static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
+        return ret;
+    }
+
     /*! @brief return a vector of pointers to field vectors
      *
      * We implement this by returning an rvalue to prevent having to store pointers and avoid
@@ -116,14 +129,8 @@ public:
         using KeyVecType = std::decay_t<decltype(codes)>;
         using FieldType  = std::variant<DevVector<float>*, DevVector<double>*, KeyVecType*, IntVecType*>;
 
-        std::array<FieldType, fieldNames.size()> ret{
-            &x,   &y,   &z,   &x_m1, &y_m1, &z_m1, &vx, &vy,    &vz,    &rho,   &u,     &p,     &prho,
-            &h,   &m,   &c,   &ax,   &ay,   &az,   &du, &du_m1, &c11,   &c12,   &c13,   &c22,   &c23,
-            &c33, &mue, &mui, &temp, &cv,   &xm,   &kx, &divv,  &curlv, &alpha, &gradh, &codes, &neighborsCount};
-
-        static_assert(ret.size() == fieldNames.size());
-
-        return ret;
+        return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
+                          dataTuple());
     }
 
     void resize(size_t size);
@@ -178,7 +185,7 @@ private:
     }
 };
 
-template<class DataType, std::enable_if_t<HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
+template<class DataType, std::enable_if_t<cstone::HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
 void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
 {
     auto hostData = d.data();
@@ -208,7 +215,7 @@ void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<
     }
 }
 
-template<class DataType, std::enable_if_t<HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
+template<class DataType, std::enable_if_t<cstone::HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
 void transferToHost(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
 {
     auto hostData   = d.data();

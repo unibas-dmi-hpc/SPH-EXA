@@ -37,7 +37,7 @@
 #include "cstone/findneighbors.hpp"
 #include "density_kern.hpp"
 #include "sph/sph.cuh"
-#include "sph/traits.hpp"
+#include "sph/particles_data_stubs.hpp"
 
 namespace sph
 {
@@ -84,7 +84,7 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& 
 template<class T, class Dataset>
 void computeDensity(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeDensity(startIndex, endIndex, ngmax, d, box);
     }

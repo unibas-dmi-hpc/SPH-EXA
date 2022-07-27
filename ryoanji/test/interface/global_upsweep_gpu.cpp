@@ -76,7 +76,8 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
     cstone::Domain<KeyType, T> domain(thisRank, numRanks, bucketSize, bucketSizeLocal, theta, box);
 
-    domain.syncGrav(particleKeys, x, y, z, h, m);
+    std::vector<T> scratchSpace;
+    domain.syncGrav(particleKeys, x, y, z, h, m, std::tuple{}, std::tie(scratchSpace));
 
     MultipoleHolder<T, T, T, KeyType, MultipoleType> multipoleHolder;
     thrust::device_vector<T>                         d_x = x, d_y = y, d_z = z, d_m = m;
@@ -88,32 +89,19 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
 
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-    multipoleHolder.upsweep(thrust::raw_pointer_cast(d_x.data()),
-                            thrust::raw_pointer_cast(d_y.data()),
-                            thrust::raw_pointer_cast(d_z.data()),
-                            thrust::raw_pointer_cast(d_m.data()),
-                            domain.globalTree(),
-                            domain.focusTree(),
-                            domain.layout().data(),
-                            multipoles.data());
+    multipoleHolder.upsweep(thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
+                            thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_m.data()),
+                            domain.globalTree(), domain.focusTree(), domain.layout().data(), multipoles.data());
 
-    cudaMemcpy(multipoles.data(),
-               multipoleHolder.deviceMultipoles(),
-               multipoles.size() * sizeof(MultipoleType),
+    cudaMemcpy(multipoles.data(), multipoleHolder.deviceMultipoles(), multipoles.size() * sizeof(MultipoleType),
                cudaMemcpyDeviceToHost);
 
     MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];
 
     // compute reference root cell multipole from global particle data
     MultipoleType reference;
-    particle2Multipole(coords.x().data(),
-                       coords.y().data(),
-                       coords.z().data(),
-                       globalMasses.data(),
-                       0,
-                       numParticles * numRanks,
-                       makeVec3(centers[octree.levelOffset(0)]),
-                       reference);
+    particle2Multipole(coords.x().data(), coords.y().data(), coords.z().data(), globalMasses.data(), 0,
+                       numParticles * numRanks, makeVec3(centers[octree.levelOffset(0)]), reference);
 
     double maxDiff = max(abs(reference - globalRootMultipole));
 

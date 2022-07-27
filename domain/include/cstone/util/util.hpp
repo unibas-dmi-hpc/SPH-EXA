@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <tuple>
 #include <utility>
 
@@ -81,6 +82,14 @@ struct StrongType
 
 private:
     T value_;
+};
+
+//! @brief constexpr string as structural type for use as non-type template parameter (C++20)
+template<size_t N>
+struct StructuralString
+{
+    constexpr StructuralString(const char (&str)[N]) { std::copy_n(str, N, value); }
+    char value[N];
 };
 
 /*! @brief StrongType equality comparison

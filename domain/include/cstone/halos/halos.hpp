@@ -43,6 +43,62 @@
 namespace cstone
 {
 
+namespace detail
+{
+
+//! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
+void checkIndices(const SendList& sendList,
+                  [[maybe_unused]] LocalIndex start,
+                  [[maybe_unused]] LocalIndex end,
+                  [[maybe_unused]] LocalIndex bufferSize)
+{
+    for (const auto& manifest : sendList)
+    {
+        for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
+        {
+            assert(!overlapTwoRanges(LocalIndex{0}, start, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+            assert(!overlapTwoRanges(end, bufferSize, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+        }
+    }
+}
+
+//! @brief check halo discovery for sanity
+void checkHalos(int myRank, gsl::span<const TreeIndexPair> focusAssignment, gsl::span<const int> haloFlags)
+{
+    TreeNodeIndex firstAssignedNode = focusAssignment[myRank].start();
+    TreeNodeIndex lastAssignedNode  = focusAssignment[myRank].end();
+
+    std::array<TreeNodeIndex, 2> checkRanges[2] = {{0, firstAssignedNode},
+                                                   {lastAssignedNode, TreeNodeIndex(haloFlags.size())}};
+
+    for (int range = 0; range < 2; ++range)
+    {
+#pragma omp parallel for
+        for (TreeNodeIndex i = checkRanges[range][0]; i < checkRanges[range][1]; ++i)
+        {
+            if (haloFlags[i])
+            {
+                bool peerFound = false;
+                for (auto peerRange : focusAssignment)
+                {
+                    if (peerRange.start() <= i && i < peerRange.end()) { peerFound = true; }
+                }
+                if (!peerFound)
+                {
+                    std::cout << "Detected halo cells not belonging to peer ranks. This usually happens"
+                              << " when some particles have smoothing length interaction sphere volumes"
+                              << " of similar magnitude than the rank domain volume. In that case, either"
+                              << " the number of ranks needs to be decreased or the number of particles"
+                              << " increased, leading to shorter smoothing lengths\n";
+                    MPI_Abort(MPI_COMM_WORLD, 35);
+                }
+            }
+        }
+    }
+}
+
+} // namespace detail
+
 template<class KeyType>
 class Halos
 {
@@ -107,8 +163,8 @@ public:
         outgoingHaloIndices_ =
             exchangeRequestKeys<KeyType>(leaves, haloFlags_, particleKeys, newParticleStart, assignment, peers);
 
-        checkHalos(assignment);
-        checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd, layout.back());
+        detail::checkHalos(myRank_, assignment, haloFlags_);
+        detail::checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd, layout.back());
 
         incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, peers);
     }
@@ -125,60 +181,13 @@ public:
         haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays...);
     }
 
+    template<class... DeviceVectors, class DeviceVector>
+    void
+    exchangeHalosGpu(std::tuple<DeviceVectors&...> arrays, DeviceVector& sendBuffer, DeviceVector& receiveBuffer) const;
+
     gsl::span<int> haloFlags() { return haloFlags_; }
 
 private:
-    //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
-    void checkIndices(const SendList& sendList,
-                      [[maybe_unused]] LocalIndex start,
-                      [[maybe_unused]] LocalIndex end,
-                      [[maybe_unused]] LocalIndex bufferSize)
-    {
-        for (const auto& manifest : sendList)
-        {
-            for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
-            {
-                assert(!overlapTwoRanges(LocalIndex{0}, start, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-                assert(!overlapTwoRanges(end, bufferSize, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-            }
-        }
-    }
-
-    //! @brief check halo discovery for sanity
-    void checkHalos(gsl::span<const TreeIndexPair> focusAssignment)
-    {
-        TreeNodeIndex firstAssignedNode = focusAssignment[myRank_].start();
-        TreeNodeIndex lastAssignedNode  = focusAssignment[myRank_].end();
-
-        std::array<TreeNodeIndex, 2> checkRanges[2] = {{0, firstAssignedNode},
-                                                       {lastAssignedNode, TreeNodeIndex(haloFlags_.size())}};
-
-        for (int range = 0; range < 2; ++range)
-        {
-#pragma omp parallel for
-            for (TreeNodeIndex i = checkRanges[range][0]; i < checkRanges[range][1]; ++i)
-            {
-                if (haloFlags_[i])
-                {
-                    bool peerFound = false;
-                    for (auto peerRange : focusAssignment)
-                    {
-                        if (peerRange.start() <= i && i < peerRange.end()) { peerFound = true; }
-                    }
-                    if (!peerFound)
-                    {
-                        std::cout << "Detected halo cells not belonging to peer ranks. This usually happens"
-                                  << " when some particles have smoothing length interaction sphere volumes"
-                                  << " of similar magnitude than the rank domain volume. In that case, either"
-                                  << " the number of ranks needs to be decreased or the number of particles"
-                                  << " increased, leading to shorter smoothing lengths\n";
-                        MPI_Abort(MPI_COMM_WORLD, 35);
-                    }
-                }
-            }
-        }
-    }
-
     int myRank_;
 
     SendList incomingHaloIndices_;

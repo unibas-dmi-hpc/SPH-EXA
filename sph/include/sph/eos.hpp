@@ -73,42 +73,6 @@ CUDA_DEVICE_HOST_FUN auto polytropicEOS(T rho)
     return util::tuple<T, T>{p, c};
 }
 
-/*! @brief ideal gas EOS interface w/o temperature for SPH where rho is computed on-the-fly
- *
- * @tparam Dataset
- * @param startIndex  index of first locally owned particle
- * @param endIndex    index of last locally owned particle
- * @param d           the dataset with the particle buffers
- *
- * In this simple version of equation of state, we calculate all dependent quantities
- * also for halos, not just assigned particles in [startIndex:endIndex], so that
- * we could potentially avoid halo exchange of p and c in return for exchanging halos of u.
- */
-template<typename Dataset>
-void computeEOS(size_t startIndex, size_t endIndex, Dataset& d)
-{
-    const auto* u     = d.u.data();
-    const auto* m     = d.m.data();
-    const auto* kx    = d.kx.data();
-    const auto* xm    = d.xm.data();
-    const auto* gradh = d.gradh.data();
-
-    auto* p    = d.p.data();
-    auto* prho = d.prho.data();
-    auto* c    = d.c.data();
-
-    bool storeRho = (d.rho.size() == d.m.size());
-
-#pragma omp parallel for schedule(static)
-    for (size_t i = startIndex; i < endIndex; ++i)
-    {
-        auto rho             = kx[i] * m[i] / xm[i];
-        std::tie(p[i], c[i]) = idealGasEOS(u[i], rho);
-        prho[i]              = p[i] / (kx[i] * m[i] * m[i] * gradh[i]);
-        if (storeRho) { d.rho[i] = rho; }
-    }
-}
-
 /*! @brief Polytropic EOS interface for SPH where rho is computed on-the-fly
  *
  * @tparam Dataset
@@ -131,33 +95,6 @@ void computeEOS_Polytropic(size_t startIndex, size_t endIndex, Dataset& d)
     {
         auto rho             = kx[i] * m[i] / xm[i];
         std::tie(p[i], c[i]) = polytropicEOS(rho);
-    }
-}
-
-/*! @brief Ideal gas EOS interface w/o temperature for SPH where rho is stored
- *
- * @tparam Dataset
- * @param startIndex  index of first locally owned particle
- * @param endIndex    index of last locally owned particle
- * @param d           the dataset with the particle buffers
- *
- * In this simple version of state equation, we calculate all depended quantities
- * also for halos, not just assigned particles in [startIndex:endIndex], so that
- * we could potentially avoid halo exchange of p and c in return for exchanging halos of u.
- */
-template<typename Dataset>
-void computeEOS_HydroStd(size_t startIndex, size_t endIndex, Dataset& d)
-{
-    const auto* rho = d.rho.data();
-    const auto* u   = d.u.data();
-
-    auto* p = d.p.data();
-    auto* c = d.c.data();
-
-#pragma omp parallel for schedule(static)
-    for (size_t i = startIndex; i < endIndex; ++i)
-    {
-        std::tie(p[i], c[i]) = idealGasEOS(u[i], rho[i]);
     }
 }
 
