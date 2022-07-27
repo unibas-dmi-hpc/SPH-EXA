@@ -31,9 +31,14 @@
 
 #pragma once
 
-#include "stirring.hpp"
-#include "phases.hpp"
-#include "st_ounoise.hpp"
+#include "sph/hydro_turb/stirring.hpp"
+#include "sph/hydro_turb/st_ounoise.hpp"
+#include "sph/hydro_turb/phases.hpp"
+
+#include "sph/util/cuda_stubs.h"
+#ifdef USE_CUDA
+#include "sph/util/cuda_utils.cuh"
+#endif
 
 namespace sph
 {
@@ -51,26 +56,48 @@ void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
     using T = typename Dataset::RealType;
 
     auto&          turb = d.turbulenceData;
-    std::vector<T> st_aka(turb.numDim * turb.numModes);
-    std::vector<T> st_akb(turb.numDim * turb.numModes);
+    std::vector<T> phasesReal(turb.numDim * turb.numModes);
+    std::vector<T> phasesImag(turb.numDim * turb.numModes);
 
     st_ounoiseupdate(turb.phases, turb.variance, d.minDt, turb.decayTime, turb.stSeed);
-    st_calcPhases(turb.numModes, turb.numDim, turb.phases, turb.stSolWeight, turb.modes, st_aka, st_akb);
-    computeStirring(startIndex,
-                    endIndex,
-                    turb.numDim,
-                    d.x,
-                    d.y,
-                    d.z,
-                    d.ax,
-                    d.ay,
-                    d.az,
-                    turb.numModes,
-                    turb.modes,
-                    st_aka,
-                    st_akb,
-                    turb.amplitudes,
-                    turb.solWeight);
+    computePhases(turb.numModes, turb.numDim, turb.phases, turb.stSolWeight, turb.modes, phasesReal, phasesImag);
+
+    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        computeStirringGpu(startIndex,
+                           endIndex,
+                           turb.numDim,
+                           rawPtr(d.devData.x),
+                           rawPtr(d.devData.y),
+                           rawPtr(d.devData.z),
+                           rawPtr(d.devData.ax),
+                           rawPtr(d.devData.ay),
+                           rawPtr(d.devData.az),
+                           turb.numModes,
+                           turb.modes.data(),
+                           phasesReal.data(),
+                           phasesImag.data(),
+                           turb.amplitudes.data(),
+                           turb.solWeight);
+    }
+    else
+    {
+        computeStirring(startIndex,
+                        endIndex,
+                        turb.numDim,
+                        d.x.data(),
+                        d.y.data(),
+                        d.z.data(),
+                        d.ax.data(),
+                        d.ay.data(),
+                        d.az.data(),
+                        turb.numModes,
+                        turb.modes.data(),
+                        phasesReal.data(),
+                        phasesImag.data(),
+                        turb.amplitudes.data(),
+                        turb.solWeight);
+    }
 }
 
 } // namespace sph

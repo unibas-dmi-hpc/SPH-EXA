@@ -6,10 +6,7 @@
 #include <cuda_runtime_api.h>
 #include <type_traits>
 
-namespace sph
-{
-namespace cuda
-{
+#include <thrust/device_vector.h>
 
 template<class ThrustVec>
 typename ThrustVec::value_type* rawPtr(ThrustVec& p)
@@ -24,6 +21,11 @@ const typename ThrustVec::value_type* rawPtr(const ThrustVec& p)
     assert(p.size() && "cannot get pointer to unallocated device vector memory");
     return thrust::raw_pointer_cast(p.data());
 }
+
+namespace sph
+{
+namespace cuda
+{
 
 #ifdef __CUDA_ARCH__
 //! @brief compute atomic min for floats using integer operations

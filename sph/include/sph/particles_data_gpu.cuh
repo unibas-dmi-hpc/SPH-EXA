@@ -178,20 +178,6 @@ private:
     }
 };
 
-template<class ThrustVec>
-typename ThrustVec::value_type* rawPtr(ThrustVec& p)
-{
-    assert(p.size() && "cannot get pointer to unallocated device vector memory");
-    return thrust::raw_pointer_cast(p.data());
-}
-
-template<class ThrustVec>
-const typename ThrustVec::value_type* rawPtr(const ThrustVec& p)
-{
-    assert(p.size() && "cannot get pointer to unallocated device vector memory");
-    return thrust::raw_pointer_cast(p.data());
-}
-
 template<class DataType, std::enable_if_t<HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
 void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
 {

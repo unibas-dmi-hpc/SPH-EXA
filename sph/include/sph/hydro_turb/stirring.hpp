@@ -32,17 +32,21 @@
 
 #include <cmath>
 
+#include "cstone/util/tuple.hpp"
+#include "sph/util/annotation.hpp"
+
 namespace sph
 {
 
-template<class Tc, class T>
+//! @brief compute stirring acceleration for a single particle
+template<class Tc, class Ta, class T>
 CUDA_DEVICE_HOST_FUN auto stirParticle(size_t ndim, Tc xi, Tc yi, Tc zi, size_t numModes, const T* modes,
-                                       const T* st_aka, const T* st_akb, const T* st_ampl)
+                                       const T* phaseReal, const T* phaseImag, const T* amplitudes)
 
 {
-    T turbAx = 0.0;
-    T turbAy = 0.0;
-    T turbAz = 0.0;
+    Ta turbAx = 0.0;
+    Ta turbAy = 0.0;
+    Ta turbAz = 0.0;
 
     for (size_t m = 0; m < numModes; ++m)
     {
@@ -66,50 +70,56 @@ CUDA_DEVICE_HOST_FUN auto stirParticle(size_t ndim, Tc xi, Tc yi, Tc zi, size_t 
         T imtrigterms = cosxi_im * (cosxj_im * sinxk_im + sinxj_im * cosxk_im) +
                         sinxi_im * (cosxj_im * cosxk_im - sinxj_im * sinxk_im);
 
-        turbAx += st_ampl[m] * (st_aka[m_ndim] * realtrigterms - st_akb[m_ndim] * imtrigterms);
-        turbAy += st_ampl[m] * (st_aka[m_ndim + 1] * realtrigterms - st_akb[m_ndim + 1] * imtrigterms);
-        turbAz += st_ampl[m] * (st_aka[m_ndim + 2] * realtrigterms - st_akb[m_ndim + 2] * imtrigterms);
+        turbAx += amplitudes[m] * (phaseReal[m_ndim] * realtrigterms - phaseImag[m_ndim] * imtrigterms);
+        turbAy += amplitudes[m] * (phaseReal[m_ndim + 1] * realtrigterms - phaseImag[m_ndim + 1] * imtrigterms);
+        turbAz += amplitudes[m] * (phaseReal[m_ndim + 2] * realtrigterms - phaseImag[m_ndim + 2] * imtrigterms);
     }
 
-    return util::tuple<T, T, T>(turbAx, turbAy, turbAz);
+    return util::tuple<Ta, Ta, Ta>(turbAx, turbAy, turbAz);
 }
 
 /*! @brief Adds the stirring accelerations to the provided particle accelerations
  *
+ * @tparam        Tc                float or double
+ * @tparam        Ta                float or double
  * @tparam        T                 float or double
  * @param[in]     startIndex        first index of particles
  * @param[in]     endIndex          last index of particles
- * @param[in]     ndim              number of dimensions
- * @param[in]     x                 vector of x components of particle positions
- * @param[in]     y                 vector of y components of particle positions
- * @param[in]     z                 vector of z components of particle positionSs
- * @param[inout]  ax                vector of x component of accelerations
- * @param[inout]  ay                vector of y component of accelerations
- * @param[inout]  az                vector of z component of accelerations
+ * @param[in]     numDim            number of dimensions
+ * @param[in]     x                 x components of particle positions
+ * @param[in]     y                 y components of particle positions
+ * @param[in]     z                 z components of particle positionSs
+ * @param[inout]  ax                x component of accelerations
+ * @param[inout]  ay                y component of accelerations
+ * @param[inout]  az                z component of accelerations
  * @param[in]     numModes          number of modes
- * @param[in]     modes           matrix (st_nmodes x dimension) containing modes
- * @param[in]     st_aka            matrix (st_nmodes x dimension) containing real phases
- * @param[in]     st_akb            matrix (st_nmodes x dimension) containing imaginary phases
- * @param[in]     st_ampl           vector of amplitudes of modes
- * @param[in]     st_solweightnorm  normalized solenoidal weight
+ * @param[in]     modes             matrix (st_nmodes x dimension) containing modes
+ * @param[in]     phaseReal         matrix (st_nmodes x dimension) containing real phases
+ * @param[in]     phaseImag         matrix (st_nmodes x dimension) containing imaginary phases
+ * @param[in]     amplitudes        amplitudes of modes
+ * @param[in]     solWeight  normalized solenoidal weight
  *
  */
-template<class T>
-void computeStirring(size_t startIndex, size_t endIndex, size_t ndim, const std::vector<T>& x, const std::vector<T>& y,
-                     const std::vector<T>& z, std::vector<T>& ax, std::vector<T>& ay, std::vector<T>& az,
-                     size_t numModes, const std::vector<T>& modes, const std::vector<T>& st_aka,
-                     const std::vector<T>& st_akb, const std::vector<T>& st_ampl, T st_solweightnorm)
+template<class Tc, class Ta, class T>
+void computeStirring(size_t startIndex, size_t endIndex, size_t numDim, const Tc* x, const Tc* y, const Tc* z, Ta* ax,
+                     Ta* ay, Ta* az, size_t numModes, const T* modes, const T* phaseReal, const T* phaseImag,
+                     const T* amplitudes, T solWeight)
 {
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         auto [turbAx, turbAy, turbAz] =
-            stirParticle(ndim, x[i], y[i], z[i], numModes, modes.data(), st_aka.data(), st_akb.data(), st_ampl.data());
+            stirParticle<Tc, Ta, T>(numDim, x[i], y[i], z[i], numModes, modes, phaseReal, phaseImag, amplitudes);
 
-        ax[i] += st_solweightnorm * turbAx;
-        ay[i] += st_solweightnorm * turbAy;
-        az[i] += st_solweightnorm * turbAz;
+        ax[i] += solWeight * turbAx;
+        ay[i] += solWeight * turbAy;
+        az[i] += solWeight * turbAz;
     }
 }
+
+template<class Tc, class Ta, class T>
+extern void computeStirringGpu(size_t startIndex, size_t endIndex, size_t numDim, const Tc* x, const Tc* y, const Tc* z,
+                               Ta* ax, Ta* ay, Ta* az, size_t numModes, const T* modes, const T* phaseReal,
+                               const T* phaseImag, const T* amplitudes, T solWeight);
 
 } // namespace sph
