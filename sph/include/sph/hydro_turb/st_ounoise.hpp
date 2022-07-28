@@ -141,14 +141,4 @@ void st_ounoiseupdate(std::vector<T>& phases, T variance, T dt, T ts, long int& 
     }
 }
 
-//! @brief fills a vector with random gaussian values with mean 0 and variance @p variance
-template<class T>
-void fillRandomGaussian(std::vector<T>& phases, T variance, long int& seed)
-{
-    for (size_t i = 0; i < phases.size(); i++)
-    {
-        phases[i] = st_grn<T>(seed) * variance;
-    }
-}
-
 } // namespace sph

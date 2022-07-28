@@ -105,6 +105,7 @@ void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::strin
     turb.decayTime   = Lbox / (2.0 * velocity);
     turb.stSolWeight = constants.at("stSolWeight");
     turb.stSeed      = seed;
+    turb.gen.seed(constants.at("stSeedIni"));
 
     turb.amplitudes.resize(stMaxModes);
     turb.modes.resize(stMaxModes * turb.numDim);
@@ -117,7 +118,10 @@ void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::strin
     turb.modes.resize(turb.numModes * turb.numDim);
     turb.phases.resize(6 * turb.numModes);
 
-    sph::fillRandomGaussian(turb.phases, turb.variance, turb.stSeed);
+    // fill phases with normal gaussian distributed random values with mean 0 and std-dev turb.variance
+    std::normal_distribution<T> dist(0, turb.variance);
+    auto                        rng = [&turb, &dist]() { return dist(turb.gen); };
+    std::generate(turb.phases.begin(), turb.phases.end(), rng);
 }
 
 template<class Dataset>

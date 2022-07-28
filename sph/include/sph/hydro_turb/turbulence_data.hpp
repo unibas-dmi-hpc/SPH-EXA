@@ -32,6 +32,7 @@
 #pragma once
 
 #include <cstdint>
+#include <random>
 #include <vector>
 
 namespace sph
@@ -49,6 +50,8 @@ public:
     T        variance;    // Variance of Ornstein-Uhlenbeck process
     T        decayTime;
     T        solWeight; // Normalized Solenoidal weight
+
+    std::mt19937 gen;
 
     size_t         numModes;   // Number of computed nodes
     std::vector<T> modes;      // Stirring Modes
