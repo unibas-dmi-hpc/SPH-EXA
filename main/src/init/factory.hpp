@@ -78,7 +78,7 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     }
     if (testCase == "turbulence")
     {
-        if (glassBlock.empty()) {  throw std::runtime_error("need a valid glass block for turbulence test\n"); }
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for turbulence test\n"); }
         else { return std::make_unique<TurbulenceGlass<Dataset>>(glassBlock); }
     }
     else

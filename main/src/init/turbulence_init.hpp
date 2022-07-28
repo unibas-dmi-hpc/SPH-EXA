@@ -48,18 +48,9 @@ namespace sphexa
 
 std::map<std::string, double> TurbulenceConstants()
 {
-    return {{"stSolWeight", 0.5},
-            {"stMaxModes", 100000},
-            {"Lbox", 1.0},
-            {"stMachVelocity", 0.3e0},
-            {"dim", 3},
-            {"firstTimeStep", 1e-4},
-            {"epsilon", 1e-15},
-            {"stSeedIni", 251299},
-            {"stSpectForm", 2},
-            {"mTotal", 1.0},
-            {"powerLawExp", 5 / 3},
-            {"anglesExp", 2.0}};
+    return {{"stSolWeight", 0.5}, {"stMaxModes", 100000},  {"Lbox", 1.0},          {"stMachVelocity", 0.3e0},
+            {"dim", 3},           {"firstTimeStep", 1e-4}, {"epsilon", 1e-15},     {"stSeedIni", 251299},
+            {"stSpectForm", 2},   {"mTotal", 1.0},         {"powerLawExp", 5 / 3}, {"anglesExp", 2.0}};
 }
 
 template<class Dataset>
@@ -118,19 +109,8 @@ void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::strin
     turb.amplitudes.resize(stMaxModes);
     turb.modes.resize(stMaxModes * turb.numDim);
 
-    sph::createStirringModes(turb,
-                             Lbox,
-                             Lbox,
-                             Lbox,
-                             stMaxModes,
-                             stEnergy,
-                             stStirMax,
-                             stStirMin,
-                             turb.numDim,
-                             turb.stSeed,
-                             stSpectForm,
-                             powerLawExp,
-                             anglesExp);
+    sph::createStirringModes(turb, Lbox, Lbox, Lbox, stMaxModes, stEnergy, stStirMax, stStirMin, turb.numDim,
+                             turb.stSeed, stSpectForm, powerLawExp, anglesExp);
 
     std::cout << "Total Number of Stirring Modes: " << turb.numModes << std::endl;
     turb.amplitudes.resize(turb.numModes);
