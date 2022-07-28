@@ -44,12 +44,10 @@ class TurbulenceData
 public:
     using RealType = T;
 
-    long int stSeed;      // seed for random number generator
-    size_t   numDim;      // Number of dimensions
-    T        stSolWeight; // Solenoidal Weight
-    T        variance;    // Variance of Ornstein-Uhlenbeck process
-    T        decayTime;
-    T        solWeight; // Normalized Solenoidal weight
+    size_t numDim;   // Number of dimensions
+    T      variance; // Variance of Ornstein-Uhlenbeck process
+    T      decayTime;
+    T      solWeight; // Normalized Solenoidal weight
 
     std::mt19937 gen;
 

@@ -31,13 +31,64 @@
 
 #pragma once
 
+#include <random>
+
 #include "sph/util/cuda_utils.hpp"
 #include "sph/hydro_turb/stirring.hpp"
-#include "sph/hydro_turb/st_ounoise.hpp"
 #include "sph/hydro_turb/phases.hpp"
 
 namespace sph
 {
+
+/*! @brief Generates an Ornstein-Uhlenbeck sequence.
+ *
+ *   @param[inout] phases   the Ornstein-Uhlenbeck phases to be updated
+ *   @param[in]    stddev   standard deviation of the distribution
+ *   @param[in]    dt       timestep
+ *   @param[in]    ts       auto-correlation time
+ *
+ * The sequence x_n is a Markov process that takes the previous value,
+ *   weights by an exponential damping factor with a given correlation
+ *   time "ts", and drives by adding a Gaussian random variable with
+ *   variance "variance", weighted by a second damping factor, also
+ *   with correlation time "ts". For a timestep of dt, this sequence
+ *   can be written as :
+ *
+ *     x_n+1 = f x_n + sigma * sqrt (1 - f**2) z_n
+ *
+ * where f = exp (-dt / ts), z_n is a Gaussian random variable drawn
+ * from a Gaussian distribution with unit variance, and sigma is the
+ * desired variance of the OU sequence. (See Bartosch, 2001).
+ *
+ * The resulting sequence should satisfy the properties of zero mean,
+ *   and stationary (independent of portion of sequence) RMS equal to
+ *   "variance". Its power spectrum in the time domain can vary from
+ *   white noise to "brown" noise (P (f) = const. to 1 / f^2).
+ *
+ * References :
+ *    Bartosch, 2001
+ * http://octopus.th.physik.uni-frankfurt.de/~bartosch/publications/IntJMP01.pdf
+ *   Finch, 2004
+ * http://pauillac.inria.fr/algo/csolve/ou.pdf
+ *         Uhlenbeck & Ornstein, 1930
+ * http://prola.aps.org/abstract/PR/v36/i5/p823_1
+ *
+ * Eswaran & Pope 1988
+ */
+template<class T>
+void updateNoise(std::vector<T>& phases, T stddev, T dt, T ts, std::mt19937& gen)
+{
+    T dampingA = std::exp(-dt / ts);
+    T dampingB = std::sqrt(1.0 - dampingA * dampingA);
+    // mean 0 and unit standard deviation
+    std::normal_distribution<T> dist(0, 1);
+
+    for (size_t i = 0; i < phases.size(); i++)
+    {
+        T randomNumber = dist(gen);
+        phases[i]      = phases[i] * dampingA + stddev * dampingB * randomNumber;
+    }
+}
 
 /*! @brief Adds the stirring motion to particle accelerations
  *
@@ -55,8 +106,8 @@ void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
     std::vector<T> phasesReal(turb.numDim * turb.numModes);
     std::vector<T> phasesImag(turb.numDim * turb.numModes);
 
-    st_ounoiseupdate(turb.phases, turb.variance, d.minDt, turb.decayTime, turb.stSeed);
-    computePhases(turb.numModes, turb.numDim, turb.phases, turb.stSolWeight, turb.modes, phasesReal, phasesImag);
+    updateNoise(turb.phases, turb.variance, d.minDt, turb.decayTime, turb.gen);
+    computePhases(turb.numModes, turb.numDim, turb.phases, turb.solWeight, turb.modes, phasesReal, phasesImag);
 
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

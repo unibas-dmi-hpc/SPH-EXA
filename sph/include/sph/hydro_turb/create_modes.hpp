@@ -34,7 +34,6 @@
 #include <iostream>
 
 #include "sph/hydro_turb/turbulence_data.hpp"
-#include "sph/hydro_turb/st_ounoise.hpp"
 
 namespace sph
 {
@@ -47,21 +46,19 @@ namespace sph
  * @param[in]    Ly
  * @param[in]    Lz
  * @param[in]    st_maxmodes
- * @param[in]    st_energy
- * @param[in]    st_stirmax
- * @param[in]    st_stirmin
+ * @param[in]    energy
+ * @param[in]    stirMax
+ * @param[in]    stirMin
  * @param[in]    ndim
- * @param[in]    st_seed
- * @param[in]    st_spectform
- * @param[in]    st_power_law_exp
- * @param[in]    st_angles_exp
+ * @param[in]    spectForm
+ * @param[in]    powerLawExp
+ * @param[in]    anglesExp
  *
- * This function does ???
+ * Function description missing
  */
 template<class T>
-void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T st_energy, T st_stirmax,
-                         T st_stirmin, size_t ndim, long int& st_seed, size_t st_spectform, T st_power_law_exp,
-                         T st_angles_exp)
+void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T energy, T stirMax, T stirMin,
+                         size_t ndim, size_t spectForm, T powerLawExp, T anglesExp)
 {
     size_t ikx, iky, ikz, st_tot_nmodes;
     T      kx, ky, kz, k, kc, amplitude, parab_prefact;
@@ -70,18 +67,21 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
     T       rand, phi, theta;
     const T twopi = 2.0 * M_PI;
 
-    d.variance = std::sqrt(st_energy / d.decayTime);
+    std::uniform_real_distribution<T> uniDist(0, 1);
+    auto                              uniRng = [&d, &uniDist] { return uniDist(d.gen); };
+
+    d.variance = std::sqrt(energy / d.decayTime);
 
     // prefactor for amplitude normalistion to 1 at kc = 0.5*(st_stirmin+st_stirmax)
-    parab_prefact = -4.0 / ((st_stirmax - st_stirmin) * (st_stirmax - st_stirmin));
+    parab_prefact = -4.0 / ((stirMax - stirMin) * (stirMax - stirMin));
 
     // characteristic k for scaling the amplitude below
-    kc = st_stirmin;
-    if (st_spectform == 1) { kc = 0.5 * (st_stirmin + st_stirmax); }
+    kc = stirMin;
+    if (spectForm == 1) { kc = 0.5 * (stirMin + stirMax); }
 
     // this makes the rms force const irrespective of the solenoidal weight
     d.solWeight = std::sqrt(3.0) * std::sqrt(3.0 / T(ndim)) /
-                  std::sqrt(1.0 - 2.0 * d.stSolWeight + T(ndim) * d.stSolWeight * d.stSolWeight);
+                  std::sqrt(1.0 - 2.0 * d.solWeight + T(ndim) * d.solWeight * d.solWeight);
 
     size_t ikxmin = 0;
     size_t ikymin = 0;
@@ -103,7 +103,7 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
             {
                 kz = twopi * ikz / Lz;
                 k  = std::sqrt(kx * kx + ky * ky + kz * kz);
-                if (k >= st_stirmin && k <= st_stirmax)
+                if (k >= stirMin && k <= stirMax)
                 {
                     d.numModes += 1;
                     if (ndim > 1) { d.numModes += 1; }
@@ -116,7 +116,7 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
 
     d.numModes = -1;
 
-    if (st_spectform != 2)
+    if (spectForm != 2)
     {
         std::cout << "Generating " << st_tot_nmodes << " driving modes..." << std::endl;
         // for band and parabolic spectrum, use the standard full sampling
@@ -132,7 +132,7 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
                     kz = twopi * ikz / Lz;
                     k  = std::sqrt(kx * kx + ky * ky + kz * kz);
 
-                    if ((k >= st_stirmin) && (k <= st_stirmax))
+                    if ((k >= stirMin) && (k <= stirMax))
                     {
 
                         if ((d.numModes + 1 + std::pow(2, ndim - 1)) > st_maxmodes)
@@ -143,8 +143,8 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
                             break;
                         }
 
-                        if (st_spectform == 0) { amplitude = 1.0; } // Band
-                        if (st_spectform == 1)
+                        if (spectForm == 0) { amplitude = 1.0; } // Band
+                        if (spectForm == 1)
                         {
                             amplitude = std::abs(parab_prefact * (k - kc) * (k - kc) + 1.0);
                         } // Parabola
@@ -197,25 +197,25 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
         }             // ikx
     }
 
-    if (st_spectform == 2)
+    if (spectForm == 2)
     {
         std::cout << "There would be " << st_tot_nmodes
                   << " driving modes, if k-space were fully sampled (st_angles_exp = 2.0)..." << std::endl;
-        std::cout << "Here we are using st_angles_exp = " << st_angles_exp << std::endl;
+        std::cout << "Here we are using st_angles_exp = " << anglesExp << std::endl;
 
         // loop between smallest and largest k
-        ikmin = std::max(1, int(st_stirmin * Lx / twopi + 0.5));
-        ikmax = int(st_stirmax * Lx / twopi + 0.5);
+        ikmin = std::max(1, int(stirMin * Lx / twopi + 0.5));
+        ikmax = int(stirMax * Lx / twopi + 0.5);
 
         std::cout << "Generating driving modes within k = [ " << ikmin << " , " << ikmax << " ]" << std::endl;
 
         for (int ik = ikmin; ik <= ikmax; ik++)
         {
-            nang = std::pow(2, ndim) * ceil(std::pow(ik, st_angles_exp));
+            nang = std::pow(2, ndim) * ceil(std::pow(ik, anglesExp));
             std::cout << "ik = " << ik << " , number of angles = " << nang << std::endl;
             for (int iang = 1; iang <= nang; iang++)
             {
-                phi = twopi * sph::ran1s<T>(st_seed); // phi = [0,2pi] sample the whole sphere
+                phi = twopi * uniRng(); // phi = [0,2pi] sample the whole sphere
                 if (ndim == 1)
                 {
                     if (phi < twopi / 2) { phi = 0.0; }
@@ -223,12 +223,9 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
                 }
 
                 theta = twopi / 4.0;
-                if (ndim > 2)
-                {
-                    theta = std::acos(1.0 - 2.0 * sph::ran1s<T>(st_seed));
-                } // theta = [0,pi] sample the whole sphere
+                if (ndim > 2) { theta = std::acos(1.0 - 2.0 * uniRng()); } // theta = [0,pi] sample the whole sphere
 
-                rand = ik + sph::ran1s<T>(st_seed) - 0.5;
+                rand = ik + uniRng() - 0.5;
                 kx   = twopi * std::round(rand * std::sin(theta) * std::cos(phi)) / Lx;
                 ky   = 0.0;
                 if (ndim > 1) { ky = twopi * std::round(rand * std::sin(theta) * std::sin(phi)) / Ly; }
@@ -237,7 +234,7 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
 
                 k = std::sqrt(kx * kx + ky * ky + kz * kz);
 
-                if ((k >= st_stirmin) && (k <= st_stirmax))
+                if ((k >= stirMin) && (k <= stirMax))
                 {
                     if ((d.numModes + 1 + std::pow(2, ndim - 1)) > st_maxmodes)
                     {
@@ -247,7 +244,7 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
                         break;
                     }
 
-                    amplitude = std::pow(k / kc, st_power_law_exp); // Power law
+                    amplitude = std::pow(k / kc, powerLawExp); // Power law
 
                     // note: power spectrum ~ amplitude^2 (1D), amplitude^2 * 2pi k (2D), amplitude^2 * 4pi k^2 (3D)
                     // ...and correct for the number of angles sampled relative to the full sampling (k^2 per k-shell in

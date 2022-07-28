@@ -48,9 +48,9 @@ namespace sphexa
 
 std::map<std::string, double> TurbulenceConstants()
 {
-    return {{"stSolWeight", 0.5}, {"stMaxModes", 100000},  {"Lbox", 1.0},          {"stMachVelocity", 0.3e0},
-            {"dim", 3},           {"firstTimeStep", 1e-4}, {"epsilon", 1e-15},     {"stSeedIni", 251299},
-            {"stSpectForm", 2},   {"mTotal", 1.0},         {"powerLawExp", 5 / 3}, {"anglesExp", 2.0}};
+    return {{"solWeight", 0.5}, {"stMaxModes", 100000},  {"Lbox", 1.0},          {"stMachVelocity", 0.3e0},
+            {"dim", 3},         {"firstTimeStep", 1e-4}, {"epsilon", 1e-15},     {"rngSeed", 251299},
+            {"stSpectForm", 2}, {"mTotal", 1.0},         {"powerLawExp", 5 / 3}, {"anglesExp", 2.0}};
 }
 
 template<class Dataset>
@@ -87,31 +87,29 @@ void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& 
 template<class T>
 void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::string, double>& constants)
 {
-    double   eps         = constants.at("epsilon");
-    size_t   stMaxModes  = constants.at("stMaxModes");
-    double   Lbox        = constants.at("Lbox");
-    double   velocity    = constants.at("stMachVelocity");
-    long int seed        = constants.at("stSeedIni");
-    size_t   stSpectForm = constants.at("stSpectForm");
-    double   powerLawExp = constants.at("powerLawExp");
-    double   anglesExp   = constants.at("anglesExp");
+    double eps         = constants.at("epsilon");
+    size_t stMaxModes  = constants.at("stMaxModes");
+    double Lbox        = constants.at("Lbox");
+    double velocity    = constants.at("stMachVelocity");
+    size_t stSpectForm = constants.at("stSpectForm");
+    double powerLawExp = constants.at("powerLawExp");
+    double anglesExp   = constants.at("anglesExp");
 
-    double twopi     = 2.0 * M_PI;
-    double stEnergy  = 5.0e-3 * std::pow(velocity, 3) / Lbox;
-    double stStirMin = (1.0 - eps) * twopi / Lbox;
-    double stStirMax = (3.0 + eps) * twopi / Lbox;
+    double twopi   = 2.0 * M_PI;
+    double energy  = 5.0e-3 * std::pow(velocity, 3) / Lbox;
+    double stirMin = (1.0 - eps) * twopi / Lbox;
+    double stirMax = (3.0 + eps) * twopi / Lbox;
 
-    turb.numDim      = constants.at("dim");
-    turb.decayTime   = Lbox / (2.0 * velocity);
-    turb.stSolWeight = constants.at("stSolWeight");
-    turb.stSeed      = seed;
-    turb.gen.seed(constants.at("stSeedIni"));
+    turb.numDim    = constants.at("dim");
+    turb.decayTime = Lbox / (2.0 * velocity);
+    turb.solWeight = constants.at("solWeight");
+    turb.gen.seed(constants.at("rngSeed"));
 
     turb.amplitudes.resize(stMaxModes);
     turb.modes.resize(stMaxModes * turb.numDim);
 
-    sph::createStirringModes(turb, Lbox, Lbox, Lbox, stMaxModes, stEnergy, stStirMax, stStirMin, turb.numDim,
-                             turb.stSeed, stSpectForm, powerLawExp, anglesExp);
+    sph::createStirringModes(turb, Lbox, Lbox, Lbox, stMaxModes, energy, stirMax, stirMin, turb.numDim, stSpectForm,
+                             powerLawExp, anglesExp);
 
     std::cout << "Total Number of Stirring Modes: " << turb.numModes << std::endl;
     turb.amplitudes.resize(turb.numModes);
