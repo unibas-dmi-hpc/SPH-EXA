@@ -60,11 +60,6 @@ template<class Dataset, class T>
 void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T energy, T stirMax, T stirMin, size_t ndim,
                          size_t spectForm, T powerLawExp, T anglesExp, bool verbose)
 {
-    size_t ikx, iky, ikz, st_tot_nmodes;
-    T      kx, ky, kz, k, kc, amplitude, parab_prefact;
-
-    size_t  nang, ikmin, ikmax;
-    T       rand, phi, theta;
     const T twopi = 2.0 * M_PI;
 
     std::uniform_real_distribution<T> uniDist(0, 1);
@@ -72,11 +67,8 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T ene
 
     d.variance = std::sqrt(energy / d.decayTime);
 
-    // prefactor for amplitude normalistion to 1 at kc = 0.5*(st_stirmin+st_stirmax)
-    parab_prefact = -4.0 / ((stirMax - stirMin) * (stirMax - stirMin));
-
     // characteristic k for scaling the amplitude below
-    kc = stirMin;
+    T kc = stirMin;
     if (spectForm == 1) { kc = 0.5 * (stirMin + stirMax); }
 
     // this makes the rms force const irrespective of the solenoidal weight
@@ -93,16 +85,16 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T ene
 
     // determine the number of required modes (in case of full sampling)
     d.numModes = 0;
-    for (ikx = ikxmin; ikx <= ikxmax; ikx++)
+    for (size_t ikx = ikxmin; ikx <= ikxmax; ikx++)
     {
-        kx = twopi * ikx / Lx;
-        for (iky = ikymin; iky <= ikymax; iky++)
+        T kx = twopi * ikx / Lx;
+        for (size_t iky = ikymin; iky <= ikymax; iky++)
         {
-            ky = twopi * iky / Ly;
-            for (ikz = ikzmin; ikz <= ikzmax; ikz++)
+            T ky = twopi * iky / Ly;
+            for (size_t ikz = ikzmin; ikz <= ikzmax; ikz++)
             {
-                kz = twopi * ikz / Lz;
-                k  = std::sqrt(kx * kx + ky * ky + kz * kz);
+                T kz = twopi * ikz / Lz;
+                T k  = std::sqrt(kx * kx + ky * ky + kz * kz);
                 if (k >= stirMin && k <= stirMax)
                 {
                     d.numModes += 1;
@@ -112,25 +104,29 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T ene
             }
         }
     }
-    st_tot_nmodes = d.numModes;
+    T st_tot_nmodes = d.numModes;
 
     d.numModes = -1;
 
     if (spectForm != 2)
     {
         if (verbose) std::cout << "Generating " << st_tot_nmodes << " driving modes..." << std::endl;
+
+        // prefactor for amplitude normalistion to 1 at kc = 0.5*(st_stirmin+st_stirmax)
+        T parab_prefact = -4.0 / ((stirMax - stirMin) * (stirMax - stirMin));
+
         // for band and parabolic spectrum, use the standard full sampling
         // loop over all kx, ky, kz to generate driving modes
-        for (ikx = ikxmin; ikx <= ikxmax; ikx++)
+        for (size_t ikx = ikxmin; ikx <= ikxmax; ikx++)
         {
-            kx = twopi * ikx / Lx;
-            for (iky = ikymin; iky <= ikymax; iky++)
+            T kx = twopi * ikx / Lx;
+            for (size_t iky = ikymin; iky <= ikymax; iky++)
             {
-                ky = twopi * iky / Ly;
-                for (ikz = ikzmin; ikz <= ikzmax; ikz++)
+                T ky = twopi * iky / Ly;
+                for (size_t ikz = ikzmin; ikz <= ikzmax; ikz++)
                 {
-                    kz = twopi * ikz / Lz;
-                    k  = std::sqrt(kx * kx + ky * ky + kz * kz);
+                    T kz = twopi * ikz / Lz;
+                    T k  = std::sqrt(kx * kx + ky * ky + kz * kz);
 
                     if ((k >= stirMin) && (k <= stirMax))
                     {
@@ -142,7 +138,7 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T ene
                             break;
                         }
 
-                        if (spectForm == 0) { amplitude = 1.0; } // Band
+                        T amplitude = 1.0; // Band
                         if (spectForm == 1)
                         {
                             amplitude = std::abs(parab_prefact * (k - kc) * (k - kc) + 1.0);
@@ -193,34 +189,32 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T ene
     if (spectForm == 2)
     {
         // loop between smallest and largest k
-        ikmin = std::max(1, int(stirMin * Lx / twopi + 0.5));
-        ikmax = int(stirMax * Lx / twopi + 0.5);
+        size_t ikmin = std::max(1, int(stirMin * Lx / twopi + 0.5));
+        size_t ikmax = int(stirMax * Lx / twopi + 0.5);
 
         for (int ik = ikmin; ik <= ikmax; ik++)
         {
+            size_t nang = std::pow(2, ndim) * ceil(std::pow(ik, anglesExp));
             if (verbose) std::cout << "ik = " << ik << " , number of angles = " << nang << std::endl;
 
-            nang = std::pow(2, ndim) * ceil(std::pow(ik, anglesExp));
             for (int iang = 1; iang <= nang; iang++)
             {
-                phi = twopi * uniRng(); // phi = [0,2pi] sample the whole sphere
+                T phi = twopi * uniRng(); // phi = [0,2pi] sample the whole sphere
                 if (ndim == 1)
                 {
                     if (phi < twopi / 2) { phi = 0.0; }
                     if (phi >= twopi / 2) { phi = twopi / 2.0; }
                 }
 
-                theta = twopi / 4.0;
+                T theta = twopi / 4.0;
                 if (ndim > 2) { theta = std::acos(1.0 - 2.0 * uniRng()); } // theta = [0,pi] sample the whole sphere
 
-                rand = ik + uniRng() - 0.5;
-                kx   = twopi * std::round(rand * std::sin(theta) * std::cos(phi)) / Lx;
-                ky   = 0.0;
-                if (ndim > 1) { ky = twopi * std::round(rand * std::sin(theta) * std::sin(phi)) / Ly; }
-                kz = 0.0;
-                if (ndim > 2) { kz = twopi * std::round(rand * std::cos(theta)) / Lz; }
+                T rand = ik + uniRng() - 0.5;
+                T kx   = twopi * std::round(rand * std::sin(theta) * std::cos(phi)) / Lx;
+                T ky   = (ndim > 1) ? twopi * std::round(rand * std::sin(theta) * std::sin(phi)) / Ly : 0.0;
+                T kz   = (ndim > 2) ? twopi * std::round(rand * std::cos(theta)) / Lz : 0.0;
 
-                k = std::sqrt(kx * kx + ky * ky + kz * kz);
+                T k = std::sqrt(kx * kx + ky * ky + kz * kz);
 
                 if ((k >= stirMin) && (k <= stirMax))
                 {
@@ -232,7 +226,7 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T ene
                         break;
                     }
 
-                    amplitude = std::pow(k / kc, powerLawExp); // Power law
+                    T amplitude = std::pow(k / kc, powerLawExp); // Power law
 
                     // note: power spectrum ~ amplitude^2 (1D), amplitude^2 * 2pi k (2D), amplitude^2 * 4pi k^2 (3D)
                     // ...and correct for the number of angles sampled relative to the full sampling (k^2 per k-shell in
