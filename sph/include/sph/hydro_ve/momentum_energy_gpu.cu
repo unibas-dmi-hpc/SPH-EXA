@@ -35,6 +35,7 @@
 #include "sph/kernels.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/util/cuda_utils.cuh"
+#include "sph/util/device_math.cuh"
 #include "sph/hydro_ve/momentum_energy_kern.hpp"
 
 namespace sph

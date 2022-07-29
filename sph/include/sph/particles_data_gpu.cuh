@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,8 @@
  */
 
 /*! @file
- * @brief Contains the object holding all particle data on the GPU
+ * @brief Contains the object holding hydrodynamical particle data on the GPU
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once

@@ -32,6 +32,7 @@
 #include "sph/sph.cuh"
 #include "sph/particles_data.hpp"
 #include "sph/util/cuda_utils.cuh"
+#include "sph/util/device_math.cuh"
 #include "sph/hydro_std/momentum_energy_kern.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
