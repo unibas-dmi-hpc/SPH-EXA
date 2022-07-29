@@ -35,26 +35,62 @@
 #include <random>
 #include <vector>
 
+#include "cstone/tree/accel_switch.hpp"
+
+#include "sph/util/cuda_utils.hpp"
+
 namespace sph
 {
 
-template<class T>
+template<class T, class Accelerator>
 class TurbulenceData
 {
+    // resulting type is a thrust::device_vector if the Accelerator is a GPU, otherwise a std::vector
+    using DeviceVector =
+        typename cstone::AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<T>;
+
 public:
     using RealType = T;
 
-    size_t numDim;   // Number of dimensions
-    T      variance; // Variance of Ornstein-Uhlenbeck process
-    T      decayTime;
-    T      solWeight; // Normalized Solenoidal weight
+    void resize(size_t numModes_)
+    {
+        modes.resize(numDim * numModes_);
+        phases.resize(2 * numDim * numModes_);
+        amplitudes.resize(numModes_);
 
-    std::mt19937 gen;
+        phasesReal.resize(numDim * numModes_);
+        phasesImag.resize(numDim * numModes_);
+    }
+
+    void uploadModes()
+    {
+        if constexpr (cstone::HaveGpu<Accelerator>{})
+        {
+            // upload data to the GPU
+            d_modes      = modes;
+            d_amplitudes = amplitudes;
+        }
+    }
+
+    const size_t numDim{3}; // Number of dimensions
+    T            variance;  // Variance of Ornstein-Uhlenbeck process
+    T            decayTime;
+    T            solWeight; // Normalized Solenoidal weight
+
+    std::mt19937 gen; // random engine
 
     size_t         numModes;   // Number of computed nodes
     std::vector<T> modes;      // Stirring Modes
     std::vector<T> phases;     // O-U Phases
     std::vector<T> amplitudes; // Amplitude of the modes
+
+    std::vector<T> phasesReal; // created from phases on each step
+    std::vector<T> phasesImag; // created from phases on each step
+
+    DeviceVector d_modes;
+    DeviceVector d_amplitudes;
+    DeviceVector d_phasesReal;
+    DeviceVector d_phasesImag;
 };
 
 } // namespace sph

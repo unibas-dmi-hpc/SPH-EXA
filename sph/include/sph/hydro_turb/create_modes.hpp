@@ -56,9 +56,9 @@ namespace sph
  *
  * Function description missing
  */
-template<class T>
-void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T energy, T stirMax, T stirMin,
-                         size_t ndim, size_t spectForm, T powerLawExp, T anglesExp)
+template<class Dataset, class T>
+void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T energy, T stirMax, T stirMin, size_t ndim,
+                         size_t spectForm, T powerLawExp, T anglesExp, bool verbose)
 {
     size_t ikx, iky, ikz, st_tot_nmodes;
     T      kx, ky, kz, k, kc, amplitude, parab_prefact;
@@ -118,7 +118,7 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
 
     if (spectForm != 2)
     {
-        std::cout << "Generating " << st_tot_nmodes << " driving modes..." << std::endl;
+        if (verbose) std::cout << "Generating " << st_tot_nmodes << " driving modes..." << std::endl;
         // for band and parabolic spectrum, use the standard full sampling
         // loop over all kx, ky, kz to generate driving modes
         for (ikx = ikxmin; ikx <= ikxmax; ikx++)
@@ -134,7 +134,6 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
 
                     if ((k >= stirMin) && (k <= stirMax))
                     {
-
                         if ((d.numModes + 1 + std::pow(2, ndim - 1)) > st_maxmodes)
                         {
                             std::cout << "init_stir:  number of modes: = " << d.numModes + 1
@@ -185,12 +184,6 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
                             d.modes[ndim * d.numModes + 1] = -ky;
                             d.modes[ndim * d.numModes + 2] = -kz;
                         }
-
-                        if (d.numModes % 1000 == 0)
-                        {
-                            std::cout << " ..." << d.numModes << " of total " << st_tot_nmodes << " modes generated..."
-                                      << std::endl;
-                        }
                     } // in k range
                 }     // ikz
             }         // iky
@@ -199,20 +192,15 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
 
     if (spectForm == 2)
     {
-        std::cout << "There would be " << st_tot_nmodes
-                  << " driving modes, if k-space were fully sampled (st_angles_exp = 2.0)..." << std::endl;
-        std::cout << "Here we are using st_angles_exp = " << anglesExp << std::endl;
-
         // loop between smallest and largest k
         ikmin = std::max(1, int(stirMin * Lx / twopi + 0.5));
         ikmax = int(stirMax * Lx / twopi + 0.5);
 
-        std::cout << "Generating driving modes within k = [ " << ikmin << " , " << ikmax << " ]" << std::endl;
-
         for (int ik = ikmin; ik <= ikmax; ik++)
         {
+            if (verbose) std::cout << "ik = " << ik << " , number of angles = " << nang << std::endl;
+
             nang = std::pow(2, ndim) * ceil(std::pow(ik, anglesExp));
-            std::cout << "ik = " << ik << " , number of angles = " << nang << std::endl;
             for (int iang = 1; iang <= nang; iang++)
             {
                 phi = twopi * uniRng(); // phi = [0,2pi] sample the whole sphere
@@ -259,17 +247,13 @@ void createStirringModes(TurbulenceData<T>& d, T Lx, T Ly, T Lz, size_t st_maxmo
                     d.modes[ndim * d.numModes]     = kx;
                     d.modes[ndim * d.numModes + 1] = ky;
                     d.modes[ndim * d.numModes + 2] = kz;
-
-                    if ((d.numModes + 1) % 1000 == 0)
-                    {
-                        std::cout << "... " << d.numModes << " modes generated..." << std::endl;
-                    }
-
                 } // in k range
             }     // loop over angles
         }         // loop over k
     }             // st_spectform .eq. 2
     d.numModes += 1;
+
+    if (verbose) std::cout << "Total Number of Stirring Modes: " << d.numModes << std::endl;
 }
 
 } // namespace sph

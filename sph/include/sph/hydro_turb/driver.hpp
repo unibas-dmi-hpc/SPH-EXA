@@ -100,33 +100,27 @@ void updateNoise(std::vector<T>& phases, T stddev, T dt, T ts, std::mt19937& gen
 template<class Dataset>
 void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    using T = typename std::decay_t<decltype(d.turbulenceData)>::RealType;
-
-    auto&          turb = d.turbulenceData;
-    std::vector<T> phasesReal(turb.numDim * turb.numModes);
-    std::vector<T> phasesImag(turb.numDim * turb.numModes);
+    auto& turb = d.turbulenceData;
 
     updateNoise(turb.phases, turb.variance, d.minDt, turb.decayTime, turb.gen);
-    computePhases(turb.numModes, turb.numDim, turb.phases, turb.solWeight, turb.modes, phasesReal, phasesImag);
+    computePhases(turb.numModes, turb.numDim, turb.phases, turb.solWeight, turb.modes, turb.phasesReal,
+                  turb.phasesImag);
 
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-#ifdef USE_CUDA
-        thrust::device_vector<T> d_modes      = turb.modes;
-        thrust::device_vector<T> d_phasesReal = phasesReal;
-        thrust::device_vector<T> d_phasesImag = phasesImag;
-        thrust::device_vector<T> d_amplitudes = turb.amplitudes;
+        // upload mode data to the device
+        turb.d_phasesReal = turb.phasesReal;
+        turb.d_phasesImag = turb.phasesImag;
 
         computeStirringGpu(startIndex, endIndex, turb.numDim, rawPtr(d.devData.x), rawPtr(d.devData.y),
                            rawPtr(d.devData.z), rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az),
-                           turb.numModes, rawPtr(d_modes), rawPtr(d_phasesReal), rawPtr(d_phasesImag),
-                           rawPtr(d_amplitudes), turb.solWeight);
-#endif
+                           turb.numModes, rawPtr(turb.d_modes), rawPtr(turb.d_phasesReal), rawPtr(turb.d_phasesImag),
+                           rawPtr(turb.d_amplitudes), turb.solWeight);
     }
     else
     {
         computeStirring(startIndex, endIndex, turb.numDim, d.x.data(), d.y.data(), d.z.data(), d.ax.data(), d.ay.data(),
-                        d.az.data(), turb.numModes, turb.modes.data(), phasesReal.data(), phasesImag.data(),
+                        d.az.data(), turb.numModes, turb.modes.data(), turb.phasesReal.data(), turb.phasesImag.data(),
                         turb.amplitudes.data(), turb.solWeight);
     }
 }

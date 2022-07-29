@@ -121,7 +121,7 @@ public:
     const std::array<T, ::sph::lt::size> wh  = ::sph::lt::createWharmonicLookupTable<T, ::sph::lt::size>();
     const std::array<T, ::sph::lt::size> whd = ::sph::lt::createWharmonicDerivativeLookupTable<T, ::sph::lt::size>();
 
-    sph::TurbulenceData<T> turbulenceData;
+    sph::TurbulenceData<T, AcceleratorType> turbulenceData;
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().

@@ -48,9 +48,9 @@ namespace sphexa
 
 std::map<std::string, double> TurbulenceConstants()
 {
-    return {{"solWeight", 0.5}, {"stMaxModes", 100000},  {"Lbox", 1.0},          {"stMachVelocity", 0.3e0},
-            {"dim", 3},         {"firstTimeStep", 1e-4}, {"epsilon", 1e-15},     {"rngSeed", 251299},
-            {"stSpectForm", 2}, {"mTotal", 1.0},         {"powerLawExp", 5 / 3}, {"anglesExp", 2.0}};
+    return {{"solWeight", 0.5},      {"stMaxModes", 100000}, {"Lbox", 1.0},       {"stMachVelocity", 0.3e0},
+            {"firstTimeStep", 1e-4}, {"epsilon", 1e-15},     {"rngSeed", 251299}, {"stSpectForm", 2},
+            {"mTotal", 1.0},         {"powerLawExp", 5 / 3}, {"anglesExp", 2.0}};
 }
 
 template<class Dataset>
@@ -84,9 +84,11 @@ void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& 
     }
 }
 
-template<class T>
-void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::string, double>& constants)
+template<class Dataset>
+void initTurbulenceModes(int rank, Dataset& turb, const std::map<std::string, double>& constants)
 {
+    using T = typename Dataset::RealType;
+
     double eps         = constants.at("epsilon");
     size_t stMaxModes  = constants.at("stMaxModes");
     double Lbox        = constants.at("Lbox");
@@ -100,7 +102,6 @@ void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::strin
     double stirMin = (1.0 - eps) * twopi / Lbox;
     double stirMax = (3.0 + eps) * twopi / Lbox;
 
-    turb.numDim    = constants.at("dim");
     turb.decayTime = Lbox / (2.0 * velocity);
     turb.solWeight = constants.at("solWeight");
     turb.gen.seed(constants.at("rngSeed"));
@@ -109,17 +110,14 @@ void initTurbulenceModes(sph::TurbulenceData<T>& turb, const std::map<std::strin
     turb.modes.resize(stMaxModes * turb.numDim);
 
     sph::createStirringModes(turb, Lbox, Lbox, Lbox, stMaxModes, energy, stirMax, stirMin, turb.numDim, stSpectForm,
-                             powerLawExp, anglesExp);
+                             powerLawExp, anglesExp, rank == 0);
 
-    std::cout << "Total Number of Stirring Modes: " << turb.numModes << std::endl;
-    turb.amplitudes.resize(turb.numModes);
-    turb.modes.resize(turb.numModes * turb.numDim);
-    turb.phases.resize(6 * turb.numModes);
+    turb.resize(turb.numModes);
+    turb.uploadModes();
 
     // fill phases with normal gaussian distributed random values with mean 0 and std-dev turb.variance
     std::normal_distribution<T> dist(0, turb.variance);
-    auto                        rng = [&turb, &dist]() { return dist(turb.gen); };
-    std::generate(turb.phases.begin(), turb.phases.end(), rng);
+    std::generate(turb.phases.begin(), turb.phases.end(), [&turb, &dist]() { return dist(turb.gen); });
 }
 
 template<class Dataset>
@@ -153,7 +151,7 @@ public:
 
         d.resize(d.x.size());
 
-        initTurbulenceModes(d.turbulenceData, constants_);
+        initTurbulenceModes(rank, d.turbulenceData, constants_);
         initTurbulenceHydroFields(d, constants_);
 
         return globalBox;

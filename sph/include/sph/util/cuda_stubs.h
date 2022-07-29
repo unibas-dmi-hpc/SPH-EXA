@@ -35,3 +35,11 @@ typename ThrustVec::value_type* rawPtr(ThrustVec& p);
 
 template<class ThrustVec>
 const typename ThrustVec::value_type* rawPtr(const ThrustVec& p);
+
+namespace thrust
+{
+
+template<class T, class Alloc>
+class device_vector;
+
+} // namespace thrust
