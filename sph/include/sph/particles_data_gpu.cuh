@@ -155,7 +155,7 @@ public:
         for (int i = 0; i < NST; ++i)
         {
             CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
-            CHECK_CUDA_ERR(::sph::cuda::utils::cudaFree(d_stream[i].d_neighborsCount));
+            CHECK_CUDA_ERR(cudaFree(d_stream[i].d_neighborsCount));
         }
     }
 
@@ -168,7 +168,7 @@ private:
             {
                 for (int i = 0; i < NST; ++i)
                 {
-                    CHECK_CUDA_ERR(::sph::cuda::utils::cudaFree(d_stream[i].d_neighborsCount));
+                    CHECK_CUDA_ERR(cudaFree(d_stream[i].d_neighborsCount));
                 }
             }
 
@@ -177,7 +177,7 @@ private:
 
             for (int i = 0; i < NST; ++i)
             {
-                CHECK_CUDA_ERR(::sph::cuda::utils::cudaMalloc(newTaskSize * sizeof(int), d_stream[i].d_neighborsCount));
+                CHECK_CUDA_ERR(cudaMalloc((void**)&(d_stream[i].d_neighborsCount), newTaskSize * sizeof(int)));
             }
 
             allocatedTaskSize = newTaskSize;
