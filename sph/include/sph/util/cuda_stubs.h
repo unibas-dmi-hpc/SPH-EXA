@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 Politechnical University of Catalonia UPC
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,41 +24,22 @@
  */
 
 /*! @file
- * @brief Evaluate choice of propagator
- *
+ * @brief  CUDA/Thrust stubs to provide declarations without definitions for use in non-CUDA builds
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Jose A. Escartin <ja.escartin@gmail.com>
  */
 
 #pragma once
 
-#include <variant>
+template<class ThrustVec>
+typename ThrustVec::value_type* rawPtr(ThrustVec& p);
 
-#include "ipropagator.hpp"
-#include "std_hydro.hpp"
-#include "ve_hydro.hpp"
-#include "turb_ve.hpp"
+template<class ThrustVec>
+const typename ThrustVec::value_type* rawPtr(const ThrustVec& p);
 
-namespace sphexa
+namespace thrust
 {
 
-template<class DomainType, class ParticleDataType>
-std::unique_ptr<Propagator<DomainType, ParticleDataType>>
-propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-{
-    if (choice == "ve")
-    {
-        return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
-    }
-    else if (choice == "std")
-    {
-        return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
-    }
-    else if (choice == "turbulence")
-    {
-        return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
-    }
-    else { throw std::runtime_error("Unknown propagator choice: " + choice); }
-}
+template<class T, class Alloc>
+class device_vector;
 
-} // namespace sphexa
+} // namespace thrust

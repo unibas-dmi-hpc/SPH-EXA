@@ -39,6 +39,8 @@
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
 
+#include "sph/hydro_turb/turbulence_data.hpp"
+
 #include "data_util.hpp"
 #include "field_states.hpp"
 #include "particles_data_stubs.hpp"
@@ -83,6 +85,9 @@ public:
     //! @brief gravitational constant
     T g{0.0};
 
+    //! @brief adiabatic index
+    T gamma{5.0 / 3.0};
+
     /*! @brief Particle fields
      *
      * The length of these arrays equals the local number of particles including halos
@@ -118,6 +123,8 @@ public:
 
     const std::array<T, ::sph::lt::size> wh  = ::sph::lt::createWharmonicLookupTable<T, ::sph::lt::size>();
     const std::array<T, ::sph::lt::size> whd = ::sph::lt::createWharmonicDerivativeLookupTable<T, ::sph::lt::size>();
+
+    sph::TurbulenceData<T, AcceleratorType> turbulenceData;
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().

@@ -80,12 +80,6 @@ private:
     std::vector<MType> multipoles_;
 };
 
-template<class ThrustVec>
-typename ThrustVec::value_type* rawPtr(ThrustVec& p);
-
-template<class ThrustVec>
-const typename ThrustVec::value_type* rawPtr(const ThrustVec& p);
-
 template<class MType, class KeyType, class Tc, class Tm, class Tf>
 class MultipoleHolderGpu
 {

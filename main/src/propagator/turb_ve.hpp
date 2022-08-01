@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Evaluate choice of propagator
+ * @brief A Propagator class for modern SPH with generalized volume elements
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  * @author Jose A. Escartin <ja.escartin@gmail.com>
@@ -34,31 +34,52 @@
 
 #include <variant>
 
+#include "sph/sph.hpp"
+
 #include "ipropagator.hpp"
-#include "std_hydro.hpp"
 #include "ve_hydro.hpp"
-#include "turb_ve.hpp"
+#include "gravity_wrapper.hpp"
 
 namespace sphexa
 {
 
+using namespace sph;
+
+//! @brief VE hydro propagator that adds turbulence stirring to the acceleration prior to position update
 template<class DomainType, class ParticleDataType>
-std::unique_ptr<Propagator<DomainType, ParticleDataType>>
-propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+class TurbVeProp final : public HydroVeProp<DomainType, ParticleDataType>
 {
-    if (choice == "ve")
+    using Base = HydroVeProp<DomainType, ParticleDataType>;
+    using Base::ng0_;
+    using Base::ngmax_;
+    using Base::timer;
+
+public:
+    TurbVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+        : Base(ngmax, ng0, output, rank)
     {
-        return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
     }
-    else if (choice == "std")
+
+    void step(DomainType& domain, ParticleDataType& d) override
     {
-        return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+        Base::computeForces(domain, d);
+
+        size_t first = domain.startIndex();
+        size_t last  = domain.endIndex();
+
+        computeTimestep(first, last, d);
+        timer.step("Timestep");
+        driveTurbulence(first, last, d);
+        timer.step("Turbulence Stirring");
+
+        transferToHost(d, first, last, {"ax", "ay", "az", "du"});
+        computePositions(first, last, d, domain.box());
+        timer.step("UpdateQuantities");
+        updateSmoothingLength(first, last, d, ng0_);
+        timer.step("UpdateSmoothingLength");
+
+        timer.stop();
     }
-    else if (choice == "turbulence")
-    {
-        return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
-    }
-    else { throw std::runtime_error("Unknown propagator choice: " + choice); }
-}
+};
 
 } // namespace sphexa

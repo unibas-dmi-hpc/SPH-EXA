@@ -45,8 +45,9 @@ namespace sphexa
 using namespace sph;
 
 template<class DomainType, class ParticleDataType>
-class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
+class HydroVeProp : public Propagator<DomainType, ParticleDataType>
 {
+protected:
     using Base = Propagator<DomainType, ParticleDataType>;
     using Base::ng0_;
     using Base::ngmax_;
@@ -106,7 +107,7 @@ public:
         }
     }
 
-    void step(DomainType& domain, ParticleDataType& d) override
+    void computeForces(DomainType& domain, ParticleDataType& d)
     {
         timer.start();
         sync(domain, d);
@@ -176,6 +177,14 @@ public:
             mHolder_.traverse(d, domain);
             timer.step("Gravity");
         }
+    }
+
+    void step(DomainType& domain, ParticleDataType& d) override
+    {
+        computeForces(domain, d);
+
+        size_t first = domain.startIndex();
+        size_t last  = domain.endIndex();
         transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
         computeTimestep(first, last, d);

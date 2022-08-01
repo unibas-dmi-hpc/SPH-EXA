@@ -23,42 +23,10 @@
  * SOFTWARE.
  */
 
-/*! @file
- * @brief Evaluate choice of propagator
- *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Jose A. Escartin <ja.escartin@gmail.com>
- */
-
 #pragma once
 
-#include <variant>
-
-#include "ipropagator.hpp"
-#include "std_hydro.hpp"
-#include "ve_hydro.hpp"
-#include "turb_ve.hpp"
-
-namespace sphexa
-{
-
-template<class DomainType, class ParticleDataType>
-std::unique_ptr<Propagator<DomainType, ParticleDataType>>
-propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-{
-    if (choice == "ve")
-    {
-        return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
-    }
-    else if (choice == "std")
-    {
-        return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
-    }
-    else if (choice == "turbulence")
-    {
-        return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
-    }
-    else { throw std::runtime_error("Unknown propagator choice: " + choice); }
-}
-
-} // namespace sphexa
+#ifdef USE_CUDA
+#include "cuda_utils.cuh"
+#else
+#include "cuda_stubs.h"
+#endif

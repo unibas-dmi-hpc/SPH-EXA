@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,8 @@
  */
 
 /*! @file
- * @brief Contains the object holding all particle data on the GPU
+ * @brief Contains the object holding hydrodynamical particle data on the GPU
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -155,7 +156,7 @@ public:
         for (int i = 0; i < NST; ++i)
         {
             CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
-            CHECK_CUDA_ERR(::sph::cuda::utils::cudaFree(d_stream[i].d_neighborsCount));
+            CHECK_CUDA_ERR(cudaFree(d_stream[i].d_neighborsCount));
         }
     }
 
@@ -168,7 +169,7 @@ private:
             {
                 for (int i = 0; i < NST; ++i)
                 {
-                    CHECK_CUDA_ERR(::sph::cuda::utils::cudaFree(d_stream[i].d_neighborsCount));
+                    CHECK_CUDA_ERR(cudaFree(d_stream[i].d_neighborsCount));
                 }
             }
 
@@ -177,27 +178,13 @@ private:
 
             for (int i = 0; i < NST; ++i)
             {
-                CHECK_CUDA_ERR(::sph::cuda::utils::cudaMalloc(newTaskSize * sizeof(int), d_stream[i].d_neighborsCount));
+                CHECK_CUDA_ERR(cudaMalloc((void**)&(d_stream[i].d_neighborsCount), newTaskSize * sizeof(int)));
             }
 
             allocatedTaskSize = newTaskSize;
         }
     }
 };
-
-template<class ThrustVec>
-typename ThrustVec::value_type* rawPtr(ThrustVec& p)
-{
-    assert(p.size() && "cannot get pointer to unallocated device vector memory");
-    return thrust::raw_pointer_cast(p.data());
-}
-
-template<class ThrustVec>
-const typename ThrustVec::value_type* rawPtr(const ThrustVec& p)
-{
-    assert(p.size() && "cannot get pointer to unallocated device vector memory");
-    return thrust::raw_pointer_cast(p.data());
-}
 
 template<class DataType, std::enable_if_t<cstone::HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
 void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)

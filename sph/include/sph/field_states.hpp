@@ -182,13 +182,15 @@ private:
                                  ". No suitable field available");
     }
 
-    void setState(int idx, State state) { fieldStates_[idx] = state; }
-
     void setState(const std::string& field, State state)
     {
-        int idx =
+        size_t idx =
             std::find(DataType::fieldNames.begin(), DataType::fieldNames.end(), field) - DataType::fieldNames.begin();
-        setState(idx, state);
+        if (idx == fieldStates_.size())
+        {
+            throw std::runtime_error("Cannot set state of " + field + ": unknown field\n");
+        }
+        fieldStates_[idx] = state;
     }
 
     //! @brief current state of each field

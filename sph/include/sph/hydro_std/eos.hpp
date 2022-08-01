@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include "sph/util/cuda_utils.hpp"
 #include "sph/sph.cuh"
 #include "sph/particles_data_stubs.hpp"
 #include "sph/eos.hpp"
@@ -62,7 +63,7 @@ void computeEOS_HydroStdImpl(size_t startIndex, size_t endIndex, Dataset& d)
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
-        std::tie(p[i], c[i]) = idealGasEOS(u[i], rho[i]);
+        std::tie(p[i], c[i]) = idealGasEOS(u[i], rho[i], d.gamma);
     }
 }
 
@@ -71,8 +72,8 @@ void computeEOS_HydroStd(size_t startIndex, size_t endIndex, Dataset& d)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeEOS_HydroStd(startIndex, endIndex, rawPtr(d.devData.u), rawPtr(d.devData.rho), rawPtr(d.devData.p),
-                                  rawPtr(d.devData.c));
+        cuda::computeEOS_HydroStd(startIndex, endIndex, d.gamma, rawPtr(d.devData.u), rawPtr(d.devData.rho),
+                                  rawPtr(d.devData.p), rawPtr(d.devData.c));
     }
     else { computeEOS_HydroStdImpl(startIndex, endIndex, d); }
 }
