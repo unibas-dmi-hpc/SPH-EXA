@@ -85,6 +85,9 @@ public:
     //! @brief gravitational constant
     T g{0.0};
 
+    //! @brief adiabatic index
+    T gamma{5.0 / 3.0};
+
     /*! @brief Particle fields
      *
      * The length of these arrays equals the local number of particles including halos

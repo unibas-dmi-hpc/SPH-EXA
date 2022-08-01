@@ -9,17 +9,17 @@ namespace sph
 
 /*! @brief Reduced version of Ideal gas EOS for internal energy
  *
- * @param u    internal energy
- * @param rho  baryonic density
+ * @param u     internal energy
+ * @param rho   baryonic density
+ * @param gamma adiabatic index
  *
  * This EOS is used for simple cases where we don't need the temperature.
  * Returns pressure, speed of sound
  */
 template<class T1, class T2>
-CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho)
+CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho, T1 gamma)
 {
-    using Tc           = std::common_type_t<T1, T2>;
-    constexpr Tc gamma = 1.001;
+    using Tc = std::common_type_t<T1, T2>;
 
     Tc tmp = u * (gamma - Tc(1));
     Tc p   = rho * tmp;
@@ -30,19 +30,19 @@ CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho)
 
 /*! @brief Ideal gas EOS for internal energy taking into account composition via mui
  *
- * @param u    internal energy
- * @param rho  baryonic density
- * @param mui  mean molecular weight
+ * @param u     internal energy
+ * @param rho   baryonic density
+ * @param mui   mean molecular weight
+ * @param gamma adiabatic index
  *
  * Returns pressure, speed of sound, du/dT, and temperature
  */
 template<class T1, class T2, class T3>
-CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho, T3 mui)
+CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho, T3 mui, T1 gamma)
 {
     using Tc = std::common_type_t<T1, T2, T3>;
 
-    constexpr Tc R     = 8.317e7;
-    constexpr Tc gamma = 1.001;
+    constexpr Tc R = 8.317e7;
 
     Tc cv   = Tc(1.5) * R / mui;
     Tc temp = u / cv;

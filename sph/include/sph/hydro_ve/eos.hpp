@@ -71,7 +71,7 @@ void computeEOS_Impl(size_t startIndex, size_t endIndex, Dataset& d)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         auto rho      = kx[i] * m[i] / xm[i];
-        auto [pi, ci] = idealGasEOS(u[i], rho);
+        auto [pi, ci] = idealGasEOS(u[i], rho, d.gamma);
         prho[i]       = pi / (kx[i] * m[i] * m[i] * gradh[i]);
         c[i]          = ci;
         if (storeRho) { d.rho[i] = rho; }
@@ -84,7 +84,7 @@ void computeEOS(size_t startIndex, size_t endIndex, Dataset& d)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeEOS(startIndex, endIndex, rawPtr(d.devData.u), rawPtr(d.devData.m), rawPtr(d.devData.kx),
+        cuda::computeEOS(startIndex, endIndex, d.gamma, rawPtr(d.devData.u), rawPtr(d.devData.m), rawPtr(d.devData.kx),
                          rawPtr(d.devData.xm), rawPtr(d.devData.gradh), rawPtr(d.devData.prho), rawPtr(d.devData.c));
     }
     else { computeEOS_Impl(startIndex, endIndex, d); }

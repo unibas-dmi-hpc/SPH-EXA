@@ -71,6 +71,7 @@ void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& 
 
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;
+    d.gamma    = 1.001;
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
