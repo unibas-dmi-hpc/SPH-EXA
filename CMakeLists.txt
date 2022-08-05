@@ -14,6 +14,10 @@ list(APPEND CMAKE_MODULE_PATH
 option(BUILD_TESTING "build unit and integration tests" ON)
 option(BUILD_ANALYTICAL "build analytical solution" ON)
 option(SPH_EXA_WITH_HIP "Build SPH-EXA with HIP" OFF)
+option(SPH_EXA_WITH_HIP_VE "Build SPH-EXA with ve propagator (HydroVeProp)" OFF)
+option(SPH_EXA_WITH_HIP_TURB "Build SPH-EXA with turbulence propagator (TurbVeProp)" OFF)
+option(SPH_EXA_WITH_HIP_STD "Build SPH-EXA with std propagator (HydroProp)" OFF)
+
 option(GPU_DIRECT "Enable CUDA-aware MPI communication" OFF)
 
 if (BUILD_TESTING)
@@ -66,7 +70,20 @@ if(SPH_EXA_WITH_HIP)
         # find_package(HIP)
         if(CMAKE_HIP_COMPILER)
             enable_language(HIP)
-            set(CMAKE_HIP_FLAGS "-fPIC -fgpu-rdc -w")
+            if (SPH_EXA_WITH_HIP_VE)
+                set(PROP_FLAG "USE_HIP_VE")
+            elseif (SPH_EXA_WITH_HIP_TURB)
+                set(PROP_FLAG "USE_HIP_TURBULENCE")
+            elseif (SPH_EXA_WITH_HIP_STD)
+                set(PROP_FLAG "USE_HIP_STD")
+            endif()
+            set(CMAKE_HIP_FLAGS "-fPIC -fgpu-rdc -w --rocm-path=${ROCM_PATH} \
+                                 -DUSE_HIP -D${PROP_FLAG} \
+                                 --offload-arch=gfx90a \
+                                 -I/opt/cray/pe/gcc/10.3.0/snos/include/g++/x86_64-suse-linux \
+                                 -I/opt/cray/pe/gcc/10.3.0/snos/include/g++ \
+                                 -I/appl/lumi/SW/CrayEnv/EB/rocm/4.5.2/hip/include \
+            ")
         endif()
     endif()
 endif()
