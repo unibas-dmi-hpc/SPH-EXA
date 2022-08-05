@@ -30,3 +30,7 @@
 #else
 #include "cuda_stubs.h"
 #endif
+
+#ifdef __HIPCC__
+#include "hipcub/hipcub.hpp"
+#endif

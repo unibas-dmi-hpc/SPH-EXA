@@ -42,6 +42,7 @@
 #define USE_MPI
 #endif
 
+#include "util/hip_utils.hpp"
 #include "cstone/domain/domain.hpp"
 #include "init/factory.hpp"
 #include "observables/factory.hpp"
