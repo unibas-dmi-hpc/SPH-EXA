@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -110,13 +111,13 @@ void computeIAD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
     unsigned numThreads = 128;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-    cudaIAD<<<numBlocks, numThreads>>>(
+    hipLaunchKernelGGL(cudaIAD, numBlocks, numThreads, 0, 0, 
         d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho),
         rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.c11), rawPtr(d.devData.c12),
         rawPtr(d.devData.c13), rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33));
-    CHECK_CUDA_ERR(cudaGetLastError());
-    cudaDeviceSynchronize();
+    CHECK_CUDA_ERR(hipGetLastError());
+    hipDeviceSynchronize();
 }
 
 template void computeIAD(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

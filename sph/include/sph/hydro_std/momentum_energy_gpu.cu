@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -83,11 +84,11 @@ __global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> b
         dt_i = tsKCourant(maxvsignal, h[i], c[i], Kcour);
     }
 
-    typedef cub::BlockReduce<T, GradPConfig::numThreads> BlockReduce;
+    typedef hipcub::BlockReduce<T, GradPConfig::numThreads> BlockReduce;
     __shared__ typename BlockReduce::TempStorage         temp_storage;
 
     BlockReduce reduce(temp_storage);
-    T           blockMin = reduce.Reduce(dt_i, cub::Min());
+    T           blockMin = reduce.Reduce(dt_i, hipcub::Min());
     __syncthreads();
 
     if (threadIdx.x == 0) { atomicMinFloat(&minDt_device, blockMin); }
@@ -104,9 +105,9 @@ void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dat
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
     float huge = 1e10;
-    CHECK_CUDA_ERR(cudaMemcpyToSymbol(minDt_device, &huge, sizeof(huge)));
+    CHECK_CUDA_ERR(hipMemcpyToSymbol(HIP_SYMBOL(minDt_device), &huge, sizeof(huge)));
 
-    cudaGradP<<<numBlocks, numThreads>>>(
+    hipLaunchKernelGGL(cudaGradP, numBlocks, numThreads, 0, 0, 
         d.sincIndex, d.K, d.Kcour, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes),
         rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
         rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho), rawPtr(d.devData.p),
@@ -114,10 +115,10 @@ void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dat
         rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.ax),
         rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.du));
 
-    CHECK_CUDA_ERR(cudaGetLastError());
+    CHECK_CUDA_ERR(hipGetLastError());
 
     float minDt;
-    CHECK_CUDA_ERR(cudaMemcpyFromSymbol(&minDt, minDt_device, sizeof(minDt)));
+    CHECK_CUDA_ERR(hipMemcpyFromSymbol(&minDt, HIP_SYMBOL(minDt_device), sizeof(minDt)));
     d.minDt_loc = minDt;
 }
 

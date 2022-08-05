@@ -44,7 +44,7 @@ namespace ryoanji
 struct GpuConfig
 {
 //! @brief number of threads per warp
-#if defined(__CUDACC__) && !defined(__HIPCC__)
+#if defined(__HIPCC__) && !defined(__HIPCC__)
     static constexpr int warpSize = 32;
 #else
     static constexpr int warpSize = 64;
@@ -63,8 +63,8 @@ struct GpuConfig
 
     static int getSmCount()
     {
-        cudaDeviceProp prop;
-        checkGpuErrors(cudaGetDeviceProperties(&prop, 0));
+        hipDeviceProp_t prop;
+        checkGpuErrors(hipGetDeviceProperties(&prop, 0));
         return prop.multiProcessorCount;
     }
 
@@ -80,10 +80,10 @@ T* rawPtr(thrust::device_ptr<T> p)
 
 static void kernelSuccess(const char kernel[] = "kernel")
 {
-    cudaError_t err = cudaDeviceSynchronize();
-    if (err != cudaSuccess)
+    hipError_t err = hipDeviceSynchronize();
+    if (err != hipSuccess)
     {
-        fprintf(stderr, "%s launch failed: %s\n", kernel, cudaGetErrorString(err));
+        fprintf(stderr, "%s launch failed: %s\n", kernel, hipGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 }

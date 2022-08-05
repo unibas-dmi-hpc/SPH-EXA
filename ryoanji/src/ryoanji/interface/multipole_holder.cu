@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -42,9 +43,9 @@ namespace ryoanji
 {
 
 template<class T>
-void memcpy(T* dest, const T* src, size_t n, cudaMemcpyKind kind)
+void memcpy(T* dest, const T* src, size_t n, hipMemcpyKind kind)
 {
-    cudaMemcpy(dest, src, sizeof(T) * n, kind);
+    hipMemcpy(dest, src, sizeof(T) * n, kind);
 }
 
 template<class Tc, class Tm, class Tf, class KeyType, class MType>
@@ -69,17 +70,17 @@ public:
         // H2D leafToInternal, internalToLeaf, layout, centers, childOffsets
 
         const TreeNodeIndex* leafToInternal = octree.internalOrder().data();
-        memcpy(rawPtr(leafToInternal_.data()), leafToInternal, numLeaves, cudaMemcpyHostToDevice);
+        memcpy(rawPtr(leafToInternal_.data()), leafToInternal, numLeaves, hipMemcpyHostToDevice);
 
         const TreeNodeIndex* internalToLeaf = octree.toLeafOrder().data();
-        memcpy(rawPtr(internalToLeaf_.data()), internalToLeaf, internalToLeaf_.size(), cudaMemcpyHostToDevice);
+        memcpy(rawPtr(internalToLeaf_.data()), internalToLeaf, internalToLeaf_.size(), hipMemcpyHostToDevice);
 
         const TreeNodeIndex* childOffsets = octree.childOffsets().data();
         memcpy(
-            rawPtr(childOffsets_.data()), octree.childOffsets().data(), childOffsets_.size(), cudaMemcpyHostToDevice);
+            rawPtr(childOffsets_.data()), octree.childOffsets().data(), childOffsets_.size(), hipMemcpyHostToDevice);
 
-        memcpy(rawPtr(layout_.data()), layout, layout_.size(), cudaMemcpyHostToDevice);
-        memcpy(rawPtr(centers_.data()), centers.data(), centers.size(), cudaMemcpyHostToDevice);
+        memcpy(rawPtr(layout_.data()), layout, layout_.size(), hipMemcpyHostToDevice);
+        memcpy(rawPtr(centers_.data()), centers.data(), centers.size(), hipMemcpyHostToDevice);
 
         computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(x,
                                                                                 y,
@@ -98,7 +99,7 @@ public:
         {
             int numCellsLevel = levelRange[level + 1] - levelRange[level];
             int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level],
+            hipLaunchKernelGGL(upsweepMultipoles, numBlocks, numThreads, 0, 0, levelRange[level],
                                                          levelRange[level + 1],
                                                          rawPtr(childOffsets_.data()),
                                                          rawPtr(centers_.data()),
@@ -106,7 +107,7 @@ public:
         }
 
         // D2H multipoles
-        memcpy(multipoles, rawPtr(multipoles_.data()), multipoles_.size(), cudaMemcpyDeviceToHost);
+        memcpy(multipoles, rawPtr(multipoles_.data()), multipoles_.size(), hipMemcpyDeviceToHost);
 
         auto ryUpsweep = [](auto levelRange, auto childOffsets, auto M, auto centers)
         { upsweepMultipoles(levelRange, childOffsets, centers, M); };
@@ -117,14 +118,14 @@ public:
         focusTree.peerExchange(multipoleSpan, static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);
 
         // H2D multipoles
-        memcpy(rawPtr(multipoles_.data()), multipoles, multipoles_.size(), cudaMemcpyHostToDevice);
+        memcpy(rawPtr(multipoles_.data()), multipoles, multipoles_.size(), hipMemcpyHostToDevice);
 
         //! second upsweep with leaf data from peer and global ranks in place
         for (int level = numLevels - 1; level >= 0; level--)
         {
             int numCellsLevel = levelRange[level + 1] - levelRange[level];
             int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level],
+            hipLaunchKernelGGL(upsweepMultipoles, numBlocks, numThreads, 0, 0, levelRange[level],
                                                          levelRange[level + 1],
                                                          rawPtr(childOffsets_.data()),
                                                          rawPtr(centers_.data()),
@@ -135,7 +136,7 @@ public:
     float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                   const Tm* h, Tc G, Tc* ax, Tc* ay, Tc* az)
     {
-        resetTraversalCounters<<<1, 1>>>();
+        hipLaunchKernelGGL(resetTraversalCounters, 1, 1, 0, 0);
 
         constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
@@ -149,7 +150,7 @@ public:
         LocalIndex poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
         reallocate(globalPool_, poolSize, 1.05);
-        traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
+        hipLaunchKernelGGL(traverse, numBlocks, TravConfig::numThreads, 0, 0, firstBody,
                                                         lastBody,
                                                         {1, 9},
                                                         x,
@@ -169,7 +170,7 @@ public:
                                                         az,
                                                         rawPtr(globalPool_.data()));
         float totalPotential;
-        checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
+        checkGpuErrors(hipMemcpyFromSymbol(&totalPotential, HIP_SYMBOL(totalPotentialGlob), sizeof(float)));
 
         return 0.5f * Tc(G) * totalPotential;
     }

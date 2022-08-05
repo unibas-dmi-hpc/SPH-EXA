@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -52,8 +53,8 @@ public:
     {
         if (allocatedSize_ > 0)
         {
-            checkGpuErrors(cudaFree(d_ordering_));
-            checkGpuErrors(cudaFree(d_buffer_));
+            checkGpuErrors(hipFree(d_ordering_));
+            checkGpuErrors(hipFree(d_buffer_));
         }
     }
 
@@ -68,12 +69,12 @@ public:
 
             if (allocatedSize_ > 0)
             {
-                checkGpuErrors(cudaFree(d_ordering_));
-                checkGpuErrors(cudaFree(d_buffer_));
+                checkGpuErrors(hipFree(d_ordering_));
+                checkGpuErrors(hipFree(d_buffer_));
             }
 
-            checkGpuErrors(cudaMalloc((void**)&d_ordering_, newSize * sizeof(LocalIndex)));
-            checkGpuErrors(cudaMalloc((void**)&(d_buffer_), 2 * newSize * ElementSize));
+            checkGpuErrors(hipMalloc((void**)&d_ordering_, newSize * sizeof(LocalIndex)));
+            checkGpuErrors(hipMalloc((void**)&(d_buffer_), 2 * newSize * ElementSize));
 
             allocatedSize_ = newSize;
         }
@@ -111,15 +112,15 @@ void DeviceGather<KeyType, IndexType>::setReorderMap(const IndexType* map_first,
     mapSize_ = map_last - map_first;
     deviceMemory_->reallocate(mapSize_);
     // upload new ordering to the device
-    cudaMemcpy(deviceMemory_->ordering(), map_first, mapSize_ * sizeof(IndexType), cudaMemcpyHostToDevice);
-    checkGpuErrors(cudaGetLastError());
+    hipMemcpy(deviceMemory_->ordering(), map_first, mapSize_ * sizeof(IndexType), hipMemcpyHostToDevice);
+    checkGpuErrors(hipGetLastError());
 }
 
 template<class KeyType, class IndexType>
 void DeviceGather<KeyType, IndexType>::getReorderMap(IndexType* map_first, IndexType first, IndexType last)
 {
-    cudaMemcpy(map_first, deviceMemory_->ordering() + first, (last - first) * sizeof(IndexType),
-               cudaMemcpyDeviceToHost);
+    hipMemcpy(map_first, deviceMemory_->ordering() + first, (last - first) * sizeof(IndexType),
+               hipMemcpyDeviceToHost);
 }
 
 template<class I>
@@ -145,23 +146,23 @@ void DeviceGather<KeyType, IndexType>::setMapFromCodes(KeyType* codes_first, Key
     KeyType* d_codes = reinterpret_cast<KeyType*>(deviceMemory_->deviceBuffer(0));
 
     // send Morton codes to the device
-    cudaMemcpy(d_codes, codes_first, mapSize_ * sizeof(KeyType), cudaMemcpyHostToDevice);
-    checkGpuErrors(cudaGetLastError());
+    hipMemcpy(d_codes, codes_first, mapSize_ * sizeof(KeyType), hipMemcpyHostToDevice);
+    checkGpuErrors(hipGetLastError());
 
     constexpr int nThreads = 256;
     int nBlocks            = (mapSize_ + nThreads - 1) / nThreads;
-    iotaKernel<<<nBlocks, nThreads>>>(deviceMemory_->ordering(), mapSize_, 0);
-    checkGpuErrors(cudaGetLastError());
+    hipLaunchKernelGGL(iotaKernel, nBlocks, nThreads, 0, 0, deviceMemory_->ordering(), mapSize_, 0);
+    checkGpuErrors(hipGetLastError());
 
     // sort SFC keys on device, track new ordering on the device
     thrust::sort_by_key(thrust::device, thrust::device_pointer_cast(d_codes),
                         thrust::device_pointer_cast(d_codes + mapSize_),
                         thrust::device_pointer_cast(deviceMemory_->ordering()));
-    checkGpuErrors(cudaGetLastError());
+    checkGpuErrors(hipGetLastError());
 
     // send sorted codes back to host
-    cudaMemcpy(codes_first, d_codes, mapSize_ * sizeof(KeyType), cudaMemcpyDeviceToHost);
-    checkGpuErrors(cudaGetLastError());
+    hipMemcpy(codes_first, d_codes, mapSize_ * sizeof(KeyType), hipMemcpyDeviceToHost);
+    checkGpuErrors(hipGetLastError());
 }
 
 template<class KeyType, class IndexType>
@@ -188,18 +189,18 @@ void DeviceGather<KeyType, IndexType>::operator()(const T* values,
     int nBlocks            = (numExtract + nThreads - 1) / nThreads;
 
     // upload to device
-    cudaMemcpy(deviceMemory_->deviceBuffer(0), values, mapSize_ * sizeof(T), cudaMemcpyHostToDevice);
-    checkGpuErrors(cudaGetLastError());
+    hipMemcpy(deviceMemory_->deviceBuffer(0), values, mapSize_ * sizeof(T), hipMemcpyHostToDevice);
+    checkGpuErrors(hipGetLastError());
 
     // reorder on device
-    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset,
+    hipLaunchKernelGGL(reorder, nBlocks, nThreads, 0, 0, deviceMemory_->ordering() + offset,
                                    reinterpret_cast<T*>(deviceMemory_->deviceBuffer(0)),
                                    reinterpret_cast<T*>(deviceMemory_->deviceBuffer(1)), numExtract);
-    checkGpuErrors(cudaGetLastError());
+    checkGpuErrors(hipGetLastError());
 
     // download to host
-    cudaMemcpy(destination, deviceMemory_->deviceBuffer(1), numExtract * sizeof(T), cudaMemcpyDeviceToHost);
-    checkGpuErrors(cudaGetLastError());
+    hipMemcpy(destination, deviceMemory_->deviceBuffer(1), numExtract * sizeof(T), hipMemcpyDeviceToHost);
+    checkGpuErrors(hipGetLastError());
 }
 
 template<class KeyType, class IndexType>

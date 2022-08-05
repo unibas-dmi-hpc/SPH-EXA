@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -124,11 +125,11 @@ void computeNodeCountsGpu(const KeyType* tree,
 {
     TreeNodeIndex popNodes[2];
 
-    findPopulatedNodes<<<1, 1>>>(tree, nNodes, codesStart, codesEnd);
-    checkGpuErrors(cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex)));
+    hipLaunchKernelGGL(findPopulatedNodes, 1, 1, 0, 0, tree, nNodes, codesStart, codesEnd);
+    checkGpuErrors(hipMemcpyFromSymbol(popNodes, HIP_SYMBOL(populatedNodes), 2 * sizeof(TreeNodeIndex)));
 
-    checkGpuErrors(cudaMemset(counts, 0, popNodes[0] * sizeof(unsigned)));
-    checkGpuErrors(cudaMemset(counts + popNodes[1], 0, (nNodes - popNodes[1]) * sizeof(unsigned)));
+    checkGpuErrors(hipMemset(counts, 0, popNodes[0] * sizeof(unsigned)));
+    checkGpuErrors(hipMemset(counts + popNodes[1], 0, (nNodes - popNodes[1]) * sizeof(unsigned)));
 
     constexpr unsigned nThreads = 256;
     if (useCountsAsGuess)
@@ -219,10 +220,10 @@ bool rebalanceTreeGpu(SfcVector& tree,
     // +1 to store the total sum of the exclusive scan in the last element
     workArray.resize(tree.size());
 
-    resetRebalanceCounter<<<1, 1>>>();
+    hipLaunchKernelGGL(resetRebalanceCounter, 1, 1, 0, 0);
 
     constexpr unsigned nThreads = 512;
-    rebalanceDecisionKernel<<<iceil(nOldNodes, nThreads), nThreads>>>(thrust::raw_pointer_cast(tree.data()), counts,
+    hipLaunchKernelGGL(rebalanceDecisionKernel, iceil(nOldNodes, nThreads), nThreads, 0, 0, thrust::raw_pointer_cast(tree.data()), counts,
                                                                       nOldNodes, bucketSize,
                                                                       thrust::raw_pointer_cast(workArray.data()));
 
@@ -234,11 +235,11 @@ bool rebalanceTreeGpu(SfcVector& tree,
     tmpTree.resize(*workArray.rbegin() + 1);
 
     TreeNodeIndex nElements = stl::max(tree.size(), tmpTree.size());
-    processNodes<<<iceil(nElements, nThreads), nThreads>>>(thrust::raw_pointer_cast(tree.data()),
+    hipLaunchKernelGGL(processNodes, iceil(nElements, nThreads), nThreads, 0, 0, thrust::raw_pointer_cast(tree.data()),
                                                            thrust::raw_pointer_cast(workArray.data()), nOldNodes,
                                                            nNodes(tmpTree), thrust::raw_pointer_cast(tmpTree.data()));
     int changeCounter;
-    checkGpuErrors(cudaMemcpyFromSymbol(&changeCounter, rebalanceChangeCounter, sizeof(int)));
+    checkGpuErrors(hipMemcpyFromSymbol(&changeCounter, HIP_SYMBOL(rebalanceChangeCounter), sizeof(int)));
 
     swap(tree, tmpTree);
 

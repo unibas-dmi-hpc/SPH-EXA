@@ -1005,7 +1005,7 @@
 // but tolerates calls to host-only or device-only functions.
 
 #ifndef   gsl_api
-# ifdef   __CUDACC__
+# ifdef   __HIPCC__
 #  define gsl_api __host__ __device__
 # else
 #  define gsl_api /*gsl_api*/
@@ -1630,7 +1630,7 @@ typedef gsl_CONFIG_INDEX_TYPE diff;
 #define gsl_NO_OP_()      ( static_cast<void>( 0 ) )
 
 #if defined( gsl_CONFIG_UNENFORCED_CONTRACTS_ASSUME )
-# if defined( __CUDACC__ ) && defined( __CUDA_ARCH__ )
+# if defined( __HIPCC__ ) && defined( __CUDA_ARCH__ )
 #  if gsl_COMPILER_NVCC_VERSION >= 113
 #   define gsl_ASSUME_( x )           ( ( x ) ? static_cast<void>(0) : __builtin_unreachable() )
 #   define gsl_ASSUME_UNREACHABLE_()  __builtin_unreachable()
@@ -1663,7 +1663,7 @@ typedef gsl_CONFIG_INDEX_TYPE diff;
 #endif
 
 #if defined( gsl_CONFIG_CONTRACT_VIOLATION_TRAPS )
-# if defined( __CUDACC__ ) && defined( __CUDA_ARCH__ )
+# if defined( __HIPCC__ ) && defined( __CUDA_ARCH__ )
 #  define  gsl_TRAP_()  __trap()
 # elif gsl_COMPILER_MSVC_VERSION >= 110 // __fastfail() supported by VS 2012 and later
 #  define  gsl_TRAP_()  __fastfail( 0 ) /* legacy failure code for buffer-overrun errors, cf. winnt.h, "Fast fail failure codes" */
@@ -1682,12 +1682,12 @@ typedef gsl_CONFIG_INDEX_TYPE diff;
 
 #if defined( gsl_CONFIG_CONTRACT_VIOLATION_CALLS_HANDLER )
 # define   gsl_CONTRACT_CHECK_( str, x )  ( ( x ) ? static_cast<void>(0) : ::gsl::fail_fast_assert_handler( #x, str, __FILE__, __LINE__ ) )
-# if defined( __CUDACC__ ) && defined( __CUDA_ARCH__ )
+# if defined( __HIPCC__ ) && defined( __CUDA_ARCH__ )
 #  define  gsl_FAILFAST_()                ( ::gsl::fail_fast_assert_handler( "", "GSL: failure", __FILE__, __LINE__ ), gsl_TRAP_() ) /* do not let the custom assertion handler continue execution */
 # else
 #  define  gsl_FAILFAST_()                ( ::gsl::fail_fast_assert_handler( "", "GSL: failure", __FILE__, __LINE__ ), ::gsl::detail::fail_fast_terminate() ) /* do not let the custom assertion handler continue execution */
 # endif
-#elif defined( __CUDACC__ ) && defined( __CUDA_ARCH__ )
+#elif defined( __HIPCC__ ) && defined( __CUDA_ARCH__ )
 # if defined( gsl_CONFIG_CONTRACT_VIOLATION_ASSERTS ) || ! defined( NDEBUG )
 #  define  gsl_CONTRACT_CHECK_( str, x )  assert( str && ( x ) )
 # else

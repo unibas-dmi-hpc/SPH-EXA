@@ -33,13 +33,13 @@
 
 // This will compile the annotated function as device AND host code in cuda translation units
 // and as host functions in .cpp units
-#if defined(__CUDACC__) || defined(__HIPCC__)
+#if defined(__HIPCC__) || defined(__HIPCC__)
 #define HOST_DEVICE_FUN __host__ __device__
 #else
 #define HOST_DEVICE_FUN
 #endif
 
-#if defined(__CUDACC__) || defined(__HIPCC__)
+#if defined(__HIPCC__) || defined(__HIPCC__)
 #define DEVICE_INLINE __forceinline__
 #else
 #define DEVICE_INLINE

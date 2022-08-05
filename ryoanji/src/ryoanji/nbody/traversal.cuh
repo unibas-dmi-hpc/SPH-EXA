@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -548,9 +549,9 @@ auto computeAcceleration(int firstBody, int lastBody, const T* x, const T* y, co
     const int                  poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
     thrust::device_vector<int> globalPool(poolSize);
 
-    resetTraversalCounters<<<1, 1>>>();
+    hipLaunchKernelGGL(resetTraversalCounters, 1, 1, 0, 0);
     auto t0 = std::chrono::high_resolution_clock::now();
-    traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
+    hipLaunchKernelGGL(traverse, numBlocks, TravConfig::numThreads, 0, 0, firstBody,
                                                     lastBody,
                                                     {levelRange[1].x, levelRange[1].y},
                                                     x,
@@ -577,13 +578,13 @@ auto computeAcceleration(int firstBody, int lastBody, const T* x, const T* y, co
     uint64_t     sumP2P, sumM2P;
     unsigned int maxP2P, maxM2P;
 
-    checkGpuErrors(cudaMemcpyFromSymbol(&sumP2P, sumP2PGlob, sizeof(uint64_t)));
-    checkGpuErrors(cudaMemcpyFromSymbol(&maxP2P, maxP2PGlob, sizeof(unsigned int)));
-    checkGpuErrors(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
-    checkGpuErrors(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
+    checkGpuErrors(hipMemcpyFromSymbol(&sumP2P, HIP_SYMBOL(sumP2PGlob), sizeof(uint64_t)));
+    checkGpuErrors(hipMemcpyFromSymbol(&maxP2P, HIP_SYMBOL(maxP2PGlob), sizeof(unsigned int)));
+    checkGpuErrors(hipMemcpyFromSymbol(&sumM2P, HIP_SYMBOL(sumM2PGlob), sizeof(uint64_t)));
+    checkGpuErrors(hipMemcpyFromSymbol(&maxM2P, HIP_SYMBOL(maxM2PGlob), sizeof(unsigned int)));
 
     float totalPotential;
-    checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
+    checkGpuErrors(hipMemcpyFromSymbol(&totalPotential, HIP_SYMBOL(totalPotentialGlob), sizeof(float)));
 
     util::array<T, 5> interactions;
     interactions[0] = T(sumP2P) / T(numBodies);

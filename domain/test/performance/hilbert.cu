@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -53,7 +54,7 @@ template<class KeyType>
 inline void computeSfcKeys(KeyType* keys, const unsigned* x, const unsigned* y, const unsigned* z, size_t numKeys)
 {
     constexpr int threadsPerBlock = 256;
-    computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys);
+    hipLaunchKernelGGL(computeSfcKeysKernel, iceil(numKeys, threadsPerBlock), threadsPerBlock, 0, 0, keys, x, y, z, numKeys);
 }
 
 template<class KeyType>
@@ -67,7 +68,7 @@ template<class KeyType>
 inline void decodeSfcKeys(const KeyType* keys, unsigned* x, unsigned* y, unsigned* z, size_t numKeys)
 {
     constexpr int threadsPerBlock = 256;
-    decodeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys);
+    hipLaunchKernelGGL(decodeSfcKeysKernel, iceil(numKeys, threadsPerBlock), threadsPerBlock, 0, 0, keys, x, y, z, numKeys);
 }
 
 int main()

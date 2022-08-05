@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -86,11 +87,11 @@ momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, int ngmax
         dt_i = tsKCourant(maxvsignal, h[i], c[i], Kcour);
     }
 
-    typedef cub::BlockReduce<T, GradPVEConfig::numThreads> BlockReduce;
+    typedef hipcub::BlockReduce<T, GradPVEConfig::numThreads> BlockReduce;
     __shared__ typename BlockReduce::TempStorage           temp_storage;
 
     BlockReduce reduce(temp_storage);
-    T           blockMin = reduce.Reduce(dt_i, cub::Min());
+    T           blockMin = reduce.Reduce(dt_i, hipcub::Min());
     __syncthreads();
 
     if (threadIdx.x == 0) { atomicMinFloat(&minDt_ve_device, blockMin); }
@@ -107,9 +108,9 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, int ngmax, Datase
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
     float huge = 1e10;
-    CHECK_CUDA_ERR(cudaMemcpyToSymbol(minDt_ve_device, &huge, sizeof(huge)));
+    CHECK_CUDA_ERR(hipMemcpyToSymbol(HIP_SYMBOL(minDt_ve_device), &huge, sizeof(huge)));
 
-    momentumEnergyGpu<<<numBlocks, numThreads>>>(
+    hipLaunchKernelGGL(momentumEnergyGpu, numBlocks, numThreads, 0, 0, 
         d.sincIndex, d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, ngmax, box, startIndex, endIndex, sizeWithHalos,
         rawPtr(d.devData.codes), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx),
         rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.prho),
@@ -117,10 +118,10 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, int ngmax, Datase
         rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.kx),
         rawPtr(d.devData.xm), rawPtr(d.devData.alpha), rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az),
         rawPtr(d.devData.du));
-    CHECK_CUDA_ERR(cudaGetLastError());
+    CHECK_CUDA_ERR(hipGetLastError());
 
     float minDt;
-    CHECK_CUDA_ERR(cudaMemcpyFromSymbol(&minDt, minDt_ve_device, sizeof(minDt)));
+    CHECK_CUDA_ERR(hipMemcpyFromSymbol(&minDt, HIP_SYMBOL(minDt_ve_device), sizeof(minDt)));
     d.minDt_loc = minDt;
 }
 

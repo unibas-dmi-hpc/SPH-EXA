@@ -32,7 +32,7 @@
 #pragma once
 
 #include <vector>
-#include <cuda_runtime.h>
+#include <hip/hip_runtime.h>
 
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/util/noinit_alloc.hpp"
@@ -55,7 +55,7 @@ auto mpiSendGpuDirect(T* data,
     if constexpr (!useGpuDirect)
     {
         std::vector<T, util::DefaultInitAdaptor<T>> hostBuffer(count);
-        checkGpuErrors(cudaMemcpy(hostBuffer.data(), data, count * sizeof(T), cudaMemcpyDeviceToHost));
+        checkGpuErrors(hipMemcpy(hostBuffer.data(), data, count * sizeof(T), hipMemcpyDeviceToHost));
         auto errCode = mpiSendAsync(hostBuffer.data(), count, rank, tag, requests);
         buffers.push_back(std::move(hostBuffer));
 
@@ -78,7 +78,7 @@ auto mpiRecvGpuDirect(T* data,
     {
         std::vector<T, util::DefaultInitAdaptor<T>> hostBuffer(count);
         auto errCode = mpiRecvSync(hostBuffer.data(), count, rank, tag, status);
-        checkGpuErrors(cudaMemcpy(data, hostBuffer.data(), count * sizeof(T), cudaMemcpyHostToDevice));
+        checkGpuErrors(hipMemcpy(data, hostBuffer.data(), count * sizeof(T), hipMemcpyHostToDevice));
 
         return errCode;
     }

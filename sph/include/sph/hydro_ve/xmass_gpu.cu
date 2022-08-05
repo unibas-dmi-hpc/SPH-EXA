@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -87,7 +88,7 @@ void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
     for (int i = 0; i < numTasks; ++i)
     {
         int          sIdx   = i % NST;
-        cudaStream_t stream = d.devData.d_stream[sIdx].stream;
+        hipStream_t stream = d.devData.d_stream[sIdx].stream;
 
         int* d_neighborsCount_use = d.devData.d_stream[sIdx].d_neighborsCount;
 
@@ -98,17 +99,17 @@ void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
         unsigned numThreads = 256;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-        xmassGpu<<<numBlocks, numThreads, 0, stream>>>(
+        hipLaunchKernelGGL(xmassGpu, numBlocks, numThreads, 0, stream, 
             d.sincIndex, d.K, ngmax, box, firstParticle, lastParticle, sizeWithHalos, rawPtr(d.devData.codes),
             d_neighborsCount_use, rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
             rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm));
-        CHECK_CUDA_ERR(cudaGetLastError());
+        CHECK_CUDA_ERR(hipGetLastError());
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle, d_neighborsCount_use,
+        CHECK_CUDA_ERR(hipMemcpyAsync(d.neighborsCount.data() + firstParticle, d_neighborsCount_use,
                                        numParticlesCompute * sizeof(decltype(d.neighborsCount.front())),
-                                       cudaMemcpyDeviceToHost, stream));
+                                       hipMemcpyDeviceToHost, stream));
     }
-    CHECK_CUDA_ERR(cudaDeviceSynchronize());
+    CHECK_CUDA_ERR(hipDeviceSynchronize());
 }
 
 template void computeXMass(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

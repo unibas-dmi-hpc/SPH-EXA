@@ -77,7 +77,7 @@ __device__ __forceinline__ int popCount(T x)
 
 __device__ __forceinline__ void syncWarp()
 {
-#if defined(__CUDACC__) && !defined(__HIPCC__)
+#if defined(__HIPCC__) && !defined(__HIPCC__)
     __syncwarp();
 #endif
 }
@@ -86,7 +86,7 @@ __device__ __forceinline__ void syncWarp()
 template<class T>
 __device__ __forceinline__ T shflSync(T value, int srcLane)
 {
-#if defined(__CUDACC__) && !defined(__HIPCC__)
+#if defined(__HIPCC__) && !defined(__HIPCC__)
     return __shfl_sync(0xFFFFFFFF, value, srcLane);
 #else
     return __shfl(value, srcLane);
@@ -97,7 +97,7 @@ __device__ __forceinline__ T shflSync(T value, int srcLane)
 template<class T>
 __device__ __forceinline__ T shflXorSync(T value, int width)
 {
-#if defined(__CUDACC__) && !defined(__HIPCC__)
+#if defined(__HIPCC__) && !defined(__HIPCC__)
     return __shfl_xor_sync(0xFFFFFFFF, value, width);
 #else
     return __shfl_xor(value, width);
@@ -108,7 +108,7 @@ __device__ __forceinline__ T shflXorSync(T value, int width)
 template<class T>
 __device__ __forceinline__ T shflUpSync(T value, int distance)
 {
-#if defined(__CUDACC__) && !defined(__HIPCC__)
+#if defined(__HIPCC__) && !defined(__HIPCC__)
     return __shfl_up_sync(0xFFFFFFFF, value, distance);
 #else
     return __shfl_up(value, distance);
@@ -119,7 +119,7 @@ __device__ __forceinline__ T shflUpSync(T value, int distance)
 template<class T>
 __device__ __forceinline__ T shflDownSync(T value, int distance)
 {
-#if defined(__CUDACC__) && !defined(__HIPCC__)
+#if defined(__HIPCC__) && !defined(__HIPCC__)
     return __shfl_down_sync(0xFFFFFFFF, value, distance);
 #else
     return __shfl_down(value, distance);
@@ -129,7 +129,7 @@ __device__ __forceinline__ T shflDownSync(T value, int distance)
 //! @brief Compatibility wrapper for AMD.
 __device__ __forceinline__ GpuConfig::ThreadMask ballotSync(bool flag)
 {
-#if defined(__CUDACC__) && !defined(__HIPCC__)
+#if defined(__HIPCC__) && !defined(__HIPCC__)
     return __ballot_sync(0xFFFFFFFF, flag);
 #else
     return __ballot(flag);

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -184,15 +185,15 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
     constexpr unsigned numThreads = 256;
 
     TreeNodeIndex numNodes = d.numInternalNodes + d.numLeafNodes;
-    createUnsortedLayout<<<iceil(numNodes, numThreads), numThreads>>>(cstoneTree, d.numInternalNodes, d.numLeafNodes,
+    hipLaunchKernelGGL(createUnsortedLayout, iceil(numNodes, numThreads), numThreads, 0, 0, cstoneTree, d.numInternalNodes, d.numLeafNodes,
                                                                       d.prefixes, d.internalToLeaf);
 
     thrust::sort_by_key(thrust::device, d.prefixes, d.prefixes + numNodes, d.internalToLeaf);
 
-    invertOrder<<<iceil(numNodes, numThreads), numThreads>>>(d.internalToLeaf, d.leafToInternal, numNodes);
+    hipLaunchKernelGGL(invertOrder, iceil(numNodes, numThreads), numThreads, 0, 0, d.internalToLeaf, d.leafToInternal, numNodes);
     thrust::transform(thrust::device, d.internalToLeaf, d.internalToLeaf + numNodes, d.internalToLeaf,
                       detail::Minus(d.numInternalNodes));
-    getLevelRange<<<maxTreeLevel<KeyType>{} + 2, 1>>>(d.prefixes, numNodes, d.levelRange);
+    hipLaunchKernelGGL(getLevelRange, maxTreeLevel<KeyType>{} + 2, 1, 0, 0, d.prefixes, numNodes, d.levelRange);
 
     thrust::fill(thrust::device, d.childOffsets, d.childOffsets + numNodes, 0);
     linkTree<<<iceil(d.numInternalNodes, numThreads), numThreads>>>(d.prefixes, d.numInternalNodes, d.leafToInternal,

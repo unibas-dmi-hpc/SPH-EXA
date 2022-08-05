@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -82,12 +83,12 @@ void computeVeDefGradh(size_t startIndex, size_t endIndex, int ngmax, Dataset& d
     unsigned numThreads = 128;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-    veDefGradhGpu<<<numBlocks, numThreads>>>(
+    hipLaunchKernelGGL(veDefGradhGpu, numBlocks, numThreads, 0, 0, 
         d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh),
         rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx), rawPtr(d.devData.gradh));
 
-    CHECK_CUDA_ERR(cudaDeviceSynchronize());
+    CHECK_CUDA_ERR(hipDeviceSynchronize());
 }
 
 template void computeVeDefGradh(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

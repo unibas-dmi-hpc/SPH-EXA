@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 
 /*
  * MIT License
@@ -65,7 +66,7 @@ void gatherRanges(const IndexType* rangeScan,
 {
     int numThreads = 256;
     int numBlocks  = iceil(bufferSize, numThreads);
-    gatherRangesKernel<<<numBlocks, numThreads>>>(rangeScan, rangeOffsets, numRanges, src, buffer, bufferSize);
+    hipLaunchKernelGGL(gatherRangesKernel, numBlocks, numThreads, 0, 0, rangeScan, rangeOffsets, numRanges, src, buffer, bufferSize);
 }
 
 template void gatherRanges(const unsigned*, const unsigned*, int, const int*, int*, size_t);
@@ -110,7 +111,7 @@ void scatterRanges(const IndexType* rangeScan,
 {
     int numThreads = 256;
     int numBlocks  = iceil(bufferSize, numThreads);
-    scatterRangesKernel<<<numBlocks, numThreads>>>(rangeScan, rangeOffsets, numRanges, dest, buffer, bufferSize);
+    hipLaunchKernelGGL(scatterRangesKernel, numBlocks, numThreads, 0, 0, rangeScan, rangeOffsets, numRanges, dest, buffer, bufferSize);
 }
 
 template void scatterRanges(const unsigned*, const unsigned*, int, int*, const int*, size_t);

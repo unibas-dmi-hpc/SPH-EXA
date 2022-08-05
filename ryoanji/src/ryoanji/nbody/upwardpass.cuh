@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -208,7 +209,7 @@ void upsweep(int numSources, int numLeaves, int numLevels, T theta, const int2* 
     {
         int numCellsLevel = levelRange[level].y - levelRange[level].x;
         int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-        upsweepCenters<<<numBlocks, numThreads>>>(
+        hipLaunchKernelGGL(upsweepCenters, numBlocks, numThreads, 0, 0, 
             levelRange[level].x, levelRange[level].y, childOffsets, centers, cellXmin, cellXmax);
     }
 
@@ -218,15 +219,15 @@ void upsweep(int numSources, int numLeaves, int numLevels, T theta, const int2* 
     {
         int numCellsLevel = levelRange[level].y - levelRange[level].x;
         int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-        upsweepMultipoles<<<numBlocks, numThreads>>>(
+        hipLaunchKernelGGL(upsweepMultipoles, numBlocks, numThreads, 0, 0, 
             levelRange[level].x, levelRange[level].y, childOffsets, centers, Multipole);
     }
 
     kernelSuccess("upwardPass");
 
     int numBlocks = (numSources - 1) / numThreads + 1;
-    setMAC<<<numBlocks, numThreads>>>(numSources, T(1.0) / theta, centers, cellXmin, cellXmax);
-    normalize<<<numBlocks, numThreads>>>(numSources, Multipole);
+    hipLaunchKernelGGL(setMAC, numBlocks, numThreads, 0, 0, numSources, T(1.0) / theta, centers, cellXmin, cellXmax);
+    hipLaunchKernelGGL(normalize, numBlocks, numThreads, 0, 0, numSources, Multipole);
 
     auto   t1 = std::chrono::high_resolution_clock::now();
     double dt = std::chrono::duration<double>(t1 - t0).count();

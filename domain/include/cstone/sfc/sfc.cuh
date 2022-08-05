@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -51,7 +52,7 @@ template<class KeyType, class T>
 inline void computeSfcRealKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
 {
     constexpr int threadsPerBlock = 256;
-    computeSfcKeysRealKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
+    hipLaunchKernelGGL(computeSfcKeysRealKernel, iceil(numKeys, threadsPerBlock), threadsPerBlock, 0, 0, keys, x, y, z, numKeys, box);
 }
 
 } // namespace cstone

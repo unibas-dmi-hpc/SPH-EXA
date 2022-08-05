@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -106,7 +107,7 @@ void directSum(std::size_t numBodies, const T* x, const T* y, const T* z, const 
     int numThreads = DirectConfig::numThreads;
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
-    directKernel<<<numBlock, numThreads>>>(numBodies, x, y, z, m, h, p, ax, ay, az);
+    hipLaunchKernelGGL(directKernel, numBlock, numThreads, 0, 0, numBodies, x, y, z, m, h, p, ax, ay, az);
     ryoanji::kernelSuccess("direct sum");
 }
 

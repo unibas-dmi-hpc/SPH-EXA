@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -62,7 +63,7 @@ void computeStirringGpu(size_t startIndex, size_t endIndex, size_t numDim, const
     unsigned numThreads = 256;
     unsigned numBlocks  = iceil(endIndex - startIndex, numThreads);
 
-    computeStirringKernel<<<numBlocks, numThreads>>>(startIndex, endIndex, numDim, x, y, z, ax, ay, az, numModes, modes,
+    hipLaunchKernelGGL(computeStirringKernel, numBlocks, numThreads, 0, 0, startIndex, endIndex, numDim, x, y, z, ax, ay, az, numModes, modes,
                                                      st_aka, st_akb, amplitudes, solWeight);
 }
 

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -85,14 +86,14 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, int ngmax, Dataset&
     unsigned numThreads = 128;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-    iadDivvCurlvGpu<<<numBlocks, numThreads>>>(
+    hipLaunchKernelGGL(iadDivvCurlvGpu, numBlocks, numThreads, 0, 0, 
         d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
         rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm),
         rawPtr(d.devData.kx), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13),
         rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.divv),
         rawPtr(d.devData.curlv));
-    CHECK_CUDA_ERR(cudaGetLastError());
+    CHECK_CUDA_ERR(hipGetLastError());
 }
 
 template void computeIadDivvCurlv(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

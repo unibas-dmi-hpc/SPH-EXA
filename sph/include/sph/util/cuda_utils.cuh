@@ -2,8 +2,8 @@
 
 #include <cstdio>
 
-#include <cuda.h>
-#include <cuda_runtime_api.h>
+#include <hip/hip_runtime.h>
+#include <hip/hip_runtime_api.h>
 #include <type_traits>
 
 #include <thrust/device_vector.h>
@@ -25,12 +25,12 @@ const typename ThrustVec::value_type* rawPtr(const ThrustVec& p)
 namespace sph
 {
 
-inline void checkErr(cudaError_t err, const char* filename, int lineno, const char* funcName)
+inline void checkErr(hipError_t err, const char* filename, int lineno, const char* funcName)
 {
-    if (err != cudaSuccess)
+    if (err != hipSuccess)
     {
-        const char* errName = cudaGetErrorName(err);
-        const char* errStr  = cudaGetErrorString(err);
+        const char* errName = hipGetErrorName(err);
+        const char* errStr  = hipGetErrorString(err);
         fprintf(stderr,
                 "CUDA Error at %s:%d. Function %s returned err %d: %s - %s\n",
                 filename,

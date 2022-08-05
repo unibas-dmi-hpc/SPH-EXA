@@ -33,28 +33,28 @@
 
 #include <chrono>
 
-#ifdef __CUDACC__
+#ifdef __HIPCC__
 
 //! @brief time a generic unary function
 template<class F>
 float timeGpu(F&& f)
 {
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
+    hipEvent_t start, stop;
+    hipEventCreate(&start);
+    hipEventCreate(&stop);
 
-    cudaEventRecord(start, cudaStreamDefault);
+    hipEventRecord(start, hipStreamDefault);
 
     f();
 
-    cudaEventRecord(stop, cudaStreamDefault);
-    cudaEventSynchronize(stop);
+    hipEventRecord(stop, hipStreamDefault);
+    hipEventSynchronize(stop);
 
     float t0;
-    cudaEventElapsedTime(&t0, start, stop);
+    hipEventElapsedTime(&t0, start, stop);
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    hipEventDestroy(start);
+    hipEventDestroy(stop);
 
     return t0;
 }

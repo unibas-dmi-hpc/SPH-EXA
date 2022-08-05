@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -57,8 +58,8 @@ void computeEOS_HydroStd(size_t firstParticle, size_t lastParticle, Tu gamma, co
 {
     int numThreads = 256;
     int numBlocks  = iceil(lastParticle - firstParticle, numThreads);
-    cudaEOS_HydroStd<<<numBlocks, numThreads>>>(firstParticle, lastParticle, gamma, u, rho, p, c);
-    CHECK_CUDA_ERR(cudaDeviceSynchronize());
+    hipLaunchKernelGGL(cudaEOS_HydroStd, numBlocks, numThreads, 0, 0, firstParticle, lastParticle, gamma, u, rho, p, c);
+    CHECK_CUDA_ERR(hipDeviceSynchronize());
 }
 
 template void computeEOS_HydroStd(size_t, size_t, double, const double*, const double*, double*, double*);

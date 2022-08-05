@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -65,7 +66,7 @@ TEST(OctreeGpu, computeNodeCountsKernel)
     thrust::device_vector<unsigned> d_counts(nNodes(d_cstree));
 
     constexpr unsigned nThreads = 512;
-    computeNodeCountsKernel<<<iceil(nNodes(d_cstree), nThreads), nThreads>>>(
+    hipLaunchKernelGGL(computeNodeCountsKernel, iceil(nNodes(d_cstree), nThreads), nThreads, 0, 0, 
         thrust::raw_pointer_cast(d_cstree.data()), thrust::raw_pointer_cast(d_counts.data()), nNodes(d_cstree),
         thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_codes.data() + d_codes.size()),
         std::numeric_limits<unsigned>::max());
@@ -113,10 +114,10 @@ TEST(OctreeGpu, computeNodeCountsGpu)
     // findPopulatedNodes check
     {
         TreeNodeIndex popNodes[2];
-        findPopulatedNodes<<<1,1>>>(thrust::raw_pointer_cast(d_cstree.data()), nNodes(d_cstree),
+        hipLaunchKernelGGL(findPopulatedNodes, 1, 1, 0, 0, thrust::raw_pointer_cast(d_cstree.data()), nNodes(d_cstree),
                                     thrust::raw_pointer_cast(d_codes.data()),
                                     thrust::raw_pointer_cast(d_codes.data() + d_codes.size()));
-        cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex));
+        hipMemcpyFromSymbol(popNodes, HIP_SYMBOL(populatedNodes), 2 * sizeof(TreeNodeIndex));
         // first and last nodes have no particles
         EXPECT_EQ(popNodes[0], 1);
         EXPECT_EQ(popNodes[1], nNodes(d_cstree) - 1);
@@ -173,7 +174,7 @@ TEST(OctreeGpu, rebalanceDecision)
     reference[9] = 8; // fuse
 
     int changeCounter = 0;
-    cudaMemcpyFromSymbol(&changeCounter, rebalanceChangeCounter, sizeof(int));
+    hipMemcpyFromSymbol(&changeCounter, HIP_SYMBOL(rebalanceChangeCounter), sizeof(int));
     EXPECT_EQ(h_nodeOps, reference);
     EXPECT_NE(0, changeCounter);
 }

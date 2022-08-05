@@ -33,14 +33,14 @@
 
 #include <tuple>
 
-#if defined(__CUDACC__ ) || defined(__HIPCC__)
+#if defined(__HIPCC__ ) || defined(__HIPCC__)
 #include <thrust/tuple.h>
 #endif
 
 #include "cstone/cuda/annotation.hpp"
 
 
-#if defined(__CUDACC__ ) || defined(__HIPCC__)
+#if defined(__HIPCC__ ) || defined(__HIPCC__)
 
 namespace util
 {

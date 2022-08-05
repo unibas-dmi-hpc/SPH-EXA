@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -50,7 +51,7 @@ TEST(WarpScan, min)
     thrust::host_vector<int>   h_v(GpuConfig::warpSize);
     thrust::device_vector<int> d_v = h_v;
 
-    testMin<<<1, GpuConfig::warpSize>>>(thrust::raw_pointer_cast(d_v.data()));
+    hipLaunchKernelGGL(testMin, 1, GpuConfig::warpSize, 0, 0, thrust::raw_pointer_cast(d_v.data()));
 
     h_v = d_v;
     thrust::host_vector<int> reference(GpuConfig::warpSize, 0);
@@ -70,7 +71,7 @@ TEST(WarpScan, max)
     thrust::host_vector<int>   h_v(GpuConfig::warpSize);
     thrust::device_vector<int> d_v = h_v;
 
-    testMax<<<1, GpuConfig::warpSize>>>(thrust::raw_pointer_cast(d_v.data()));
+    hipLaunchKernelGGL(testMax, 1, GpuConfig::warpSize, 0, 0, thrust::raw_pointer_cast(d_v.data()));
 
     h_v = d_v;
     thrust::host_vector<int> reference(GpuConfig::warpSize, GpuConfig::warpSize - 1);
@@ -88,7 +89,7 @@ __global__ void testScan(int* values)
 TEST(WarpScan, inclusiveInt)
 {
     thrust::device_vector<int> d_values(2 * GpuConfig::warpSize);
-    testScan<<<1, 2 * GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    hipLaunchKernelGGL(testScan, 1, 2 * GpuConfig::warpSize, 0, 0, rawPtr(d_values.data()));
     thrust::host_vector<int> h_values = d_values;
 
     for (int i = 0; i < 2 * GpuConfig::warpSize; ++i)
@@ -106,7 +107,7 @@ __global__ void testScanBool(int* result)
 TEST(WarpScan, bools)
 {
     thrust::device_vector<int> d_values(2 * GpuConfig::warpSize);
-    testScanBool<<<1, 2 * GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    hipLaunchKernelGGL(testScanBool, 1, 2 * GpuConfig::warpSize, 0, 0, rawPtr(d_values.data()));
     thrust::host_vector<int> h_values = d_values;
 
     for (int i = 0; i < 2 * GpuConfig::warpSize; ++i)
@@ -133,7 +134,7 @@ __global__ void testSegScan(int* values)
 TEST(WarpScan, inclusiveSegInt)
 {
     thrust::device_vector<int> d_values(GpuConfig::warpSize);
-    testSegScan<<<1, GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    hipLaunchKernelGGL(testSegScan, 1, GpuConfig::warpSize, 0, 0, rawPtr(d_values.data()));
     thrust::host_vector<int> h_values = d_values;
 
     //                         carry is one, first segment starts with offset of 1
@@ -163,7 +164,7 @@ __global__ void streamCompactTest(int* result)
 TEST(WarpScan, streamCompact)
 {
     thrust::device_vector<int> d_values(GpuConfig::warpSize);
-    streamCompactTest<<<1, GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    hipLaunchKernelGGL(streamCompactTest, 1, GpuConfig::warpSize, 0, 0, rawPtr(d_values.data()));
     thrust::host_vector<int> h_values = d_values;
 
     for (int i = 0; i < GpuConfig::warpSize / 2; ++i)

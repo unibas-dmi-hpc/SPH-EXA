@@ -60,7 +60,7 @@ public:
 
     struct neighbors_stream
     {
-        cudaStream_t stream;
+        hipStream_t stream;
         int*         d_neighborsCount;
     };
 
@@ -146,7 +146,7 @@ public:
 
         for (int i = 0; i < NST; ++i)
         {
-            CHECK_CUDA_ERR(cudaStreamCreate(&d_stream[i].stream));
+            CHECK_CUDA_ERR(hipStreamCreate(&d_stream[i].stream));
         }
         resize_streams(taskSize);
     }
@@ -155,8 +155,8 @@ public:
     {
         for (int i = 0; i < NST; ++i)
         {
-            CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
-            CHECK_CUDA_ERR(cudaFree(d_stream[i].d_neighborsCount));
+            CHECK_CUDA_ERR(hipStreamDestroy(d_stream[i].stream));
+            CHECK_CUDA_ERR(hipFree(d_stream[i].d_neighborsCount));
         }
     }
 
@@ -169,7 +169,7 @@ private:
             {
                 for (int i = 0; i < NST; ++i)
                 {
-                    CHECK_CUDA_ERR(cudaFree(d_stream[i].d_neighborsCount));
+                    CHECK_CUDA_ERR(hipFree(d_stream[i].d_neighborsCount));
                 }
             }
 
@@ -178,7 +178,7 @@ private:
 
             for (int i = 0; i < NST; ++i)
             {
-                CHECK_CUDA_ERR(cudaMalloc((void**)&(d_stream[i].d_neighborsCount), newTaskSize * sizeof(int)));
+                CHECK_CUDA_ERR(hipMalloc((void**)&(d_stream[i].d_neighborsCount), newTaskSize * sizeof(int)));
             }
 
             allocatedTaskSize = newTaskSize;
@@ -201,8 +201,8 @@ void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<
             assert(hostField->size() > 0);
             assert(deviceField->size() > 0);
             size_t transferSize = (last - first) * sizeof(typename Type1::value_type);
-            CHECK_CUDA_ERR(cudaMemcpy(
-                rawPtr(*deviceField) + first, hostField->data() + first, transferSize, cudaMemcpyHostToDevice));
+            CHECK_CUDA_ERR(hipMemcpy(
+                rawPtr(*deviceField) + first, hostField->data() + first, transferSize, hipMemcpyHostToDevice));
         }
         else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
         }
@@ -231,8 +231,8 @@ void transferToHost(DataType& d, size_t first, size_t last, const std::vector<st
             assert(hostField->size() > 0);
             assert(deviceField->size() > 0);
             size_t transferSize = (last - first) * sizeof(typename Type1::value_type);
-            CHECK_CUDA_ERR(cudaMemcpy(
-                hostField->data() + first, rawPtr(*deviceField) + first, transferSize, cudaMemcpyDeviceToHost));
+            CHECK_CUDA_ERR(hipMemcpy(
+                hostField->data() + first, rawPtr(*deviceField) + first, transferSize, hipMemcpyDeviceToHost));
         }
         else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
         }

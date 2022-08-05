@@ -47,12 +47,12 @@ void gpuDirect(int rank)
 {
     int* src;
     int* dest;
-    checkGpuErrors(cudaMalloc((void**)&src, 5 * sizeof(int)));
-    checkGpuErrors(cudaMalloc((void**)&dest, 5 * sizeof(int)));
+    checkGpuErrors(hipMalloc((void**)&src, 5 * sizeof(int)));
+    checkGpuErrors(hipMalloc((void**)&dest, 5 * sizeof(int)));
 
     std::vector<int> init(5, -1);
-    checkGpuErrors(cudaMemcpy(src, init.data(), 5 * sizeof(int), cudaMemcpyHostToDevice));
-    checkGpuErrors(cudaMemcpy(dest, init.data(), 5 * sizeof(int), cudaMemcpyHostToDevice));
+    checkGpuErrors(hipMemcpy(src, init.data(), 5 * sizeof(int), hipMemcpyHostToDevice));
+    checkGpuErrors(hipMemcpy(dest, init.data(), 5 * sizeof(int), hipMemcpyHostToDevice));
 
     std::vector<int> ref{0, 1, 2, 3, 4};
     std::vector<int> probe(5);
@@ -62,7 +62,7 @@ void gpuDirect(int rank)
 
     if (rank == 0)
     {
-        checkGpuErrors(cudaMemcpy(src, ref.data(), 5 * sizeof(int), cudaMemcpyHostToDevice));
+        checkGpuErrors(hipMemcpy(src, ref.data(), 5 * sizeof(int), hipMemcpyHostToDevice));
         [[maybe_unused]] int err = MPI_Send(src, 5, MPI_INT, 1, tag, MPI_COMM_WORLD);
         assert(err == MPI_SUCCESS);
     }
@@ -70,12 +70,12 @@ void gpuDirect(int rank)
     {
         [[maybe_unused]] int err = mpiRecvSync(dest, 5, 0, tag, MPI_STATUS_IGNORE);
         assert(err == MPI_SUCCESS);
-        checkGpuErrors(cudaMemcpy(probe.data(), dest, 5 * sizeof(int), cudaMemcpyDeviceToHost));
+        checkGpuErrors(hipMemcpy(probe.data(), dest, 5 * sizeof(int), hipMemcpyDeviceToHost));
         EXPECT_EQ(probe, ref);
     }
 
-    checkGpuErrors(cudaFree(src));
-    checkGpuErrors(cudaFree(dest));
+    checkGpuErrors(hipFree(src));
+    checkGpuErrors(hipFree(dest));
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
@@ -190,10 +190,10 @@ void simpleTest(int thisRank)
     haloExchangeGpu(0, incomingHalos, outgoingHalos, sendBuffer, receiveBuffer, thrust::raw_pointer_cast(d_x.data()),
                     thrust::raw_pointer_cast(d_y.data()), thrust::raw_pointer_cast(d_velocity.data()));
 
-    cudaMemcpy(x.data(), thrust::raw_pointer_cast(d_x.data()), x.size() * sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(y.data(), thrust::raw_pointer_cast(d_y.data()), y.size() * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(velocity.data(), thrust::raw_pointer_cast(d_velocity.data()),
-               velocity.size() * sizeof(util::array<int, 3>), cudaMemcpyDeviceToHost);
+    hipMemcpy(x.data(), thrust::raw_pointer_cast(d_x.data()), x.size() * sizeof(double), hipMemcpyDeviceToHost);
+    hipMemcpy(y.data(), thrust::raw_pointer_cast(d_y.data()), y.size() * sizeof(float), hipMemcpyDeviceToHost);
+    hipMemcpy(velocity.data(), thrust::raw_pointer_cast(d_velocity.data()),
+               velocity.size() * sizeof(util::array<int, 3>), hipMemcpyDeviceToHost);
 
     std::vector<double> xRef{20, 21, 22, 23, 24, 25, 26, 27, 28, 29};
     std::vector<float> yRef{30, 31, 32, 33, 34, 35, 36, 37, 38, 39};

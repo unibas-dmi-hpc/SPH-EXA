@@ -116,7 +116,7 @@ void haloExchangeGpu(int epoch,
 
     size_t numRanges = std::max(maxNumRanges(outgoingHalos), maxNumRanges(incomingHalos));
     IndexType* d_range;
-    checkGpuErrors(cudaMalloc((void**)&d_range, 2 * numRanges * sizeof(IndexType)));
+    checkGpuErrors(hipMalloc((void**)&d_range, 2 * numRanges * sizeof(IndexType)));
     IndexType* d_rangeScan = d_range + numRanges;
 
     char* sendPtr = sendBuffer;
@@ -128,9 +128,9 @@ void haloExchangeGpu(int epoch,
         // compute indices to extract and upload to GPU
         auto [rangeOffsets, rangeScan] = createRanges(outgoingHalos[destinationRank]);
         checkGpuErrors(
-            cudaMemcpy(d_range, rangeOffsets.data(), rangeOffsets.size() * sizeof(IndexType), cudaMemcpyHostToDevice));
+            hipMemcpy(d_range, rangeOffsets.data(), rangeOffsets.size() * sizeof(IndexType), hipMemcpyHostToDevice));
         checkGpuErrors(
-            cudaMemcpy(d_rangeScan, rangeScan.data(), rangeScan.size() * sizeof(IndexType), cudaMemcpyHostToDevice));
+            hipMemcpy(d_rangeScan, rangeScan.data(), rangeScan.size() * sizeof(IndexType), hipMemcpyHostToDevice));
 
         util::array<size_t, numArrays> arrayByteOffsets = sendCount * elementSizes;
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
@@ -148,7 +148,7 @@ void haloExchangeGpu(int epoch,
         };
 
         for_each_tuple(gatherArray, indices);
-        checkGpuErrors(cudaDeviceSynchronize());
+        checkGpuErrors(hipDeviceSynchronize());
 
         mpiSendGpuDirect(sendPtr, sendBytes, destinationRank, haloExchangeTag, sendRequests, sendBuffers);
         sendPtr += sendBytes;
@@ -183,9 +183,9 @@ void haloExchangeGpu(int epoch,
         // compute indices to extract and upload to GPU
         auto [rangeOffsets, rangeScan] = createRanges(incomingHalos[receiveRank]);
         checkGpuErrors(
-            cudaMemcpy(d_range, rangeOffsets.data(), rangeOffsets.size() * sizeof(IndexType), cudaMemcpyHostToDevice));
+            hipMemcpy(d_range, rangeOffsets.data(), rangeOffsets.size() * sizeof(IndexType), hipMemcpyHostToDevice));
         checkGpuErrors(
-            cudaMemcpy(d_rangeScan, rangeScan.data(), rangeScan.size() * sizeof(IndexType), cudaMemcpyHostToDevice));
+            hipMemcpy(d_rangeScan, rangeScan.data(), rangeScan.size() * sizeof(IndexType), hipMemcpyHostToDevice));
 
         auto scatterArray = [receiveBuffer, receiveCount, &data, &arrayByteOffsets, &elementSizes, d_range, d_rangeScan,
                              numRanges = rangeOffsets.size()](auto arrayIndex)
@@ -199,7 +199,7 @@ void haloExchangeGpu(int epoch,
         };
 
         for_each_tuple(scatterArray, indices);
-        checkGpuErrors(cudaDeviceSynchronize());
+        checkGpuErrors(hipDeviceSynchronize());
 
         numMessages--;
     }
@@ -210,7 +210,7 @@ void haloExchangeGpu(int epoch,
         MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
     }
 
-    checkGpuErrors(cudaFree(d_range));
+    checkGpuErrors(hipFree(d_range));
     reallocateDevice(sendScratchBuffer, oldSendSize, 1.01);
     reallocateDevice(receiveScratchBuffer, oldRecvSize, 1.01);
 
