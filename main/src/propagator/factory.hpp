@@ -46,6 +46,31 @@ template<class DomainType, class ParticleDataType>
 std::unique_ptr<Propagator<DomainType, ParticleDataType>>
 propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
 {
+#ifdef USE_HIP_VE
+    if (choice == "ve")
+    {
+        return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+    }
+    else { throw std::runtime_error("Unknown propagator choice (HIP): " + choice); }
+#endif
+
+#ifdef USE_HIP_TURBULENCE
+    if (choice == "turbulence")
+    {
+        return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+    }
+    else { throw std::runtime_error("Unknown propagator choice (HIP): " + choice); }
+#endif
+
+#ifdef USE_HIP_STD
+    if (choice == "std")
+    {
+        return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+    }
+    else { throw std::runtime_error("Unknown propagator choice (HIP): " + choice); }
+#endif
+
+/*
     if (choice == "ve")
     {
         return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
@@ -59,6 +84,7 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
         return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
     }
     else { throw std::runtime_error("Unknown propagator choice: " + choice); }
+*/
 }
 
 } // namespace sphexa
