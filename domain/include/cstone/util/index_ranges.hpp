@@ -44,8 +44,14 @@ namespace cstone
 template<class T>
 struct IndexPair : public std::tuple<T, T>
 {
-    IndexPair() : std::tuple<T, T>(0, 0) {}
-    IndexPair(T a, T b) : std::tuple<T, T>(a, b) {}
+    IndexPair()
+        : std::tuple<T, T>(0, 0)
+    {
+    }
+    IndexPair(T a, T b)
+        : std::tuple<T, T>(a, b)
+    {
+    }
 
     T start() const { return std::get<0>(*this); }
     T end() const { return std::get<1>(*this); }
@@ -60,7 +66,7 @@ using TreeIndexPair = IndexPair<TreeNodeIndex>;
  *
  *  Used for SendRanges with index ranges referencing elements in e.g. x,y,z,h arrays.
  */
-template <class Index>
+template<class Index>
 class IndexRanges
 {
 public:
@@ -104,7 +110,69 @@ private:
 
 //! @brief stores one or multiple index ranges of local particles to send out to another rank
 using SendManifest = IndexRanges<LocalIndex>;
-//! @brief SendList will contain one manifest per rank
-using SendList = std::vector<SendManifest>;
+
+//! @brief SendList contains one manifest per rank
+class SendList
+{
+public:
+    SendList() = default;
+
+    SendList(std::size_t numRanks)
+        : data_(numRanks)
+    {
+    }
+
+    SendManifest& operator[](size_t i) { return data_[i]; }
+    const SendManifest& operator[](size_t i) const { return data_[i]; }
+
+    std::size_t size() const { return data_.size(); }
+
+    std::size_t totalCount() const
+    {
+        size_t count = 0;
+        for (std::size_t i = 0; i < data_.size(); ++i)
+        {
+            count += (*this)[i].totalCount();
+        }
+        return count;
+    }
+
+    auto begin() { return data_.begin(); }
+    auto end() { return data_.end(); }
+
+    auto begin() const { return data_.cbegin(); }
+    auto end() const { return data_.cend(); }
+
+private:
+    friend bool operator==(const SendList& lhs, const SendList& rhs) { return lhs.data_ == rhs.data_; }
+
+    std::vector<SendManifest> data_;
+};
+
+inline auto createRanges(const SendManifest& ranges)
+{
+    using IndexType = SendManifest::IndexType;
+    std::vector<IndexType> offsets(ranges.nRanges());
+    std::vector<IndexType> scan(ranges.nRanges());
+
+    for (IndexType i = 0; i < ranges.nRanges(); ++i)
+    {
+        offsets[i] = ranges.rangeStart(i);
+        scan[i]    = ranges.count(i);
+    }
+
+    std::exclusive_scan(scan.begin(), scan.end(), scan.begin(), IndexType(0));
+    return std::make_tuple(std::move(offsets), std::move(scan));
+}
+
+inline size_t maxNumRanges(const SendList& sendList)
+{
+    size_t ret = 0;
+    for (const auto& manifest : sendList)
+    {
+        ret = std::max(ret, manifest.nRanges());
+    }
+    return ret;
+}
 
 } // namespace cstone

@@ -84,14 +84,6 @@ private:
     T value_;
 };
 
-//! @brief constexpr string as structural type for use as non-type template parameter (C++20)
-template<size_t N>
-struct StructuralString
-{
-    constexpr StructuralString(const char (&str)[N]) { std::copy_n(str, N, value); }
-    char value[N];
-};
-
 /*! @brief StrongType equality comparison
  *
  * Requires that both T and Phantom template parameters match.
@@ -134,6 +126,14 @@ constexpr HOST_DEVICE_FUN StrongType<T, Phantom> operator-(const StrongType<T, P
     return StrongType<T, Phantom>(lhs.value() - rhs.value());
 }
 
+//! @brief constexpr string as structural type for use as non-type template parameter (C++20)
+template<size_t N>
+struct StructuralString
+{
+    constexpr StructuralString(const char (&str)[N]) { std::copy_n(str, N, value); }
+    char value[N];
+};
+
 //! @brief Utility to call function with each element in tuple_
 template<class F, class... Ts>
 void for_each_tuple(F&& func, std::tuple<Ts...>& tuple_)
@@ -148,6 +148,13 @@ void for_each_tuple(F&& func, const std::tuple<Ts...>& tuple_)
 {
     std::apply([f = func](auto&... args) { [[maybe_unused]] auto list = std::initializer_list<int>{(f(args), 0)...}; },
                tuple_);
+}
+
+//! @brief convert an index_sequence into a tuple of integral constants (e.g. for use with for_each_tuple)
+template<size_t... Is>
+constexpr auto makeIntegralTuple(std::index_sequence<Is...>)
+{
+    return std::make_tuple(std::integral_constant<size_t, Is>{}...);
 }
 
 //! @brief resizes a vector with a determined growth rate upon reallocation

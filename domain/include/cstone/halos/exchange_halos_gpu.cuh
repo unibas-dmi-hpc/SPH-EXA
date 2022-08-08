@@ -41,50 +41,12 @@
 #include "cstone/primitives/mpi_cuda.cuh"
 #include "cstone/util/index_ranges.hpp"
 #include "cstone/util/thrust_alloc.cuh"
+#include "cstone/util/util.hpp"
 
 #include "gather_scatter.cuh"
 
 namespace cstone
 {
-
-auto createRanges(const SendManifest& ranges)
-{
-    using IndexType = SendManifest::IndexType;
-    std::vector<IndexType> offsets(ranges.nRanges());
-    std::vector<IndexType> scan(ranges.nRanges());
-
-    for (IndexType i = 0; i < ranges.nRanges(); ++i)
-    {
-        offsets[i] = ranges.rangeStart(i);
-        scan[i]    = ranges.count(i);
-    }
-
-    std::exclusive_scan(scan.begin(), scan.end(), scan.begin(), IndexType(0));
-    return std::make_tuple(std::move(offsets), std::move(scan));
-}
-
-size_t sendCountSum(const SendList& outgoingHalos)
-{
-    size_t sendCount = 0;
-    for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
-    {
-        sendCount += outgoingHalos[destinationRank].totalCount();
-    }
-    return sendCount;
-}
-
-size_t maxNumRanges(const SendList& sendList)
-{
-    size_t ret = 0;
-    for(const auto& manifest : sendList) { ret = std::max(ret, manifest.nRanges()); }
-    return ret;
-}
-
-template<size_t... Is>
-constexpr auto makeIntegralTuple(std::index_sequence<Is...>)
-{
-    return std::make_tuple(std::integral_constant<size_t, Is>{}...);
-}
 
 template<class DeviceVector, class... Arrays>
 void haloExchangeGpu(int epoch,
@@ -102,10 +64,9 @@ void haloExchangeGpu(int epoch,
 
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
-    const size_t totalSendCount = sendCountSum(outgoingHalos);
-    const size_t oldSendSize    = sendScratchBuffer.size();
-    reallocateDevice(sendScratchBuffer, totalSendCount * bytesPerElement / sizeof(typename DeviceVector::value_type),
-                     1.01);
+    const size_t oldSendSize = sendScratchBuffer.size();
+    reallocateDevice(sendScratchBuffer,
+                     outgoingHalos.totalCount() * bytesPerElement / sizeof(typename DeviceVector::value_type), 1.01);
 
     char* sendBuffer = reinterpret_cast<char*>(thrust::raw_pointer_cast(sendScratchBuffer.data()));
 
