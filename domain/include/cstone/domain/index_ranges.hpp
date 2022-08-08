@@ -107,6 +107,10 @@ public:
 
     [[nodiscard]] std::size_t nRanges() const { return offsets_.size(); }
 
+    //! @brief access to arrays for upload to device
+    const IndexType* offsets() const { return offsets_.data(); }
+    const IndexType* scan() const { return scan_.data(); }
+
 private:
     friend bool operator==(const IndexRanges& lhs, const IndexRanges& rhs)
     {
@@ -158,22 +162,6 @@ private:
 
     std::vector<SendManifest> data_;
 };
-
-inline auto createRanges(const SendManifest& ranges)
-{
-    using IndexType = SendManifest::IndexType;
-    std::vector<IndexType> offsets(ranges.nRanges());
-    std::vector<IndexType> scan(ranges.nRanges());
-
-    for (IndexType i = 0; i < ranges.nRanges(); ++i)
-    {
-        offsets[i] = ranges.rangeStart(i);
-        scan[i]    = ranges.count(i);
-    }
-
-    std::exclusive_scan(scan.begin(), scan.end(), scan.begin(), IndexType(0));
-    return std::make_tuple(std::move(offsets), std::move(scan));
-}
 
 inline size_t maxNumRanges(const SendList& sendList)
 {
