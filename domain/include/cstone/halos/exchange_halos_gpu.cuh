@@ -39,7 +39,7 @@
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/primitives/mpi_cuda.cuh"
-#include "cstone/util/index_ranges.hpp"
+#include "cstone/domain/index_ranges.hpp"
 #include "cstone/util/thrust_alloc.cuh"
 #include "cstone/util/util.hpp"
 

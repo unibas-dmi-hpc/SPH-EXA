@@ -1,6 +1,7 @@
 
 set(UNIT_TESTS
         domain/domaindecomp.cpp
+        domain/index_ranges.cpp
         domain/layout.cpp
         findneighbors.cpp
         focus/octree_focus.cpp

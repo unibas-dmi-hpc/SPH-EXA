@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,39 +24,40 @@
  */
 
 /*! @file
- * @brief  Implementation of halo discovery and halo exchange
+ * @brief Utility tests
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#pragma once
+#include "gtest/gtest.h"
 
-#include <vector>
-
-#include "cstone/domain/layout.hpp"
-#include "cstone/halos/exchange_halos_gpu.cuh"
-#include "cstone/halos/halos.hpp"
-#include "cstone/halos/radii.hpp"
-#include "cstone/traversal/collisions.hpp"
-#include "cstone/util/gsl-lite.hpp"
 #include "cstone/domain/index_ranges.hpp"
 
-namespace cstone
-{
+using namespace cstone;
 
-template<class KeyType>
-template<class... DeviceVectors, class DeviceVector>
-void Halos<KeyType>::exchangeHalosGpu(std::tuple<DeviceVectors&...> arrays,
-                                      DeviceVector& sendBuffer,
-                                      DeviceVector& receiveBuffer) const
+TEST(IndexRanges, empty)
 {
-    std::apply(
-        [this, &sendBuffer, &receiveBuffer](auto&... arrays)
-        {
-            haloExchangeGpu(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, sendBuffer, receiveBuffer,
-                            thrust::raw_pointer_cast(arrays.data())...);
-        },
-        arrays);
+    IndexRanges<int> ranges;
+    EXPECT_EQ(ranges.nRanges(), 0);
+    EXPECT_EQ(ranges.totalCount(), 0);
 }
 
-} // namespace cstone
+TEST(IndexRanges, addRange)
+{
+    IndexRanges<int> ranges;
+    ranges.addRange(0, 5);
+
+    EXPECT_EQ(ranges.nRanges(), 1);
+    EXPECT_EQ(ranges.rangeStart(0), 0);
+    EXPECT_EQ(ranges.rangeEnd(0), 5);
+    EXPECT_EQ(ranges.count(0), 5);
+
+    ranges.addRange(10, 19);
+
+    EXPECT_EQ(ranges.nRanges(), 2);
+    EXPECT_EQ(ranges.totalCount(), 14);
+
+    EXPECT_EQ(ranges.rangeStart(1), 10);
+    EXPECT_EQ(ranges.rangeEnd(1), 19);
+    EXPECT_EQ(ranges.count(1), 9);
+}

@@ -32,11 +32,12 @@
 #pragma once
 
 #include <cassert>
+#include <numeric>
 #include <tuple>
 #include <vector>
 
 #include "cstone/tree/definitions.h"
-#include "util.hpp"
+#include "cstone/util/util.hpp"
 
 namespace cstone
 {
@@ -64,7 +65,13 @@ using TreeIndexPair = IndexPair<TreeNodeIndex>;
  *
  * @tparam I  32- or 64-bit signed or unsigned integer to store the indices
  *
- *  Used for SendRanges with index ranges referencing elements in e.g. x,y,z,h arrays.
+ *                                   A         B
+ * Original particle buffer: |-----|****|----|****|-----|
+ * Ranges:                         (6, 10)   (14,18)
+ *
+ * Content of offsets_: { 6, 14 }
+ * Content of scan_:    { 0, 4, 8 }                                                   A    B
+ * scan_ stores the offsets of a compacted buffer with the marked ranges extracted (|****|****|)
  */
 template<class Index>
 class IndexRanges
@@ -74,38 +81,41 @@ public:
 
     IndexRanges()
         : totalCount_(0)
-        , ranges_{}
+        , scan_{0}
     {
     }
 
-    //! @brief add a local index range, infer count from difference
+    //! @brief add another index range, must not overlap with previous ranges
     void addRange(IndexType lower, IndexType upper)
     {
         assert(lower <= upper);
-        ranges_.push_back({lower, upper});
+
         totalCount_ += upper - lower;
+        offsets_.push_back(lower);
+        scan_.push_back(totalCount_);
     }
 
-    [[nodiscard]] IndexType rangeStart(size_t i) const { return ranges_[i][0]; }
+    [[nodiscard]] IndexType rangeStart(size_t i) const { return offsets_[i]; }
 
-    [[nodiscard]] IndexType rangeEnd(size_t i) const { return ranges_[i][1]; }
+    [[nodiscard]] IndexType rangeEnd(size_t i) const { return rangeStart(i) + count(i); }
 
     //! @brief the number of particles in range i
-    [[nodiscard]] std::size_t count(size_t i) const { return ranges_[i][1] - ranges_[i][0]; }
+    [[nodiscard]] std::size_t count(size_t i) const { return scan_[i + 1] - scan_[i]; }
 
     //! @brief the sum of number of particles in all ranges or total send count
     [[nodiscard]] std::size_t totalCount() const { return totalCount_; }
 
-    [[nodiscard]] std::size_t nRanges() const { return ranges_.size(); }
+    [[nodiscard]] std::size_t nRanges() const { return offsets_.size(); }
 
 private:
     friend bool operator==(const IndexRanges& lhs, const IndexRanges& rhs)
     {
-        return lhs.totalCount_ == rhs.totalCount_ && lhs.ranges_ == rhs.ranges_;
+        return lhs.totalCount_ == rhs.totalCount_ && lhs.offsets_ == rhs.offsets_ && lhs.scan_ == rhs.scan_;
     }
 
     std::size_t totalCount_;
-    std::vector<util::array<IndexType, 2>> ranges_;
+    std::vector<IndexType> offsets_;
+    std::vector<IndexType> scan_;
 };
 
 //! @brief stores one or multiple index ranges of local particles to send out to another rank

@@ -40,7 +40,7 @@
 
 #include "cstone/primitives/gather.hpp"
 #include "cstone/tree/octree.hpp"
-#include "cstone/util/index_ranges.hpp"
+#include "index_ranges.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
 namespace cstone

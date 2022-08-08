@@ -38,7 +38,7 @@
 #include "cstone/halos/radii.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/util/gsl-lite.hpp"
-#include "cstone/util/index_ranges.hpp"
+#include "cstone/domain/index_ranges.hpp"
 
 namespace cstone
 {

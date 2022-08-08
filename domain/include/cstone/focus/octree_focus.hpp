@@ -46,7 +46,7 @@
 #include "cstone/domain/domaindecomp.hpp"
 #include "cstone/traversal/boxoverlap.hpp"
 #include "cstone/util/gsl-lite.hpp"
-#include "cstone/util/index_ranges.hpp"
+#include "cstone/domain/index_ranges.hpp"
 
 #include "cstone/traversal/macs.hpp"
 #include "cstone/tree/octree_internal.hpp"
