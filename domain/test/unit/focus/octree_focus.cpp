@@ -70,7 +70,7 @@ static auto computeNodeOps(const Octree<KeyType>& octree,
                                    counts.data(), macs.data(), focusStart, focusEnd, bucketSize, nodeOps.data());
 
     std::vector<int> ret(octree.numLeafNodes());
-    reorder(octree.internalOrder(), nodeOps.data(), ret.data());
+    gather(octree.internalOrder(), nodeOps.data(), ret.data());
 
     return std::make_tuple(ret, converged);
 }

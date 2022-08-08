@@ -338,27 +338,4 @@ SendList createSendList(const SpaceCurveAssignment& assignment,
     return ret;
 }
 
-/*! @brief extract elements from the source array through the ordering
- *
- * @param manifest        contains the index ranges of @p source to put into the send buffer
- * @param source          e.g. x,y,z,h arrays
- * @param ordering        the space curve ordering to handle unsorted source arrays
- * @param dest            write buffer for extracted elements
- * @param bytesPerElement size of each element of source and dest in bytes
- */
-template<class IndexType>
-void extractRange(
-    const SendManifest& manifest, const char* source, const IndexType* ordering, char* dest, size_t bytesPerElement)
-{
-    size_t byteCounter = 0;
-    for (std::size_t rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
-    {
-        for (IndexType i = manifest.rangeStart(rangeIndex); i < IndexType(manifest.rangeEnd(rangeIndex)); ++i)
-        {
-            memcpy(dest + byteCounter, source + ordering[i] * bytesPerElement, bytesPerElement);
-            byteCounter += bytesPerElement;
-        }
-    }
-}
-
 } // namespace cstone

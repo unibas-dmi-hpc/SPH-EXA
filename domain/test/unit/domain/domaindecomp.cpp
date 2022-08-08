@@ -146,38 +146,3 @@ TEST(DomainDecomposition, createSendList)
     createSendList<unsigned>();
     createSendList<uint64_t>();
 }
-
-template<class KeyType>
-void extractRange()
-{
-    int bufferSize = 64;
-    // the source array from which to extract the buffer
-    std::vector<double> x(bufferSize);
-    std::iota(begin(x), end(x), 0);
-
-    SendManifest manifest;
-    manifest.addRange(0, 8);
-    manifest.addRange(40, 42);
-    manifest.addRange(50, 50);
-
-    std::vector<int> ordering(bufferSize);
-    std::iota(begin(ordering), end(ordering), 0);
-
-    // non-default ordering will make x appear sorted despite two elements being swapped
-    std::swap(x[0], x[1]);
-    std::swap(ordering[0], ordering[1]);
-
-    std::vector<double> output(manifest.totalCount());
-    extractRange(manifest, reinterpret_cast<char*>(x.data()), ordering.data(), reinterpret_cast<char*>(output.data()),
-                 sizeof(double));
-
-    // note sorted reference
-    std::vector<double> ref{0, 1, 2, 3, 4, 5, 6, 7, 40, 41};
-    EXPECT_EQ(output, ref);
-}
-
-TEST(DomainDecomposition, extractRange)
-{
-    extractRange<unsigned>();
-    extractRange<uint64_t>();
-}

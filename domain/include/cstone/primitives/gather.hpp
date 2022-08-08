@@ -103,7 +103,7 @@ void omp_copy(InputIterator first, InputIterator last, OutputIterator out)
 
 //! @brief gather reorder
 template<class IndexType, class ValueType>
-void reorder(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination)
+void gather(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination)
 {
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < ordering.size(); ++i)
@@ -204,7 +204,7 @@ public:
     template<class T>
     void operator()(const T* source, T* destination, IndexType offset, IndexType numExtract) const
     {
-        reorder<IndexType>({ordering_.data() + offset, numExtract}, source, destination);
+        gather<IndexType>({ordering_.data() + offset, numExtract}, source, destination);
     }
 
     template<class T>
