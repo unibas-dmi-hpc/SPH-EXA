@@ -34,5 +34,8 @@ if (CMAKE_CUDA_COMPILER)
 
     addMpiTest(exchange_halos_gpu.cpp exchange_halos_gpu GlobalHaloExchangeGpu 2)
     target_link_libraries(exchange_halos_gpu cstone_gpu CUDA::cudart)
+
+    addMpiTest(exchange_domain_gpu.cpp exchange_domain_gpu GlobalDomainExchangeGpu 2)
+    target_link_libraries(exchange_domain_gpu cstone_gpu CUDA::cudart)
 endif()
 
