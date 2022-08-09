@@ -67,30 +67,28 @@ auto localMinMax(Iterator start, Iterator end)
 
 /*! @brief compute global bounding box for local x,y,z arrays
  *
- * @tparam Iterator      coordinate array iterator, providing random access
- * @param  xB            x coordinate array start
- * @param  xE            x coordinate array end
- * @param  yB            y coordinate array start
- * @param  zB            z coordinate array start
- * @param  previousBox   previous coordinate bounding box, default non-pbc box
- *                       with limits ignored
- * @return               the new bounding box
+ * @tparam     T             float or double
+ * @param[in]  xB            x coordinate array start
+ * @param[in]  xE            x coordinate array end
+ * @param[in]  yB            y coordinate array start
+ * @param[in]  zB            z coordinate array start
+ * @param[in]  previousBox   previous coordinate bounding box, default non-pbc box
+ *                           with limits ignored
+ * @return                   the new bounding box
  *
  * For each periodic dimension, limits are fixed and will not be modified.
  * For non-periodic dimensions, limits are determined by global min/max.
  */
-template<class Iterator, class T = std::decay_t<decltype(*std::declval<Iterator>)>>
-auto makeGlobalBox(Iterator xB, Iterator xE, Iterator yB, Iterator zB, const Box<T>& previousBox = Box<T>(0, 1))
+template<class T>
+auto makeGlobalBox(const T* x, const T* y, const T* z, size_t numElements, const Box<T>& previousBox = Box<T>(0, 1))
 {
-    std::size_t nElements = xE - xB;
-
     std::array<T, 6> extrema;
     std::tie(extrema[0], extrema[1]) =
-        previousBox.pbcX() ? std::make_tuple(previousBox.xmin(), previousBox.xmax()) : localMinMax(xB, xB + nElements);
+        previousBox.pbcX() ? std::make_tuple(previousBox.xmin(), previousBox.xmax()) : localMinMax(x, x + numElements);
     std::tie(extrema[2], extrema[3]) =
-        previousBox.pbcY() ? std::make_tuple(previousBox.ymin(), previousBox.ymax()) : localMinMax(yB, yB + nElements);
+        previousBox.pbcY() ? std::make_tuple(previousBox.ymin(), previousBox.ymax()) : localMinMax(y, y + numElements);
     std::tie(extrema[4], extrema[5]) =
-        previousBox.pbcZ() ? std::make_tuple(previousBox.zmin(), previousBox.zmax()) : localMinMax(zB, zB + nElements);
+        previousBox.pbcZ() ? std::make_tuple(previousBox.zmin(), previousBox.zmax()) : localMinMax(z, z + numElements);
 
     if (!previousBox.pbcX() || !previousBox.pbcY() || !previousBox.pbcZ())
     {

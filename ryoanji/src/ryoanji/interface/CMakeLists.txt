@@ -3,6 +3,7 @@ if (CMAKE_CUDA_COMPILER)
     add_library(cstone_tree treebuilder.cu)
     target_include_directories(cstone_tree PUBLIC ${PROJECT_SOURCE_DIR}/src)
     target_include_directories(cstone_tree PUBLIC ${CSTONE_DIR})
+    target_link_libraries(cstone_tree cstone_gpu)
 
     add_library(ryoanji multipole_holder.cu)
 

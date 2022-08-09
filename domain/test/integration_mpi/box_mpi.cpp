@@ -64,7 +64,7 @@ void makeGlobalBox(int rank, int numRanks)
     std::vector<T> y{val, 2 * val};
     std::vector<T> z{-val, -2 * val};
 
-    Box<T> box = makeGlobalBox(begin(x), end(x), begin(y), begin(z), Box<T>{0, 1});
+    Box<T> box = makeGlobalBox(x.data(), y.data(), z.data(), x.size(), Box<T>{0, 1});
 
     T rVal = numRanks;
     EXPECT_EQ(box.xmin(), -rVal);
@@ -77,25 +77,25 @@ void makeGlobalBox(int rank, int numRanks)
     // PBC case
     {
         Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, true, true};
-        Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
+        Box<T> newPbcBox = makeGlobalBox(x.data(), y.data(), z.data(), x.size(), pbcBox);
         EXPECT_EQ(pbcBox, newPbcBox);
     }
     // partial PBC
     {
         Box<T> pbcBox{0, 1, 0, 1, 0, 1, false, true, true};
-        Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
+        Box<T> newPbcBox = makeGlobalBox(x.data(), y.data(), z.data(), x.size(), pbcBox);
         Box<T> refBox{-rVal, rVal, 0, 1, 0, 1, false, true, true};
         EXPECT_EQ(refBox, newPbcBox);
     }
     {
         Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, false, true};
-        Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
+        Box<T> newPbcBox = makeGlobalBox(x.data(), y.data(), z.data(), x.size(), pbcBox);
         Box<T> refBox{0, 1, T(1), 2 * rVal, 0, 1, true, false, true};
         EXPECT_EQ(refBox, newPbcBox);
     }
     {
         Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, true, false};
-        Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
+        Box<T> newPbcBox = makeGlobalBox(x.data(), y.data(), z.data(), x.size(), pbcBox);
         Box<T> refBox{0, 1, 0, 1, -2 * rVal, T(-1), true, true, false};
         EXPECT_EQ(refBox, newPbcBox);
     }

@@ -82,10 +82,10 @@ public:
     LocalIndex assign(
         BufferDescription bufDesc, Reorderer& reorderFunctor, KeyType* particleKeys, const T* x, const T* y, const T* z)
     {
-        box_ = makeGlobalBox(x + bufDesc.start, x + bufDesc.end, y + bufDesc.start, z + bufDesc.start, box_);
-
         // number of locally assigned particles to consider for global tree building
         LocalIndex numParticles = bufDesc.end - bufDesc.start;
+
+        box_ = makeGlobalBox(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start, numParticles, box_);
 
         gsl::span<KeyType> keyView(particleKeys + bufDesc.start, numParticles);
 
