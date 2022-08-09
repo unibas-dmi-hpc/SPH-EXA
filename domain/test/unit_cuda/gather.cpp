@@ -40,6 +40,8 @@
 #include "cstone/primitives/gather.hpp"
 #include "cstone/cuda/gather.cuh"
 
+using namespace cstone;
+
 template<class I>
 std::vector<I> makeRandomPermutation(std::size_t nElements)
 {
@@ -56,7 +58,7 @@ void setFromCodeDemo()
 {
     std::vector<I> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
 
-    cstone::DeviceGather<I, IndexType> devGather;
+    DeviceGather<I, IndexType> devGather;
     devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
     std::vector<I> refCodes{0, 10, 20, 30, 40, 50, 60, 70, 80, 90};
@@ -80,7 +82,7 @@ TEST(DeviceGather, smallDemo)
 template<class T, class I, class IndexType>
 void reorderCheck(int nElements, bool reallocate = false)
 {
-    cstone::DeviceGather<I, IndexType> devGather;
+    DeviceGather<I, IndexType> devGather;
     if (reallocate)
     {
         // initialize with a small size to trigger buffer reallocation
@@ -100,11 +102,14 @@ void reorderCheck(int nElements, bool reallocate = false)
     std::vector<IndexType> hostOrder(nElements);
     std::iota(begin(hostOrder), end(hostOrder), 0u);
     // capture the ordering that sorts origKeys in hostOrder
-    cstone::sort_by_key(begin(hostKeys), end(hostKeys), begin(hostOrder));
+    sort_by_key(begin(hostKeys), end(hostKeys), begin(hostOrder));
 
     auto tcpu0 = std::chrono::high_resolution_clock::now();
     // apply the hostOrder to the hostValues
-    cstone::reorderInPlace(hostOrder, hostValues.data());
+    std::vector<T> temp(hostValues.size());
+    gather<IndexType>(hostOrder, hostValues.data(), temp.data());
+    swap(hostValues, temp);
+
     auto tcpu1 = std::chrono::high_resolution_clock::now();
     std::cout << "cpu gather Melements/s: "
               << T(nElements) / (1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
@@ -128,20 +133,20 @@ void reorderCheck(int nElements, bool reallocate = false)
 
 TEST(DeviceGather, matchCpu)
 {
-    int nElements = 320000;
+    int numElements = 320000;
 
-    reorderCheck<float, unsigned, unsigned>(nElements);
-    reorderCheck<float, uint64_t, unsigned>(nElements);
-    reorderCheck<double, unsigned, unsigned>(nElements);
-    reorderCheck<double, uint64_t, unsigned>(nElements);
+    reorderCheck<float, unsigned, unsigned>(numElements);
+    reorderCheck<float, uint64_t, unsigned>(numElements);
+    reorderCheck<double, unsigned, unsigned>(numElements);
+    reorderCheck<double, uint64_t, unsigned>(numElements);
 }
 
 TEST(DeviceGather, reallocate)
 {
-    int nElements = 32000;
+    int numElements = 32000;
 
-    reorderCheck<float, unsigned, unsigned>(nElements, true);
-    reorderCheck<float, uint64_t, unsigned>(nElements, true);
-    reorderCheck<double, unsigned, unsigned>(nElements, true);
-    reorderCheck<double, uint64_t, unsigned>(nElements, true);
+    reorderCheck<float, unsigned, unsigned>(numElements, true);
+    reorderCheck<float, uint64_t, unsigned>(numElements, true);
+    reorderCheck<double, unsigned, unsigned>(numElements, true);
+    reorderCheck<double, uint64_t, unsigned>(numElements, true);
 }

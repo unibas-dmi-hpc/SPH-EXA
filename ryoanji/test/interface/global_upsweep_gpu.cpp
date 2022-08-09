@@ -54,7 +54,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     cstone::Box<T> box{-1, 1};
 
     // common pool of coordinates, identical on all ranks
-    RandomGaussianCoordinates<T, cstone::SfcKind<KeyType>> coords(numRanks * numParticles, box);
+    cstone::RandomGaussianCoordinates<T, cstone::SfcKind<KeyType>> coords(numRanks * numParticles, box);
 
     std::vector<T> globalH(numRanks * numParticles, 0.1);
     adjustSmoothingLength<KeyType>(globalH.size(), 5, 10, coords.x(), coords.y(), coords.z(), globalH, box);

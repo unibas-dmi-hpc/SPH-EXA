@@ -123,25 +123,6 @@ void scatter(gsl::span<const IndexType> ordering, const ValueType* source, Value
     }
 }
 
-/*! @brief reorder the input array according to the specified ordering, no reallocation
- *
- * @tparam LocalIndex    integer type
- * @tparam ValueType     float or double
- * @param ordering       an ordering
- * @param array          an array, size >= ordering.size()
- */
-template<class LocalIndex, class ValueType>
-void reorderInPlace(const std::vector<LocalIndex>& ordering, ValueType* array)
-{
-    std::vector<ValueType, util::DefaultInitAdaptor<ValueType>> tmp(ordering.size());
-#pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < ordering.size(); ++i)
-    {
-        tmp[i] = array[ordering[i]];
-    }
-    omp_copy(tmp.begin(), tmp.end(), array);
-}
-
 //! @brief This class conforms to the same interface as the device version to allow abstraction
 template<class CodeType, class IndexType>
 class CpuGather

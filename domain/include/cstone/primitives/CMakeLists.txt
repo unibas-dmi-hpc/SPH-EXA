@@ -3,6 +3,6 @@ if(CMAKE_HIP_COMPILER)
 endif()
 
 if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
-    add_library(gather_gpu_obj OBJECT primitives_gpu.cu)
-    target_include_directories(gather_gpu_obj PRIVATE ${PROJECT_SOURCE_DIR}/include)
+    add_library(primitives_gpu_obj OBJECT primitives_gpu.cu)
+    target_include_directories(primitives_gpu_obj PRIVATE ${PROJECT_SOURCE_DIR}/include)
 endif()
