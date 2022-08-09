@@ -38,32 +38,34 @@
 #include <cassert>
 #include <cmath>
 
-#include "box.hpp"
 #include "cstone/primitives/mpi_wrappers.hpp"
+#include "box.hpp"
 
 namespace cstone
 {
 
 //! @brief compute minimum and maximum of an array range with an OpenMP reduction
-template<class Iterator>
-auto localMinMax(Iterator start, Iterator end)
+template<class T>
+struct MinMax
 {
-    assert(end >= start);
-    using T = std::decay_t<decltype(*start)>;
+    std::tuple<T, T> operator()(const T* start, const T* end)
+    {
+        assert(end >= start);
 
-    T minimum = INFINITY;
-    T maximum = -INFINITY;
+        T minimum = INFINITY;
+        T maximum = -INFINITY;
 
 #pragma omp parallel for reduction(min : minimum) reduction(max : maximum)
-    for (size_t pi = 0; pi < std::size_t(end - start); pi++)
-    {
-        T value = start[pi];
-        minimum = std::min(minimum, value);
-        maximum = std::max(maximum, value);
-    }
+        for (size_t pi = 0; pi < std::size_t(end - start); pi++)
+        {
+            T value = start[pi];
+            minimum = std::min(minimum, value);
+            maximum = std::max(maximum, value);
+        }
 
-    return std::make_tuple(minimum, maximum);
-}
+        return std::make_tuple(minimum, maximum);
+    }
+};
 
 /*! @brief compute global bounding box for local x,y,z arrays
  *
@@ -79,16 +81,16 @@ auto localMinMax(Iterator start, Iterator end)
  * For each periodic dimension, limits are fixed and will not be modified.
  * For non-periodic dimensions, limits are determined by global min/max.
  */
-template<class T>
+template<class T, class Op = MinMax<T>>
 auto makeGlobalBox(const T* x, const T* y, const T* z, size_t numElements, const Box<T>& previousBox = Box<T>(0, 1))
 {
     std::array<T, 6> extrema;
     std::tie(extrema[0], extrema[1]) =
-        previousBox.pbcX() ? std::make_tuple(previousBox.xmin(), previousBox.xmax()) : localMinMax(x, x + numElements);
+        previousBox.pbcX() ? std::make_tuple(previousBox.xmin(), previousBox.xmax()) : Op{}(x, x + numElements);
     std::tie(extrema[2], extrema[3]) =
-        previousBox.pbcY() ? std::make_tuple(previousBox.ymin(), previousBox.ymax()) : localMinMax(y, y + numElements);
+        previousBox.pbcY() ? std::make_tuple(previousBox.ymin(), previousBox.ymax()) : Op{}(y, y + numElements);
     std::tie(extrema[4], extrema[5]) =
-        previousBox.pbcZ() ? std::make_tuple(previousBox.zmin(), previousBox.zmax()) : localMinMax(z, z + numElements);
+        previousBox.pbcZ() ? std::make_tuple(previousBox.zmin(), previousBox.zmax()) : Op{}(z, z + numElements);
 
     if (!previousBox.pbcX() || !previousBox.pbcY() || !previousBox.pbcZ())
     {

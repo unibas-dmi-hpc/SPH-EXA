@@ -24,12 +24,14 @@
  */
 
 /*! @file
- * @brief  Utility for GPU-direct domain particle exchange
+ * @brief  Basic algorithms on the GPU
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
+
+#include <tuple>
 
 #include "cstone/util/array.hpp"
 
@@ -38,5 +40,11 @@ namespace cstone
 
 template<class T, class IndexType>
 extern void gatherGpu(const IndexType* ordering, size_t numElements, const T* src, T* buffer);
+
+template<class T>
+struct MinMaxGpu
+{
+    std::tuple<T, T> operator()(const T* first, const T* last);
+};
 
 } // namespace cstone

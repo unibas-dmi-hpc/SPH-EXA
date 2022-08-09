@@ -51,7 +51,7 @@ TEST(GlobalBox, localMinMax)
     std::mt19937 g(rd());
     std::shuffle(begin(x), end(x), g);
 
-    auto [gmin, gmax] = localMinMax(begin(x), end(x));
+    auto [gmin, gmax] = MinMax<T>{}(x.data(), x.data() + x.size());
     EXPECT_EQ(gmin, T(1));
     EXPECT_EQ(gmax, T(numElements));
 }

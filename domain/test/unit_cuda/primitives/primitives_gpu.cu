@@ -24,39 +24,29 @@
  */
 
 /*! @file
- * @brief  Utility for GPU-direct domain particle exchange
+ * @brief Cornerstone octree GPU testing
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ *
  */
 
-#include "gather_gpu.hpp"
+#include <vector>
+#include <thrust/device_vector.h>
 
-#include "cstone/util/util.hpp"
+#include "gtest/gtest.h"
 
-namespace cstone
+#include "cstone/primitives/primitives_gpu.hpp"
+
+using namespace cstone;
+
+TEST(PrimitivesGpu, MinMax)
 {
+    using thrust::raw_pointer_cast;
 
-template<class T, class IndexType>
-__global__ void gatherGpuKernel(const IndexType* map, size_t n, const T* source, T* destination)
-{
-    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+    thrust::device_vector<double> v = std::vector<double>{1., 2., 3., 4., 5., 6., 7., 8., 9., 10.};
 
-    if (tid < n) { destination[tid] = source[map[tid]]; }
+    auto minMax = MinMaxGpu<double>{}(raw_pointer_cast(v.data()), raw_pointer_cast(v.data()) + v.size());
+
+    EXPECT_EQ(std::get<0>(minMax), 1.);
+    EXPECT_EQ(std::get<1>(minMax), 10.);
 }
-
-template<class T, class IndexType>
-void gatherGpu(const IndexType* map, size_t n, const T* source, T* destination)
-{
-    int numThreads = 256;
-    int numBlocks  = iceil(n, numThreads);
-
-    gatherGpuKernel<<<numBlocks, numThreads>>>(map, n, source, destination);
-}
-
-template void gatherGpu(const unsigned*, size_t, const int*, int*);
-template void gatherGpu(const unsigned*, size_t, const util::array<float, 1>*, util::array<float, 1>*);
-template void gatherGpu(const unsigned*, size_t, const util::array<float, 2>*, util::array<float, 2>*);
-template void gatherGpu(const unsigned*, size_t, const util::array<float, 3>*, util::array<float, 3>*);
-template void gatherGpu(const unsigned*, size_t, const util::array<float, 4>*, util::array<float, 4>*);
-
-} // namespace cstone

@@ -32,8 +32,8 @@
 #pragma once
 
 #include "cstone/cuda/errorcheck.cuh"
-#include "cstone/primitives/gather_gpu.hpp"
 #include "cstone/primitives/mpi_cuda.cuh"
+#include "cstone/primitives/primitives_gpu.hpp"
 #include "cstone/util/thrust_alloc.cuh"
 
 #include "domaindecomp.hpp"
