@@ -37,5 +37,8 @@ if (CMAKE_CUDA_COMPILER)
 
     addMpiTest(exchange_domain_gpu.cpp exchange_domain_gpu GlobalDomainExchangeGpu 2)
     target_link_libraries(exchange_domain_gpu cstone_gpu CUDA::cudart)
+
+    addMpiTest(assignment_gpu.cpp assignment_gpu AssignmentGpu 2)
+    target_link_libraries(assignment_gpu cstone_gpu CUDA::cudart)
 endif()
 

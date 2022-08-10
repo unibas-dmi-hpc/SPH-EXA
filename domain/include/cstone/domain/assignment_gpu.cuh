@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +38,7 @@
 #include "cstone/tree/octree_internal.hpp"
 #include "cstone/tree/octree_mpi.hpp"
 #include "cstone/sfc/box_mpi.hpp"
-#include "cstone/sfc/sfc.hpp"
+#include "cstone/sfc/sfc.cuh"
 
 
 namespace cstone
@@ -88,13 +87,14 @@ public:
         // number of locally assigned particles to consider for global tree building
         LocalIndex numParticles = bufDesc.end - bufDesc.start;
 
-        box_ = makeGlobalBox(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start, numParticles, box_);
+        box_ =
+            makeGlobalBox<T, MinMaxGpu<T>>(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start, numParticles, box_);
 
         gsl::span<KeyType> keyView(particleKeys + bufDesc.start, numParticles);
 
         // compute SFC particle keys only for particles participating in tree build
-        computeSfcKeys(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start, sfcKindPointer(keyView.data()),
-                       numParticles, box_);
+        computeSfcKeysGpu(sfcKindPointer(keyView.data()), x + bufDesc.start, y + bufDesc.start, z + bufDesc.start,
+                          numParticles, box_);
 
         // sort keys and keep track of ordering for later use
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
@@ -106,6 +106,10 @@ public:
             oldBoundaries[rank] = oldLeaves[assignment_.firstNodeIdx(rank)];
         }
         oldBoundaries.back() = nodeRange<KeyType>(0);
+
+        std::vector<KeyType> host_keys(keyView.size());
+        cudaMemcpy(host_keys.data(), particleKeys, host_keys.size() * sizeof(KeyType), cudaMemcpyDeviceToHost);
+        keyView = gsl::span<KeyType>(host_keys);
 
         updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_);
 
@@ -171,7 +175,7 @@ public:
         LocalIndex envelopeSize = newEnd - newStart;
         keyView                 = gsl::span<KeyType>(keys + newStart, envelopeSize);
 
-        computeSfcKeys(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.begin()), envelopeSize, box_);
+        computeSfcKeysGpu(sfcKindPointer(keyView.begin()), x + newStart, y + newStart, z + newStart, envelopeSize, box_);
         // sort keys and keep track of the ordering
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 

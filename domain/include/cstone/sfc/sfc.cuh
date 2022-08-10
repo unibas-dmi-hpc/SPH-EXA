@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +36,6 @@ namespace cstone
 {
 
 template<class KeyType, class T>
-extern void computeSfcRealKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box);
+extern void computeSfcKeysGpu(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box);
 
 } // namespace cstone

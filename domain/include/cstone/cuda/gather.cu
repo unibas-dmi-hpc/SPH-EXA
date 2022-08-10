@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -226,5 +225,44 @@ template void DeviceGather<unsigned, unsigned>::operator()(const float*, float*)
 
 template void DeviceGather<uint64_t, unsigned>::operator()(const double*, double*) const;
 template void DeviceGather<uint64_t, unsigned>::operator()(const float*, float*) const;
+
+template<class KeyType, class IndexType>
+DeviceSfcSort<KeyType, IndexType>::DeviceSfcSort()
+    : deviceMemory_(std::make_unique<DeviceMemory<IndexType>>())
+{
+}
+
+template<class KeyType, class IndexType>
+DeviceSfcSort<KeyType, IndexType>::~DeviceSfcSort() = default;
+
+template<class KeyType, class IndexType>
+void DeviceSfcSort<KeyType, IndexType>::getReorderMap(IndexType* map_first, IndexType first, IndexType last)
+{
+    cudaMemcpy(map_first, deviceMemory_->ordering() + first, (last - first) * sizeof(IndexType),
+               cudaMemcpyDeviceToHost);
+}
+
+template<class KeyType, class IndexType>
+void DeviceSfcSort<KeyType, IndexType>::setMapFromCodes(KeyType* codes_first, KeyType* codes_last)
+{
+    offset_     = 0;
+    mapSize_    = codes_last - codes_first;
+    numExtract_ = mapSize_;
+    deviceMemory_->reallocate(mapSize_);
+
+    constexpr int nThreads = 256;
+    int nBlocks            = (mapSize_ + nThreads - 1) / nThreads;
+    iotaKernel<<<nBlocks, nThreads>>>(deviceMemory_->ordering(), mapSize_, 0);
+    checkGpuErrors(cudaGetLastError());
+
+    // sort SFC keys on device, track new ordering on the device
+    thrust::sort_by_key(thrust::device, thrust::device_pointer_cast(codes_first),
+                        thrust::device_pointer_cast(codes_last),
+                        thrust::device_pointer_cast(deviceMemory_->ordering()));
+    checkGpuErrors(cudaGetLastError());
+}
+
+template class DeviceSfcSort<unsigned, unsigned>;
+template class DeviceSfcSort<uint64_t, unsigned>;
 
 } // namespace cstone

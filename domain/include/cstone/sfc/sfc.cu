@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,35 +36,35 @@ namespace cstone
 
 template<class KeyType, class T>
 __global__ void
-computeSfcKeysRealKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T> box)
+computeSfcKeysKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T> box)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < numKeys) { keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box); }
 }
 
 template<class KeyType, class T>
-void computeSfcRealKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
+void computeSfcKeysGpu(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
 {
     constexpr int threadsPerBlock = 256;
-    computeSfcKeysRealKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
+    computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
 }
 
 template void
-computeSfcRealKeys(MortonKey<unsigned>*, const float*, const float*, const float*, size_t, const Box<float>&);
+computeSfcKeysGpu(MortonKey<unsigned>*, const float*, const float*, const float*, size_t, const Box<float>&);
 template void
-computeSfcRealKeys(MortonKey<unsigned>*, const double*, const double*, const double*, size_t, const Box<double>&);
+computeSfcKeysGpu(MortonKey<unsigned>*, const double*, const double*, const double*, size_t, const Box<double>&);
 template void
-computeSfcRealKeys(MortonKey<uint64_t>*, const float*, const float*, const float*, size_t, const Box<float>&);
+computeSfcKeysGpu(MortonKey<uint64_t>*, const float*, const float*, const float*, size_t, const Box<float>&);
 template void
-computeSfcRealKeys(MortonKey<uint64_t>*, const double*, const double*, const double*, size_t, const Box<double>&);
+computeSfcKeysGpu(MortonKey<uint64_t>*, const double*, const double*, const double*, size_t, const Box<double>&);
 
 template void
-computeSfcRealKeys(HilbertKey<unsigned>*, const float*, const float*, const float*, size_t, const Box<float>&);
+computeSfcKeysGpu(HilbertKey<unsigned>*, const float*, const float*, const float*, size_t, const Box<float>&);
 template void
-computeSfcRealKeys(HilbertKey<unsigned>*, const double*, const double*, const double*, size_t, const Box<double>&);
+computeSfcKeysGpu(HilbertKey<unsigned>*, const double*, const double*, const double*, size_t, const Box<double>&);
 template void
-computeSfcRealKeys(HilbertKey<uint64_t>*, const float*, const float*, const float*, size_t, const Box<float>&);
+computeSfcKeysGpu(HilbertKey<uint64_t>*, const float*, const float*, const float*, size_t, const Box<float>&);
 template void
-computeSfcRealKeys(HilbertKey<uint64_t>*, const double*, const double*, const double*, size_t, const Box<double>&);
+computeSfcKeysGpu(HilbertKey<uint64_t>*, const double*, const double*, const double*, size_t, const Box<double>&);
 
 } // namespace cstone

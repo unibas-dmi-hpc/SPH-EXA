@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,5 +46,9 @@ void reallocateDevice(Vector& vector, size_t size, double growthRate)
 template void reallocateDevice(thrust::device_vector<double>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<float>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<int>&, size_t, double);
+template void reallocateDevice(thrust::device_vector<long>&, size_t, double);
+template void reallocateDevice(thrust::device_vector<long long>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<unsigned>&, size_t, double);
+template void reallocateDevice(thrust::device_vector<unsigned long>&, size_t, double);
+template void reallocateDevice(thrust::device_vector<unsigned long long>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<char>&, size_t, double);
