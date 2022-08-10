@@ -93,8 +93,8 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     multipoleHolder.upsweep(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), domain.globalTree(), domain.focusTree(),
                             domain.layout().data(), multipoles.data());
 
-    cudaMemcpy(multipoles.data(), multipoleHolder.deviceMultipoles(), multipoles.size() * sizeof(MultipoleType),
-               cudaMemcpyDeviceToHost);
+    auto devM = thrust::device_pointer_cast(multipoleHolder.deviceMultipoles());
+    thrust::copy(devM, devM + multipoles.size(), multipoles.data());
 
     MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];
 
