@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "gpu_config.h"
+#include "gpu_config.cuh"
 #include "types.h"
 
 namespace ryoanji

@@ -33,7 +33,7 @@
 
 #include "multipole_holder.cuh"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
-#include "ryoanji/nbody/gpu_config.h"
+#include "ryoanji/nbody/gpu_config.cuh"
 #include "ryoanji/nbody/upwardpass.cuh"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
 #include "ryoanji/nbody/traversal.cuh"

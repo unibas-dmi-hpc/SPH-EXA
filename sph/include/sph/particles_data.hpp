@@ -46,7 +46,7 @@
 #include "particles_data_stubs.hpp"
 
 #if defined(USE_CUDA)
-#include "sph/util/pinned_allocator.h"
+#include "sph/util/pinned_allocator.cuh"
 #include "particles_data_gpu.cuh"
 #endif
 

@@ -35,7 +35,7 @@
 #include <thrust/device_vector.h>
 
 #include "dataset.hpp"
-#include "ryoanji/nbody/gpu_config.h"
+#include "ryoanji/nbody/gpu_config.cuh"
 #include "ryoanji/nbody/direct.cuh"
 #include "ryoanji/nbody/traversal_cpu.hpp"
 

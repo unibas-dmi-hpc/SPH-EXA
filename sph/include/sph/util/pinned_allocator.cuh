@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-/*! \file thrust/system/cuda/experimental/pinned_allocator.h
+/*! @file
  *  \brief An allocator which creates new elements in "pinned" memory with \p cudaMallocHost
  */
 
@@ -24,18 +24,12 @@
 #include <limits>
 #include <string>
 
-#include <cuda.h>
 #include <cuda_runtime.h>
 
-/*! \addtogroup memory_management_classes
- *  \ingroup memory_management
- *  \{
- */
-
-/*! \p pinned_allocator is a CUDA-specific host memory allocator
- *  that employs \c cudaMallocHost for allocation.
+/*! @brief pinned_allocator is a CUDA-specific host memory allocator
+ *  that employs @c cudaMallocHost for allocation.
  *
- *  \see http://www.sgi.com/tech/stl/Allocators.html
+ *  @see http://www.sgi.com/tech/stl/Allocators.html
  */
 template<typename T>
 class pinned_allocator;

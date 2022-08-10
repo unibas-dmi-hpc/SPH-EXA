@@ -28,7 +28,7 @@
 
 #include "nbody/dataset.hpp"
 #include "ryoanji/interface/treebuilder.cuh"
-#include "ryoanji/nbody/gpu_config.h"
+#include "ryoanji/nbody/gpu_config.cuh"
 #include "ryoanji/nbody/types.h"
 #include "ryoanji/nbody/traversal.cuh"
 #include "ryoanji/nbody/direct.cuh"

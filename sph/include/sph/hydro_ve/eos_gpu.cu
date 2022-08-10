@@ -61,7 +61,7 @@ void computeEOS(size_t firstParticle, size_t lastParticle, Tu gamma, const Tu* u
     int numThreads = 256;
     int numBlocks  = iceil(lastParticle - firstParticle, numThreads);
     cudaEOS<<<numBlocks, numThreads>>>(firstParticle, lastParticle, gamma, u, m, kx, xm, gradh, prho, c);
-    CHECK_CUDA_ERR(cudaDeviceSynchronize());
+    checkGpuErrors(cudaDeviceSynchronize());
 }
 
 template void computeEOS(size_t, size_t, double, const double*, const double*, const double*, const double*,

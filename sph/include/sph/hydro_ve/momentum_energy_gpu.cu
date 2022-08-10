@@ -107,7 +107,7 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, int ngmax, Datase
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
     float huge = 1e10;
-    CHECK_CUDA_ERR(cudaMemcpyToSymbol(minDt_ve_device, &huge, sizeof(huge)));
+    checkGpuErrors(cudaMemcpyToSymbol(minDt_ve_device, &huge, sizeof(huge)));
 
     momentumEnergyGpu<<<numBlocks, numThreads>>>(
         d.sincIndex, d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, ngmax, box, startIndex, endIndex, sizeWithHalos,
@@ -117,10 +117,10 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, int ngmax, Datase
         rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.kx),
         rawPtr(d.devData.xm), rawPtr(d.devData.alpha), rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az),
         rawPtr(d.devData.du));
-    CHECK_CUDA_ERR(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 
     float minDt;
-    CHECK_CUDA_ERR(cudaMemcpyFromSymbol(&minDt, minDt_ve_device, sizeof(minDt)));
+    checkGpuErrors(cudaMemcpyFromSymbol(&minDt, minDt_ve_device, sizeof(minDt)));
     d.minDt_loc = minDt;
 }
 

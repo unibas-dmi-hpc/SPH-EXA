@@ -87,7 +87,7 @@ void computeVeDefGradh(size_t startIndex, size_t endIndex, int ngmax, Dataset& d
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh),
         rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx), rawPtr(d.devData.gradh));
 
-    CHECK_CUDA_ERR(cudaDeviceSynchronize());
+    checkGpuErrors(cudaDeviceSynchronize());
 }
 
 template void computeVeDefGradh(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

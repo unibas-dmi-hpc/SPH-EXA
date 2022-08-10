@@ -104,7 +104,7 @@ void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dat
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
     float huge = 1e10;
-    CHECK_CUDA_ERR(cudaMemcpyToSymbol(minDt_device, &huge, sizeof(huge)));
+    checkGpuErrors(cudaMemcpyToSymbol(minDt_device, &huge, sizeof(huge)));
 
     cudaGradP<<<numBlocks, numThreads>>>(
         d.sincIndex, d.K, d.Kcour, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes),
@@ -114,10 +114,10 @@ void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dat
         rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.ax),
         rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.du));
 
-    CHECK_CUDA_ERR(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 
     float minDt;
-    CHECK_CUDA_ERR(cudaMemcpyFromSymbol(&minDt, minDt_device, sizeof(minDt)));
+    checkGpuErrors(cudaMemcpyFromSymbol(&minDt, minDt_device, sizeof(minDt)));
     d.minDt_loc = minDt;
 }
 
