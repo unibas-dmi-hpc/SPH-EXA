@@ -248,7 +248,7 @@ sph:base:cuda:
     - echo "skipping build of base image"
   variables:
     VARIANT: 'cuda'
-    PERSIST_IMAGE_NAME: 'sph-exa_base:skip'
+    PERSIST_IMAGE_NAME: '$CSCS_REGISTRY_PATH/sph-exa_base:skip'
 #}}}
 #}}}
 #{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda --> sph-exa_install:cuda
@@ -268,7 +268,7 @@ sph:install:cuda:
     BUILD_ANALYTICAL: 'ON'
     SPH_EXA_WITH_HIP: 'OFF'
     CMAKE_BUILD_TYPE: 'Debug'
-    PERSIST_IMAGE_NAME: 'sph-exa_install:cuda'
+    PERSIST_IMAGE_NAME: '$CSCS_REGISTRY_PATH/sph-exa_install:cuda'
     # TODO: HDF5
     # TODO: INSITU
     # TODO: ./sphexa --init evrard_65k.h5 --grav
