@@ -255,7 +255,8 @@ sph:base:cuda:
 sph:install:cuda:
   stage: SPHinstall
   extends: .sph-install
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:cuda
+  image: $CSCS_REGISTRY_PATH/sph-exa_base:cuda
+  # image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:cuda
   needs: ['sph:base:cuda']
   tags:
     - $jfrogtag
@@ -277,7 +278,7 @@ sph:install:cuda:
 sph:test:cuda:1:
   stage: SPHtest
   extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  image: $CSCS_REGISTRY_PATH/sph-exa_install:cuda
   needs: ['sph:install:cuda']
   script:
     - date
@@ -297,7 +298,7 @@ sph:test:cuda:1:
 sph:test:cuda:2:
   stage: SPHtest
   extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  image: $CSCS_REGISTRY_PATH/sph-exa_install:cuda
   needs: ['sph:install:cuda']
   script:
     - date
@@ -318,7 +319,7 @@ sph:test:cuda:2:
 sph:test:cuda:5:
   stage: SPHtest
   extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  image: $CSCS_REGISTRY_PATH/sph-exa_install:cuda
   needs: ['sph:install:cuda']
   script:
     - date
@@ -340,7 +341,7 @@ sph:test:cuda:5:
 sph:test:cuda:p100:
   stage: SPHtest
   extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  image: $CSCS_REGISTRY_PATH/sph-exa_install:cuda
   needs: ['sph:install:cuda']
   #needs: ['build:ubu:gnu']
   script:
@@ -363,7 +364,7 @@ sph:test:cuda:p100:
 sph:test:cuda:sphexa:cpu:
   stage: SPHtest
   extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  image: $CSCS_REGISTRY_PATH/sph-exa_install:cuda
   needs: ['sph:install:cuda']
   script:
     - date
@@ -384,7 +385,7 @@ sph:test:cuda:sphexa:cpu:
 sph:test:cuda:sphexa:gpu:
   stage: SPHtest
   extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  image: $CSCS_REGISTRY_PATH/sph-exa_install:cuda
   needs: ['sph:install:cuda']
   script:
     - date
