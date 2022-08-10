@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,9 +35,9 @@
 #include <vector>
 
 #include "cstone/findneighbors.hpp"
-#include "density_kern.hpp"
+
 #include "sph/sph.cuh"
-#include "sph/particles_data_stubs.hpp"
+#include "density_kern.hpp"
 
 namespace sph
 {

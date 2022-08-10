@@ -33,7 +33,7 @@
 
 #include <random>
 
-#include "sph/util/cuda_utils.hpp"
+#include "cstone/cuda/cuda_utils.hpp"
 #include "sph/hydro_turb/stirring.hpp"
 #include "sph/hydro_turb/phases.hpp"
 

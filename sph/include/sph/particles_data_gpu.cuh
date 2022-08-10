@@ -35,8 +35,9 @@
 #include <thrust/host_vector.h>
 #include <variant>
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/util/util.hpp"
-#include "util/cuda_utils.cuh"
+
 #include "data_util.hpp"
 #include "field_states.hpp"
 #include "tables.hpp"

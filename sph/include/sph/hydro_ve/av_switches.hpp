@@ -31,9 +31,10 @@
 
 #pragma once
 
-#include "av_switches_kern.hpp"
 #include "sph/sph.cuh"
 #include "sph/particles_data_stubs.hpp"
+
+#include "av_switches_kern.hpp"
 
 namespace sph
 {

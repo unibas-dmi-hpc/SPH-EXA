@@ -31,9 +31,10 @@
 
 #pragma once
 
-#include "momentum_energy_kern.hpp"
 #include "sph/sph.cuh"
 #include "sph/particles_data_stubs.hpp"
+
+#include "momentum_energy_kern.hpp"
 
 namespace sph
 {

@@ -29,12 +29,12 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/findneighbors.cuh"
+
 #include "sph/sph.cuh"
 #include "sph/particles_data.hpp"
-#include "sph/util/cuda_utils.cuh"
 #include "sph/hydro_ve/xmass_kern.hpp"
-
-#include "cstone/cuda/findneighbors.cuh"
 
 namespace sph
 {

@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <thrust/device_vector.h>
 
-#include "cstone/cuda/errorcheck.cuh"
+#include "errorcheck.cuh"
 
 template<class ThrustVec>
 typename ThrustVec::value_type* rawPtr(ThrustVec& p)

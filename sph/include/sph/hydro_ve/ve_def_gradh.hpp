@@ -31,9 +31,10 @@
 
 #pragma once
 
-#include "ve_def_gradh_kern.hpp"
 #include "sph/sph.cuh"
 #include "sph/particles_data_stubs.hpp"
+
+#include "ve_def_gradh_kern.hpp"
 
 namespace sph
 {

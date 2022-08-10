@@ -31,10 +31,10 @@
 
 #pragma once
 
-#include "sph/kernels.hpp"
-#include "sph/particles_data_stubs.hpp"
-#include "xmass_kern.hpp"
 #include "sph/sph.cuh"
+#include "sph/particles_data_stubs.hpp"
+
+#include "xmass_kern.hpp"
 
 namespace sph
 {

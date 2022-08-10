@@ -2,6 +2,8 @@
 
 #include "cstone/sfc/box.hpp"
 
+#include "sph/kernels.hpp"
+#include "sph/math.hpp"
 #include "sph/tables.hpp"
 
 namespace sph

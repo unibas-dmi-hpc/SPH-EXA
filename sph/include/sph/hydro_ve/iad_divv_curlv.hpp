@@ -31,10 +31,11 @@
 
 #pragma once
 
-#include "iad_kern.hpp"
-#include "divv_curlv_kern.hpp"
 #include "sph/sph.cuh"
 #include "sph/particles_data_stubs.hpp"
+
+#include "divv_curlv_kern.hpp"
+#include "iad_kern.hpp"
 
 namespace sph
 {

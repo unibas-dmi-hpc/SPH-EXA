@@ -29,12 +29,12 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/util/tuple.hpp"
 #include "cstone/util/util.hpp"
 
 #include "sph/sph.cuh"
 #include "sph/eos.hpp"
-#include "sph/util/cuda_utils.cuh"
 
 namespace sph
 {
