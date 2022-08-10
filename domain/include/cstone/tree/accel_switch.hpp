@@ -33,9 +33,6 @@
 
 #include <type_traits>
 
-#include "cstone/primitives/gather.hpp"
-#include "cstone/cuda/gather.cuh"
-
 namespace cstone
 {
 
@@ -47,7 +44,7 @@ struct GpuTag
 };
 
 template<class AccType>
-struct HaveGpu : public stl::integral_constant<int, std::is_same_v<AccType, GpuTag>>
+struct HaveGpu : public std::integral_constant<int, std::is_same_v<AccType, GpuTag>>
 {
 };
 
