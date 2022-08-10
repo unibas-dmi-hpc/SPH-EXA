@@ -33,7 +33,7 @@
 #include "cstone/util/tuple.hpp"
 #include "cstone/util/util.hpp"
 
-#include "sph/sph.cuh"
+#include "sph/sph_gpu.hpp"
 #include "sph/eos.hpp"
 
 namespace sph

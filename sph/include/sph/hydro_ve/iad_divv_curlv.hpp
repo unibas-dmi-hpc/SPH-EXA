@@ -31,9 +31,7 @@
 
 #pragma once
 
-#include "sph/sph.cuh"
-#include "sph/particles_data_stubs.hpp"
-
+#include "sph/sph_gpu.hpp"
 #include "divv_curlv_kern.hpp"
 #include "iad_kern.hpp"
 
@@ -76,7 +74,7 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, int ngmax, Data
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
-        int    nc = stl::min(neighborsCount[i], ngmax);
+        int    nc = std::min(neighborsCount[i], ngmax);
 
         IADJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22, c23,
                  c33);

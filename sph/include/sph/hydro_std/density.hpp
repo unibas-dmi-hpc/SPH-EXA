@@ -36,7 +36,7 @@
 
 #include "cstone/findneighbors.hpp"
 
-#include "sph/sph.cuh"
+#include "sph/sph_gpu.hpp"
 #include "density_kern.hpp"
 
 namespace sph
@@ -71,7 +71,7 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& 
 
         size_t ni = i - startIndex;
 
-        int nc = stl::min(neighborsCount[i], ngmax);
+        int nc = std::min(neighborsCount[i], ngmax);
         rho[i] = densityJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd);
 
 #ifndef NDEBUG

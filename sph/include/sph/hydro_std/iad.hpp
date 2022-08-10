@@ -32,7 +32,7 @@
 
 #pragma once
 
-#include "sph/sph.cuh"
+#include "sph/sph_gpu.hpp"
 #include "iad_kern.hpp"
 
 namespace sph
@@ -68,7 +68,7 @@ void computeIADImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, c
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
-        int    nc = stl::min(neighborsCount[i], ngmax);
+        int    nc = std::min(neighborsCount[i], ngmax);
         IADJLoopSTD(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22,
                     c23, c33);
     }

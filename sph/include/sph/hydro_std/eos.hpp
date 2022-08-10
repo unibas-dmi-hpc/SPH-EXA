@@ -33,7 +33,7 @@
 #pragma once
 
 #include "cstone/cuda/cuda_utils.hpp"
-#include "sph/sph.cuh"
+#include "sph/sph_gpu.hpp"
 #include "sph/particles_data_stubs.hpp"
 #include "sph/eos.hpp"
 
