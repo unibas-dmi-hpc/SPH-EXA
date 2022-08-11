@@ -129,7 +129,6 @@ public:
 
         if (error)
         {
-            cudaGetLastError(); // Clear global CUDA error state.
             throw std::bad_alloc();
         } // end if
 
@@ -150,11 +149,8 @@ public:
     {
         cudaError_t error = cudaFreeHost(p);
 
-        cudaGetLastError(); // Clear global CUDA error state.
-
         if (error)
         {
-            cudaGetLastError(); // Clear global CUDA error state.
             throw std::runtime_error("cudaFreeHost error\n");
         } // end if
     }     // end deallocate()
