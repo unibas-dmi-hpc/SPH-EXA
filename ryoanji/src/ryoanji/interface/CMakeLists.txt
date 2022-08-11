@@ -1,5 +1,8 @@
+if(CMAKE_HIP_COMPILER)
+    set_source_files_properties(treebuilder.cu multipole_holder.cu PROPERTIES LANGUAGE HIP)
+endif()
 
-if (CMAKE_CUDA_COMPILER)
+if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     add_library(cstone_tree treebuilder.cu)
     target_include_directories(cstone_tree PUBLIC ${PROJECT_SOURCE_DIR}/src)
     target_include_directories(cstone_tree PUBLIC ${CSTONE_DIR})
