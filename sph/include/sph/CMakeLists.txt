@@ -15,3 +15,4 @@ if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     target_include_directories(sph_gpu PUBLIC ${CSTONE_DIR} ${PROJECT_SOURCE_DIR}/include)
     set_target_properties(sph_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif ()
+
