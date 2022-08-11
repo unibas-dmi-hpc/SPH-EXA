@@ -29,6 +29,8 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <cub/cub.cuh>
+
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/findneighbors.cuh"
 
