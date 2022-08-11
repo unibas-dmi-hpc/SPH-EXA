@@ -20,14 +20,10 @@ auto initMpi()
         printf("# SPHEXA: %s/%s\n", GIT_BRANCH, GIT_COMMIT_HASH);
         MPI_Get_version(&mpi_version, &mpi_subversion);
 #ifdef _OPENMP
-        printf("# %d MPI-%d.%d process(es) with %d OpenMP-%u thread(s)/process\n",
-               numRanks,
-               mpi_version,
-               mpi_subversion,
-               omp_get_max_threads(),
-               _OPENMP);
+        printf("# %d MPI-%d.%d process(es) with %d OpenMP-%u thread(s)/process\n", numRanks, mpi_version,
+               mpi_subversion, omp_get_max_threads(), _OPENMP);
 #else
-        printf("# %d MPI-%d.%d process(es) with 1 OpenMP thread/process\n", numRanks, mpi_version, mpi_subversion);
+        printf("# %d MPI-%d.%d process(es) without OpenMP\n", numRanks, mpi_version, mpi_subversion);
 #endif
     }
     return std::make_tuple(rank, numRanks);
