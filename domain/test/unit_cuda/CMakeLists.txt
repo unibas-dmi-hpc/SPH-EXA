@@ -1,6 +1,6 @@
 include(cstone_add_test)
 
-if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
+if(CMAKE_CUDA_COMPILER)
     set(testname component_units_cuda)
     add_executable(${testname}
             $<TARGET_OBJECTS:gather_obj>

@@ -4,19 +4,13 @@ project(ryoanji CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
-check_language(HIP)
-if(CMAKE_HIP_COMPILER)
-    enable_language(HIP)
-    find_package(hip)
-    set(CMAKE_HIP_STANDARD 17)
-    set(CMAKE_HIP_ARCHITECTURES OFF)
-endif()
-
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     find_package(CUDAToolkit)
     set(CMAKE_CUDA_STANDARD 17)
+else()
+    message(STATUS "No CUDA support")
 endif()
 
 set(default_build_type "Release")

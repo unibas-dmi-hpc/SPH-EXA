@@ -13,6 +13,7 @@ list(APPEND CMAKE_MODULE_PATH
 
 option(BUILD_TESTING "build unit and integration tests" ON)
 option(BUILD_ANALYTICAL "build analytical solution" ON)
+
 option(GPU_DIRECT "Enable CUDA-aware MPI communication" OFF)
 
 if (BUILD_TESTING)
@@ -42,13 +43,20 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+
 check_language(HIP)
 if(CMAKE_HIP_COMPILER)
+    set(CMAKE_MODULE_PATH "$ENV{HIP_PATH}/cmake" ${CMAKE_MODULE_PATH})
+
+    find_package(HIP)
     enable_language(HIP)
-    find_package(hip)
-    find_package(rocThrust)
-    set(CMAKE_HIP_STANDARD 17)
-    set(CMAKE_HIP_ARCHITECTURES OFF)
+
+    set(CMAKE_HIP_FLAGS "-w -DUSE_HIP \
+                         -I$ENV{GCC_X86_64}/include/g++/x86_64-suse-linux \
+                         -I$ENV{GCC_X86_64}/include/g++ \
+                         -L$ENV{GCC_X86_64}/lib64 \
+                         -I$ENV{HIP_PATH}/include \
+    ")
 endif()
 
 check_language(CUDA)
