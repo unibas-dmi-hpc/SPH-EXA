@@ -190,7 +190,7 @@ private:
 template<class DataType, std::enable_if_t<cstone::HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
 void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
 {
-    auto hostData = d.data();
+    auto hostData   = d.data();
     auto deviceData = d.devData.data();
 
     auto launchTransfer = [first, last](const auto* hostField, auto* deviceField)
@@ -202,11 +202,10 @@ void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<
             assert(hostField->size() > 0);
             assert(deviceField->size() > 0);
             size_t transferSize = (last - first) * sizeof(typename Type1::value_type);
-            checkGpuErrors(cudaMemcpy(
-                rawPtr(*deviceField) + first, hostField->data() + first, transferSize, cudaMemcpyHostToDevice));
+            checkGpuErrors(cudaMemcpy(rawPtr(*deviceField) + first, hostField->data() + first, transferSize,
+                                      cudaMemcpyHostToDevice));
         }
-        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
-        }
+        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device"); }
     };
 
     for (const auto& field : fields)
@@ -232,11 +231,10 @@ void transferToHost(DataType& d, size_t first, size_t last, const std::vector<st
             assert(hostField->size() > 0);
             assert(deviceField->size() > 0);
             size_t transferSize = (last - first) * sizeof(typename Type1::value_type);
-            checkGpuErrors(cudaMemcpy(
-                hostField->data() + first, rawPtr(*deviceField) + first, transferSize, cudaMemcpyDeviceToHost));
+            checkGpuErrors(cudaMemcpy(hostField->data() + first, rawPtr(*deviceField) + first, transferSize,
+                                      cudaMemcpyDeviceToHost));
         }
-        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
-        }
+        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device"); }
     };
 
     for (const auto& field : fields)

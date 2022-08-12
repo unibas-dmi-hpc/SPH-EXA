@@ -179,12 +179,12 @@ __device__ void directAcc(Vec4<Tc> sourceBody, Tm hSource, Vec4<Ta> acc_i[TravCo
  */
 template<class Tc, class Tm, class Tf, class MType>
 __device__ util::tuple<unsigned, unsigned>
-traverseWarp(Vec4<Tc>* acc_i, const Vec4<Tc> pos_i[TravConfig::nwt], const Vec3<Tf> targetCenter,
-             const Vec3<Tf> targetSize, const Tc* __restrict__ x, const Tc* __restrict__ y, const Tc* __restrict__ z,
-             const Tm* __restrict__ m, const Tm* __restrict__ h, const TreeNodeIndex* __restrict__ childOffsets,
-             const TreeNodeIndex* __restrict__ internalToLeaf, const LocalIndex* __restrict__ layout,
-             const Vec4<Tf>* __restrict__ sourceCenter, const MType* __restrict__ Multipoles, int2 rootRange,
-             volatile int* tempQueue, int* cellQueue)
+           traverseWarp(Vec4<Tc>* acc_i, const Vec4<Tc> pos_i[TravConfig::nwt], const Vec3<Tf> targetCenter,
+                        const Vec3<Tf> targetSize, const Tc* __restrict__ x, const Tc* __restrict__ y, const Tc* __restrict__ z,
+                        const Tm* __restrict__ m, const Tm* __restrict__ h, const TreeNodeIndex* __restrict__ childOffsets,
+                        const TreeNodeIndex* __restrict__ internalToLeaf, const LocalIndex* __restrict__ layout,
+                        const Vec4<Tf>* __restrict__ sourceCenter, const MType* __restrict__ Multipoles, int2 rootRange,
+                        volatile int* tempQueue, int* cellQueue)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
@@ -219,13 +219,13 @@ traverseWarp(Vec4<Tc>* acc_i, const Vec4<Tc> pos_i[TravConfig::nwt], const Vec3<
         const bool     isClose    = applyMAC(curSrcCenter, MAC[3], targetCenter, targetSize); // Is too close for MAC
         const bool     isSource   = sourceIdx < numSources; // Source index is within bounds
         const bool     isDirect   = isClose && !isNode && isSource;
-        const int      leafIdx    = (isDirect) ? internalToLeaf[sourceQueue] : 0;  // the cstone leaf index
+        const int      leafIdx    = (isDirect) ? internalToLeaf[sourceQueue] : 0; // the cstone leaf index
 
         // Split
-        const bool isSplit      = isNode && isClose && isSource;       // Source cell must be split
-        const int  numChild     = 8 & -int(isSplit);                   // Number of child cells (masked by split flag)
-        const int  numChildScan = inclusiveScanInt(numChild);          // Inclusive scan of numChild
-        const int  numChildLane = numChildScan - numChild;             // Exclusive scan of numChild
+        const bool isSplit      = isNode && isClose && isSource; // Source cell must be split
+        const int  numChild     = 8 & -int(isSplit);             // Number of child cells (masked by split flag)
+        const int  numChildScan = inclusiveScanInt(numChild);    // Inclusive scan of numChild
+        const int  numChildLane = numChildScan - numChild;       // Exclusive scan of numChild
         const int  numChildWarp = shflSync(numChildScan, GpuConfig::warpSize - 1); // Total numChild of current warp
         sourceOffset += imin(GpuConfig::warpSize, numSources - sourceOffset);  // advance current level stack pointer
         if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp) // If cell queue overflows
@@ -254,13 +254,13 @@ traverseWarp(Vec4<Tc>* acc_i, const Vec4<Tc> pos_i[TravConfig::nwt], const Vec3<
         }
 
         // Direct
-        bool       directTodo    = isDirect;
-        const int  firstBody     = layout[leafIdx];
-        const int  numBodies     = (layout[leafIdx + 1] - firstBody) & -int(isDirect);  // Number of bodies in cell
-        const int  numBodiesScan = inclusiveScanInt(numBodies);                      // Inclusive scan of numBodies
-        int        numBodiesLane = numBodiesScan - numBodies;                        // Exclusive scan of numBodies
-        int        numBodiesWarp = shflSync(numBodiesScan, GpuConfig::warpSize - 1); // Total numBodies of current warp
-        int        prevBodyIdx   = 0;
+        bool      directTodo    = isDirect;
+        const int firstBody     = layout[leafIdx];
+        const int numBodies     = (layout[leafIdx + 1] - firstBody) & -int(isDirect); // Number of bodies in cell
+        const int numBodiesScan = inclusiveScanInt(numBodies);                        // Inclusive scan of numBodies
+        int       numBodiesLane = numBodiesScan - numBodies;                          // Exclusive scan of numBodies
+        int       numBodiesWarp = shflSync(numBodiesScan, GpuConfig::warpSize - 1);   // Total numBodies of current warp
+        int       prevBodyIdx   = 0;
         while (numBodiesWarp > 0) // While there are bodies to process from current source cell set
         {
             tempQueue[laneIdx] = 1; // Default scan input is 1, such that consecutive lanes load consecutive bodies
@@ -341,8 +341,8 @@ __device__ unsigned           maxP2PGlob = 0;
 __device__ unsigned long long sumM2PGlob = 0;
 __device__ unsigned           maxM2PGlob = 0;
 
-__device__ float totalPotentialGlob = 0;
-__device__ unsigned int targetCounterGlob = 0;
+__device__ float        totalPotentialGlob = 0;
+__device__ unsigned int targetCounterGlob  = 0;
 
 __global__ void resetTraversalCounters()
 {
@@ -352,7 +352,7 @@ __global__ void resetTraversalCounters()
     maxM2PGlob = 0;
 
     totalPotentialGlob = 0;
-    targetCounterGlob = 0;
+    targetCounterGlob  = 0;
 }
 
 /*! @brief Compute approximate body accelerations with Barnes-Hut
@@ -453,23 +453,9 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
             acc_i[i] = Vec4<Tc>{Tc(0), Tc(0), Tc(0), Tc(0)};
         }
 
-        auto [numM2P, numP2P] = traverseWarp(acc_i,
-                                             pos_i,
-                                             targetCenter,
-                                             targetSize,
-                                             x,
-                                             y,
-                                             z,
-                                             m,
-                                             h,
-                                             childOffsets,
-                                             internalToLeaf,
-                                             layout,
-                                             sourceCenter,
-                                             Multipoles,
-                                             rootRange,
-                                             tempQueue,
-                                             cellQueue);
+        auto [numM2P, numP2P] =
+            traverseWarp(acc_i, pos_i, targetCenter, targetSize, x, y, z, m, h, childOffsets, internalToLeaf, layout,
+                         sourceCenter, Multipoles, rootRange, tempQueue, cellQueue);
         assert(numM2P != 0xFFFFFFFF && numP2P != 0xFFFFFFFF);
 
         const int bodyIdxLane = bodyBegin + laneIdx;
@@ -550,25 +536,9 @@ auto computeAcceleration(int firstBody, int lastBody, const T* x, const T* y, co
 
     resetTraversalCounters<<<1, 1>>>();
     auto t0 = std::chrono::high_resolution_clock::now();
-    traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
-                                                    lastBody,
-                                                    {levelRange[1].x, levelRange[1].y},
-                                                    x,
-                                                    y,
-                                                    z,
-                                                    m,
-                                                    h,
-                                                    childOffsets,
-                                                    internalToLeaf,
-                                                    layout,
-                                                    sourceCenter,
-                                                    Multipole,
-                                                    G,
-                                                    p,
-                                                    ax,
-                                                    ay,
-                                                    az,
-                                                    rawPtr(globalPool.data()));
+    traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, {levelRange[1].x, levelRange[1].y}, x, y, z, m,
+                                                    h, childOffsets, internalToLeaf, layout, sourceCenter, Multipole, G,
+                                                    p, ax, ay, az, rawPtr(globalPool.data()));
     kernelSuccess("traverse");
 
     auto   t1 = std::chrono::high_resolution_clock::now();

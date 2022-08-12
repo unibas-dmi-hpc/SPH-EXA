@@ -71,7 +71,7 @@ public:
      */
     int extract(int2* h_levelRange);
 
-    const LocalIndex* layout() const;
+    const LocalIndex*    layout() const;
     const TreeNodeIndex* childOffsets() const;
     const TreeNodeIndex* leafToInternal() const;
     const TreeNodeIndex* internalToLeaf() const;
