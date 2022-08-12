@@ -67,7 +67,7 @@ public:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        computeTimestep(first, last, d);
+        computeTimestep(d);
         timer.step("Timestep");
         driveTurbulence(first, last, d);
         timer.step("Turbulence Stirring");
