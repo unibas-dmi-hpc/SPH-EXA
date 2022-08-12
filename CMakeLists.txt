@@ -51,7 +51,7 @@ if(CMAKE_HIP_COMPILER)
     find_package(HIP)
     enable_language(HIP)
 
-    set(CMAKE_HIP_FLAGS "-w -DUSE_HIP \
+    set(CMAKE_HIP_FLAGS "-w \
                          -I$ENV{GCC_X86_64}/include/g++/x86_64-suse-linux \
                          -I$ENV{GCC_X86_64}/include/g++ \
                          -L$ENV{GCC_X86_64}/lib64 \
