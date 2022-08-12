@@ -33,7 +33,7 @@
 
 #include "multipole_holder.cuh"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
-#include "ryoanji/nbody/gpu_config.h"
+#include "ryoanji/nbody/gpu_config.cuh"
 #include "ryoanji/nbody/upwardpass.cuh"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
 #include "ryoanji/nbody/traversal.cuh"
@@ -75,21 +75,15 @@ public:
         memcpy(rawPtr(internalToLeaf_.data()), internalToLeaf, internalToLeaf_.size(), cudaMemcpyHostToDevice);
 
         const TreeNodeIndex* childOffsets = octree.childOffsets().data();
-        memcpy(
-            rawPtr(childOffsets_.data()), octree.childOffsets().data(), childOffsets_.size(), cudaMemcpyHostToDevice);
+        memcpy(rawPtr(childOffsets_.data()), octree.childOffsets().data(), childOffsets_.size(),
+               cudaMemcpyHostToDevice);
 
         memcpy(rawPtr(layout_.data()), layout, layout_.size(), cudaMemcpyHostToDevice);
         memcpy(rawPtr(centers_.data()), centers.data(), centers.size(), cudaMemcpyHostToDevice);
 
-        computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(x,
-                                                                                y,
-                                                                                z,
-                                                                                m,
-                                                                                rawPtr(leafToInternal_.data()),
-                                                                                numLeaves,
-                                                                                rawPtr(layout_.data()),
-                                                                                rawPtr(centers_.data()),
-                                                                                rawPtr(multipoles_.data()));
+        computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(
+            x, y, z, m, rawPtr(leafToInternal_.data()), numLeaves, rawPtr(layout_.data()), rawPtr(centers_.data()),
+            rawPtr(multipoles_.data()));
 
         //! first upsweep with local data
         int  numLevels  = 21;
@@ -98,10 +92,8 @@ public:
         {
             int numCellsLevel = levelRange[level + 1] - levelRange[level];
             int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level],
-                                                         levelRange[level + 1],
-                                                         rawPtr(childOffsets_.data()),
-                                                         rawPtr(centers_.data()),
+            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level], levelRange[level + 1],
+                                                         rawPtr(childOffsets_.data()), rawPtr(centers_.data()),
                                                          rawPtr(multipoles_.data()));
         }
 
@@ -124,10 +116,8 @@ public:
         {
             int numCellsLevel = levelRange[level + 1] - levelRange[level];
             int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level],
-                                                         levelRange[level + 1],
-                                                         rawPtr(childOffsets_.data()),
-                                                         rawPtr(centers_.data()),
+            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level], levelRange[level + 1],
+                                                         rawPtr(childOffsets_.data()), rawPtr(centers_.data()),
                                                          rawPtr(multipoles_.data()));
         }
     }
@@ -149,25 +139,10 @@ public:
         LocalIndex poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
         reallocate(globalPool_, poolSize, 1.05);
-        traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
-                                                        lastBody,
-                                                        {1, 9},
-                                                        x,
-                                                        y,
-                                                        z,
-                                                        m,
-                                                        h,
-                                                        rawPtr(childOffsets_.data()),
-                                                        rawPtr(internalToLeaf_.data()),
-                                                        rawPtr(layout_.data()),
-                                                        rawPtr(centers_.data()),
-                                                        rawPtr(multipoles_.data()),
-                                                        G,
-                                                        (int*)(nullptr),
-                                                        ax,
-                                                        ay,
-                                                        az,
-                                                        rawPtr(globalPool_.data()));
+        traverse<<<numBlocks, TravConfig::numThreads>>>(
+            firstBody, lastBody, {1, 9}, x, y, z, m, h, rawPtr(childOffsets_.data()), rawPtr(internalToLeaf_.data()),
+            rawPtr(layout_.data()), rawPtr(centers_.data()), rawPtr(multipoles_.data()), G, (int*)(nullptr), ax, ay, az,
+            rawPtr(globalPool_.data()));
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
 

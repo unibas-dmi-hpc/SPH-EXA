@@ -160,7 +160,7 @@ public:
         }
         transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
-        computeTimestep(first, last, d);
+        computeTimestep(d);
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");

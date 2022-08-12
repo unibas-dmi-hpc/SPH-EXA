@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,11 +32,8 @@
 
 #pragma once
 
-#include "sph/math.hpp"
-#include "sph/kernels.hpp"
+#include "sph/sph_gpu.hpp"
 #include "momentum_energy_kern.hpp"
-#include "sph/sph.cuh"
-#include "sph/particles_data_stubs.hpp"
 
 namespace sph
 {
@@ -86,7 +83,7 @@ void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, int ngmax,
 
         T maxvsignal = 0;
 
-        int nc = stl::min(neighborsCount[i], ngmax);
+        int nc = std::min(neighborsCount[i], ngmax);
         momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, m, rho, p, c,
                                c11, c12, c13, c22, c23, c33, wh, whd, grad_P_x, grad_P_y, grad_P_z, du, &maxvsignal);
 

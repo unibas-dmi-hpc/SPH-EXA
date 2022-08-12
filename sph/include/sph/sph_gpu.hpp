@@ -17,8 +17,7 @@ template<class Dataset>
 extern void computeIAD(size_t, size_t, int, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeMomentumEnergySTD(size_t, size_t, int, Dataset& d,
-                                     const cstone::Box<typename Dataset::RealType>&);
+extern void computeMomentumEnergySTD(size_t, size_t, int, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
 extern void computeXMass(size_t, size_t, int, Dataset& d, const cstone::Box<typename Dataset::RealType>&);

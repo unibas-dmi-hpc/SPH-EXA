@@ -38,48 +38,43 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-#include "cstone/cuda/errorcheck.cuh"
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/halos/exchange_halos_gpu.cuh"
 
 using namespace cstone;
 
 void gpuDirect(int rank)
 {
-    int* src;
-    int* dest;
-    checkGpuErrors(cudaMalloc((void**)&src, 5 * sizeof(int)));
-    checkGpuErrors(cudaMalloc((void**)&dest, 5 * sizeof(int)));
-
-    std::vector<int> init(5, -1);
-    checkGpuErrors(cudaMemcpy(src, init.data(), 5 * sizeof(int), cudaMemcpyHostToDevice));
-    checkGpuErrors(cudaMemcpy(dest, init.data(), 5 * sizeof(int), cudaMemcpyHostToDevice));
-
-    std::vector<int> ref{0, 1, 2, 3, 4};
-    std::vector<int> probe(5);
+    std::vector<int> msg{0, 1, 2, 3, 4};
+    thrust::device_vector<int> src  = msg;
+    thrust::device_vector<int> dest = std::vector<int>{-1, -1, -1, -1, -1};
 
     std::vector<MPI_Request> sendRequests;
     int tag = 0;
 
     if (rank == 0)
     {
-        checkGpuErrors(cudaMemcpy(src, ref.data(), 5 * sizeof(int), cudaMemcpyHostToDevice));
-        [[maybe_unused]] int err = MPI_Send(src, 5, MPI_INT, 1, tag, MPI_COMM_WORLD);
+        [[maybe_unused]] int err = MPI_Send(rawPtr(src), msg.size(), MPI_INT, 1, tag, MPI_COMM_WORLD);
         assert(err == MPI_SUCCESS);
     }
     else
     {
-        [[maybe_unused]] int err = mpiRecvSync(dest, 5, 0, tag, MPI_STATUS_IGNORE);
+        [[maybe_unused]] int err = mpiRecvSync(rawPtr(dest), msg.size(), 0, tag, MPI_STATUS_IGNORE);
         assert(err == MPI_SUCCESS);
-        checkGpuErrors(cudaMemcpy(probe.data(), dest, 5 * sizeof(int), cudaMemcpyDeviceToHost));
-        EXPECT_EQ(probe, ref);
+
+        std::vector<int> probe(msg.size());
+        thrust::copy(dest.begin(), dest.end(), probe.begin());
+        EXPECT_EQ(probe, msg);
     }
 
-    checkGpuErrors(cudaFree(src));
-    checkGpuErrors(cudaFree(dest));
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
+#ifdef USE_GPU_DIRECT
 TEST(HaloExchange, gpuDirect)
+#else
+TEST(HaloExchange, DISABLED_gpuDirect)
+#endif
 {
     int rank = 0, nRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -89,7 +84,7 @@ TEST(HaloExchange, gpuDirect)
 
     if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
-    // gpuDirect(rank);
+    gpuDirect(rank);
 }
 
 TEST(HaloExchange, gatherRanges)
@@ -105,9 +100,7 @@ TEST(HaloExchange, gatherRanges)
 
     thrust::device_vector<int> buffer = std::vector<int>(totalCount);
 
-    gatherRanges(thrust::raw_pointer_cast(rangeScan.data()), thrust::raw_pointer_cast(rangeOffsets.data()),
-                 rangeScan.size(), thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(buffer.data()),
-                 totalCount);
+    gatherRanges(rawPtr(rangeScan), rawPtr(rangeOffsets), rangeScan.size(), rawPtr(src), rawPtr(buffer), totalCount);
 
     thrust::host_vector<int> h_buffer = buffer;
     thrust::host_vector<int> ref      = std::vector<int>{4, 5, 6, 7, 12, 13, 14, 22, 23, 24};
@@ -190,10 +183,10 @@ void simpleTest(int thisRank)
     haloExchangeGpu(0, incomingHalos, outgoingHalos, sendBuffer, receiveBuffer, thrust::raw_pointer_cast(d_x.data()),
                     thrust::raw_pointer_cast(d_y.data()), thrust::raw_pointer_cast(d_velocity.data()));
 
-    cudaMemcpy(x.data(), thrust::raw_pointer_cast(d_x.data()), x.size() * sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(y.data(), thrust::raw_pointer_cast(d_y.data()), y.size() * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(velocity.data(), thrust::raw_pointer_cast(d_velocity.data()),
-               velocity.size() * sizeof(util::array<int, 3>), cudaMemcpyDeviceToHost);
+    // download from device
+    thrust::copy(d_x.begin(), d_x.end(), x.begin());
+    thrust::copy(d_y.begin(), d_y.end(), y.begin());
+    thrust::copy(d_velocity.begin(), d_velocity.end(), velocity.begin());
 
     std::vector<double> xRef{20, 21, 22, 23, 24, 25, 26, 27, 28, 29};
     std::vector<float> yRef{30, 31, 32, 33, 34, 35, 36, 37, 38, 39};

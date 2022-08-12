@@ -30,12 +30,12 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include "sph/sph.cuh"
-#include "sph/particles_data.hpp"
-#include "sph/util/cuda_utils.cuh"
-#include "sph/hydro_std/iad_kern.hpp"
-
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/findneighbors.cuh"
+
+#include "sph/sph_gpu.hpp"
+#include "sph/particles_data.hpp"
+#include "sph/hydro_std/iad_kern.hpp"
 
 namespace sph
 {
@@ -115,8 +115,7 @@ void computeIAD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho),
         rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.c11), rawPtr(d.devData.c12),
         rawPtr(d.devData.c13), rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33));
-    CHECK_CUDA_ERR(cudaGetLastError());
-    cudaDeviceSynchronize();
+    checkGpuErrors(cudaDeviceSynchronize());
 }
 
 template void computeIAD(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

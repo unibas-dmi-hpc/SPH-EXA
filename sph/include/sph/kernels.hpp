@@ -1,13 +1,13 @@
 #pragma once
 
 #include "math.hpp"
-#include "sph/util/annotation.hpp"
+#include "cstone/cuda/annotation.hpp"
 
 namespace sph
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline T compute_3d_k(T n)
+HOST_DEVICE_FUN inline T compute_3d_k(T n)
 {
     // b0, b1, b2 and b3 are defined in "SPHYNX: an accurate density-based SPH method for astrophysical applications",
     // DOI: 10.1051/0004-6361/201630208
@@ -21,7 +21,7 @@ CUDA_DEVICE_HOST_FUN inline T compute_3d_k(T n)
 
 //! @brief compute time-step based on the signal velocity
 template<class T1, class T2, class T3>
-CUDA_DEVICE_HOST_FUN inline auto tsKCourant(T1 maxvsignal, T2 h, T3 c, double kcour)
+HOST_DEVICE_FUN inline auto tsKCourant(T1 maxvsignal, T2 h, T3 c, double kcour)
 {
     using T = std::common_type_t<T1, T2, T3>;
     T v     = maxvsignal > T(0) ? maxvsignal : c;
@@ -30,7 +30,7 @@ CUDA_DEVICE_HOST_FUN inline auto tsKCourant(T1 maxvsignal, T2 h, T3 c, double kc
 
 //! @brief sinc(PI/2 * v)
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline T wharmonic_std(T v)
+HOST_DEVICE_FUN inline T wharmonic_std(T v)
 {
     if (v == 0.0) return 1.0;
 
@@ -44,7 +44,7 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_std(T v)
  * Unoptimized for clarity as this is only used to construct look-up tables
  */
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
+HOST_DEVICE_FUN inline T wharmonic_derivative_std(T v)
 {
     if (v == 0.0) return 0.0;
 
@@ -57,7 +57,7 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
 }
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative(T v, T powsincv)
+HOST_DEVICE_FUN inline T wharmonic_derivative(T v, T powsincv)
 {
     if (v == T(0)) return T(0);
 
@@ -73,7 +73,7 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative(T v, T powsincv)
  * in the Evrard collapse test case in the wake of the shock wave.
  */
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv, T r_square)
+HOST_DEVICE_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv, T r_square)
 {
     constexpr T alpha   = 1.0;
     constexpr T beta    = 2.0;
@@ -104,7 +104,7 @@ CUDA_DEVICE_HOST_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T 
  * @return        the viscosity
  */
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline T artificial_viscosity(T alpha_i, T alpha_j, T c_i, T c_j, T w_ij)
+HOST_DEVICE_FUN inline T artificial_viscosity(T alpha_i, T alpha_j, T c_i, T c_j, T w_ij)
 {
     // alpha is const for now, but will be different for each particle when using viscosity switching
     constexpr T beta = 2.0;

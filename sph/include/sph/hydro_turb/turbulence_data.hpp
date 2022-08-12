@@ -35,9 +35,8 @@
 #include <random>
 #include <vector>
 
+#include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/tree/accel_switch.hpp"
-
-#include "sph/util/cuda_utils.hpp"
 
 namespace sph
 {

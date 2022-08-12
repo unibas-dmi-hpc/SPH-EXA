@@ -29,11 +29,11 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/findneighbors.cuh"
 
-#include "sph/sph.cuh"
+#include "sph/sph_gpu.hpp"
 #include "sph/particles_data.hpp"
-#include "sph/util/cuda_utils.cuh"
 #include "sph/hydro_ve/iad_kern.hpp"
 #include "sph/hydro_ve/divv_curlv_kern.hpp"
 
@@ -92,7 +92,7 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, int ngmax, Dataset&
         rawPtr(d.devData.kx), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13),
         rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.divv),
         rawPtr(d.devData.curlv));
-    CHECK_CUDA_ERR(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 }
 
 template void computeIadDivvCurlv(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

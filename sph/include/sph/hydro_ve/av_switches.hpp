@@ -31,9 +31,8 @@
 
 #pragma once
 
+#include "sph/sph_gpu.hpp"
 #include "av_switches_kern.hpp"
-#include "sph/sph.cuh"
-#include "sph/particles_data_stubs.hpp"
 
 namespace sph
 {
@@ -79,7 +78,7 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, int ngmax, Datase
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
-        int    nc = stl::min(neighborsCount[i], ngmax);
+        int    nc = std::min(neighborsCount[i], ngmax);
         alpha[i]  = AVswitchesJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, c, c11,
                                     c12, c13, c22, c23, c33, wh, whd, kx, xm, divv, d.minDt, alphamin, alphamax,
                                     decay_constant, alpha[i]);
