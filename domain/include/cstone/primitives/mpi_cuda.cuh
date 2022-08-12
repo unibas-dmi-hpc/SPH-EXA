@@ -61,18 +61,11 @@ auto mpiSendGpuDirect(T* data,
 
         return errCode;
     }
-    else
-    {
-        return mpiSendAsync(data, count, rank, tag, requests);
-    }
+    else { return mpiSendAsync(data, count, rank, tag, requests); }
 }
 
 template<class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-auto mpiRecvGpuDirect(T* data,
-                      int count,
-                      int rank,
-                      int tag,
-                      MPI_Status* status)
+auto mpiRecvGpuDirect(T* data, int count, int rank, int tag, MPI_Status* status)
 {
     if constexpr (!useGpuDirect)
     {
@@ -82,8 +75,5 @@ auto mpiRecvGpuDirect(T* data,
 
         return errCode;
     }
-    else
-    {
-        return mpiRecvSync(data, count, rank, tag, status);
-    }
+    else { return mpiRecvSync(data, count, rank, tag, status); }
 }

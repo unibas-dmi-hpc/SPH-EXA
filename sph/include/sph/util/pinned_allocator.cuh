@@ -127,10 +127,7 @@ public:
         pointer     result(0);
         cudaError_t error = cudaMallocHost(reinterpret_cast<void**>(&result), cnt * sizeof(value_type));
 
-        if (error)
-        {
-            throw std::bad_alloc();
-        } // end if
+        if (error) { throw std::bad_alloc(); } // end if
 
         return result;
     } // end allocate()
@@ -149,11 +146,8 @@ public:
     {
         cudaError_t error = cudaFreeHost(p);
 
-        if (error)
-        {
-            throw std::runtime_error("cudaFreeHost error\n");
-        } // end if
-    }     // end deallocate()
+        if (error) { throw std::runtime_error("cudaFreeHost error\n"); } // end if
+    }                                                                    // end deallocate()
 
     /*! This method returns the maximum size of the \c cnt parameter
      *  accepted by the \p allocate() method.

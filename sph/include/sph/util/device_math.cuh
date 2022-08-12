@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 __device__ __forceinline__ float atomicMinFloat(float* addr, float value)
 {
     float old;

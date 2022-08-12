@@ -70,11 +70,10 @@ void benchmarkGpu()
 
     auto findNeighborsLambda = [&]()
     {
-      findNeighborsSfcGpu(
-          thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
-          thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_h.data()), 0, n, n, box,
-          deviceKeys, thrust::raw_pointer_cast(d_neighbors.data()),
-          thrust::raw_pointer_cast(d_neighborsCount.data()), ngmax);
+        findNeighborsSfcGpu(thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
+                            thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_h.data()), 0, n, n, box,
+                            deviceKeys, thrust::raw_pointer_cast(d_neighbors.data()),
+                            thrust::raw_pointer_cast(d_neighborsCount.data()), ngmax);
     };
 
     float gpuTime = timeGpu(findNeighborsLambda);
@@ -88,15 +87,13 @@ void benchmarkGpu()
     std::vector<int> neighborsCPU(ngmax * n);
     std::vector<int> neighborsCountCPU(n);
 
-    const T* x = coords.x().data();
-    const T* y = coords.y().data();
-    const T* z = coords.z().data();
+    const T* x        = coords.x().data();
+    const T* y        = coords.y().data();
+    const T* z        = coords.z().data();
     const auto* codes = (KeyType*)(coords.particleKeys().data());
 
     auto findNeighborsCpu = [&]()
-    {
-        findNeighbors(x, y, z, h.data(), 0, n, n, box, codes, neighborsCPU.data(), neighborsCountCPU.data(), ngmax);
-    };
+    { findNeighbors(x, y, z, h.data(), 0, n, n, box, codes, neighborsCPU.data(), neighborsCountCPU.data(), ngmax); };
 
     float cpuTime = timeCpu(findNeighborsCpu);
 
@@ -109,7 +106,6 @@ void benchmarkGpu()
         std::cout << "Neighbor counts: PASS\n";
     else
         std::cout << "Neighbor counts: FAIL\n";
-
 }
 
 int main()

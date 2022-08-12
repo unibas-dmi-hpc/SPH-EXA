@@ -76,7 +76,10 @@ size_t sendCountSum(const SendList& outgoingHalos)
 size_t maxNumRanges(const SendList& sendList)
 {
     size_t ret = 0;
-    for(const auto& manifest : sendList) { ret = std::max(ret, manifest.nRanges()); }
+    for (const auto& manifest : sendList)
+    {
+        ret = std::max(ret, manifest.nRanges());
+    }
     return ret;
 }
 

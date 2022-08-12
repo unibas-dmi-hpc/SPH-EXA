@@ -41,10 +41,7 @@ __global__ void
 computeSfcKeysRealKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T> box)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < numKeys)
-    {
-        keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box);
-    }
+    if (tid < numKeys) { keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box); }
 }
 
 template<class KeyType, class T>
