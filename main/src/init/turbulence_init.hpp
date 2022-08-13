@@ -40,9 +40,6 @@
 #include "isim_init.hpp"
 #include "grid.hpp"
 
-#include "sph/hydro_turb/turbulence_data.hpp"
-#include "sph/hydro_turb/create_modes.hpp"
-
 namespace sphexa
 {
 
@@ -86,42 +83,6 @@ void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& 
 }
 
 template<class Dataset>
-void initTurbulenceModes(int rank, Dataset& turb, const std::map<std::string, double>& constants)
-{
-    using T = typename Dataset::RealType;
-
-    double eps         = constants.at("epsilon");
-    size_t stMaxModes  = constants.at("stMaxModes");
-    double Lbox        = constants.at("Lbox");
-    double velocity    = constants.at("stMachVelocity");
-    size_t stSpectForm = constants.at("stSpectForm");
-    double powerLawExp = constants.at("powerLawExp");
-    double anglesExp   = constants.at("anglesExp");
-
-    double twopi   = 2.0 * M_PI;
-    double energy  = 5.0e-3 * std::pow(velocity, 3) / Lbox;
-    double stirMin = (1.0 - eps) * twopi / Lbox;
-    double stirMax = (3.0 + eps) * twopi / Lbox;
-
-    turb.decayTime = Lbox / (2.0 * velocity);
-    turb.solWeight = constants.at("solWeight");
-    turb.gen.seed(constants.at("rngSeed"));
-
-    turb.amplitudes.resize(stMaxModes);
-    turb.modes.resize(stMaxModes * turb.numDim);
-
-    sph::createStirringModes(turb, Lbox, Lbox, Lbox, stMaxModes, energy, stirMax, stirMin, turb.numDim, stSpectForm,
-                             powerLawExp, anglesExp, rank == 0);
-
-    turb.resize(turb.numModes);
-    turb.uploadModes();
-
-    // fill phases with normal gaussian distributed random values with mean 0 and std-dev turb.variance
-    std::normal_distribution<T> dist(0, turb.variance);
-    std::generate(turb.phases.begin(), turb.phases.end(), [&turb, &dist]() { return dist(turb.gen); });
-}
-
-template<class Dataset>
 class TurbulenceGlass : public ISimInitializer<Dataset>
 {
     std::string                   glassBlock;
@@ -152,7 +113,6 @@ public:
 
         d.resize(d.x.size());
 
-        initTurbulenceModes(rank, d.turbulenceData, constants_);
         initTurbulenceHydroFields(d, constants_);
 
         return globalBox;

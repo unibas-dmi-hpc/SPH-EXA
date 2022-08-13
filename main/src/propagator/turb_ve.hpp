@@ -35,6 +35,7 @@
 #include <variant>
 
 #include "sph/sph.hpp"
+#include "sph/hydro_turb/turbulence_data.hpp"
 
 #include "ipropagator.hpp"
 #include "ve_hydro.hpp"
@@ -54,9 +55,12 @@ class TurbVeProp final : public HydroVeProp<DomainType, ParticleDataType>
     using Base::ngmax_;
     using Base::timer;
 
+    sph::TurbulenceData<typename ParticleDataType::RealType, typename ParticleDataType::AcceleratorType> turbulenceData;
+
 public:
     TurbVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
+        , turbulenceData(TurbulenceConstants(), rank == 0)
     {
     }
 
@@ -69,7 +73,7 @@ public:
 
         computeTimestep(d);
         timer.step("Timestep");
-        driveTurbulence(first, last, d);
+        driveTurbulence(first, last, d, turbulenceData);
         timer.step("Turbulence Stirring");
 
         transferToHost(d, first, last, {"ax", "ay", "az", "du"});
