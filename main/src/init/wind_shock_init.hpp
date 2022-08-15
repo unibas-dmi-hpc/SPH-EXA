@@ -40,6 +40,7 @@
 
 #include "cstone/sfc/box.hpp"
 
+#include "io/file_utils.hpp"
 #include "isim_init.hpp"
 #include "grid.hpp"
 

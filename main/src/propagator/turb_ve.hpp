@@ -70,7 +70,6 @@ public:
 
     void restoreState(const std::string& path, MPI_Comm comm) override
     {
-#ifdef SPH_EXA_HAVE_H5PART
         // The file does not exist, we're starting from scratch. Nothing to do.
         if (!std::filesystem::exists(path)) { return; }
 
@@ -113,7 +112,6 @@ public:
         std::cout << std::endl;
 
         H5PartCloseFile(h5_file);
-#endif
     }
 
     void step(DomainType& domain, ParticleDataType& d) override
@@ -140,7 +138,6 @@ public:
     //! @brief save turbulence mode phases to file
     void dump(size_t iteration, const std::string& path) override
     {
-#ifdef SPH_EXA_HAVE_H5PART
         // turbulence phases are identical on all ranks, only rank 0 needs to write data
         if (rank_ > 0) { return; }
 
@@ -151,9 +148,6 @@ public:
         const auto& phases = turbulenceData.phases;
         fileutils::sphexaWriteFileAttrib(h5_file, attributeName.c_str(), phases.data(), phases.size());
         H5PartCloseFile(h5_file);
-#else
-        throw std::runtime_error("Turbulence phase output only supported with HDF5 support\n");
-#endif
     }
 };
 

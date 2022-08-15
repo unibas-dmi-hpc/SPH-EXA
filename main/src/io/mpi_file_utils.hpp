@@ -1,17 +1,43 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*! @file
+ * @brief parallel file I/O utility functions based on H5Part
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ */
+
 #pragma once
 
-#ifdef SPH_EXA_HAVE_H5PART
 #include <filesystem>
-#include "H5Part.h"
 #include <variant>
-#endif
+#include "H5Part.h"
 
 namespace sphexa
 {
 namespace fileutils
 {
-
-#ifdef SPH_EXA_HAVE_H5PART
 
 //! @brief return the names of all datasets in @p h5_file
 std::vector<std::string> datasetNames(H5PartFile* h5_file)
@@ -128,7 +154,7 @@ H5PartFile* openH5Part(const std::string& path, h5part_int64_t mode, MPI_Comm co
     MPI_Comm_size(comm, &numRanks);
     if (numRanks > 1)
     {
-        throw std::runtime_error("Cannot write HDF5 output with multiple ranks without parallel HDF5 support\n");
+        throw std::runtime_error("Cannot open HDF5 file on multiple ranks without parallel HDF5 support\n");
     }
     h5_file = H5PartOpenFile(h5_fname, mode);
 #endif
@@ -195,16 +221,6 @@ void readTemplateBlock(std::string block, Vector& x, Vector& y, Vector& z)
     fileutils::readH5PartField(h5_file, "z", z.data());
     H5PartCloseFile(h5_file);
 }
-
-#else
-
-template<class Vector>
-void readTemplateBlock(std::string /*block*/, Vector& /*x*/, Vector& /*y*/, Vector& /*z*/)
-{
-    throw std::runtime_error("Glass initialization with template blocks only supported with HDF5 support\n");
-}
-
-#endif
 
 } // namespace fileutils
 } // namespace sphexa
