@@ -39,21 +39,29 @@ TEST(Turbulence, rngSerialize)
     std::mt19937 engine;
     engine.seed(42);
 
-    auto originalEngine = engine;
+    const auto originalEngine = engine;
+    // serialize originalEngine into a string
+    std::stringstream s;
+    s << originalEngine;
+    std::string engineState = s.str();
 
     EXPECT_EQ(originalEngine, engine);
 
-    engine();
+    for (int i = 0; i < 100; ++i)
+    {
+        engine();
+    }
 
     // engines are now in a different state
     EXPECT_NE(originalEngine, engine);
 
-    // serialize originalEngine into a string
-    std::stringstream s;
-    s << originalEngine;
+    // check conversion from char array, as that's what's going to be read from HDF5
+    char stateChar[engineState.size()];
+    std::copy(engineState.begin(), engineState.end(), stateChar);
 
-    // restore original state on engine
-    s >> engine;
+    std::stringstream t;
+    t << stateChar;
+    t >> engine;
 
     EXPECT_EQ(originalEngine, engine);
 }

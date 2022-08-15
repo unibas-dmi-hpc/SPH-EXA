@@ -74,6 +74,7 @@ public:
         H5PartReadStepAttrib(h5_file, "step", &d.iteration);
         d.iteration++;
         H5PartReadStepAttrib(h5_file, "gravConstant", &d.g);
+        H5PartReadStepAttrib(h5_file, "gamma", &d.gamma);
 
         double extents[6];
         H5PartReadStepAttrib(h5_file, "box", extents);

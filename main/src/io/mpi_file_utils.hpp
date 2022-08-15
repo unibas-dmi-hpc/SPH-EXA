@@ -141,6 +141,11 @@ void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const f
     H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
 }
 
+void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const char* value, size_t numElements)
+{
+    H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_CHAR, value, numElements);
+}
+
 //! @brief Open in parallel mode if supported, otherwise serial if numRanks == 1
 H5PartFile* openH5Part(const std::string& path, h5part_int64_t mode, MPI_Comm comm)
 {
@@ -178,6 +183,7 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     sphexaWriteStepAttrib(h5_file, "minDt", &d.minDt, 1);
     sphexaWriteStepAttrib(h5_file, "minDt_m1", &d.minDt_m1, 1);
     sphexaWriteStepAttrib(h5_file, "gravConstant", &d.g, 1);
+    sphexaWriteStepAttrib(h5_file, "gamma", &d.gamma, 1);
     // record the actual SPH-iteration as step attribute
     H5PartWriteStepAttrib(h5_file, "step", H5PART_INT64, &d.iteration, 1);
 

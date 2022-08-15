@@ -33,6 +33,7 @@
 #pragma once
 
 #include <filesystem>
+#include <sstream>
 #include <variant>
 
 #include "sph/sph.hpp"
@@ -59,7 +60,9 @@ class TurbVeProp final : public HydroVeProp<DomainType, ParticleDataType>
     using Base::rank_;
     using Base::timer;
 
-    sph::TurbulenceData<typename ParticleDataType::RealType, typename ParticleDataType::AcceleratorType> turbulenceData;
+    using RealType = typename ParticleDataType::RealType;
+
+    sph::TurbulenceData<RealType, typename ParticleDataType::AcceleratorType> turbulenceData;
 
 public:
     TurbVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
@@ -84,31 +87,54 @@ public:
 
         size_t iteration;
         H5PartReadStepAttrib(h5_file, "step", &iteration);
-        std::string phaseAttribute = "phases_" + std::to_string(iteration);
+        auto fileAttributes = fileutils::fileAttributeNames(h5_file);
 
-        // look for matching phase data in the list of file attributes
-        auto   fileAttributes = fileutils::fileAttributeNames(h5_file);
-        size_t indexOfPhases =
-            std::find(fileAttributes.begin(), fileAttributes.end(), phaseAttribute) - fileAttributes.begin();
-        if (indexOfPhases == fileAttributes.size()) { throw std::runtime_error("No data found at " + phaseAttribute); }
-
-        h5part_int64_t typeId, numPhases;
-        char           dummy[256];
-        H5PartGetFileAttribInfo(h5_file, indexOfPhases, dummy, 256, &typeId, &numPhases);
-
-        if (numPhases != turbulenceData.phases.size())
         {
-            throw std::runtime_error("Stored number of phases does not match initialized number of phases\n");
+            // restore turbulence mode phases
+            std::string attrName = "phases_" + std::to_string(iteration);
+            size_t      attrIndex =
+                std::find(fileAttributes.begin(), fileAttributes.end(), attrName) - fileAttributes.begin();
+            if (attrIndex == fileAttributes.size()) { throw std::runtime_error("No data found at " + attrName); }
+
+            h5part_int64_t typeId, attrSize;
+            char           dummy[256];
+            H5PartGetFileAttribInfo(h5_file, attrIndex, dummy, 256, &typeId, &attrSize);
+
+            if (attrSize != turbulenceData.phases.size())
+            {
+                throw std::runtime_error("Stored number of phases does not match initialized number of phases\n");
+            }
+
+            h5part_int64_t errors = H5PART_SUCCESS;
+            errors |= H5PartReadFileAttrib(h5_file, attrName.c_str(), turbulenceData.phases.data());
+
+            if (errors != H5PART_SUCCESS) { throw std::runtime_error("Could not read turbulence phases\n"); }
+        }
+        {
+            // restore random number engine state
+            std::string attrName = "rngEngineState_" + std::to_string(iteration);
+            size_t      attrIndex =
+                std::find(fileAttributes.begin(), fileAttributes.end(), attrName) - fileAttributes.begin();
+            if (attrIndex == fileAttributes.size()) { throw std::runtime_error("No data found at " + attrName); }
+
+            h5part_int64_t typeId, attrSize;
+            char           dummy[256];
+            H5PartGetFileAttribInfo(h5_file, attrIndex, dummy, 256, &typeId, &attrSize);
+
+            char engineState[attrSize];
+
+            h5part_int64_t errors = H5PART_SUCCESS;
+            errors |= H5PartReadFileAttrib(h5_file, attrName.c_str(), engineState);
+
+            if (errors != H5PART_SUCCESS) { throw std::runtime_error("Could not read engine state\n"); }
+
+            std::stringstream s;
+            s << engineState;
+            s >> turbulenceData.gen;
         }
 
-        h5part_int64_t errors = H5PART_SUCCESS;
-        errors |= H5PartReadFileAttrib(h5_file, phaseAttribute.c_str(), turbulenceData.phases.data());
-
-        if (errors != H5PART_SUCCESS) { throw std::runtime_error("Could not read turbulence phases\n"); }
-
-        std::cout << "Restored phases from SPH iteration " << iteration << std::endl;
-        std::cout << "  first 5 phases: ";
-        std::copy_n(turbulenceData.phases.begin(), 5, std::ostream_iterator<double>(std::cout, " "));
+        std::cout << "Restored phases from SPH iteration " << iteration << ". First 5 phases: ";
+        std::copy_n(turbulenceData.phases.begin(), 5, std::ostream_iterator<RealType>(std::cout, " "));
         std::cout << std::endl;
 
         H5PartCloseFile(h5_file);
@@ -141,12 +167,22 @@ public:
         // turbulence phases are identical on all ranks, only rank 0 needs to write data
         if (rank_ > 0) { return; }
 
-        H5PartFile* h5_file       = nullptr;
-        h5_file                   = H5PartOpenFile((path + ".h5").c_str(), H5PART_APPEND);
-        std::string attributeName = "phases_" + std::to_string(iteration);
+        H5PartFile* h5_file = nullptr;
+        h5_file             = H5PartOpenFile(path.c_str(), H5PART_APPEND);
+        {
+            std::string attributeName = "phases_" + std::to_string(iteration);
+            const auto& phases        = turbulenceData.phases;
+            fileutils::sphexaWriteFileAttrib(h5_file, attributeName.c_str(), phases.data(), phases.size());
+        }
+        {
+            std::stringstream s;
+            s << turbulenceData.gen;
+            std::string engineState = s.str();
 
-        const auto& phases = turbulenceData.phases;
-        fileutils::sphexaWriteFileAttrib(h5_file, attributeName.c_str(), phases.data(), phases.size());
+            std::string attributeName = "rngEngineState_" + std::to_string(iteration);
+            fileutils::sphexaWriteFileAttrib(h5_file, attributeName.c_str(), engineState.data(), engineState.size());
+        }
+
         H5PartCloseFile(h5_file);
     }
 };
