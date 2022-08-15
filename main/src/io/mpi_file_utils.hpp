@@ -115,32 +115,37 @@ void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const f
     H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
 }
 
-template<class Dataset, class T>
-void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& box, const std::string& path)
+//! @brief Open in parallel mode if supported, otherwise serial if numRanks == 1
+H5PartFile* openH5Part(const std::string& path, h5part_int64_t mode, MPI_Comm comm)
 {
-    using h5_int64_t = h5part_int64_t;
-    using h5_id_t    = h5part_int64_t;
-
-    // output name
     const char* h5_fname = path.c_str();
     H5PartFile* h5_file  = nullptr;
 
 #ifdef H5PART_PARALLEL_IO
-    if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFileParallel(h5_fname, H5PART_APPEND, d.comm); }
-    else { h5_file = H5PartOpenFileParallel(h5_fname, H5PART_WRITE, d.comm); }
+    h5_file = H5PartOpenFileParallel(h5_fname, mode, comm);
 #else
     int numRanks;
-    MPI_Comm_size(d.comm, &numRanks);
+    MPI_Comm_size(comm, &numRanks);
     if (numRanks > 1)
     {
         throw std::runtime_error("Cannot write HDF5 output with multiple ranks without parallel HDF5 support\n");
     }
-    if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFile(h5_fname, H5PART_APPEND); }
-    else { h5_file = H5PartOpenFile(h5_fname, H5PART_WRITE); }
+    h5_file = H5PartOpenFile(h5_fname, mode);
 #endif
 
+    return h5_file;
+}
+
+template<class Dataset, class T>
+void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& box, const std::string& path)
+{
+    H5PartFile* h5_file = nullptr;
+
+    if (std::filesystem::exists(path)) { h5_file = openH5Part(path, H5PART_APPEND, d.comm); }
+    else { h5_file = openH5Part(path, H5PART_WRITE, d.comm); }
+
     // create the next step
-    h5_id_t numSteps = H5PartGetNumSteps(h5_file);
+    h5part_int64_t numSteps = H5PartGetNumSteps(h5_file);
     H5PartSetStep(h5_file, numSteps);
 
     sphexaWriteStepAttrib(h5_file, "time", &d.ttot, 1);
@@ -156,7 +161,7 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     h5part_int32_t pbc[3] = {box.pbcX(), box.pbcY(), box.pbcZ()};
     H5PartWriteStepAttrib(h5_file, "pbc", H5PART_INT32, pbc, 3);
 
-    const h5_int64_t h5_num_particles = lastIndex - firstIndex;
+    const h5part_int64_t h5_num_particles = lastIndex - firstIndex;
     // set number of particles that each rank will write
     H5PartSetNumParticles(h5_file, h5_num_particles);
 

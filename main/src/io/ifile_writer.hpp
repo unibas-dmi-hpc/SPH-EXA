@@ -67,7 +67,7 @@ struct H5PartWriter : public IFileWriter<Dataset>
               std::string path) const override
     {
 #ifdef SPH_EXA_HAVE_H5PART
-        path += ".h5part";
+        path += ".h5";
         fileutils::writeH5Part(d, firstIndex, lastIndex, box, path);
 #else
         throw std::runtime_error("Cannot write to HDF5 file: H5Part not enabled\n");
@@ -84,7 +84,7 @@ struct H5PartWriter : public IFileWriter<Dataset>
     void constants(const std::map<std::string, double>& c, std::string path) const override
     {
 #ifdef SPH_EXA_HAVE_H5PART
-        path += ".h5part";
+        path += ".h5";
         const char* h5_fname = path.c_str();
 
         if (std::filesystem::exists(h5_fname))

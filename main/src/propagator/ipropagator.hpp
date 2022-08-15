@@ -65,7 +65,7 @@ public:
     virtual void dump(size_t, const std::string&){};
 
     //! @brief restore state from file if supported and it exists
-    virtual void restoreState(const std::string&){};
+    virtual void restoreState(const std::string&, MPI_Comm){};
 
     virtual ~Propagator() = default;
 

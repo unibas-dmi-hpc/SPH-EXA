@@ -11,7 +11,7 @@ class analytical_solution(rfm.RunOnlyRegressionTest):
     @run_before('run')
     def check_file(self):
         self.executable = 'file'
-        self.executable_opts = [f'dump_{self.test}.h5part']
+        self.executable_opts = [f'dump_{self.test}.h5']
 
     @sanity_function
     def assert_hello(self):

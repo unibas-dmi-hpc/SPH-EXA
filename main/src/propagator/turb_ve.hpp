@@ -68,14 +68,14 @@ public:
     {
     }
 
-    void restoreState(const std::string& path) override
+    void restoreState(const std::string& path, MPI_Comm comm) override
     {
 #ifdef SPH_EXA_HAVE_H5PART
         // The file does not exist, we're starting from scratch. Nothing to do.
         if (!std::filesystem::exists(path)) { return; }
 
         H5PartFile* h5_file = nullptr;
-        h5_file             = H5PartOpenFile(path.c_str(), H5PART_READ);
+        h5_file             = fileutils::openH5Part(path, H5PART_READ, comm);
         size_t numSteps     = H5PartGetNumSteps(h5_file);
 
         if (numSteps == 0) { throw std::runtime_error("Cannot initialize phases from empty file\n"); }
@@ -111,6 +111,8 @@ public:
         std::cout << "  first 5 phases: ";
         std::copy_n(turbulenceData.phases.begin(), 5, std::ostream_iterator<double>(std::cout, " "));
         std::cout << std::endl;
+
+        H5PartCloseFile(h5_file);
 #endif
     }
 
@@ -143,7 +145,7 @@ public:
         if (rank_ > 0) { return; }
 
         H5PartFile* h5_file       = nullptr;
-        h5_file                   = H5PartOpenFile((path + ".h5part").c_str(), H5PART_APPEND);
+        h5_file                   = H5PartOpenFile((path + ".h5").c_str(), H5PART_APPEND);
         std::string attributeName = "phases_" + std::to_string(iteration);
 
         const auto& phases = turbulenceData.phases;
