@@ -99,8 +99,6 @@ int main(int argc, char** argv)
 
     if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
 
-    const std::string outFile = outDirectory + "dump_" + initCond;
-
     size_t ngmax = 150;
     size_t ng0   = 100;
 
@@ -124,6 +122,7 @@ int main(int argc, char** argv)
     bool  haveGrav = (d.g != 0.0);
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 
+    const std::string outFile = parser.get("-o", outDirectory + "dump_" + initCond + fileWriter->suffix());
     if (rank == 0 && (writeFrequencyStr != "0" || !writeExtra.empty()))
     {
         fileWriter->constants(simInit->constants(), outFile);
@@ -175,7 +174,7 @@ int main(int argc, char** argv)
 //! @brief decide whether to stop the simulation based on evolved time (not wall-clock) or iteration count
 bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr)
 {
-    bool lastIteration = strIsIntegral(maxStepStr) && iteration == std::stoi(maxStepStr);
+    bool lastIteration = strIsIntegral(maxStepStr) && iteration >= std::stoi(maxStepStr);
     bool simTimeLimit  = !strIsIntegral(maxStepStr) && time > std::stod(maxStepStr);
 
     return lastIteration || simTimeLimit;
