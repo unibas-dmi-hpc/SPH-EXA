@@ -220,8 +220,17 @@ size_t WindShockcompressCenterSphere(gsl::span<T> x, gsl::span<T> y, gsl::span<T
         }
     }
 
-    std::cout << "rExt=" << rExt << ", s=" << s << ", rInt=" << rInt << "; Particles in High density region: " << sum
-              << std::endl;
+    MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MpiType<size_t>{}, MPI_SUM, MPI_COMM_WORLD);
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if(rank == 0)
+    {
+        std::cout << "rExt=" << rExt << ", s=" << s << ", rInt=" << rInt << "; Particles in High density region: " << sum
+                  << std::endl;
+    }
+
 
     return sum;
 }
