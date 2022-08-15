@@ -117,6 +117,7 @@ int main(int argc, char** argv)
     Dataset d;
     d.comm = MPI_COMM_WORLD;
     propagator->activateFields(d);
+    propagator->restoreState(initCond);
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, d);
     d.setOutputFields(outputFields);
 
@@ -156,6 +157,7 @@ int main(int argc, char** argv)
         {
             propagator->prepareOutput(d, domain.startIndex(), domain.endIndex());
             fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
+            propagator->dump(d.iteration, outFile);
             propagator->finishOutput(d);
         }
 

@@ -97,7 +97,7 @@ struct H5PartWriter : public IFileWriter<Dataset>
 
         for (auto it = c.begin(); it != c.end(); ++it)
         {
-            H5PartWriteFileAttrib(h5_file, it->first.c_str(), H5PART_FLOAT64, &(it->second), 1);
+            fileutils::sphexaWriteFileAttrib(h5_file, it->first.c_str(), &(it->second), 1);
         }
 
         H5PartCloseFile(h5_file);

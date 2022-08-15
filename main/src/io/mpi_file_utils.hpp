@@ -30,6 +30,25 @@ std::vector<std::string> datasetNames(H5PartFile* h5_file)
     return setNames;
 }
 
+//! @brief return the names of all datasets in @p h5_file
+std::vector<std::string> fileAttributeNames(H5PartFile* h5_file)
+{
+    auto numAttributes = H5PartGetNumFileAttribs(h5_file);
+
+    std::vector<std::string> setNames(numAttributes);
+    for (size_t fi = 0; fi < numAttributes; ++fi)
+    {
+        int            maxlen = 256;
+        char           attrName[maxlen];
+        h5part_int64_t typeId, attrSize;
+
+        H5PartGetFileAttribInfo(h5_file, fi, attrName, 256, &typeId, &attrSize);
+        setNames[fi] = std::string(attrName);
+    }
+
+    return setNames;
+}
+
 inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, int* field)
 {
     static_assert(std::is_same_v<int, h5part_int32_t>);
@@ -84,6 +103,16 @@ void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, double*
 void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, float* value, size_t numElements)
 {
     H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
+}
+
+void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const double* value, size_t numElements)
+{
+    H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
+}
+
+void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const float* value, size_t numElements)
+{
+    H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
 }
 
 template<class Dataset, class T>
