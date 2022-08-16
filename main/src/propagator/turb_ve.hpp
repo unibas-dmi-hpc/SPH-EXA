@@ -133,9 +133,7 @@ public:
             s >> turbulenceData.gen;
         }
 
-        std::cout << "Restored phases from SPH iteration " << iteration << ". First 5 phases: ";
-        std::copy_n(turbulenceData.phases.begin(), 5, std::ostream_iterator<RealType>(std::cout, " "));
-        std::cout << std::endl;
+        if (rank_ == 0) { std::cout << "Restored phases and RNG state from SPH iteration " << iteration << std::endl; }
 
         H5PartCloseFile(h5_file);
     }

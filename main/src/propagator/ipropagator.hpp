@@ -52,6 +52,10 @@ public:
     {
     }
 
+    //! @brief get a list of field strings marked as conserved at runtime
+    virtual std::vector<std::string> conservedFields() const = 0;
+
+    //! @brief Marks conserved and dependent fields inside the particle dataset as active, enabling memory allocation
     virtual void activateFields(ParticleDataType& d) = 0;
 
     virtual void sync(DomainType& domain, ParticleDataType& d) = 0;
