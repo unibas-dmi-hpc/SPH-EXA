@@ -24,28 +24,44 @@
  */
 
 /*! @file
- * @brief Test-case simulation data initialization
+ * @brief turbulence stirring tests
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#pragma once
+#include <random>
+#include <sstream>
 
-#include <map>
+#include "gtest/gtest.h"
 
-#include "cstone/sfc/box.hpp"
-
-namespace sphexa
+TEST(Turbulence, rngSerialize)
 {
+    std::mt19937 engine;
+    engine.seed(42);
 
-template<class Dataset>
-class ISimInitializer
-{
-public:
-    virtual cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t, Dataset& d) const = 0;
-    virtual const std::map<std::string, double>&    constants() const                                      = 0;
+    const auto originalEngine = engine;
+    // serialize originalEngine into a string
+    std::stringstream s;
+    s << originalEngine;
+    std::string engineState = s.str();
 
-    virtual ~ISimInitializer() = default;
-};
+    EXPECT_EQ(originalEngine, engine);
 
-} // namespace sphexa
+    for (int i = 0; i < 100; ++i)
+    {
+        engine();
+    }
+
+    // engines are now in a different state
+    EXPECT_NE(originalEngine, engine);
+
+    // check conversion from char array, as that's what's going to be read from HDF5
+    char stateChar[engineState.size()];
+    std::copy(engineState.begin(), engineState.end(), stateChar);
+
+    std::stringstream t;
+    t << stateChar;
+    t >> engine;
+
+    EXPECT_EQ(originalEngine, engine);
+}

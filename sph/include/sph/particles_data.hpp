@@ -39,8 +39,6 @@
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
 
-#include "sph/hydro_turb/turbulence_data.hpp"
-
 #include "data_util.hpp"
 #include "field_states.hpp"
 #include "particles_data_stubs.hpp"
@@ -123,8 +121,6 @@ public:
 
     const std::array<T, ::sph::lt::size> wh  = ::sph::lt::createWharmonicLookupTable<T, ::sph::lt::size>();
     const std::array<T, ::sph::lt::size> whd = ::sph::lt::createWharmonicDerivativeLookupTable<T, ::sph::lt::size>();
-
-    sph::TurbulenceData<T, AcceleratorType> turbulenceData;
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().

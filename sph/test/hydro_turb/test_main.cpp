@@ -24,28 +24,16 @@
  */
 
 /*! @file
- * @brief Test-case simulation data initialization
+ * @brief GTest driver
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#pragma once
+#include "gtest/gtest.h"
 
-#include <map>
-
-#include "cstone/sfc/box.hpp"
-
-namespace sphexa
+int main(int argc, char** argv)
 {
-
-template<class Dataset>
-class ISimInitializer
-{
-public:
-    virtual cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t, Dataset& d) const = 0;
-    virtual const std::map<std::string, double>&    constants() const                                      = 0;
-
-    virtual ~ISimInitializer() = default;
-};
-
-} // namespace sphexa
+    ::testing::InitGoogleTest(&argc, argv);
+    auto ret = RUN_ALL_TESTS();
+    return ret;
+}
