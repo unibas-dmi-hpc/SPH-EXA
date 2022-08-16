@@ -94,7 +94,6 @@ void updateNoise(std::vector<T>& phases, T stddev, T dt, T ts, std::mt19937& gen
 /*! @brief Adds the stirring motion to particle accelerations
  *
  * @tparam Dataset          SPH hydro dataset
- * @tparam TurbulenceModes  Turbulence stirring modes
  * @param  startIndex       first locally owned particle index
  * @param  endIndex         last locally owned particle index
  * @param  d                Hydro data
