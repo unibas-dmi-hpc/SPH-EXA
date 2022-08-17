@@ -26,6 +26,10 @@
 #include <chrono>
 #include <numeric>
 
+#ifdef __HIPCC__
+#include <hip/hip_runtime.h>
+#endif
+
 #include "nbody/dataset.hpp"
 #include "ryoanji/interface/treebuilder.cuh"
 #include "ryoanji/nbody/gpu_config.cuh"

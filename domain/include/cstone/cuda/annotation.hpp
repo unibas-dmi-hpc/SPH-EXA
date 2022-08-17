@@ -50,4 +50,3 @@
 #else
 #define HOST_DEVICE_INLINE inline
 #endif
-
