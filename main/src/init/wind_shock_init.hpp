@@ -137,7 +137,6 @@ std::map<std::string, double> WindShockConstants()
             {"epsilon", 0.}};
 }
 
-
 template<class Dataset>
 class WindShockGlass : public ISimInitializer<Dataset>
 {
