@@ -73,7 +73,8 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
 
     cstone::Domain<KeyType, T> domain(thisRank, numRanks, bucketSize, bucketSizeLocal, theta, box);
 
-    domain.syncGrav(particleKeys, x, y, z, h, m);
+    std::vector<T> scratchSpace;
+    domain.syncGrav(particleKeys, x, y, z, h, m, std::tuple{}, std::tie(scratchSpace));
 
     //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
     const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();
@@ -82,28 +83,15 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
     gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
 
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-    ryoanji::computeGlobalMultipoles(x.data(),
-                                     y.data(),
-                                     z.data(),
-                                     m.data(),
-                                     x.size(),
-                                     domain.globalTree(),
-                                     domain.focusTree(),
-                                     domain.layout().data(),
-                                     multipoles.data());
+    ryoanji::computeGlobalMultipoles(x.data(), y.data(), z.data(), m.data(), x.size(), domain.globalTree(),
+                                     domain.focusTree(), domain.layout().data(), multipoles.data());
 
     MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];
 
     // compute reference root cell multipole from global particle data
     MultipoleType reference;
-    particle2Multipole(coords.x().data(),
-                       coords.y().data(),
-                       coords.z().data(),
-                       globalMasses.data(),
-                       0,
-                       numParticles * numRanks,
-                       makeVec3(centers[octree.levelOffset(0)]),
-                       reference);
+    particle2Multipole(coords.x().data(), coords.y().data(), coords.z().data(), globalMasses.data(), 0,
+                       numParticles * numRanks, makeVec3(centers[octree.levelOffset(0)]), reference);
 
     double maxDiff = max(abs(reference - globalRootMultipole));
 

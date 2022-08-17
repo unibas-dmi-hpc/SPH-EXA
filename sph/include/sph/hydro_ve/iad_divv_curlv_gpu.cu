@@ -29,11 +29,11 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/findneighbors.cuh"
 
-#include "sph/sph.cuh"
+#include "sph/sph_gpu.hpp"
 #include "sph/particles_data.hpp"
-#include "sph/util/cuda_utils.cuh"
 #include "sph/hydro_ve/iad_kern.hpp"
 #include "sph/hydro_ve/divv_curlv_kern.hpp"
 
@@ -62,37 +62,14 @@ __global__ void iadDivvCurlvGpu(T sincIndex, T K, int ngmax, const cstone::Box<T
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount,
+                          numParticles, ngmax);
     neighborsCount = stl::min(neighborsCount, ngmax);
 
-    IADJLoop(
-        i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22, c23, c33);
-    divV_curlVJLoop(i,
-                    sincIndex,
-                    K,
-                    box,
-                    neighbors,
-                    neighborsCount,
-                    x,
-                    y,
-                    z,
-                    vx,
-                    vy,
-                    vz,
-                    h,
-                    c11,
-                    c12,
-                    c13,
-                    c22,
-                    c23,
-                    c33,
-                    wh,
-                    whd,
-                    kx,
-                    xm,
-                    divv,
-                    curlv);
+    IADJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22, c23,
+             c33);
+    divV_curlVJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, c11, c12, c13, c22, c23,
+                    c33, wh, whd, kx, xm, divv, curlv);
 }
 
 template<class Dataset>
@@ -108,35 +85,14 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, int ngmax, Dataset&
     unsigned numThreads = 128;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-    iadDivvCurlvGpu<<<numBlocks, numThreads>>>(d.sincIndex,
-                                               d.K,
-                                               ngmax,
-                                               box,
-                                               startIndex,
-                                               endIndex,
-                                               sizeWithHalos,
-                                               rawPtr(d.devData.codes),
-                                               rawPtr(d.devData.x),
-                                               rawPtr(d.devData.y),
-                                               rawPtr(d.devData.z),
-                                               rawPtr(d.devData.vx),
-                                               rawPtr(d.devData.vy),
-                                               rawPtr(d.devData.vz),
-                                               rawPtr(d.devData.h),
-                                               rawPtr(d.devData.m),
-                                               rawPtr(d.devData.wh),
-                                               rawPtr(d.devData.whd),
-                                               rawPtr(d.devData.xm),
-                                               rawPtr(d.devData.kx),
-                                               rawPtr(d.devData.c11),
-                                               rawPtr(d.devData.c12),
-                                               rawPtr(d.devData.c13),
-                                               rawPtr(d.devData.c22),
-                                               rawPtr(d.devData.c23),
-                                               rawPtr(d.devData.c33),
-                                               rawPtr(d.devData.divv),
-                                               rawPtr(d.devData.curlv));
-    CHECK_CUDA_ERR(cudaGetLastError());
+    iadDivvCurlvGpu<<<numBlocks, numThreads>>>(
+        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes), rawPtr(d.devData.x),
+        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
+        rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm),
+        rawPtr(d.devData.kx), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13),
+        rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.divv),
+        rawPtr(d.devData.curlv));
+    checkGpuErrors(cudaGetLastError());
 }
 
 template void computeIadDivvCurlv(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

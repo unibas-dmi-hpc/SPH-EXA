@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,22 +24,23 @@
  */
 
 /*! @file
- * @brief Contains the object holding all particle data on the GPU
+ * @brief Contains the object holding hydrodynamical particle data on the GPU
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include <variant>
-
+#include <cuda_runtime.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
+#include <variant>
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/util/util.hpp"
-#include "util/cuda_utils.cuh"
+
 #include "data_util.hpp"
 #include "field_states.hpp"
 #include "tables.hpp"
-#include "traits.hpp"
 
 namespace sphexa
 {
@@ -105,6 +106,20 @@ public:
         "h",   "m",   "c",   "ax",   "ay",   "az",   "du", "du_m1", "c11",   "c12",   "c13",   "c22",  "c23",
         "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
 
+    /*! @brief return a tuple of field references
+     *
+     * Note: this needs to be in the same order as listed in fieldNames
+     */
+    auto dataTuple()
+    {
+        auto ret =
+            std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11, c12,
+                     c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, codes, neighborsCount);
+
+        static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
+        return ret;
+    }
+
     /*! @brief return a vector of pointers to field vectors
      *
      * We implement this by returning an rvalue to prevent having to store pointers and avoid
@@ -116,14 +131,8 @@ public:
         using KeyVecType = std::decay_t<decltype(codes)>;
         using FieldType  = std::variant<DevVector<float>*, DevVector<double>*, KeyVecType*, IntVecType*>;
 
-        std::array<FieldType, fieldNames.size()> ret{
-            &x,   &y,   &z,   &x_m1, &y_m1, &z_m1, &vx, &vy,    &vz,    &rho,   &u,     &p,     &prho,
-            &h,   &m,   &c,   &ax,   &ay,   &az,   &du, &du_m1, &c11,   &c12,   &c13,   &c22,   &c23,
-            &c33, &mue, &mui, &temp, &cv,   &xm,   &kx, &divv,  &curlv, &alpha, &gradh, &codes, &neighborsCount};
-
-        static_assert(ret.size() == fieldNames.size());
-
-        return ret;
+        return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
+                          dataTuple());
     }
 
     void resize(size_t size);
@@ -138,7 +147,7 @@ public:
 
         for (int i = 0; i < NST; ++i)
         {
-            CHECK_CUDA_ERR(cudaStreamCreate(&d_stream[i].stream));
+            checkGpuErrors(cudaStreamCreate(&d_stream[i].stream));
         }
         resize_streams(taskSize);
     }
@@ -147,8 +156,8 @@ public:
     {
         for (int i = 0; i < NST; ++i)
         {
-            CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
-            CHECK_CUDA_ERR(::sph::cuda::utils::cudaFree(d_stream[i].d_neighborsCount));
+            checkGpuErrors(cudaStreamDestroy(d_stream[i].stream));
+            checkGpuErrors(cudaFree(d_stream[i].d_neighborsCount));
         }
     }
 
@@ -161,7 +170,7 @@ private:
             {
                 for (int i = 0; i < NST; ++i)
                 {
-                    CHECK_CUDA_ERR(::sph::cuda::utils::cudaFree(d_stream[i].d_neighborsCount));
+                    checkGpuErrors(cudaFree(d_stream[i].d_neighborsCount));
                 }
             }
 
@@ -170,7 +179,7 @@ private:
 
             for (int i = 0; i < NST; ++i)
             {
-                CHECK_CUDA_ERR(::sph::cuda::utils::cudaMalloc(newTaskSize * sizeof(int), d_stream[i].d_neighborsCount));
+                checkGpuErrors(cudaMalloc((void**)&(d_stream[i].d_neighborsCount), newTaskSize * sizeof(int)));
             }
 
             allocatedTaskSize = newTaskSize;
@@ -178,24 +187,10 @@ private:
     }
 };
 
-template<class ThrustVec>
-typename ThrustVec::value_type* rawPtr(ThrustVec& p)
-{
-    assert(p.size() && "cannot get pointer to unallocated device vector memory");
-    return thrust::raw_pointer_cast(p.data());
-}
-
-template<class ThrustVec>
-const typename ThrustVec::value_type* rawPtr(const ThrustVec& p)
-{
-    assert(p.size() && "cannot get pointer to unallocated device vector memory");
-    return thrust::raw_pointer_cast(p.data());
-}
-
-template<class DataType, std::enable_if_t<HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
+template<class DataType, std::enable_if_t<cstone::HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
 void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
 {
-    auto hostData = d.data();
+    auto hostData   = d.data();
     auto deviceData = d.devData.data();
 
     auto launchTransfer = [first, last](const auto* hostField, auto* deviceField)
@@ -207,11 +202,10 @@ void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<
             assert(hostField->size() > 0);
             assert(deviceField->size() > 0);
             size_t transferSize = (last - first) * sizeof(typename Type1::value_type);
-            CHECK_CUDA_ERR(cudaMemcpy(
-                rawPtr(*deviceField) + first, hostField->data() + first, transferSize, cudaMemcpyHostToDevice));
+            checkGpuErrors(cudaMemcpy(rawPtr(*deviceField) + first, hostField->data() + first, transferSize,
+                                      cudaMemcpyHostToDevice));
         }
-        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
-        }
+        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device"); }
     };
 
     for (const auto& field : fields)
@@ -222,7 +216,7 @@ void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<
     }
 }
 
-template<class DataType, std::enable_if_t<HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
+template<class DataType, std::enable_if_t<cstone::HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
 void transferToHost(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
 {
     auto hostData   = d.data();
@@ -237,11 +231,10 @@ void transferToHost(DataType& d, size_t first, size_t last, const std::vector<st
             assert(hostField->size() > 0);
             assert(deviceField->size() > 0);
             size_t transferSize = (last - first) * sizeof(typename Type1::value_type);
-            CHECK_CUDA_ERR(cudaMemcpy(
-                hostField->data() + first, rawPtr(*deviceField) + first, transferSize, cudaMemcpyDeviceToHost));
+            checkGpuErrors(cudaMemcpy(hostField->data() + first, rawPtr(*deviceField) + first, transferSize,
+                                      cudaMemcpyDeviceToHost));
         }
-        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device");
-        }
+        else { throw std::runtime_error("Field type mismatch between CPU and GPU in copy to device"); }
     };
 
     for (const auto& field : fields)

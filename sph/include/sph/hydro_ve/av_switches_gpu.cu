@@ -29,11 +29,11 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/findneighbors.cuh"
 
-#include "sph/sph.cuh"
+#include "sph/sph_gpu.hpp"
 #include "sph/particles_data.hpp"
-#include "sph/util/cuda_utils.cuh"
 #include "sph/hydro_ve/av_switches_kern.hpp"
 
 namespace sph
@@ -62,40 +62,13 @@ __global__ void AVswitchesGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount,
+                          numParticles, ngmax);
 
     neighborsCount = stl::min(neighborsCount, ngmax);
-    alpha[i]       = AVswitchesJLoop(i,
-                               sincIndex,
-                               K,
-                               box,
-                               neighbors,
-                               neighborsCount,
-                               x,
-                               y,
-                               z,
-                               vx,
-                               vy,
-                               vz,
-                               h,
-                               c,
-                               c11,
-                               c12,
-                               c13,
-                               c22,
-                               c23,
-                               c33,
-                               wh,
-                               whd,
-                               kx,
-                               xm,
-                               divv,
-                               minDt,
-                               alphamin,
-                               alphamax,
-                               decay_constant,
-                               alpha[i]);
+    alpha[i] =
+        AVswitchesJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, c, c11, c12, c13, c22,
+                        c23, c33, wh, whd, kx, xm, divv, minDt, alphamin, alphamax, decay_constant, alpha[i]);
 }
 
 template<class Dataset>
@@ -109,39 +82,14 @@ void computeAVswitches(size_t startIndex, size_t endIndex, int ngmax, Dataset& d
     unsigned numThreads = 128;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-    AVswitchesGpu<<<numBlocks, numThreads>>>(d.sincIndex,
-                                             d.K,
-                                             ngmax,
-                                             box,
-                                             startIndex,
-                                             endIndex,
-                                             sizeWithHalos,
-                                             rawPtr(d.devData.codes),
-                                             rawPtr(d.devData.x),
-                                             rawPtr(d.devData.y),
-                                             rawPtr(d.devData.z),
-                                             rawPtr(d.devData.vx),
-                                             rawPtr(d.devData.vy),
-                                             rawPtr(d.devData.vz),
-                                             rawPtr(d.devData.h),
-                                             rawPtr(d.devData.c),
-                                             rawPtr(d.devData.c11),
-                                             rawPtr(d.devData.c12),
-                                             rawPtr(d.devData.c13),
-                                             rawPtr(d.devData.c22),
-                                             rawPtr(d.devData.c23),
-                                             rawPtr(d.devData.c33),
-                                             rawPtr(d.devData.wh),
-                                             rawPtr(d.devData.whd),
-                                             rawPtr(d.devData.kx),
-                                             rawPtr(d.devData.xm),
-                                             rawPtr(d.devData.divv),
-                                             d.minDt,
-                                             d.alphamin,
-                                             d.alphamax,
-                                             d.decay_constant,
-                                             rawPtr(d.devData.alpha));
-    CHECK_CUDA_ERR(cudaGetLastError());
+    AVswitchesGpu<<<numBlocks, numThreads>>>(
+        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes), rawPtr(d.devData.x),
+        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
+        rawPtr(d.devData.h), rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13),
+        rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh),
+        rawPtr(d.devData.whd), rawPtr(d.devData.kx), rawPtr(d.devData.xm), rawPtr(d.devData.divv), d.minDt, d.alphamin,
+        d.alphamax, d.decay_constant, rawPtr(d.devData.alpha));
+    checkGpuErrors(cudaGetLastError());
 }
 
 template void computeAVswitches(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

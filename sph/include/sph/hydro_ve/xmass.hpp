@@ -31,10 +31,8 @@
 
 #pragma once
 
-#include "sph/kernels.hpp"
-#include "sph/traits.hpp"
+#include "sph/sph_gpu.hpp"
 #include "xmass_kern.hpp"
-#include "sph/sph.cuh"
 
 namespace sph
 {
@@ -62,7 +60,7 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
     for (size_t i = startIndex; i < endIndex; i++)
     {
         size_t ni = i - startIndex;
-        int    nc = stl::min(neighborsCount[i], ngmax);
+        int    nc = std::min(neighborsCount[i], ngmax);
         xm[i]     = xmassJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd);
 #ifndef NDEBUG
         if (std::isnan(xm[i]))
@@ -74,7 +72,7 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
 template<typename T, class Dataset>
 void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeXMass(startIndex, endIndex, ngmax, d, box);
     }

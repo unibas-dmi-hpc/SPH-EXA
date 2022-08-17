@@ -37,12 +37,15 @@
 #include "cstone/sfc/box.hpp"
 
 #include "isim_init.hpp"
+#include "noh_init.hpp"
+#include "sedov_init.hpp"
+#ifdef SPH_EXA_HAVE_H5PART
 #include "file_init.hpp"
 #include "evrard_init.hpp"
-#include "sedov_init.hpp"
-#include "noh_init.hpp"
 #include "isobaric_cube_init.hpp"
 #include "wind_shock_init.hpp"
+#include "turbulence_init.hpp"
+#endif
 
 namespace sphexa
 {
@@ -53,13 +56,23 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     if (testCase == "sedov")
     {
         if (glassBlock.empty()) { return std::make_unique<SedovGrid<Dataset>>(); }
+#ifdef SPH_EXA_HAVE_H5PART
         else { return std::make_unique<SedovGlass<Dataset>>(glassBlock); }
+#endif
     }
     if (testCase == "noh")
     {
         if (glassBlock.empty()) { return std::make_unique<NohGrid<Dataset>>(); }
+#ifdef SPH_EXA_HAVE_H5PART
         else { return std::make_unique<NohGlassSphere<Dataset>>(glassBlock); }
+#endif
     }
+
+    std::string hdf5_missing = "without HDF5 support";
+
+#ifdef SPH_EXA_HAVE_H5PART
+    hdf5_missing = "";
+
     if (testCase == "isobaric-cube")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for isobaric cube\n"); }
@@ -75,16 +88,18 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for evrard\n"); }
         return std::make_unique<EvrardGlassSphere<Dataset>>(glassBlock);
     }
-    else
+    if (testCase == "turbulence")
     {
-        if (std::filesystem::exists(testCase)) { return std::make_unique<FileInit<Dataset>>(testCase); }
-        else
-        {
-            throw std::runtime_error("supplied value of --init " +
-                                     (testCase.empty() ? "[empty string]" : "(\"" + testCase + "\")") +
-                                     " is not an existing file and does not refer to a supported test case\n");
-        }
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for turbulence test\n"); }
+        else { return std::make_unique<TurbulenceGlass<Dataset>>(glassBlock); }
     }
+    if (std::filesystem::exists(testCase)) { return std::make_unique<FileInit<Dataset>>(testCase); }
+
+#endif
+
+    throw std::runtime_error("supplied value of --init " +
+                             (testCase.empty() ? "[empty string]" : "(\"" + testCase + "\")") +
+                             " is not a usable file or supported test case " + hdf5_missing + "\n");
 }
 
 } // namespace sphexa

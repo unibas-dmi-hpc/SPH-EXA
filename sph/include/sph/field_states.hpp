@@ -184,8 +184,12 @@ private:
 
     void setState(const std::string& field, State state)
     {
-        int idx =
+        size_t idx =
             std::find(DataType::fieldNames.begin(), DataType::fieldNames.end(), field) - DataType::fieldNames.begin();
+        if (idx == fieldStates_.size())
+        {
+            throw std::runtime_error("Cannot set state of " + field + ": unknown field\n");
+        }
         fieldStates_[idx] = state;
     }
 

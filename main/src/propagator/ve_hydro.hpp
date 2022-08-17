@@ -34,6 +34,8 @@
 
 #include <variant>
 
+#include "sph/sph.hpp"
+
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"
 
@@ -43,8 +45,9 @@ namespace sphexa
 using namespace sph;
 
 template<class DomainType, class ParticleDataType>
-class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
+class HydroVeProp : public Propagator<DomainType, ParticleDataType>
 {
+protected:
     using Base = Propagator<DomainType, ParticleDataType>;
     using Base::ng0_;
     using Base::ngmax_;
@@ -56,10 +59,20 @@ class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
 
     using Acc = typename ParticleDataType::AcceleratorType;
     using MHolder_t =
-        typename detail::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<MultipoleType,
+        typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<MultipoleType,
                                                                                                      KeyType, T, T, T>;
 
     MHolder_t mHolder_;
+
+    /*! @brief the list of conserved particles fields with values preserved between iterations
+     *
+     * x, y, z, h and m are automatically considered conserved and must not be specified in this list
+     */
+    using ConservedFields = FieldList<"u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha">;
+
+    //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
+    using DependentFields = FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33",
+                                      "xm", "kx", "divv", "curlv", "nc">;
 
 public:
     HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
@@ -67,48 +80,41 @@ public:
     {
     }
 
+    std::vector<std::string> conservedFields() const override
+    {
+        std::vector<std::string> ret{"x", "y", "z", "h", "m"};
+        for_each_tuple([&ret](auto f) { ret.push_back(f.value); }, make_tuple(ConservedFields{}));
+        return ret;
+    }
+
     void activateFields(ParticleDataType& d) override
     {
-        d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha");
-        d.setDependent("prho",
-                       "c",
-                       "ax",
-                       "ay",
-                       "az",
-                       "du",
-                       "c11",
-                       "c12",
-                       "c13",
-                       "c22",
-                       "c23",
-                       "c33",
-                       "xm",
-                       "kx",
-                       "divv",
-                       "curlv",
-                       "keys",
-                       "nc");
+        //! @brief Fields accessed in domain sync are not part of extensible lists.
+        d.setConserved("x", "y", "z", "h", "m");
+        d.setDependent("keys");
+
+        std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
+        std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
         d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz", "alpha");
-        d.devData.setDependent(
-            "prho", "c", "kx", "xm", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys");
+        d.devData.setDependent("prho", "c", "kx", "xm", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23",
+                               "c33", "keys");
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
     {
         if (d.g != 0.0)
         {
-            domain.syncGrav(
-                d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha);
+            domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, getHost<ConservedFields>(d), getHost<DependentFields>(d));
         }
         else
         {
-            domain.sync(
-                d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha);
+            domain.sync(d.codes, d.x, d.y, d.z, d.h, std::tuple_cat(std::tie(d.m), getHost<ConservedFields>(d)),
+                        getHost<DependentFields>(d));
         }
     }
 
-    void step(DomainType& domain, ParticleDataType& d) override
+    void computeForces(DomainType& domain, ParticleDataType& d)
     {
         timer.start();
         sync(domain, d);
@@ -122,60 +128,52 @@ public:
         std::fill(begin(d.m), begin(d.m) + first, d.m[first]);
         std::fill(begin(d.m) + last, end(d.m), d.m[first]);
 
-        findNeighborsSfc<T, KeyType>(
-            first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
+        findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount,
+                                     domain.box());
         timer.step("FindNeighbors");
 
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"x", "y", "z", "h", "m", "keys"});
         computeXMass(first, last, ngmax_, d, domain.box());
-        transferToHost(d, first, last, {"xm"});
         timer.step("XMass");
-        domain.exchangeHalos(d.xm);
+        domain.exchangeHalosAuto(get<"xm">(d), std::get<0>(get<"ax">(d)), std::get<0>(get<"ay">(d)));
         timer.step("mpi::synchronizeHalos");
 
-        d.release("ax", "ay");
-        d.acquire("p", "gradh");
-        d.devData.release("ax");
-        d.devData.acquire("gradh");
-        transferToDevice(d, 0, first, {"xm"});
-        transferToDevice(d, last, domain.nParticlesWithHalos(), {"xm"});
+        d.release("ax");
+        d.acquire("gradh");
+        d.devData.release("ax", "du");
+        d.devData.acquire("gradh", "u");
         computeVeDefGradh(first, last, ngmax_, d, domain.box());
         timer.step("Normalization & Gradh");
-        transferToHost(d, first, last, {"kx", "gradh"});
+
+        transferToDevice(d, first, last, {"vx", "vy", "vz", "u", "alpha"});
         computeEOS(first, last, d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.prho, d.c, d.kx);
+        domain.exchangeHalosAuto(get<"vx", "vy", "vz", "prho", "c", "kx">(d), std::get<0>(get<"gradh">(d)),
+                                 std::get<0>(get<"ay">(d)));
         timer.step("mpi::synchronizeHalos");
 
-        d.release("p", "gradh");
-        d.acquire("ax", "ay");
-        d.devData.release("gradh", "ay");
-        d.devData.acquire("divv", "curlv");
-        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"vx", "vy", "vz"});
-        transferToDevice(d, 0, first, {"kx"});
-        transferToDevice(d, last, domain.nParticlesWithHalos(), {"kx"});
+        d.release("gradh");
+        d.acquire("ax");
+        d.devData.release("gradh", "ay", "u");
+        d.devData.acquire("divv", "curlv", "du");
         computeIadDivvCurlv(first, last, ngmax_, d, domain.box());
-        transferToHost(d, first, last, {"c11", "c12", "c13", "c22", "c23", "c33", "divv", "curlv"});
+        transferToHost(d, first, last, {"divv", "curlv"});
         timer.step("IadVelocityDivCurl");
 
-        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv);
+        domain.exchangeHalosAuto(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), std::get<0>(get<"az">(d)),
+                                 std::get<0>(get<"du">(d)));
         timer.step("mpi::synchronizeHalos");
 
-        transferToDevice(d, 0, first, {"divv"});
-        transferToDevice(d, last, domain.nParticlesWithHalos(), {"divv"});
         computeAVswitches(first, last, ngmax_, d, domain.box());
         transferToHost(d, first, last, {"alpha"});
         timer.step("AVswitches");
 
-        domain.exchangeHalos(d.alpha);
+        domain.exchangeHalosAuto(get<"alpha">(d), std::get<0>(get<"az">(d)), std::get<0>(get<"du">(d)));
         timer.step("mpi::synchronizeHalos");
 
         d.devData.release("divv", "curlv");
         d.devData.acquire("ax", "ay");
-        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"c", "prho"});
-        transferToDevice(d, 0, first, {"c11", "c12", "c13", "c22", "c23", "c33", "alpha"});
-        transferToDevice(d, last, domain.nParticlesWithHalos(), {"c11", "c12", "c13", "c22", "c23", "c33", "alpha"});
         computeMomentumEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
 
@@ -186,9 +184,17 @@ public:
             mHolder_.traverse(d, domain);
             timer.step("Gravity");
         }
+    }
+
+    void step(DomainType& domain, ParticleDataType& d) override
+    {
+        computeForces(domain, d);
+
+        size_t first = domain.startIndex();
+        size_t last  = domain.endIndex();
         transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
-        computeTimestep(first, last, d);
+        computeTimestep(d);
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
@@ -203,7 +209,8 @@ public:
     {
         d.release("c11", "c12", "c13");
         d.acquire("rho", "p", "gradh");
-        computeEOS(startIndex, endIndex, d);
+        transferToHost(d, startIndex, endIndex, {"kx", "xm"});
+        computeEOS_Impl(startIndex, endIndex, d);
     }
 
     //! @brief undo output configuration and restore compute configuration

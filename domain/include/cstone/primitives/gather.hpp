@@ -159,8 +159,6 @@ public:
         mapSize_ = std::size_t(map_last - map_first);
         ordering_.resize(mapSize_);
         omp_copy(map_first, map_last, begin(ordering_));
-
-        buffer_.resize(mapSize_ * ElementSize);
     }
 
     void getReorderMap(IndexType* map_first, LocalIndex first, LocalIndex last)
@@ -196,8 +194,6 @@ public:
         std::iota(begin(ordering_), end(ordering_), 0);
 
         sort_by_key(codes_first, codes_last, begin(ordering_));
-
-        buffer_.resize(mapSize_ * ElementSize);
     }
 
     /*! @brief reorder the array @p values according to the reorder map provided previously
@@ -208,11 +204,7 @@ public:
     template<class T>
     void operator()(const T* source, T* destination, IndexType offset, IndexType numExtract) const
     {
-        static_assert(sizeof(T) <= ElementSize);
-        auto* bufferT = reinterpret_cast<T*>(buffer_.data());
-
-        reorder<IndexType>({ordering_.data() + offset, numExtract}, source, bufferT);
-        omp_copy(bufferT, bufferT + numExtract, destination);
+        reorder<IndexType>({ordering_.data() + offset, numExtract}, source, destination);
     }
 
     template<class T>
@@ -230,15 +222,11 @@ public:
     }
 
 private:
-    constexpr static inline size_t ElementSize = 8;
-
     std::size_t offset_{0};
     std::size_t numExtract_{0};
     std::size_t mapSize_{0};
 
     std::vector<IndexType, util::DefaultInitAdaptor<IndexType>> ordering_;
-
-    mutable std::vector<char, util::DefaultInitAdaptor<char>> buffer_;
 };
 
 } // namespace cstone

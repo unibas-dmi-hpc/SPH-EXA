@@ -29,12 +29,12 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include "sph/sph.cuh"
-#include "sph/particles_data.hpp"
-#include "sph/util/cuda_utils.cuh"
-#include "sph/hydro_ve/ve_def_gradh_kern.hpp"
-
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/findneighbors.cuh"
+
+#include "sph/sph_gpu.hpp"
+#include "sph/particles_data.hpp"
+#include "sph/hydro_ve/ve_def_gradh_kern.hpp"
 
 namespace sph
 {
@@ -59,8 +59,8 @@ __global__ void veDefGradhGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount,
+                          numParticles, ngmax);
     neighborsCount = stl::min(neighborsCount, ngmax);
 
     auto [kxi, gradhi] = veDefGradhJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, wh, whd, xm);
@@ -82,26 +82,12 @@ void computeVeDefGradh(size_t startIndex, size_t endIndex, int ngmax, Dataset& d
     unsigned numThreads = 128;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-    veDefGradhGpu<<<numBlocks, numThreads>>>(d.sincIndex,
-                                             d.K,
-                                             ngmax,
-                                             box,
-                                             startIndex,
-                                             endIndex,
-                                             sizeWithHalos,
-                                             rawPtr(d.devData.codes),
-                                             rawPtr(d.devData.x),
-                                             rawPtr(d.devData.y),
-                                             rawPtr(d.devData.z),
-                                             rawPtr(d.devData.h),
-                                             rawPtr(d.devData.m),
-                                             rawPtr(d.devData.wh),
-                                             rawPtr(d.devData.whd),
-                                             rawPtr(d.devData.xm),
-                                             rawPtr(d.devData.kx),
-                                             rawPtr(d.devData.gradh));
+    veDefGradhGpu<<<numBlocks, numThreads>>>(
+        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes), rawPtr(d.devData.x),
+        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh),
+        rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx), rawPtr(d.devData.gradh));
 
-    CHECK_CUDA_ERR(cudaGetLastError());
+    checkGpuErrors(cudaDeviceSynchronize());
 }
 
 template void computeVeDefGradh(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

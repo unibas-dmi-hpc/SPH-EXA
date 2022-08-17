@@ -31,9 +31,8 @@
 
 #pragma once
 
+#include "sph/sph_gpu.hpp"
 #include "ve_def_gradh_kern.hpp"
-#include "sph/sph.cuh"
-#include "sph/traits.hpp"
 
 namespace sph
 {
@@ -64,7 +63,7 @@ void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, int ngmax, Datase
     for (size_t i = startIndex; i < endIndex; i++)
     {
         size_t ni = i - startIndex;
-        int    nc = stl::min(neighborsCount[i], ngmax);
+        int    nc = std::min(neighborsCount[i], ngmax);
         auto [kxi, gradhi] =
             veDefGradhJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd, xm);
 
@@ -82,7 +81,7 @@ void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, int ngmax, Datase
 template<typename T, class Dataset>
 void computeVeDefGradh(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeVeDefGradh(startIndex, endIndex, ngmax, d, box);
     }

@@ -25,13 +25,17 @@
 
 #pragma once
 
-inline void checkErr(cudaError_t err, const char *filename, int lineno, const char *funcName)
+#include <cstdio>
+#include <cuda_runtime.h>
+
+inline void checkErr(cudaError_t err, const char* filename, int lineno, const char* funcName)
 {
     if (err != cudaSuccess)
     {
-        const char *errName = cudaGetErrorName(err);
-        const char *errStr = cudaGetErrorString(err);
-        fprintf(stderr, "CUDA Error at %s:%d. Function %s returned err %d: %s - %s\n", filename, lineno, funcName, err, errName, errStr);
+        const char* errName = cudaGetErrorName(err);
+        const char* errStr  = cudaGetErrorString(err);
+        fprintf(stderr, "CUDA Error at %s:%d. Function %s returned err %d: %s - %s\n", filename, lineno, funcName, err,
+                errName, errStr);
         exit(EXIT_FAILURE);
     }
 }

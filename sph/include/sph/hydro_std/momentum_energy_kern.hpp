@@ -1,14 +1,17 @@
 #pragma once
 
+#include "cstone/cuda/annotation.hpp"
 #include "cstone/sfc/box.hpp"
 
+#include "sph/kernels.hpp"
+#include "sph/math.hpp"
 #include "sph/tables.hpp"
 
 namespace sph
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline void
+HOST_DEVICE_FUN inline void
 momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
                        const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h,
                        const T* m, const T* ro, const T* p, const T* c, const T* c11, const T* c12, const T* c13,

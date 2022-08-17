@@ -1,17 +1,43 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*! @file
+ * @brief parallel file I/O utility functions based on H5Part
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ */
+
 #pragma once
 
-#ifdef SPH_EXA_HAVE_H5PART
 #include <filesystem>
-#include "H5Part.h"
 #include <variant>
-#endif
+#include "H5Part.h"
 
 namespace sphexa
 {
 namespace fileutils
 {
-
-#ifdef SPH_EXA_HAVE_H5PART
 
 //! @brief return the names of all datasets in @p h5_file
 std::vector<std::string> datasetNames(H5PartFile* h5_file)
@@ -25,6 +51,25 @@ std::vector<std::string> datasetNames(H5PartFile* h5_file)
         char fieldName[maxlen];
         H5PartGetDatasetName(h5_file, fi, fieldName, maxlen);
         setNames[fi] = std::string(fieldName);
+    }
+
+    return setNames;
+}
+
+//! @brief return the names of all datasets in @p h5_file
+std::vector<std::string> fileAttributeNames(H5PartFile* h5_file)
+{
+    auto numAttributes = H5PartGetNumFileAttribs(h5_file);
+
+    std::vector<std::string> setNames(numAttributes);
+    for (size_t fi = 0; fi < numAttributes; ++fi)
+    {
+        int            maxlen = 256;
+        char           attrName[maxlen];
+        h5part_int64_t typeId, attrSize;
+
+        H5PartGetFileAttribInfo(h5_file, fi, attrName, 256, &typeId, &attrSize);
+        setNames[fi] = std::string(attrName);
     }
 
     return setNames;
@@ -86,38 +131,59 @@ void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, float* 
     H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
 }
 
-template<class Dataset, class T>
-void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& box, const std::string& path)
+void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const double* value, size_t numElements)
 {
-    using h5_int64_t = h5part_int64_t;
-    using h5_id_t    = h5part_int64_t;
+    H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
+}
 
-    // output name
+void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const float* value, size_t numElements)
+{
+    H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
+}
+
+void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const char* value, size_t numElements)
+{
+    H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_CHAR, value, numElements);
+}
+
+//! @brief Open in parallel mode if supported, otherwise serial if numRanks == 1
+H5PartFile* openH5Part(const std::string& path, h5part_int64_t mode, MPI_Comm comm)
+{
     const char* h5_fname = path.c_str();
     H5PartFile* h5_file  = nullptr;
 
 #ifdef H5PART_PARALLEL_IO
-    if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFileParallel(h5_fname, H5PART_APPEND, d.comm); }
-    else { h5_file = H5PartOpenFileParallel(h5_fname, H5PART_WRITE, d.comm); }
+    h5_file = H5PartOpenFileParallel(h5_fname, mode, comm);
 #else
     int numRanks;
-    MPI_Comm_size(d.comm, &numRanks);
+    MPI_Comm_size(comm, &numRanks);
     if (numRanks > 1)
     {
-        throw std::runtime_error("Cannot write HDF5 output with multiple ranks without parallel HDF5 support\n");
+        throw std::runtime_error("Cannot open HDF5 file on multiple ranks without parallel HDF5 support\n");
     }
-    if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFile(h5_fname, H5PART_APPEND); }
-    else { h5_file = H5PartOpenFile(h5_fname, H5PART_WRITE); }
+    h5_file = H5PartOpenFile(h5_fname, mode);
 #endif
 
+    return h5_file;
+}
+
+template<class Dataset, class T>
+void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& box, const std::string& path)
+{
+    H5PartFile* h5_file = nullptr;
+
+    if (std::filesystem::exists(path)) { h5_file = openH5Part(path, H5PART_APPEND, d.comm); }
+    else { h5_file = openH5Part(path, H5PART_WRITE, d.comm); }
+
     // create the next step
-    h5_id_t numSteps = H5PartGetNumSteps(h5_file);
+    h5part_int64_t numSteps = H5PartGetNumSteps(h5_file);
     H5PartSetStep(h5_file, numSteps);
 
     sphexaWriteStepAttrib(h5_file, "time", &d.ttot, 1);
     sphexaWriteStepAttrib(h5_file, "minDt", &d.minDt, 1);
     sphexaWriteStepAttrib(h5_file, "minDt_m1", &d.minDt_m1, 1);
     sphexaWriteStepAttrib(h5_file, "gravConstant", &d.g, 1);
+    sphexaWriteStepAttrib(h5_file, "gamma", &d.gamma, 1);
     // record the actual SPH-iteration as step attribute
     H5PartWriteStepAttrib(h5_file, "step", H5PART_INT64, &d.iteration, 1);
 
@@ -127,7 +193,7 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     h5part_int32_t pbc[3] = {box.pbcX(), box.pbcY(), box.pbcZ()};
     H5PartWriteStepAttrib(h5_file, "pbc", H5PART_INT32, pbc, 3);
 
-    const h5_int64_t h5_num_particles = lastIndex - firstIndex;
+    const h5part_int64_t h5_num_particles = lastIndex - firstIndex;
     // set number of particles that each rank will write
     H5PartSetNumParticles(h5_file, h5_num_particles);
 
@@ -161,16 +227,6 @@ void readTemplateBlock(std::string block, Vector& x, Vector& y, Vector& z)
     fileutils::readH5PartField(h5_file, "z", z.data());
     H5PartCloseFile(h5_file);
 }
-
-#else
-
-template<class Vector>
-void readTemplateBlock(std::string /*block*/, Vector& /*x*/, Vector& /*y*/, Vector& /*z*/)
-{
-    throw std::runtime_error("Glass initialization with template blocks only supported with HDF5 support\n");
-}
-
-#endif
 
 } // namespace fileutils
 } // namespace sphexa
