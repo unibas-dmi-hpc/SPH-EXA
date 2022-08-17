@@ -1,4 +1,5 @@
 ![License](https://img.shields.io/github/license/unibas-dmi-hpc/SPH-EXA_mini-app)
+[![Documentation Status](https://readthedocs.org/projects/sph-exa/badge/?version=latest)](https://sph-exa.readthedocs.io/en/latest/?badge=latest)
 [![Unit tests](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/actions/workflows/unittest.yml/badge.svg?branch=develop)](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/actions/workflows/unittest.yml)
 ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/unibas-dmi-hpc/SPH-EXA_mini-app?include_prereleases)
 <p align="center">
