@@ -171,9 +171,9 @@ public:
 
         size_t multiplicity  = std::rint(cbrtNumPart / std::cbrt(blockSize));
 
-        cstone::Box<T> globalBox(0, 4 * r, 0, 2 * r, 0, 2 * r, true);
-        cstone::Box<T> boxA(0, 2 * r, 0, 2 * r, 0, 2 * r, true);
-        cstone::Box<T> boxB(2 * r, 4 * r, 0, 2 * r, 0, 2 * r, true);
+        cstone::Box<T> globalBox(0, 4 * r, 0, 2 * r, 0, 2 * r, true, true, true);
+        cstone::Box<T> boxA(0, 2 * r, 0, 2 * r, 0, 2 * r, true, true, true);
+        cstone::Box<T> boxB(2 * r, 4 * r, 0, 2 * r, 0, 2 * r, true, true, true);
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, boxA, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
