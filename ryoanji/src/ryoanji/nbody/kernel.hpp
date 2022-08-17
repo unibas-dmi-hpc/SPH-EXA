@@ -36,7 +36,7 @@
 namespace ryoanji
 {
 
-HOST_DEVICE_FUN DEVICE_INLINE float inverseSquareRoot(float x)
+HOST_DEVICE_FUN HOST_DEVICE_INLINE float inverseSquareRoot(float x)
 {
 #if defined(__HIP_DEVICE_COMPILE__) || defined(__CUDA_ARCH__)
     return rsqrtf(x);
@@ -45,7 +45,7 @@ HOST_DEVICE_FUN DEVICE_INLINE float inverseSquareRoot(float x)
 #endif
 }
 
-HOST_DEVICE_FUN DEVICE_INLINE double inverseSquareRoot(double x)
+HOST_DEVICE_FUN HOST_DEVICE_INLINE double inverseSquareRoot(double x)
 {
 #if defined(__HIP_DEVICE_COMPILE__) || defined(__CUDA_ARCH__)
     return rsqrt(x);
