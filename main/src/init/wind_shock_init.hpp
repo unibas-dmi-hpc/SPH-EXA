@@ -161,12 +161,15 @@ public:
         T rhoExt  = constants_.at("rhoExt");
         T epsilon = constants_.at("epsilon");
 
+        T densityRatio = rhoInt / rhoExt;
+        T cubeVolume = std::pow(2 * r, 3);
+        T blobMultiplier = std::cbrt(cubeVolume / densityRatio) / (2. * rSphere);
+
         std::vector<T> xBlock, yBlock, zBlock;
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
         size_t multiplicity  = std::rint(cbrtNumPart / std::cbrt(blockSize));
-        d.numParticlesGlobal = multiplicity * multiplicity * multiplicity * blockSize;
 
         cstone::Box<T> globalBox(0, 4 * r, 0, 2 * r, 0, 2 * r, true);
         cstone::Box<T> boxA(0, 2 * r, 0, 2 * r, 0, 2 * r, true);
@@ -187,7 +190,7 @@ public:
 
         // create the high-density blob
         std::vector<T> xBlob, yBlob, zBlob;
-        cstone::Box<T> boxS(r - rSphere, r + rSphere);
+        cstone::Box<T> boxS(r - blobMultiplier * rSphere, r + blobMultiplier * rSphere);
         assembleCube<T>(keyStart, keyEnd, boxS, multiplicity, xBlock, yBlock, zBlock, xBlob, yBlob, zBlob);
         auto keepSphere = [r, rSphere](auto x, auto y, auto z)
         {
@@ -202,16 +205,20 @@ public:
         std::copy(zBlob.begin(), zBlob.end(), std::back_inserter(d.z));
 
         // Calculate particle mass with the internal sphere
-        // T innerSide   = rSphere;
-        // T innerVolume = (4. / 3.) * M_PI * innerSide * innerSide * innerSide;
+        T innerSide   = rSphere;
+        T innerVolume = (4. / 3.) * M_PI * innerSide * innerSide * innerSide;
 
-        size_t numParticlesInternal = blockSize * std::pow(multiplicity, 3);
-        // T massPart    = innerVolume * rhoInt / numParticlesInternal;
-        T massPart = globalBox.lx() * globalBox.ly() * globalBox.lz() * rhoExt / (2 * numParticlesInternal);
+        size_t numParticlesInternal = xBlob.size();
+        MPI_Allreduce(MPI_IN_PLACE, &numParticlesInternal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
+        T massPart    = innerVolume * rhoInt / numParticlesInternal;
+
 
         // Initialize Wind shock domain variables
         d.resize(d.x.size());
         initWindShockFields(d, constants_, massPart);
+
+        d.numParticlesGlobal = d.x.size();
+        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
 
         return globalBox;
     }
