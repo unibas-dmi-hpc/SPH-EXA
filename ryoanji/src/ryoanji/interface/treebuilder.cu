@@ -149,9 +149,9 @@ int TreeBuilder<KeyType>::Impl::extract(int2* h_levelRange)
     thrust::host_vector<int> cs_levelRange = octreeGpuData_.levelRange;
 
     int numLevels = 0;
-    for (int level = 1; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
+    for (int level = 0; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
     {
-        if (cs_levelRange[level + 1] == 0)
+        if (cs_levelRange[level] == cs_levelRange[level + 1])
         {
             numLevels = level - 1;
             break;

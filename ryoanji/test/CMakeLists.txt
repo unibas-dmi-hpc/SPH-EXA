@@ -20,6 +20,7 @@ endif ()
 set(testname ryoanji_cpu_unit_tests)
 add_executable(${testname}
         nbody/cartesian_qpole.cpp
+        nbody/multipole.cpp
         nbody/traversal_cpu.cpp
         test_main.cpp)
 
@@ -30,7 +31,7 @@ add_test(NAME ${testname} COMMAND ryoanji_cpu_unit_tests)
 install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji/cpu_unit_tests)
 
 if (CMAKE_HIP_COMPILER)
-    set_source_files_properties(nbody/direct.cu nbody/multipole.cu nbody/warpscan.cu PROPERTIES LANGUAGE HIP)
+    set_source_files_properties(nbody/direct.cu nbody/warpscan.cu PROPERTIES LANGUAGE HIP)
 endif()
 
 # GPU unit test suite
@@ -38,7 +39,6 @@ if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     set(testname ryoanji_unit_tests)
     add_executable(${testname}
             nbody/direct.cu
-            nbody/multipole.cu
             nbody/warpscan.cu
             test_main.cpp)
     target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/src)
