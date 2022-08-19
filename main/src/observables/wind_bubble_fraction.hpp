@@ -69,6 +69,11 @@ auto calculateSurvivingFraction(size_t startIndex, size_t endIndex, Dataset& d, 
                                 double initialMass)
 {
 
+    if (d.kx.empty())
+    {
+        throw std::runtime_error("kx was empty. Wind Shock surviving fraction is only supported with volume elements (--prop ve)\n");
+    }
+
     size_t localSurvived = localSurvivors<T>(startIndex, endIndex, d.u.data(), d.kx.data(), d.xm.data(), d.m.data(), rhoBubble, uWind);
 
     int    rootRank = 0;
@@ -110,7 +115,7 @@ public:
 
         int rank;
         MPI_Comm_rank(d.comm, &rank);
-
+ 
         if (rank == 0)
         {
             T tkh            = 0.0937;

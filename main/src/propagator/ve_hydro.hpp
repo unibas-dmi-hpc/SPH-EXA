@@ -194,6 +194,9 @@ public:
         size_t last  = domain.endIndex();
         transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
+        //fix for observables:
+        transferToHost(d, first, last, {"kx", "xm"});
+
         computeTimestep(d);
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
