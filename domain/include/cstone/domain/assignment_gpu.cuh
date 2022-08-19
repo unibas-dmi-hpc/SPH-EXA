@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include <thrust/copy.h>
 #include <vector>
 
 #include "cstone/domain/domaindecomp_mpi_gpu.cuh"
@@ -108,7 +109,7 @@ public:
         oldBoundaries.back() = nodeRange<KeyType>(0);
 
         std::vector<KeyType> host_keys(keyView.size());
-        cudaMemcpy(host_keys.data(), particleKeys, host_keys.size() * sizeof(KeyType), cudaMemcpyDeviceToHost);
+        thrust::copy_n(thrust::device_pointer_cast(particleKeys), host_keys.size(), host_keys.data());
         keyView = gsl::span<KeyType>(host_keys);
 
         updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_);

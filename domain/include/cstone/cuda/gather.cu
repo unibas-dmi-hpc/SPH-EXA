@@ -262,7 +262,47 @@ void DeviceSfcSort<KeyType, IndexType>::setMapFromCodes(KeyType* codes_first, Ke
     checkGpuErrors(cudaGetLastError());
 }
 
+template<class KeyType, class IndexType>
+template<class T>
+void DeviceSfcSort<KeyType, IndexType>::operator()(const T* values,
+                                                   T* destination,
+                                                   IndexType offset,
+                                                   IndexType numExtract) const
+{
+    static_assert(sizeof(T) <= DeviceMemory<IndexType>::ElementSize);
+
+    constexpr int nThreads = 256;
+    int nBlocks            = (numExtract + nThreads - 1) / nThreads;
+
+    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset,
+                                   reinterpret_cast<T*>(deviceMemory_->deviceBuffer(0)),
+                                   reinterpret_cast<T*>(deviceMemory_->deviceBuffer(1)), numExtract);
+    checkGpuErrors(cudaGetLastError());
+}
+
+template<class KeyType, class IndexType>
+template<class T>
+void DeviceSfcSort<KeyType, IndexType>::operator()(const T* values, T* destination) const
+{
+    this->operator()(values, destination, offset_, numExtract_);
+}
+
+template<class KeyType, class IndexType>
+void DeviceSfcSort<KeyType, IndexType>::restrictRange(std::size_t offset, std::size_t numExtract)
+{
+    assert(offset + numExtract <= mapSize_);
+
+    offset_     = offset;
+    numExtract_ = numExtract;
+}
+
 template class DeviceSfcSort<unsigned, unsigned>;
 template class DeviceSfcSort<uint64_t, unsigned>;
+
+template void DeviceSfcSort<unsigned, unsigned>::operator()(const double*, double*) const;
+template void DeviceSfcSort<unsigned, unsigned>::operator()(const float*, float*) const;
+
+template void DeviceSfcSort<uint64_t, unsigned>::operator()(const double*, double*) const;
+template void DeviceSfcSort<uint64_t, unsigned>::operator()(const float*, float*) const;
 
 } // namespace cstone
