@@ -171,13 +171,18 @@ public:
 
         size_t multiplicity  = std::rint(cbrtNumPart / std::cbrt(blockSize));
 
-        cstone::Box<T> globalBox(0, 4 * r, 0, 2 * r, 0, 2 * r, true, true, true);
+        cstone::Box<T> globalBox(0, 8 * r, 0, 2 * r, 0, 2 * r, true, true, true);
         cstone::Box<T> boxA(0, 2 * r, 0, 2 * r, 0, 2 * r, true, true, true);
         cstone::Box<T> boxB(2 * r, 4 * r, 0, 2 * r, 0, 2 * r, true, true, true);
+        cstone::Box<T> boxC(4 * r, 6 * r, 0, 2 * r, 0, 2 * r, true, true, true);
+        cstone::Box<T> boxD(6 * r, 6 * r, 0, 2 * r, 0, 2 * r, true, true, true);
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, boxA, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
         assembleCube<T>(keyStart, keyEnd, boxB, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        assembleCube<T>(keyStart, keyEnd, boxC, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        assembleCube<T>(keyStart, keyEnd, boxD, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+
 
         auto cutSphereOut = [r, rSphere](auto x, auto y, auto z)
         {
@@ -211,7 +216,6 @@ public:
         size_t numParticlesInternal = xBlob.size();
         MPI_Allreduce(MPI_IN_PLACE, &numParticlesInternal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
         T massPart    = innerVolume * rhoInt / numParticlesInternal;
-
 
         // Initialize Wind shock domain variables
         d.resize(d.x.size());
