@@ -7,6 +7,4 @@ if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
 
     add_library(cuda_find_neighbors_obj OBJECT findneighbors.cu)
     target_include_directories(cuda_find_neighbors_obj PRIVATE ${PROJECT_SOURCE_DIR}/include)
-
-    # set_property(TARGET gather_obj cuda_find_neighbors_obj PROPERTY HIP_ARCHITECTURES gfx908)
 endif()
