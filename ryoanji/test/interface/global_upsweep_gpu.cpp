@@ -33,6 +33,7 @@
 
 #include <thrust/device_vector.h>
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/domain/domain.hpp"
 #include "cstone/findneighbors.hpp"
 #include "coord_samples/random.hpp"
@@ -89,12 +90,11 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
 
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-    multipoleHolder.upsweep(thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
-                            thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_m.data()),
-                            domain.globalTree(), domain.focusTree(), domain.layout().data(), multipoles.data());
+    multipoleHolder.upsweep(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), domain.globalTree(), domain.focusTree(),
+                            domain.layout().data(), multipoles.data());
 
-    cudaMemcpy(multipoles.data(), multipoleHolder.deviceMultipoles(), multipoles.size() * sizeof(MultipoleType),
-               cudaMemcpyDeviceToHost);
+    auto devM = thrust::device_pointer_cast(multipoleHolder.deviceMultipoles());
+    thrust::copy(devM, devM + multipoles.size(), multipoles.data());
 
     MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];
 

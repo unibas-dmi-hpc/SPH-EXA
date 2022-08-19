@@ -79,6 +79,13 @@ public:
     {
     }
 
+    std::vector<std::string> conservedFields() const override
+    {
+        std::vector<std::string> ret{"x", "y", "z", "h", "m"};
+        for_each_tuple([&ret](auto f) { ret.push_back(f.value); }, make_tuple(ConservedFields{}));
+        return ret;
+    }
+
     void activateFields(ParticleDataType& d) override
     {
         //! @brief Fields accessed in domain sync are not part of extensible lists.
@@ -160,7 +167,7 @@ public:
         }
         transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
-        computeTimestep(first, last, d);
+        computeTimestep(d);
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");

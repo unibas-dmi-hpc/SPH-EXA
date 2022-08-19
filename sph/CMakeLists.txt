@@ -8,8 +8,6 @@ if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     find_package(CUDAToolkit)
     set(CMAKE_CUDA_STANDARD 17)
-else()
-    message(STATUS "No CUDA support")
 endif()
 
 set(default_build_type "Release")

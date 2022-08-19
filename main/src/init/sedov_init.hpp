@@ -36,6 +36,9 @@
 #include "cstone/sfc/box.hpp"
 
 #include "io/file_utils.hpp"
+#ifdef SPH_EXA_HAVE_H5PART
+#include "io/mpi_file_utils.hpp"
+#endif
 #include "isim_init.hpp"
 #include "sedov_constants.hpp"
 #include "grid.hpp"

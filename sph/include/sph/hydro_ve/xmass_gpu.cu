@@ -29,12 +29,12 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include "sph/sph.cuh"
-#include "sph/particles_data.hpp"
-#include "sph/util/cuda_utils.cuh"
-#include "sph/hydro_ve/xmass_kern.hpp"
-
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/findneighbors.cuh"
+
+#include "sph/sph_gpu.hpp"
+#include "sph/particles_data.hpp"
+#include "sph/hydro_ve/xmass_kern.hpp"
 
 namespace sph
 {
@@ -102,13 +102,12 @@ void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
             d.sincIndex, d.K, ngmax, box, firstParticle, lastParticle, sizeWithHalos, rawPtr(d.devData.codes),
             d_neighborsCount_use, rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
             rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm));
-        CHECK_CUDA_ERR(cudaGetLastError());
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle, d_neighborsCount_use,
+        checkGpuErrors(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle, d_neighborsCount_use,
                                        numParticlesCompute * sizeof(decltype(d.neighborsCount.front())),
                                        cudaMemcpyDeviceToHost, stream));
     }
-    CHECK_CUDA_ERR(cudaDeviceSynchronize());
+    checkGpuErrors(cudaDeviceSynchronize());
 }
 
 template void computeXMass(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

@@ -36,7 +36,8 @@
 namespace cstone
 {
 
-template<class LocalIndex> class DeviceMemory;
+template<class LocalIndex>
+class DeviceMemory;
 
 /*! @brief A stateful functor for reordering arrays on the gpu
  *
@@ -48,7 +49,6 @@ template<class KeyType, class IndexType>
 class DeviceGather
 {
 public:
-
     DeviceGather();
 
     ~DeviceGather();

@@ -29,12 +29,12 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/util/tuple.hpp"
 #include "cstone/util/util.hpp"
 
-#include "sph/sph.cuh"
+#include "sph/sph_gpu.hpp"
 #include "sph/eos.hpp"
-#include "sph/util/cuda_utils.cuh"
 
 namespace sph
 {
@@ -61,7 +61,7 @@ void computeEOS(size_t firstParticle, size_t lastParticle, Tu gamma, const Tu* u
     int numThreads = 256;
     int numBlocks  = iceil(lastParticle - firstParticle, numThreads);
     cudaEOS<<<numBlocks, numThreads>>>(firstParticle, lastParticle, gamma, u, m, kx, xm, gradh, prho, c);
-    CHECK_CUDA_ERR(cudaDeviceSynchronize());
+    checkGpuErrors(cudaDeviceSynchronize());
 }
 
 template void computeEOS(size_t, size_t, double, const double*, const double*, const double*, const double*,

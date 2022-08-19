@@ -26,9 +26,13 @@
 #include <chrono>
 #include <numeric>
 
+#ifdef __HIPCC__
+#include <hip/hip_runtime.h>
+#endif
+
 #include "nbody/dataset.hpp"
 #include "ryoanji/interface/treebuilder.cuh"
-#include "ryoanji/nbody/gpu_config.h"
+#include "ryoanji/nbody/gpu_config.cuh"
 #include "ryoanji/nbody/types.h"
 #include "ryoanji/nbody/traversal.cuh"
 #include "ryoanji/nbody/direct.cuh"
@@ -75,20 +79,9 @@ int main(int argc, char** argv)
     thrust::device_vector<Vec4<T>>       sourceCenter(numSources);
     thrust::device_vector<MultipoleType> Multipole(numSources);
 
-    upsweep(numSources,
-            treeBuilder.numLeafNodes(),
-            highestLevel,
-            theta,
-            levelRange.data(),
-            rawPtr(d_x.data()),
-            rawPtr(d_y.data()),
-            rawPtr(d_z.data()),
-            rawPtr(d_m.data()),
-            rawPtr(d_h.data()),
-            treeBuilder.layout(),
-            treeBuilder.childOffsets(),
-            treeBuilder.leafToInternal(),
-            rawPtr(sourceCenter.data()),
+    upsweep(numSources, treeBuilder.numLeafNodes(), highestLevel, theta, levelRange.data(), rawPtr(d_x.data()),
+            rawPtr(d_y.data()), rawPtr(d_z.data()), rawPtr(d_m.data()), rawPtr(d_h.data()), treeBuilder.layout(),
+            treeBuilder.childOffsets(), treeBuilder.leafToInternal(), rawPtr(sourceCenter.data()),
             rawPtr(Multipole.data()));
 
     thrust::device_vector<T> d_p(numBodies, 0), d_ax(numBodies, 0), d_ay(numBodies, 0), d_az(numBodies, 0);
@@ -97,24 +90,11 @@ int main(int argc, char** argv)
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    auto interactions = computeAcceleration(0,
-                                            numBodies,
-                                            rawPtr(d_x.data()),
-                                            rawPtr(d_y.data()),
-                                            rawPtr(d_z.data()),
-                                            rawPtr(d_m.data()),
-                                            rawPtr(d_h.data()),
-                                            G,
-                                            rawPtr(d_p.data()),
-                                            rawPtr(d_ax.data()),
-                                            rawPtr(d_ay.data()),
-                                            rawPtr(d_az.data()),
-                                            treeBuilder.childOffsets(),
-                                            treeBuilder.internalToLeaf(),
-                                            treeBuilder.layout(),
-                                            rawPtr(sourceCenter.data()),
-                                            rawPtr(Multipole.data()),
-                                            levelRange.data());
+    auto interactions = computeAcceleration(
+        0, numBodies, rawPtr(d_x.data()), rawPtr(d_y.data()), rawPtr(d_z.data()), rawPtr(d_m.data()),
+        rawPtr(d_h.data()), G, rawPtr(d_p.data()), rawPtr(d_ax.data()), rawPtr(d_ay.data()), rawPtr(d_az.data()),
+        treeBuilder.childOffsets(), treeBuilder.internalToLeaf(), treeBuilder.layout(), rawPtr(sourceCenter.data()),
+        rawPtr(Multipole.data()), levelRange.data());
 
     auto   t1    = std::chrono::high_resolution_clock::now();
     double dt    = std::chrono::duration<double>(t1 - t0).count();
@@ -128,15 +108,8 @@ int main(int argc, char** argv)
     thrust::device_vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
 
     t0 = std::chrono::high_resolution_clock::now();
-    directSum(numBodies,
-              rawPtr(d_x.data()),
-              rawPtr(d_y.data()),
-              rawPtr(d_z.data()),
-              rawPtr(d_m.data()),
-              rawPtr(d_h.data()),
-              rawPtr(refP.data()),
-              rawPtr(refAx.data()),
-              rawPtr(refAy.data()),
+    directSum(numBodies, rawPtr(d_x.data()), rawPtr(d_y.data()), rawPtr(d_z.data()), rawPtr(d_m.data()),
+              rawPtr(d_h.data()), rawPtr(refP.data()), rawPtr(refAx.data()), rawPtr(refAy.data()),
               rawPtr(refAz.data()));
 
     t1 = std::chrono::high_resolution_clock::now();
@@ -150,10 +123,10 @@ int main(int argc, char** argv)
     thrust::host_vector<T> h_ay = d_ay;
     thrust::host_vector<T> h_az = d_az;
 
-    double referencePotential = 0.5 * G * thrust::reduce(refP.begin(), refP.end(), 0.0);
-    thrust::host_vector<T> h_refAx = refAx;
-    thrust::host_vector<T> h_refAy = refAy;
-    thrust::host_vector<T> h_refAz = refAz;
+    double                 referencePotential = 0.5 * G * thrust::reduce(refP.begin(), refP.end(), 0.0);
+    thrust::host_vector<T> h_refAx            = refAx;
+    thrust::host_vector<T> h_refAy            = refAy;
+    thrust::host_vector<T> h_refAz            = refAz;
 
     std::vector<double> delta(numBodies);
 
@@ -181,7 +154,7 @@ int main(int argc, char** argv)
     fprintf(stdout, "--- Tree stats -------------------\n");
     fprintf(stdout, "Bodies               : %lu\n", numBodies);
     fprintf(stdout, "Cells                : %d\n", numSources);
-    fprintf(stdout, "Tree depth           : %d\n", 0);
+    fprintf(stdout, "Tree depth           : %d\n", highestLevel);
     fprintf(stdout, "--- Traversal stats --------------\n");
     fprintf(stdout, "P2P mean list length : %d (max %d)\n", int(interactions[0]), int(interactions[1]));
     fprintf(stdout, "M2P mean list length : %d (max %d)\n", int(interactions[2]), int(interactions[3]));

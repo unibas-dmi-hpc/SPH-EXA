@@ -78,7 +78,7 @@ static bool haveH5Attribute(const std::string& fname, const std::string& attribu
 
 #else
 
-static bool haveH5Attribute(const std::string& fname, const std::string& attributeToRead)
+[[maybe_unused]] static bool haveH5Attribute(const std::string& fname, const std::string& attributeToRead)
 {
     if (std::filesystem::exists(fname))
     {

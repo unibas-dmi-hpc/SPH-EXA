@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,12 +32,8 @@
 
 #pragma once
 
-#include "sph/math.hpp"
-#include "sph/kernels.hpp"
+#include "sph/sph_gpu.hpp"
 #include "iad_kern.hpp"
-#ifdef USE_CUDA
-#include "sph/sph.cuh"
-#endif
 
 namespace sph
 {
@@ -72,38 +68,20 @@ void computeIADImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, c
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
-        int    nc = stl::min(neighborsCount[i], ngmax);
-        IADJLoopSTD(i,
-                    sincIndex,
-                    K,
-                    box,
-                    neighbors + ngmax * ni,
-                    nc,
-                    x,
-                    y,
-                    z,
-                    h,
-                    m,
-                    rho,
-                    wh,
-                    whd,
-                    c11,
-                    c12,
-                    c13,
-                    c22,
-                    c23,
-                    c33);
+        int    nc = std::min(neighborsCount[i], ngmax);
+        IADJLoopSTD(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22,
+                    c23, c33);
     }
 }
 
 template<class T, class Dataset>
 void computeIAD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-#if defined(USE_CUDA)
-    cuda::computeIAD(startIndex, endIndex, ngmax, d, box);
-#else
-    computeIADImpl(startIndex, endIndex, ngmax, d, box);
-#endif
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        cuda::computeIAD(startIndex, endIndex, ngmax, d, box);
+    }
+    else { computeIADImpl(startIndex, endIndex, ngmax, d, box); }
 }
 
 } // namespace sph

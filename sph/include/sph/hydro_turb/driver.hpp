@@ -33,7 +33,8 @@
 
 #include <random>
 
-#include "sph/util/cuda_utils.hpp"
+#include "cstone/cuda/cuda_utils.hpp"
+#include "sph/hydro_turb/turbulence_data.hpp"
 #include "sph/hydro_turb/stirring.hpp"
 #include "sph/hydro_turb/phases.hpp"
 
@@ -92,16 +93,16 @@ void updateNoise(std::vector<T>& phases, T stddev, T dt, T ts, std::mt19937& gen
 
 /*! @brief Adds the stirring motion to particle accelerations
  *
- * @tparam Dataset
- * @param  startIndex
- * @param  endIndex
- * @param  d
+ * @tparam Dataset          SPH hydro dataset
+ * @param  startIndex       first locally owned particle index
+ * @param  endIndex         last locally owned particle index
+ * @param  d                Hydro data
+ * @param  turb             Turbulence modes
  */
 template<class Dataset>
-void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d)
+void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d,
+                     TurbulenceData<typename Dataset::RealType, typename Dataset::AcceleratorType>& turb)
 {
-    auto& turb = d.turbulenceData;
-
     updateNoise(turb.phases, turb.variance, d.minDt, turb.decayTime, turb.gen);
     computePhases(turb.numModes, turb.numDim, turb.phases, turb.solWeight, turb.modes, turb.phasesReal,
                   turb.phasesImag);

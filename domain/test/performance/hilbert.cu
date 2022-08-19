@@ -34,6 +34,7 @@
 
 #include <thrust/device_vector.h>
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/sfc/sfc.cuh"
 #include "cstone/util/util.hpp"
 
@@ -110,16 +111,9 @@ int main()
         thrust::device_vector<unsigned> dz = iz;
 
         auto computeHilbert = [&]()
-        {
-            computeSfcKeys(thrust::raw_pointer_cast(hilbertKeys.data()), thrust::raw_pointer_cast(dx.data()),
-                           thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys);
-        };
+        { computeSfcKeys(rawPtr(hilbertKeys), rawPtr(dx), rawPtr(dy), rawPtr(dz), numKeys); };
 
-        auto computeMorton = [&]()
-        {
-            computeSfcKeys(thrust::raw_pointer_cast(mortonKeys.data()), thrust::raw_pointer_cast(dx.data()),
-                           thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys);
-        };
+        auto computeMorton = [&]() { computeSfcKeys(rawPtr(mortonKeys), rawPtr(dx), rawPtr(dy), rawPtr(dz), numKeys); };
 
         float t_hilbert = timeGpu(computeHilbert);
         float t_morton  = timeGpu(computeMorton);
@@ -131,10 +125,7 @@ int main()
         thrust::device_vector<unsigned> dz2(numKeys);
 
         auto decodeHilbert = [&]()
-        {
-            decodeSfcKeys(thrust::raw_pointer_cast(hilbertKeys.data()), thrust::raw_pointer_cast(dx2.data()),
-                          thrust::raw_pointer_cast(dy2.data()), thrust::raw_pointer_cast(dz2.data()), numKeys);
-        };
+        { decodeSfcKeys(rawPtr(hilbertKeys), rawPtr(dx2), rawPtr(dy2), rawPtr(dz2), numKeys); };
 
         float t_decode  = timeGpu(decodeHilbert);
         bool passDecode = thrust::equal(dx.begin(), dx.end(), dx2.begin()) &&
@@ -154,16 +145,10 @@ int main()
         thrust::device_vector<Real> dz = z;
 
         auto computeHilbert = [&]()
-        {
-            computeSfcRealKeys(thrust::raw_pointer_cast(hilbertKeys2.data()), thrust::raw_pointer_cast(dx.data()),
-                               thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys, box);
-        };
+        { computeSfcKeysGpu(rawPtr(hilbertKeys2), rawPtr(dx), rawPtr(dy), rawPtr(dz), numKeys, box); };
 
         auto computeMorton = [&]()
-        {
-            computeSfcRealKeys(thrust::raw_pointer_cast(mortonKeys2.data()), thrust::raw_pointer_cast(dx.data()),
-                               thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys, box);
-        };
+        { computeSfcKeysGpu(rawPtr(mortonKeys2), rawPtr(dx), rawPtr(dy), rawPtr(dz), numKeys, box); };
 
         float t_hilbert = timeGpu(computeHilbert);
         float t_morton  = timeGpu(computeMorton);

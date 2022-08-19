@@ -54,8 +54,8 @@ TEST(Multipole, P2M)
     CartesianQuadrupole<double>      cartesianQuadrupole;
     cstone::SourceCenterType<double> csCenter =
         cstone::massCenter<double>(x.data(), y.data(), z.data(), m.data(), 0, numBodies);
-    particle2Multipole(
-        x.data(), y.data(), z.data(), m.data(), 0, numBodies, util::makeVec3(csCenter), cartesianQuadrupole);
+    particle2Multipole(x.data(), y.data(), z.data(), m.data(), 0, numBodies, util::makeVec3(csCenter),
+                       cartesianQuadrupole);
 
     Vec4<double> centerMass = ryoanji::setCenter(0, numBodies, x.data(), y.data(), z.data(), m.data());
 
@@ -87,16 +87,9 @@ TEST(Multipole, P2M)
         //    testTarget[0], testTarget[1], testTarget[2], cstoneMultipole, eps2, &ax, &ay, &az);
         // printf("cstone test acceleration: %f %f %f\n", ax, ay, az);
 
-        auto [axd, ayd, azd, pot] = particle2Particle(double(testTarget[0]),
-                                                      double(testTarget[1]),
-                                                      double(testTarget[2]),
-                                                      0.0,
-                                                      x.data(),
-                                                      y.data(),
-                                                      z.data(),
-                                                      h.data(),
-                                                      m.data(),
-                                                      numBodies);
+        auto [axd, ayd, azd, pot] =
+            particle2Particle(double(testTarget[0]), double(testTarget[1]), double(testTarget[2]), 0.0, x.data(),
+                              y.data(), z.data(), h.data(), m.data(), numBodies);
         // printf("direct acceleration: %f %f %f\n", axd, ayd, azd);
 
         // compare ryoanji against the direct sum reference

@@ -35,9 +35,10 @@
 #include <random>
 #include <vector>
 
+#include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/tree/accel_switch.hpp"
 
-#include "sph/util/cuda_utils.hpp"
+#include "sph/hydro_turb/create_modes.hpp"
 
 namespace sph
 {
@@ -52,25 +53,7 @@ class TurbulenceData
 public:
     using RealType = T;
 
-    void resize(size_t numModes_)
-    {
-        modes.resize(numDim * numModes_);
-        phases.resize(2 * numDim * numModes_);
-        amplitudes.resize(numModes_);
-
-        phasesReal.resize(numDim * numModes_);
-        phasesImag.resize(numDim * numModes_);
-    }
-
-    void uploadModes()
-    {
-        if constexpr (cstone::HaveGpu<Accelerator>{})
-        {
-            // upload data to the GPU
-            d_modes      = modes;
-            d_amplitudes = amplitudes;
-        }
-    }
+    TurbulenceData(const std::map<std::string, double>& constants, bool verbose) { initModes(constants, verbose); }
 
     const size_t numDim{3}; // Number of dimensions
     T            variance;  // Variance of Ornstein-Uhlenbeck process
@@ -91,6 +74,60 @@ public:
     DeviceVector d_amplitudes;
     DeviceVector d_phasesReal;
     DeviceVector d_phasesImag;
+
+private:
+    void resize(size_t numModes_)
+    {
+        modes.resize(numDim * numModes_);
+        phases.resize(2 * numDim * numModes_);
+        amplitudes.resize(numModes_);
+
+        phasesReal.resize(numDim * numModes_);
+        phasesImag.resize(numDim * numModes_);
+    }
+
+    void uploadModes()
+    {
+        if constexpr (cstone::HaveGpu<Accelerator>{})
+        {
+            // upload data to the GPU
+            d_modes      = modes;
+            d_amplitudes = amplitudes;
+        }
+    }
+
+    void initModes(const std::map<std::string, double>& constants, bool verbose)
+    {
+        double eps         = constants.at("epsilon");
+        size_t stMaxModes  = constants.at("stMaxModes");
+        double Lbox        = constants.at("Lbox");
+        double velocity    = constants.at("stMachVelocity");
+        size_t stSpectForm = constants.at("stSpectForm");
+        double powerLawExp = constants.at("powerLawExp");
+        double anglesExp   = constants.at("anglesExp");
+
+        double twopi   = 2.0 * M_PI;
+        double energy  = 5.0e-3 * std::pow(velocity, 3) / Lbox;
+        double stirMin = (1.0 - eps) * twopi / Lbox;
+        double stirMax = (3.0 + eps) * twopi / Lbox;
+
+        decayTime = Lbox / (2.0 * velocity);
+        solWeight = constants.at("solWeight");
+        gen.seed(constants.at("rngSeed"));
+
+        amplitudes.resize(stMaxModes);
+        modes.resize(stMaxModes * numDim);
+
+        createStirringModes(*this, Lbox, Lbox, Lbox, stMaxModes, energy, stirMax, stirMin, numDim, stSpectForm,
+                            powerLawExp, anglesExp, verbose);
+
+        resize(numModes);
+        uploadModes();
+
+        // fill phases with normal gaussian distributed random values with mean 0 and std-dev "variance"
+        std::normal_distribution<T> dist(0, variance);
+        std::generate(phases.begin(), phases.end(), [this, &dist]() { return dist(gen); });
+    }
 };
 
 } // namespace sph

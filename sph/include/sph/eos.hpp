@@ -17,7 +17,7 @@ namespace sph
  * Returns pressure, speed of sound
  */
 template<class T1, class T2>
-CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho, T1 gamma)
+HOST_DEVICE_FUN auto idealGasEOS(T1 u, T2 rho, T1 gamma)
 {
     using Tc = std::common_type_t<T1, T2>;
 
@@ -38,7 +38,7 @@ CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho, T1 gamma)
  * Returns pressure, speed of sound, du/dT, and temperature
  */
 template<class T1, class T2, class T3>
-CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho, T3 mui, T1 gamma)
+HOST_DEVICE_FUN auto idealGasEOS(T1 u, T2 rho, T3 mui, T1 gamma)
 {
     using Tc = std::common_type_t<T1, T2, T3>;
 
@@ -62,7 +62,7 @@ CUDA_DEVICE_HOST_FUN auto idealGasEOS(T1 u, T2 rho, T3 mui, T1 gamma)
  * Returns pressure, and speed of sound
  */
 template<class T>
-CUDA_DEVICE_HOST_FUN auto polytropicEOS(T rho)
+HOST_DEVICE_FUN auto polytropicEOS(T rho)
 {
     constexpr T Kpol     = 2.246341237993810232e-10;
     constexpr T gammapol = 3.e0;

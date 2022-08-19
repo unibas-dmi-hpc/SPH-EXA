@@ -32,17 +32,16 @@
 
 #include <cmath>
 
+#include "cstone/cuda/annotation.hpp"
 #include "cstone/util/tuple.hpp"
-#include "sph/util/annotation.hpp"
 
 namespace sph
 {
 
 //! @brief compute stirring acceleration for a single particle
 template<class Tc, class Ta, class T>
-CUDA_DEVICE_HOST_FUN auto stirParticle(size_t ndim, Tc xi, Tc yi, Tc zi, size_t numModes, const T* modes,
-                                       const T* phaseReal, const T* phaseImag, const T* amplitudes)
-
+HOST_DEVICE_FUN auto stirParticle(size_t ndim, Tc xi, Tc yi, Tc zi, size_t numModes, const T* modes, const T* phaseReal,
+                                  const T* phaseImag, const T* amplitudes)
 {
     Ta turbAx = 0.0;
     Ta turbAy = 0.0;
