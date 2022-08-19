@@ -38,6 +38,7 @@
 #include "cstone/primitives/primitives_gpu.hpp"
 #include "cstone/tree/octree_internal.hpp"
 #include "cstone/tree/octree_mpi.hpp"
+#include "cstone/tree/octree_mpi_gpu.cuh"
 #include "cstone/sfc/box_mpi.hpp"
 #include "cstone/sfc/sfc.cuh"
 
@@ -108,16 +109,13 @@ public:
         }
         oldBoundaries.back() = nodeRange<KeyType>(0);
 
-        std::vector<KeyType> host_keys(keyView.size());
-        thrust::copy_n(thrust::device_pointer_cast(particleKeys), host_keys.size(), host_keys.data());
-        keyView = gsl::span<KeyType>(host_keys);
-
-        updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_);
-
+        updateOctreeGlobalGpu(keyView.begin(), keyView.end(), bucketSize_, tree_, d_csTree_, nodeCounts_, d_nodeCounts_,
+                              numRanks_);
         if (firstCall_)
         {
             firstCall_ = false;
-            while (!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_))
+            while (!updateOctreeGlobalGpu(keyView.begin(), keyView.end(), bucketSize_, tree_, d_csTree_, nodeCounts_,
+                                          d_nodeCounts_, numRanks_))
                 ;
         }
 
@@ -215,8 +213,11 @@ private:
 
     //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;
+    thrust::device_vector<unsigned> d_nodeCounts_;
+
     //! @brief the fully linked octree
     Octree<KeyType> tree_;
+    thrust::device_vector<KeyType> d_csTree_;
 
     bool firstCall_{true};
 };
