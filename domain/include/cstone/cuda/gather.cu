@@ -236,10 +236,9 @@ template<class KeyType, class IndexType>
 DeviceSfcSort<KeyType, IndexType>::~DeviceSfcSort() = default;
 
 template<class KeyType, class IndexType>
-void DeviceSfcSort<KeyType, IndexType>::getReorderMap(IndexType* map_first, IndexType first, IndexType last)
+const IndexType* DeviceSfcSort<KeyType, IndexType>::getReorderMap() const
 {
-    cudaMemcpy(map_first, deviceMemory_->ordering() + first, (last - first) * sizeof(IndexType),
-               cudaMemcpyDeviceToHost);
+    return deviceMemory_->ordering();
 }
 
 template<class KeyType, class IndexType>

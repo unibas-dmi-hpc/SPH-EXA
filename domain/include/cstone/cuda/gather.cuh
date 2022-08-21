@@ -124,7 +124,7 @@ public:
     ~DeviceSfcSort();
 
     //! @brief download the reorder map from the device
-    void getReorderMap(IndexType* map_first, IndexType first, IndexType last);
+    const IndexType* getReorderMap() const;
 
     /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
      *

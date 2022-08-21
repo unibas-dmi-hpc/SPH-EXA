@@ -147,9 +147,11 @@ public:
      * where to put the assigned particles inside the buffer, such that we can reorder directly to the final
      * location. This saves us from having to move around data inside the buffers for a second time.
      */
-    template<class Reorderer, class... Arrays>
+    template<class Reorderer, class DevVector, class... Arrays>
     auto distribute(BufferDescription bufDesc,
                     Reorderer& reorderFunctor,
+                    DevVector& sendScratch,
+                    DevVector& receiveScratch,
                     KeyType* keys,
                     T* x,
                     T* y,
@@ -159,32 +161,34 @@ public:
         LocalIndex numParticles          = bufDesc.end - bufDesc.start;
         LocalIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
-        reallocate(numParticles, sfcOrder_);
-        reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
-
-        gsl::span<KeyType> keyView(keys + bufDesc.start, numParticles);
-        SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_.treeLeaves(), keyView);
+        std::vector<KeyType> hostKeys(numParticles);
+        thrust::copy_n(thrust::device_pointer_cast(keys) + bufDesc.start, numParticles, hostKeys.data());
+        SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_.treeLeaves(), hostKeys);
 
         // Assigned particles are now inside the [particleStart:particleEnd] range, but not exclusively.
         // Leftover particles from the previous step can also be contained in the range.
-        auto [newStart, newEnd] =
-            exchangeParticles(domainExchangeSends, myRank_, bufDesc.start, bufDesc.end, bufDesc.size,
-                              newNParticlesAssigned, sfcOrder_.data(), x, y, z, particleProperties...);
+        auto [newStart, newEnd] = exchangeParticlesGpu(domainExchangeSends, myRank_, bufDesc.start, bufDesc.end,
+                                                       bufDesc.size, newNParticlesAssigned, sendScratch, receiveScratch,
+                                                       reorderFunctor.getReorderMap(), x, y, z, particleProperties...);
 
-        LocalIndex envelopeSize = newEnd - newStart;
-        keyView                 = gsl::span<KeyType>(keys + newStart, envelopeSize);
+        LocalIndex envelopeSize            = newEnd - newStart;
+        const gsl::span<KeyType> keyViewPE = gsl::span<KeyType>(keys + newStart, envelopeSize);
 
-        computeSfcKeysGpu(sfcKindPointer(keyView.begin()), x + newStart, y + newStart, z + newStart, envelopeSize, box_);
+        computeSfcKeysGpu(sfcKindPointer(keyViewPE.begin()), x + newStart, y + newStart, z + newStart, envelopeSize, box_);
         // sort keys and keep track of the ordering
-        reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
+        reorderFunctor.setMapFromCodes(keyViewPE.begin(), keyViewPE.end());
 
         // thanks to the sorting, we now know the exact range of the assigned particles:
         // [newStart + offset, newStart + offset + newNParticlesAssigned]
-        LocalIndex offset = findNodeAbove<KeyType>(keyView, tree_.treeLeaves()[assignment_.firstNodeIdx(myRank_)]);
+
+        KeyType firstLocalKey = tree_.treeLeaves()[assignment_.firstNodeIdx(myRank_)];
+        std::vector<KeyType> hostKeysPE(keyViewPE.size());
+        thrust::copy_n(thrust::device_pointer_cast(keyViewPE.data()), keyViewPE.size(), hostKeysPE.data());
+        LocalIndex offset = findNodeAbove<KeyType>(hostKeysPE, firstLocalKey);
         // restrict the reordering to take only the assigned particles into account and ignore the others
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
 
-        return std::make_tuple(newStart, keyView.subspan(offset, newNParticlesAssigned));
+        return std::make_tuple(newStart, keyViewPE.subspan(offset, newNParticlesAssigned));
     }
 
     //! @brief read only visibility of the global octree leaves to the outside
@@ -207,9 +211,6 @@ private:
     Box<T> box_;
 
     SpaceCurveAssignment assignment_;
-
-    //! @brief storage for downloading the sfc ordering from the GPU
-    mutable std::vector<LocalIndex> sfcOrder_;
 
     //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;

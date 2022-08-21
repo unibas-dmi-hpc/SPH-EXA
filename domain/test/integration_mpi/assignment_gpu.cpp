@@ -57,10 +57,10 @@ using thrust::raw_pointer_cast;
  * want them sorted in Morton order.
  */
 template<class T>
-void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Box<T>& box)
+void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Box<T>& box, int rank)
 {
     // std::random_device rd;
-    std::mt19937 gen(42);
+    std::mt19937 gen(rank);
     // random gaussian distribution at the center
     std::normal_distribution<T> disX((box.xmax() + box.xmin()) / 2, (box.xmax() - box.xmin()) / 5);
     std::normal_distribution<T> disY((box.ymax() + box.ymin()) / 2, (box.ymax() - box.ymin()) / 5);
@@ -90,7 +90,7 @@ void randomGaussianAssignment(int rank, int numRanks)
     std::vector<T> x(numParticles);
     std::vector<T> y(numParticles);
     std::vector<T> z(numParticles);
-    initCoordinates(x, y, z, box);
+    initCoordinates(x, y, z, box, rank);
 
     int bucketSize = 20;
 
@@ -115,11 +115,22 @@ void randomGaussianAssignment(int rank, int numRanks)
                              raw_pointer_cast(d_y.data()), raw_pointer_cast(d_z.data()));
 
     EXPECT_EQ(numAssignedCpu, numAssignedGpu);
+    EXPECT_EQ(assignment.treeLeaves().size(), assignmentGpu.treeLeaves().size());
     if (rank == 0)
     {
         std::cout << assignment.treeLeaves().size() << std::endl;
         std::cout << assignmentGpu.treeLeaves().size() << std::endl;
     }
+
+    auto [exchangeStartCpu, cpuKeyView] =
+        assignment.distribute(bufDesc, cpuGather, keys.data(), x.data(), y.data(), z.data());
+
+    thrust::device_vector<T> sendScratch, receiveScratch;
+    auto [exchangeStart, devKeyView] = assignmentGpu.distribute(bufDesc, deviceSort, sendScratch, receiveScratch,
+                                                                rawPtr(d_keys), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z));
+
+    EXPECT_EQ(exchangeStart, exchangeStartCpu);
+    EXPECT_EQ(devKeyView.size(), cpuKeyView.size());
 }
 
 TEST(AssignmentGpu, matchTreeCpu)
