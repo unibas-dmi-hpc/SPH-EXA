@@ -73,12 +73,12 @@ public:
 
     /*! @brief Update the global tree
      *
-     * @param[in]  bufDesc         Buffer description with range of assigned particles
+     * @param[in]  bufDesc         Buffer description of @a keys, @a x, @a y, @a z with range of assigned particles
      * @param[in]  reorderFunctor  records the SFC order of the owned input coordinates
-     * @param[out] particleKeys    will contain sorted particle SFC keys in the range [particleStart:particleEnd]
-     * @param[in]  x               x coordinates
-     * @param[in]  y               y coordinates
-     * @param[in]  z               z coordinates
+     * @param[out] particleKeys    will contain sorted particle SFC keys, length = bufDesc.size, on DEVICE
+     * @param[in]  x               x coordinates, length = bufDesc.size, ON DEVICE
+     * @param[in]  y               y coordinates, length = bufDesc.size, ON DEVICE
+     * @param[in]  z               z coordinates, length = bufDesc.size, ON DEVICE
      * @return                     number of assigned particles
      *
      * This function does not modify / communicate any particle data.
@@ -162,11 +162,10 @@ public:
         LocalIndex numParticles          = bufDesc.end - bufDesc.start;
         LocalIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
-        std::vector<KeyType> hostKeys(numParticles);
-        thrust::copy_n(thrust::device_pointer_cast(keys) + bufDesc.start, numParticles, hostKeys.data());
-        SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_.treeLeaves(), hostKeys);
+        SendList domainExchangeSends = createSendListGpu<KeyType>(assignment_, tree_.treeLeaves(), {keys, numParticles},
+                                                                  sendScratch, receiveScratch);
 
-        // Assigned particles are now inside the [particleStart:particleEnd] range, but not exclusively.
+        // Assigned particles are now inside the [newStart:newEnd] range, but not exclusively.
         // Leftover particles from the previous step can also be contained in the range.
         auto [newStart, newEnd] = exchangeParticlesGpu(domainExchangeSends, myRank_, bufDesc.start, bufDesc.end,
                                                        bufDesc.size, newNParticlesAssigned, sendScratch, receiveScratch,

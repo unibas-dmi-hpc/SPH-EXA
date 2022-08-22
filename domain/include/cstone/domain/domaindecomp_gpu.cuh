@@ -34,8 +34,10 @@
 
 #include <thrust/device_ptr.h>
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/primitives_gpu.hpp"
 #include "cstone/util/gsl-lite.hpp"
+#include "cstone/util/thrust_alloc.cuh"
 #include "domaindecomp.hpp"
 
 namespace cstone
@@ -43,28 +45,30 @@ namespace cstone
 
 /*! @brief Based on global assignment, create the list of local particle index ranges to send to each rank
  *
- * @tparam KeyType      32- or 64-bit integer
- * @param[in] assignment    global space curve assignment to ranks
- * @param[in] tree          global cornerstone octree that matches the node counts used to create @p assignment
- * @param[in] particleKeys  sorted list of SFC keys of local particles present on this rank, ON DEVICE
- * @param[-]  d_searchKeys  array of length assignment.numRanks() to store search keys, uninitialized, ON DEVICE
- * @param[-]  d_indices     array of length assignment.numRanks() to store search results, uninitialized, ON DEVICE
- * @return                  for each rank, a list of index ranges into @p particleKeys to send
+ * @tparam    KeyType        32- or 64-bit integer
+ * @param[in] assignment     global space curve assignment to ranks
+ * @param[in] tree           global cornerstone octree that matches the node counts used to create @p assignment
+ * @param[in] particleKeys   sorted list of SFC keys of local particles present on this rank, ON DEVICE
+ * @param[-]  sendScratch    array of length assignment.numRanks() to store search keys, uninitialized, ON DEVICE
+ * @param[-]  receiveScratch array of length assignment.numRanks() to store search results, uninitialized, ON DEVICE
+ * @return                   for each rank, a list of index ranges into @p particleKeys to send
  *
  * Converts the global assignment particle keys ranges into particle indices with binary search
  */
-template<class KeyType>
+template<class KeyType, class DeviceVector>
 SendList createSendListGpu(const SpaceCurveAssignment& assignment,
                            gsl::span<const KeyType> treeLeaves,
                            gsl::span<const KeyType> particleKeys,
-                           gsl::span<KeyType> d_searchKeys,
-                           gsl::span<LocalIndex> d_indices)
+                           DeviceVector& sendScratch,
+                           DeviceVector& receiveScratch)
 {
-    int numRanks    = assignment.numRanks();
+    size_t numRanks = assignment.numRanks();
     using IndexType = SendManifest::IndexType;
 
-    assert(d_searchKeys.size() == numRanks);
-    assert(d_indices.size() == numRanks);
+    size_t ssz = reallocateDeviceBytes(sendScratch, numRanks * sizeof(KeyType));
+    size_t rsz = reallocateDeviceBytes(receiveScratch, numRanks * sizeof(LocalIndex));
+    gsl::span<KeyType> d_searchKeys{reinterpret_cast<KeyType*>(rawPtr(sendScratch)), numRanks};
+    gsl::span<LocalIndex> d_indices{reinterpret_cast<LocalIndex*>(rawPtr(receiveScratch)), numRanks};
 
     SendList ret(numRanks);
 
@@ -85,6 +89,9 @@ SendList createSendListGpu(const SpaceCurveAssignment& assignment,
     {
         ret[rank].addRange(indices[rank], indices[rank + 1]);
     }
+
+    reallocateDevice(sendScratch, ssz, 1.0);
+    reallocateDevice(receiveScratch, rsz, 1.0);
 
     return ret;
 }
