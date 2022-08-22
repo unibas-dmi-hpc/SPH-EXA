@@ -114,13 +114,17 @@ void randomGaussianAssignment(int rank, int numRanks)
         assignmentGpu.assign(bufDesc, deviceSort, raw_pointer_cast(d_keys.data()), raw_pointer_cast(d_x.data()),
                              raw_pointer_cast(d_y.data()), raw_pointer_cast(d_z.data()));
 
-    EXPECT_EQ(numAssignedCpu, numAssignedGpu);
+    ASSERT_EQ(numAssignedCpu, numAssignedGpu);
     EXPECT_EQ(assignment.treeLeaves().size(), assignmentGpu.treeLeaves().size());
-    if (rank == 0)
-    {
-        std::cout << assignment.treeLeaves().size() << std::endl;
-        std::cout << assignmentGpu.treeLeaves().size() << std::endl;
-    }
+
+    size_t exchangeSize = std::max(x.size(), size_t(numAssignedCpu));
+
+    reallocate(exchangeSize, keys, x, y, z);
+
+    reallocateDevice(d_keys, exchangeSize, 1.01);
+    reallocateDevice(d_x, exchangeSize, 1.01);
+    reallocateDevice(d_y, exchangeSize, 1.01);
+    reallocateDevice(d_z, exchangeSize, 1.01);
 
     auto [exchangeStartCpu, cpuKeyView] =
         assignment.distribute(bufDesc, cpuGather, keys.data(), x.data(), y.data(), z.data());
@@ -131,6 +135,10 @@ void randomGaussianAssignment(int rank, int numRanks)
 
     EXPECT_EQ(exchangeStart, exchangeStartCpu);
     EXPECT_EQ(devKeyView.size(), cpuKeyView.size());
+
+    std::vector<KeyType> keyDownload(devKeyView.size());
+    thrust::copy_n(thrust::device_pointer_cast(devKeyView.data()), devKeyView.size(), keyDownload.data());
+    EXPECT_TRUE(std::equal(keyDownload.begin(), keyDownload.end(), cpuKeyView.begin()));
 }
 
 TEST(AssignmentGpu, matchTreeCpu)
