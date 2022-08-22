@@ -33,6 +33,7 @@
 #include <thrust/copy.h>
 #include <vector>
 
+#include "cstone/domain/domaindecomp_gpu.cuh"
 #include "cstone/domain/domaindecomp_mpi_gpu.cuh"
 #include "cstone/domain/layout.hpp"
 #include "cstone/primitives/primitives_gpu.hpp"

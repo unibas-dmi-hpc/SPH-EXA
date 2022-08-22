@@ -30,13 +30,10 @@
  */
 
 #include <algorithm>
-#include <numeric>
 
 #include "gtest/gtest.h"
 
 #include "cstone/domain/domaindecomp.hpp"
-#include "cstone/tree/octree.hpp"
-#include "coord_samples/random.hpp"
 
 using namespace cstone;
 
@@ -119,7 +116,7 @@ TEST(DomainDecomposition, AssignmentFindRank)
  * valid for the SFC key array.
  */
 template<class KeyType>
-void createSendList()
+static void sendListMinimal()
 {
     std::vector<KeyType> tree{0, 2, 6, 8, 10};
     std::vector<KeyType> codes{0, 0, 1, 3, 4, 5, 6, 6, 9};
@@ -143,6 +140,6 @@ void createSendList()
 
 TEST(DomainDecomposition, createSendList)
 {
-    createSendList<unsigned>();
-    createSendList<uint64_t>();
+    sendListMinimal<unsigned>();
+    sendListMinimal<uint64_t>();
 }

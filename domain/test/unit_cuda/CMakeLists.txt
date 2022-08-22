@@ -7,6 +7,7 @@ endif()
 if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     set(testname component_units_cuda)
     add_executable(${testname}
+            domain/domaindecomp_gpu.cu
             primitives/primitives_gpu.cu
             btree.cu
             octree.cu
