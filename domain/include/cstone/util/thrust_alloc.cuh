@@ -80,3 +80,24 @@ struct uninitialized_allocator : thrust::device_allocator<T>
 
 template<class Vector>
 extern void reallocateDevice(Vector&, size_t, double);
+
+/*! @brief resize a device vector to given number of bytes if current size is smaller
+ *
+ * @param[inout] vec       a device vector like thrust::device_vector
+ * @param[in]    numBytes  minimum buffer size in bytes of @a vec
+ * @return                 number of elements (vec.size(), not bytes) of supplied argument vector
+ */
+template<class Vector>
+size_t reallocateDeviceBytes(Vector& vec, size_t numBytes)
+{
+    constexpr size_t elementSize = sizeof(typename Vector::value_type);
+    size_t originalSize = vec.size();
+
+    size_t currentSizeBytes = originalSize * elementSize;
+    if (currentSizeBytes < numBytes)
+    {
+        reallocateDevice(vec, numBytes / elementSize, 1.01);
+    }
+
+    return originalSize;
+}

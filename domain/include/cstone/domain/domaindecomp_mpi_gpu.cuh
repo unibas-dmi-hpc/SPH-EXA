@@ -89,10 +89,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
     const int bytesPerElement = std::accumulate(elementSizes.begin(), elementSizes.end(), 0);
     constexpr auto indices    = makeIntegralTuple(std::make_index_sequence<numArrays>{});
 
-    const size_t oldSendSize = sendScratchBuffer.size();
-    reallocateDevice(sendScratchBuffer,
-                     sendList.totalCount() * bytesPerElement / sizeof(typename DeviceVector::value_type), 1.01);
-
+    const size_t oldSendSize = reallocateDeviceBytes(sendScratchBuffer, sendList.totalCount() * bytesPerElement);
     int numRanks = int(sendList.size());
 
     char* sendBuffer = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
@@ -195,7 +192,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
         util::array<size_t, numArrays> arrayByteOffsets = receiveCount * elementSizes;
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
 
-        reallocateDevice(receiveScratchBuffer, receiveCountBytes / sizeof(typename DeviceVector::value_type), 1.0);
+        reallocateDeviceBytes(receiveScratchBuffer, receiveCountBytes);
         char* receiveBuffer = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
         mpiRecvGpuDirect(receiveBuffer, receiveCountBytes, receiveRank, domainExchangeTag, &status);

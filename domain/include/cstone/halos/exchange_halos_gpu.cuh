@@ -64,11 +64,8 @@ void haloExchangeGpu(int epoch,
 
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
-    const size_t oldSendSize = sendScratchBuffer.size();
-    reallocateDevice(sendScratchBuffer,
-                     outgoingHalos.totalCount() * bytesPerElement / sizeof(typename DeviceVector::value_type), 1.01);
-
-    char* sendBuffer = reinterpret_cast<char*>(thrust::raw_pointer_cast(sendScratchBuffer.data()));
+    const size_t oldSendSize = reallocateDeviceBytes(sendScratchBuffer, outgoingHalos.totalCount() * bytesPerElement);
+    char* sendBuffer         = reinterpret_cast<char*>(thrust::raw_pointer_cast(sendScratchBuffer.data()));
 
     std::vector<MPI_Request> sendRequests;
     std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
@@ -125,10 +122,8 @@ void haloExchangeGpu(int epoch,
         }
     }
 
-    const size_t oldRecvSize = receiveScratchBuffer.size();
-    reallocateDevice(receiveScratchBuffer, maxReceiveSize * bytesPerElement / sizeof(typename DeviceVector::value_type),
-                     1.01);
-    char* receiveBuffer = reinterpret_cast<char*>(thrust::raw_pointer_cast(receiveScratchBuffer.data()));
+    const size_t oldRecvSize = reallocateDeviceBytes(receiveScratchBuffer, maxReceiveSize * bytesPerElement);
+    char* receiveBuffer      = reinterpret_cast<char*>(thrust::raw_pointer_cast(receiveScratchBuffer.data()));
 
     while (numMessages > 0)
     {
