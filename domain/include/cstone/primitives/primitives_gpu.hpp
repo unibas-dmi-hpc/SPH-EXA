@@ -47,4 +47,7 @@ struct MinMaxGpu
     std::tuple<T, T> operator()(const T* first, const T* last);
 };
 
+template<class T>
+extern size_t lowerBoundGpu(const T* first, const T* last, T value);
+
 } // namespace cstone

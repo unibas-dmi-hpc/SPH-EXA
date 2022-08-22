@@ -29,6 +29,8 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <thrust/binary_search.h>
+#include <thrust/execution_policy.h>
 #include <thrust/extrema.h>
 
 #include "cstone/cuda/errorcheck.cuh"
@@ -75,5 +77,16 @@ std::tuple<T, T> MinMaxGpu<T>::operator()(const T* first, const T* last)
 
 template class MinMaxGpu<double>;
 template class MinMaxGpu<float>;
+
+template<class T>
+size_t lowerBoundGpu(const T* first, const T* last, T value)
+{
+    return thrust::lower_bound(thrust::device, first, last, value) - first;
+}
+
+template size_t lowerBoundGpu(const unsigned*, const unsigned*, unsigned);
+template size_t lowerBoundGpu(const uint64_t*, const uint64_t*, uint64_t);
+template size_t lowerBoundGpu(const int*, const int*, int);
+template size_t lowerBoundGpu(const int64_t*, const int64_t*, int64_t);
 
 } // namespace cstone

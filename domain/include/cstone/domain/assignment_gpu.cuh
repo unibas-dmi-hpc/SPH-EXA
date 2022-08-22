@@ -171,24 +171,22 @@ public:
                                                        bufDesc.size, newNParticlesAssigned, sendScratch, receiveScratch,
                                                        reorderFunctor.getReorderMap(), x, y, z, particleProperties...);
 
-        LocalIndex envelopeSize            = newEnd - newStart;
-        const gsl::span<KeyType> keyViewPE = gsl::span<KeyType>(keys + newStart, envelopeSize);
+        LocalIndex envelopeSize          = newEnd - newStart;
+        const gsl::span<KeyType> keyView = gsl::span<KeyType>(keys + newStart, envelopeSize);
 
-        computeSfcKeysGpu(sfcKindPointer(keyViewPE.begin()), x + newStart, y + newStart, z + newStart, envelopeSize, box_);
+        computeSfcKeysGpu(sfcKindPointer(keyView.begin()), x + newStart, y + newStart, z + newStart, envelopeSize,
+                          box_);
         // sort keys and keep track of the ordering
-        reorderFunctor.setMapFromCodes(keyViewPE.begin(), keyViewPE.end());
+        reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
         // thanks to the sorting, we now know the exact range of the assigned particles:
         // [newStart + offset, newStart + offset + newNParticlesAssigned]
-
         KeyType firstLocalKey = tree_.treeLeaves()[assignment_.firstNodeIdx(myRank_)];
-        std::vector<KeyType> hostKeysPE(keyViewPE.size());
-        thrust::copy_n(thrust::device_pointer_cast(keyViewPE.data()), keyViewPE.size(), hostKeysPE.data());
-        LocalIndex offset = findNodeAbove<KeyType>(hostKeysPE, firstLocalKey);
+        LocalIndex offset     = lowerBoundGpu(keyView.begin(), keyView.end(), firstLocalKey);
         // restrict the reordering to take only the assigned particles into account and ignore the others
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
 
-        return std::make_tuple(newStart, keyViewPE.subspan(offset, newNParticlesAssigned));
+        return std::make_tuple(newStart, keyView.subspan(offset, newNParticlesAssigned));
     }
 
     //! @brief read only visibility of the global octree leaves to the outside
