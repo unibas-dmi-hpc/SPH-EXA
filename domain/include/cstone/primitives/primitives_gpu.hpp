@@ -50,4 +50,7 @@ struct MinMaxGpu
 template<class T>
 extern size_t lowerBoundGpu(const T* first, const T* last, T value);
 
+template<class T, class IndexType>
+extern void lowerBoundGpu(const T* first, const T* last, const T* valueFirst, const T* valueLast, IndexType* result);
+
 } // namespace cstone

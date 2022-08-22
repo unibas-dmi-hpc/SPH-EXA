@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/primitives/mpi_cuda.cuh"
 #include "cstone/primitives/primitives_gpu.hpp"
@@ -82,8 +83,6 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
                                                         const LocalIndex* ordering,
                                                         Arrays... arrays)
 {
-    using thrust::raw_pointer_cast;
-
     constexpr int domainExchangeTag = static_cast<int>(P2pTags::domainExchange);
     constexpr int numArrays         = sizeof...(Arrays);
     constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
@@ -96,7 +95,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
 
     int numRanks = int(sendList.size());
 
-    char* sendBuffer = reinterpret_cast<char*>(raw_pointer_cast(sendScratchBuffer.data()));
+    char* sendBuffer = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
 
     // Not used if GPU-direct is ON
     std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
@@ -165,7 +164,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
         std::size_t requiredSize = (numParticlesPresent * *std::max_element(elementSizes.begin(), elementSizes.end())) /
                                    sizeof(typename DeviceVector::value_type);
         reallocateDevice(receiveScratchBuffer, requiredSize, 1.0);
-        char* bufferPtr = reinterpret_cast<char*>(raw_pointer_cast(receiveScratchBuffer.data()));
+        char* bufferPtr = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
         auto gatherArray = [bufferPtr, ordering, &sourceArrays, &destinationArrays, &elementSizes,
                             rStart = sendList[thisRank].rangeStart(0), count = numParticlesPresent](auto index)
@@ -197,7 +196,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
 
         reallocateDevice(receiveScratchBuffer, receiveCountBytes / sizeof(typename DeviceVector::value_type), 1.0);
-        char* receiveBuffer = reinterpret_cast<char*>(raw_pointer_cast(receiveScratchBuffer.data()));
+        char* receiveBuffer = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
         mpiRecvGpuDirect(receiveBuffer, receiveCountBytes, receiveRank, domainExchangeTag, &status);
 
