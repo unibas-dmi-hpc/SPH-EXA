@@ -315,24 +315,20 @@ SendList createSendList(const SpaceCurveAssignment& assignment,
                         gsl::span<const KeyType> particleKeys)
 {
     using IndexType = SendManifest::IndexType;
-    int nRanks      = assignment.numRanks();
+    int numRanks    = assignment.numRanks();
 
-    SendList ret(nRanks);
+    SendList ret(numRanks);
 
-    for (int rank = 0; rank < nRanks; ++rank)
+    std::vector<IndexType> particleLocations(numRanks + 1, particleKeys.size());
+    for (int rank = 0; rank < numRanks; ++rank)
     {
-        SendManifest& manifest = ret[rank];
-
         KeyType rangeStart = treeLeaves[assignment.firstNodeIdx(rank)];
-        KeyType rangeEnd   = treeLeaves[assignment.lastNodeIdx(rank)];
-
-        auto lit                     = std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart);
-        IndexType lowerParticleIndex = std::distance(particleKeys.begin(), lit);
-
-        auto uit = std::lower_bound(particleKeys.begin() + lowerParticleIndex, particleKeys.end(), rangeEnd);
-        IndexType upperParticleIndex = std::distance(particleKeys.begin(), uit);
-
-        manifest.addRange(lowerParticleIndex, upperParticleIndex);
+        particleLocations[rank] =
+            std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart) - particleKeys.begin();
+    }
+    for (int rank = 0; rank < numRanks; ++rank)
+    {
+        ret[rank].addRange(particleLocations[rank], particleLocations[rank + 1]);
     }
 
     return ret;

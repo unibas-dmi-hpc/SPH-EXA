@@ -89,6 +89,7 @@ public:
     void addRange(IndexType lower, IndexType upper)
     {
         assert(lower <= upper);
+        if (lower == upper) { return; }
 
         totalCount_ += upper - lower;
         offsets_.push_back(lower);
