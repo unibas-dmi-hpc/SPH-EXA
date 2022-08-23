@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -199,9 +198,9 @@ public:
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
 
-        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
-
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
+        halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
+                        h.data());
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
                              layout_);
 
@@ -247,10 +246,10 @@ public:
         focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
         focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
 
-        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
-        focusTree_.addMacs(halos_.haloFlags());
-
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
+        halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
+                        h.data());
+        focusTree_.addMacs(halos_.haloFlags());
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
                              layout_);
 

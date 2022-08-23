@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +35,6 @@
 #include "cstone/domain/layout.hpp"
 #include "cstone/halos/exchange_halos_gpu.cuh"
 #include "cstone/halos/halos.hpp"
-#include "cstone/halos/radii.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/util/gsl-lite.hpp"
 #include "cstone/domain/index_ranges.hpp"

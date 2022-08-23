@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,11 +30,11 @@
 
 #pragma once
 
+#include <numeric>
 #include <vector>
 
 #include "cstone/domain/layout.hpp"
 #include "cstone/halos/exchange_halos.hpp"
-#include "cstone/halos/radii.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/util/gsl-lite.hpp"
 #include "cstone/domain/index_ranges.hpp"
@@ -111,24 +110,38 @@ public:
     /*! @brief Discover which cells outside myRank's assignment are halos
      *
      * @param[in] focusedTree      Fully linked octree, focused on the assignment of the executing rank
+     * @param[in] counts           (focus) tree counts
      * @param[in] focusAssignment  Assignment of leaf tree cells to ranks
-     * @param[in] particleKeys     Sorted view of locally owned particle keys, no halos
+     * @param[-]  layout           temporary storage for node count scan
      * @param[in] box              Global coordinate bounding box
      * @param[in] h                smoothing lengths of locally owned particles
      */
     template<class T, class Th>
     void discover(const Octree<KeyType>& focusedTree,
+                  gsl::span<const unsigned> counts,
                   gsl::span<const TreeIndexPair> focusAssignment,
-                  gsl::span<const KeyType> particleKeys,
+                  gsl::span<LocalIndex> layout,
                   const Box<T> box,
                   const Th* h)
     {
         gsl::span<const KeyType> leaves = focusedTree.treeLeaves();
         TreeNodeIndex firstAssignedNode = focusAssignment[myRank_].start();
         TreeNodeIndex lastAssignedNode  = focusAssignment[myRank_].end();
+        TreeNodeIndex numAssignedNodes  = lastAssignedNode - firstAssignedNode;
 
-        std::vector<float> haloRadii(nNodes(leaves));
-        computeHaloRadii(leaves.data(), nNodes(leaves), particleKeys, h, haloRadii.data());
+        std::copy(counts.begin() + firstAssignedNode, counts.begin() + lastAssignedNode, layout.begin());
+        std::exclusive_scan(layout.begin(), layout.begin() + numAssignedNodes + 1, layout.begin(), 0);
+
+        std::vector<float> haloRadii(nNodes(leaves), 0.0f);
+#pragma omp parallel for schedule(static)
+        for (TreeNodeIndex i = 0; i < numAssignedNodes; ++i)
+        {
+            if (layout[i + 1] > layout[i])
+            {
+                // Note factor 2 due to SPH convention: interaction radius = 2 * h
+                haloRadii[i + firstAssignedNode] = *std::max_element(h + layout[i], h + layout[i + 1]) * 2;
+            }
+        }
 
         reallocate(nNodes(leaves), haloFlags_);
         std::fill(begin(haloFlags_), end(haloFlags_), 0);
