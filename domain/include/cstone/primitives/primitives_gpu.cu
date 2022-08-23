@@ -101,4 +101,37 @@ template void lowerBoundGpu(const uint64_t*, const uint64_t*, const uint64_t*, c
 template void lowerBoundGpu(const unsigned*, const unsigned*, const unsigned*, const unsigned*, uint64_t*);
 template void lowerBoundGpu(const uint64_t*, const uint64_t*, const uint64_t*, const uint64_t*, uint64_t*);
 
+template<class T, class IndexType>
+__global__ void segmentMaxKernel(const T* input, const IndexType* segments, size_t numSegments, T* output)
+{
+    IndexType tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (tid < numSegments)
+    {
+        T localMax = 0;
+
+        IndexType segStart = segments[tid];
+        IndexType segEnd   = segments[tid + 1];
+
+        for (IndexType i = segStart; i < segEnd; ++i)
+        {
+            localMax = max(localMax, input[i]);
+        }
+
+        output[tid] = localMax;
+    }
+}
+
+template<class T, class IndexType>
+void segmentMax(const T* input, const IndexType* segments, size_t numSegments, T* output)
+{
+    int numThreads = 256;
+    int numBlocks  = iceil(numSegments, numThreads);
+
+    segmentMaxKernel<<<numBlocks, numThreads>>>(input, segments, numSegments, output);
+}
+
+template void segmentMax(const float*, const unsigned*, size_t, float*);
+template void segmentMax(const double*, const unsigned*, size_t, double*);
+
 } // namespace cstone

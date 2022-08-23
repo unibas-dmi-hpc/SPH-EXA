@@ -53,4 +53,16 @@ extern size_t lowerBoundGpu(const T* first, const T* last, T value);
 template<class T, class IndexType>
 extern void lowerBoundGpu(const T* first, const T* last, const T* valueFirst, const T* valueLast, IndexType* result);
 
+/*! @brief determine maximum elements in an array divided into multiple segments
+ *
+ * @tparam      T            some type that supports comparison
+ * @tparam      IndexType    32- or 64-bit unsigned integer
+ * @param[in]   input        an array of length @a segments[numSegments]
+ * @param[in]   segments     an array of length @a numSegments + 1 describing the segmentation of @a input
+ * @param[in]   numSegments  number of segments
+ * @param[out]  output       maximum in each segment, length @a numSegments
+ */
+template<class T, class IndexType>
+extern void segmentMax(const T* input, const IndexType* segments, size_t numSegments, T* output);
+
 } // namespace cstone
