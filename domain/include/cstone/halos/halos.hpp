@@ -33,11 +33,14 @@
 #include <numeric>
 #include <vector>
 
+#include "cstone/domain/index_ranges.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/halos/exchange_halos.hpp"
+#ifdef USE_CUDA
+#include "cstone/halos/exchange_halos_gpu.cuh"
+#endif
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/util/gsl-lite.hpp"
-#include "cstone/domain/index_ranges.hpp"
 
 namespace cstone
 {
@@ -97,6 +100,14 @@ void checkHalos(int myRank, gsl::span<const TreeIndexPair> focusAssignment, gsl:
 }
 
 } // namespace detail
+
+template<class DeviceVector, class... Arrays>
+void haloExchangeGpu(int epoch,
+                     const SendList& incomingHalos,
+                     const SendList& outgoingHalos,
+                     DeviceVector& sendScratchBuffer,
+                     DeviceVector& receiveScratchBuffer,
+                     Arrays... arrays);
 
 template<class KeyType>
 class Halos
@@ -192,7 +203,16 @@ public:
 
     template<class... DeviceVectors, class DeviceVector>
     void
-    exchangeHalosGpu(std::tuple<DeviceVectors&...> arrays, DeviceVector& sendBuffer, DeviceVector& receiveBuffer) const;
+    exchangeHalosGpu(std::tuple<DeviceVectors&...> arrays, DeviceVector& sendBuffer, DeviceVector& receiveBuffer) const
+    {
+        std::apply(
+            [this, &sendBuffer, &receiveBuffer](auto&... arrays)
+            {
+                haloExchangeGpu(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, sendBuffer, receiveBuffer,
+                                rawPtr(arrays)...);
+            },
+            arrays);
+    }
 
     gsl::span<int> haloFlags() { return haloFlags_; }
 
