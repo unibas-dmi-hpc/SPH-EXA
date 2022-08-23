@@ -96,7 +96,7 @@ size_t reallocateDeviceBytes(Vector& vec, size_t numBytes)
     size_t currentSizeBytes = originalSize * elementSize;
     if (currentSizeBytes < numBytes)
     {
-        reallocateDevice(vec, numBytes / elementSize, 1.01);
+        reallocateDevice(vec, (numBytes + elementSize - 1) / elementSize, 1.01);
     }
 
     return originalSize;
