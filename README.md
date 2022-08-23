@@ -89,20 +89,27 @@ cmake <GIT_SOURCE_DIR>
 ```
 
 CMake configuration on Piz Daint for clang:
-**Cray-clang 14** for CPU code (.cpp), **CUDA 11.3 + GCC 9.3.0** for GPU code (.cu):
+**Cray-clang 14** for CPU code (.cpp), **CUDA 11.6 + GCC 11.2.0** for GPU code (.cu):
 ```shell
 module load daint-gpu
-module load cudatoolkit/21.5_11.3      # or newer
-module load CMake/3.22.1               # or newer
+module load CMake/3.22.1
+module load PrgEnv-cray
+module load cdt/22.05           # will load cce/14.0.0
+module load nvhpc-nompi/22.2    # will load nvcc/11.6
+module load gcc/11.2.0
 module load cray-hdf5-parallel
-module load gcc/9.3.0                  # nvcc uses gcc as the default host compiler,
-                                       # but the system version is too old
-module swap cce cce/14.0.0             # cray-clang compiler version 14
-export GCC_X86_64=/opt/gcc/9.3.0/snos  # system header versions are too old, applies to cray-clang too
 
 mkdir build
 cd build
-cmake -DCMAKE_CXX_COMPILER=CC <GIT_SOURCE_DIR>
+
+# -DCMAKE_CUDA_ARCHITECTURES is turned off, use CMAKE_CUDA_FLAGS instead:
+# -DCMAKE_C_COMPILER=cc is needed for hdf5 detection
+cmake -DCMAKE_CXX_COMPILER=CC -DCMAKE_C_COMPILER=cc \
+-DCMAKE_CUDA_FLAGS=-arch=sm_60 -S <GIT_SOURCE_DIR>
+
+# to avoid "HDF5 library version mismatched error":
+export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+
 ```
 
 CMake configuration on Piz Daint for GCC:
