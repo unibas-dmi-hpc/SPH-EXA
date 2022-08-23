@@ -33,6 +33,7 @@
 
 #pragma once
 
+#include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/domain/assignment.hpp"
 #include "cstone/domain/gather.hpp"
 #include "cstone/domain/exchange_keys.hpp"
@@ -200,7 +201,7 @@ public:
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
-                        h.data());
+                        rawPtr(h));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
         updateLayout(exchangeStart, keyView, particleKeys, std::tie(h),
@@ -247,7 +248,7 @@ public:
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
-                        h.data());
+                        rawPtr(h));
         focusTree_.addMacs(halos_.haloFlags());
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
@@ -323,7 +324,7 @@ private:
     }
 
     template<class KeyVec, class VectorX, class... Vectors1, class... Vectors2>
-    auto distribute(KeyVec& particleKeys,
+    auto distribute(KeyVec& keys,
                     VectorX& x,
                     VectorX& y,
                     VectorX& z,
@@ -331,19 +332,19 @@ private:
                     std::tuple<Vectors2&...> scratchBuffers)
     {
         initBounds(x.size());
-        auto distributedArrays = std::tuple_cat(std::tie(particleKeys, x, y, z), particleProperties);
+        auto distributedArrays = std::tuple_cat(std::tie(keys, x, y, z), particleProperties);
         std::apply([size = x.size()](auto&... arrays) { checkSizesEqual(size, arrays...); }, distributedArrays);
 
         // Global tree build and assignment
         LocalIndex newNParticlesAssigned =
-            global_.assign(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
+            global_.assign(bufDesc_, reorderFunctor, rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
 
         size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
         std::apply([size = exchangeSize](auto&... arrays) { reallocate(size, arrays...); },
                    std::tuple_cat(distributedArrays, scratchBuffers));
 
         return std::apply([this](auto&... arrays)
-                          { return global_.distribute(bufDesc_, reorderFunctor, arrays.data()...); },
+                          { return global_.distribute(bufDesc_, reorderFunctor, rawPtr(arrays)...); },
                           distributedArrays);
     }
 
@@ -353,9 +354,9 @@ private:
         exchangeHalos(std::tie(x, y, z, h));
 
         // compute SFC keys of received halo particles
-        computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(keys.data()), bufDesc_.start, box());
-        computeSfcKeys(x.data() + bufDesc_.end, y.data() + bufDesc_.end, z.data() + bufDesc_.end,
-                       sfcKindPointer(keys.data()) + bufDesc_.end, x.size() - bufDesc_.end, box());
+        computeSfcKeys(rawPtr(x), rawPtr(y), rawPtr(z), sfcKindPointer(rawPtr(keys)), bufDesc_.start, box());
+        computeSfcKeys(rawPtr(x) + bufDesc_.end, rawPtr(y) + bufDesc_.end, rawPtr(z) + bufDesc_.end,
+                       sfcKindPointer(rawPtr(keys)) + bufDesc_.end, x.size() - bufDesc_.end, box());
     }
 
     template<class KeyVec, class... Arrays1, class... Arrays2, class... Arrays3>

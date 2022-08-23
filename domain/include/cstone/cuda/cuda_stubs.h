@@ -30,11 +30,17 @@
 
 #pragma once
 
-template<class ThrustVec>
-typename ThrustVec::value_type* rawPtr(ThrustVec& p);
+template<class T, class Alloc>
+T* rawPtr(std::vector<T, Alloc>& p)
+{
+    return p.data();
+}
 
-template<class ThrustVec>
-const typename ThrustVec::value_type* rawPtr(const ThrustVec& p);
+template<class T, class Alloc>
+const T* rawPtr(const std::vector<T, Alloc>& p)
+{
+    return p.data();
+}
 
 namespace thrust
 {
