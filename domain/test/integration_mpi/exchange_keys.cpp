@@ -71,10 +71,10 @@ void exchangeKeys(int myRank, int numRanks)
     std::vector<unsigned> counts{2, 2, 1, 1, 1, 1, 2, 2};
     std::vector<int> haloFlags{0, 1, 0, 0, 0, 0, 1, 0};
 
+    std::vector<unsigned> layout(counts.size() + 1);
+
     KeyType o = myRank * 4;
     std::vector<KeyType> treeLeaves{o, o + 2, o + 4, o + 5, o + 6, o + 7, o + 8, o + 10, o + 12};
-
-    std::vector<KeyType> particleKeys{o + 4, o + 5, o + 6, o + 7};
 
     std::vector<TreeIndexPair> assignment(numRanks);
     std::vector<int> peers;
@@ -88,6 +88,7 @@ void exchangeKeys(int myRank, int numRanks)
     }
 
     assignment[myRank] = TreeIndexPair(2, 6);
+    computeNodeLayout(counts, haloFlags, assignment[myRank].start(), assignment[myRank].end(), layout);
 
     if (myRank < numRanks - 1)
     {
@@ -96,7 +97,7 @@ void exchangeKeys(int myRank, int numRanks)
         reference[myRank + 1].addRange(4, 6);
     }
 
-    SendList probe = exchangeRequestKeys<KeyType>(treeLeaves, haloFlags, particleKeys, 2, assignment, peers);
+    SendList probe = exchangeRequestKeys<KeyType>(treeLeaves, haloFlags, assignment, peers, layout);
 
     EXPECT_EQ(probe, reference);
 }
@@ -114,7 +115,7 @@ TEST(ExchangeKeys, fixedTreeSizePerRank)
  * Rank 0's surface in rank 1's domain is just one node, while rank 1's surface in 0 is 6 nodes.
  *
  * Here we check that the halo flag exchange works correctly, specifically that the receive buffers
- * are are large enough.
+ * are large enough.
  */
 template<class KeyType>
 void unequalSurface(int myRank, int numRanks)
@@ -123,7 +124,6 @@ void unequalSurface(int myRank, int numRanks)
     std::vector<unsigned> counts(nNodes(treeLeaves), 1);
 
     std::vector<int> haloFlags(nNodes(treeLeaves));
-    std::vector<KeyType> particleKeys;
     std::vector<int> peers;
     int offset = 0;
 
@@ -133,25 +133,25 @@ void unequalSurface(int myRank, int numRanks)
 
     SendList reference(numRanks);
 
+    std::vector<unsigned> layout(counts.size() + 1);
+
     if (myRank == 1)
     {
-        offset       = nNodes(treeLeaves) - 1;
-        particleKeys = std::vector<KeyType>{treeLeaves.begin() + offset, treeLeaves.end()};
-        haloFlags    = std::vector<int>{1, 1, 0, 1, 1, 1, 1, 1};
+        haloFlags = std::vector<int>{1, 1, 0, 1, 1, 1, 1, 1};
         peers.push_back(0);
         reference[0].addRange(offset, offset + 1);
+        computeNodeLayout(counts, haloFlags, 2, 3, layout);
     }
 
     if (myRank == 0)
     {
-        offset       = 0;
-        particleKeys = std::vector<KeyType>{treeLeaves.begin(), treeLeaves.begin() + nNodes(treeLeaves) - 1};
-        haloFlags    = std::vector<int>{0, 0, 0, 0, 0, 0, 0, 1};
+        haloFlags = std::vector<int>{0, 0, 0, 0, 0, 0, 0, 1};
         peers.push_back(1);
         reference[1].addRange(0, nNodes(treeLeaves) - 1);
+        computeNodeLayout(counts, haloFlags, 0, 7, layout);
     }
 
-    SendList probe = exchangeRequestKeys<KeyType>(treeLeaves, haloFlags, particleKeys, offset, assignment, peers);
+    SendList probe = exchangeRequestKeys<KeyType>(treeLeaves, haloFlags, assignment, peers, layout);
 
     if (myRank == 1) { EXPECT_EQ(probe, reference); }
     if (myRank == 0) { EXPECT_EQ(probe[1].totalCount(), nNodes(treeLeaves) - 2); }

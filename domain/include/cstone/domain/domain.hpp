@@ -201,8 +201,7 @@ public:
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
                         h.data());
-        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
-                             layout_);
+        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
         updateLayout(exchangeStart, keyView, particleKeys, std::tie(h),
                      std::tuple_cat(std::tie(x, y, z), particleProperties), scratchBuffers);
@@ -250,8 +249,7 @@ public:
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
                         h.data());
         focusTree_.addMacs(halos_.haloFlags());
-        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
-                             layout_);
+        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
         // diagnostics(keyView.size(), peers);
 

@@ -125,27 +125,26 @@ public:
                   const Th* h)
     {
         gsl::span<const KeyType> leaves = focusedTree.treeLeaves();
-        TreeNodeIndex firstAssignedNode = focusAssignment[myRank_].start();
-        TreeNodeIndex lastAssignedNode  = focusAssignment[myRank_].end();
-        TreeNodeIndex numAssignedNodes  = lastAssignedNode - firstAssignedNode;
+        TreeNodeIndex firstNode         = focusAssignment[myRank_].start();
+        TreeNodeIndex lastNode          = focusAssignment[myRank_].end();
+        TreeNodeIndex numNodes          = lastNode - firstNode;
 
-        std::copy(counts.begin() + firstAssignedNode, counts.begin() + lastAssignedNode, layout.begin());
-        std::exclusive_scan(layout.begin(), layout.begin() + numAssignedNodes + 1, layout.begin(), 0);
+        std::exclusive_scan(counts.begin() + firstNode, counts.begin() + lastNode + 1, layout.begin(), 0);
 
         std::vector<float> haloRadii(nNodes(leaves), 0.0f);
 #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = 0; i < numAssignedNodes; ++i)
+        for (TreeNodeIndex i = 0; i < numNodes; ++i)
         {
             if (layout[i + 1] > layout[i])
             {
                 // Note factor 2 due to SPH convention: interaction radius = 2 * h
-                haloRadii[i + firstAssignedNode] = *std::max_element(h + layout[i], h + layout[i + 1]) * 2;
+                haloRadii[i + firstNode] = *std::max_element(h + layout[i], h + layout[i + 1]) * 2;
             }
         }
 
         reallocate(nNodes(leaves), haloFlags_);
         std::fill(begin(haloFlags_), end(haloFlags_), 0);
-        findHalos(focusedTree, haloRadii.data(), box, firstAssignedNode, lastAssignedNode, haloFlags_.data());
+        findHalos(focusedTree, haloRadii.data(), box, firstNode, lastNode, haloFlags_.data());
     }
 
     /*! @brief Compute particle offsets of each tree node and determine halo send/receive indices
@@ -153,7 +152,6 @@ public:
      * @param[in]  leaves          (focus) tree leaves
      * @param[in]  counts          (focus) tree counts
      * @param[in]  assignment      assignment of @p leaves to ranks
-     * @param[in]  particleKeys    sorted view of locally owned keys, without halos
      * @param[in]  peers           list of peer ranks
      * @param[out] layout          Particle offsets for each node in @p leaves w.r.t to the final particle buffers,
      *                             including the halos, length = counts.size() + 1. The last element contains
@@ -165,7 +163,6 @@ public:
     void computeLayout(gsl::span<const KeyType> leaves,
                        gsl::span<const unsigned> counts,
                        gsl::span<const TreeIndexPair> assignment,
-                       gsl::span<const KeyType> particleKeys,
                        gsl::span<const int> peers,
                        gsl::span<LocalIndex> layout)
     {
@@ -173,8 +170,7 @@ public:
         auto newParticleStart = layout[assignment[myRank_].start()];
         auto newParticleEnd   = layout[assignment[myRank_].end()];
 
-        outgoingHaloIndices_ =
-            exchangeRequestKeys<KeyType>(leaves, haloFlags_, particleKeys, newParticleStart, assignment, peers);
+        outgoingHaloIndices_ = exchangeRequestKeys<KeyType>(leaves, haloFlags_, assignment, peers, layout);
 
         detail::checkHalos(myRank_, assignment, haloFlags_);
         detail::checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd, layout.back());
