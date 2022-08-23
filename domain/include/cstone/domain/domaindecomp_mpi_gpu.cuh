@@ -92,7 +92,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
     const size_t oldSendSize = reallocateDeviceBytes(sendScratchBuffer, sendList.totalCount() * bytesPerElement);
     int numRanks = int(sendList.size());
 
-    char* sendBuffer = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
+    char* const sendBuffer = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
 
     // Not used if GPU-direct is ON
     std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
@@ -155,12 +155,12 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
     }
 
     std::array<char*, numArrays> destinationArrays{reinterpret_cast<char*>(arrays + receiveStart)...};
+    const size_t oldRecvSize = receiveScratchBuffer.size();
 
     if (!fitHead && !fitTail && numIncoming > 0)
     {
-        std::size_t requiredSize = (numParticlesPresent * *std::max_element(elementSizes.begin(), elementSizes.end())) /
-                                   sizeof(typename DeviceVector::value_type);
-        reallocateDevice(receiveScratchBuffer, requiredSize, 1.0);
+        std::size_t requiredBytes = numParticlesPresent * *std::max_element(elementSizes.begin(), elementSizes.end());
+        reallocateDeviceBytes(receiveScratchBuffer, requiredBytes);
         char* bufferPtr = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
         auto gatherArray = [bufferPtr, ordering, &sourceArrays, &destinationArrays, &elementSizes,
@@ -175,8 +175,6 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
         };
         for_each_tuple(gatherArray, indices);
     }
-
-    const size_t oldRecvSize = receiveScratchBuffer.size();
 
     while (numParticlesPresent != numParticlesAssigned)
     {
