@@ -141,9 +141,11 @@ public:
      * where to put the assigned particles inside the buffer, such that we can reorder directly to the final
      * location. This saves us from having to move around data inside the buffers for a second time.
      */
-    template<class Reorderer, class... Arrays>
+    template<class Reorderer, class Vector, class... Arrays>
     auto distribute(BufferDescription bufDesc,
                     Reorderer& reorderFunctor,
+                    Vector& /*scratch1*/,
+                    Vector& /*scratch2*/,
                     KeyType* keys,
                     T* x,
                     T* y,

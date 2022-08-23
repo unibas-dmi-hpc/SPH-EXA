@@ -137,16 +137,17 @@ public:
         cstone::GlobalAssignment<KeyType, T> distributor(rank, numRanks, bucketSize, globalBox);
         cstone::ReorderFunctor_t<cstone::CpuTag, KeyType, cstone::LocalIndex> reorderFunctor;
 
+        std::vector<T>       scratch1, scratch2;
         std::vector<KeyType> particleKeys(d.x.size());
         cstone::LocalIndex   newNParticlesAssigned =
             distributor.assign(bufDesc, reorderFunctor, particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
         size_t exchangeSize = std::max(d.x.size(), size_t(newNParticlesAssigned));
         cstone::reallocate(exchangeSize, particleKeys, d.x, d.y, d.z);
-        auto [exchangeStart, keyView] =
-            distributor.distribute(bufDesc, reorderFunctor, particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
+        auto [exchangeStart, keyView] = distributor.distribute(bufDesc, reorderFunctor, scratch1, scratch2,
+                                                               particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
 
-        std::vector tmp = d.x;
-        cstone::reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(d.x, d.y, d.z), std::tie(tmp));
+        scratch1.resize(d.x.size());
+        cstone::reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(d.x, d.y, d.z), std::tie(scratch1));
         d.x.resize(keyView.size());
         d.y.resize(keyView.size());
         d.z.resize(keyView.size());

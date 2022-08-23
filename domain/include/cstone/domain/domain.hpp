@@ -331,6 +331,8 @@ private:
                     std::tuple<Vectors1&...> particleProperties,
                     std::tuple<Vectors2&...> scratchBuffers)
     {
+        static_assert(std::tuple_size_v<decltype(scratchBuffers)> > 1);
+
         initBounds(x.size());
         auto distributedArrays = std::tuple_cat(std::tie(keys, x, y, z), particleProperties);
         std::apply([size = x.size()](auto&... arrays) { checkSizesEqual(size, arrays...); }, distributedArrays);
@@ -343,9 +345,13 @@ private:
         std::apply([size = exchangeSize](auto&... arrays) { reallocate(size, arrays...); },
                    std::tuple_cat(distributedArrays, scratchBuffers));
 
-        return std::apply([this](auto&... arrays)
-                          { return global_.distribute(bufDesc_, reorderFunctor, rawPtr(arrays)...); },
-                          distributedArrays);
+        return std::apply(
+            [&scratchBuffers, this](auto&... arrays)
+            {
+                return global_.distribute(bufDesc_, reorderFunctor, std::get<0>(scratchBuffers),
+                                          std::get<1>(scratchBuffers), rawPtr(arrays)...);
+            },
+            distributedArrays);
     }
 
     template<class KeyVec, class VectorX, class VectorH>

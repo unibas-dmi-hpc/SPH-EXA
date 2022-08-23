@@ -126,8 +126,9 @@ void randomGaussianAssignment(int rank, int numRanks)
     reallocateDevice(d_y, exchangeSize, 1.01);
     reallocateDevice(d_z, exchangeSize, 1.01);
 
+    std::vector<double> dummy;
     auto [exchangeStartCpu, cpuKeyView] =
-        assignment.distribute(bufDesc, cpuGather, keys.data(), x.data(), y.data(), z.data());
+        assignment.distribute(bufDesc, cpuGather, dummy, dummy, keys.data(), x.data(), y.data(), z.data());
 
     thrust::device_vector<T> sendScratch, receiveScratch;
     auto [exchangeStart, devKeyView] = assignmentGpu.distribute(bufDesc, deviceSort, sendScratch, receiveScratch,
