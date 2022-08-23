@@ -42,6 +42,12 @@ const T* rawPtr(const std::vector<T, Alloc>& p)
     return p.data();
 }
 
+template<class T>
+void memcpyH2D(const T* src, size_t n, T* dest);
+
+template<class T>
+void memcpyH2D(const T* src, size_t n, T* dest);
+
 namespace thrust
 {
 

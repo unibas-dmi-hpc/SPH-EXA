@@ -32,8 +32,6 @@
 
 #pragma once
 
-#include <thrust/device_ptr.h>
-
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/primitives_gpu.hpp"
 #include "cstone/util/gsl-lite.hpp"
@@ -78,12 +76,12 @@ SendList createSendListGpu(const SpaceCurveAssignment& assignment,
         searchKeys[rank] = treeLeaves[assignment.firstNodeIdx(rank)];
     }
 
-    thrust::copy(searchKeys.begin(), searchKeys.end(), thrust::device_pointer_cast(d_searchKeys.data()));
+    memcpyH2D(searchKeys.data(), searchKeys.size(), d_searchKeys.data());
     lowerBoundGpu(particleKeys.begin(), particleKeys.end(), d_searchKeys.begin(), d_searchKeys.end(),
                   d_indices.begin());
 
     std::vector<IndexType> indices(numRanks + 1, particleKeys.size());
-    thrust::copy_n(thrust::device_pointer_cast(d_indices.data()), numRanks, indices.begin());
+    memcpyD2H(d_indices.data(), numRanks, indices.data());
 
     for (int rank = 0; rank < numRanks; ++rank)
     {
