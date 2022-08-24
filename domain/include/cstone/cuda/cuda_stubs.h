@@ -30,6 +30,8 @@
 
 #pragma once
 
+#include <vector>
+
 template<class T, class Alloc>
 T* rawPtr(std::vector<T, Alloc>& p)
 {

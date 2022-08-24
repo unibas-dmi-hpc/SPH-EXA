@@ -33,14 +33,17 @@
 #include <numeric>
 #include <vector>
 
+#include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/domain/index_ranges.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/halos/exchange_halos.hpp"
 #ifdef USE_CUDA
 #include "cstone/halos/exchange_halos_gpu.cuh"
 #endif
+#include "cstone/primitives/primitives_gpu.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/util/gsl-lite.hpp"
+#include "cstone/util/thrust_alloc.hpp"
 
 namespace cstone
 {
@@ -109,7 +112,7 @@ void haloExchangeGpu(int epoch,
                      DeviceVector& receiveScratchBuffer,
                      Arrays... arrays);
 
-template<class KeyType>
+template<class KeyType, class Accelerator>
 class Halos
 {
 public:
@@ -126,14 +129,16 @@ public:
      * @param[-]  layout           temporary storage for node count scan
      * @param[in] box              Global coordinate bounding box
      * @param[in] h                smoothing lengths of locally owned particles
+     * @param[-]  scratchBuffer    host or device buffer for temporary use
      */
-    template<class T, class Th>
+    template<class T, class Th, class Vector>
     void discover(const Octree<KeyType>& focusedTree,
                   gsl::span<const unsigned> counts,
                   gsl::span<const TreeIndexPair> focusAssignment,
                   gsl::span<LocalIndex> layout,
                   const Box<T> box,
-                  const Th* h)
+                  const Th* h,
+                  Vector& scratch)
     {
         gsl::span<const KeyType> leaves = focusedTree.treeLeaves();
         TreeNodeIndex firstNode         = focusAssignment[myRank_].start();
@@ -141,15 +146,26 @@ public:
         TreeNodeIndex numNodes          = lastNode - firstNode;
 
         std::exclusive_scan(counts.begin() + firstNode, counts.begin() + lastNode + 1, layout.begin(), 0);
-
         std::vector<float> haloRadii(nNodes(leaves), 0.0f);
-#pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = 0; i < numNodes; ++i)
+
+        if constexpr (HaveGpu<Accelerator>{})
         {
-            if (layout[i + 1] > layout[i])
+            size_t origSize  = reallocateDeviceBytes(scratch, (numNodes + 1) * sizeof(LocalIndex));
+            auto* d_segments = reinterpret_cast<LocalIndex*>(rawPtr(scratch));
+            memcpyH2D(layout.data(), numNodes + 1, d_segments);
+            segmentMax(h, d_segments, numNodes, d_segments);
+            reallocateDevice(scratch, origSize, 1.0);
+        }
+        else
+        {
+#pragma omp parallel for schedule(static)
+            for (TreeNodeIndex i = 0; i < numNodes; ++i)
             {
-                // Note factor 2 due to SPH convention: interaction radius = 2 * h
-                haloRadii[i + firstNode] = *std::max_element(h + layout[i], h + layout[i + 1]) * 2;
+                if (layout[i + 1] > layout[i])
+                {
+                    // Note factor 2 due to SPH convention: interaction radius = 2 * h
+                    haloRadii[i + firstNode] = *std::max_element(h + layout[i], h + layout[i + 1]) * 2;
+                }
             }
         }
 

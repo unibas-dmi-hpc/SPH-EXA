@@ -35,7 +35,7 @@
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/primitives/mpi_cuda.cuh"
 #include "cstone/primitives/primitives_gpu.hpp"
-#include "cstone/util/thrust_alloc.cuh"
+#include "cstone/util/thrust_alloc.hpp"
 
 #include "domaindecomp.hpp"
 

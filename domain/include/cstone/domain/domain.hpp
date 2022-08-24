@@ -197,7 +197,7 @@ public:
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
-                        rawPtr(h));
+                        rawPtr(h), std::get<0>(scratchBuffers));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
         updateLayout(exchangeStart, keyView, particleKeys, std::tie(h),
@@ -244,7 +244,7 @@ public:
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
-                        rawPtr(h));
+                        rawPtr(h), std::get<0>(scratchBuffers));
         focusTree_.addMacs(halos_.haloFlags());
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
@@ -475,7 +475,7 @@ private:
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalIndex> layout_;
 
-    Halos<KeyType> halos_{myRank_};
+    Halos<KeyType, CpuTag> halos_{myRank_};
 
     bool firstCall_{true};
 

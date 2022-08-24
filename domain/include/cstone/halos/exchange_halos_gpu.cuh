@@ -40,7 +40,7 @@
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/primitives/mpi_cuda.cuh"
 #include "cstone/domain/index_ranges.hpp"
-#include "cstone/util/thrust_alloc.cuh"
+#include "cstone/util/thrust_alloc.hpp"
 #include "cstone/util/util.hpp"
 
 #include "gather_scatter.cuh"

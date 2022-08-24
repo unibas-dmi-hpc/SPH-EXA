@@ -33,8 +33,6 @@
 
 #include <tuple>
 
-#include "cstone/util/array.hpp"
-
 namespace cstone
 {
 
@@ -55,14 +53,15 @@ extern void lowerBoundGpu(const T* first, const T* last, const T* valueFirst, co
 
 /*! @brief determine maximum elements in an array divided into multiple segments
  *
- * @tparam      T            some type that supports comparison
+ * @tparam      Tin          some type that supports comparison
+ * @tparam      Tout         some type that supports comparison
  * @tparam      IndexType    32- or 64-bit unsigned integer
  * @param[in]   input        an array of length @a segments[numSegments]
  * @param[in]   segments     an array of length @a numSegments + 1 describing the segmentation of @a input
  * @param[in]   numSegments  number of segments
  * @param[out]  output       maximum in each segment, length @a numSegments
  */
-template<class T, class IndexType>
-extern void segmentMax(const T* input, const IndexType* segments, size_t numSegments, T* output);
+template<class Tin, class Tout, class IndexType>
+extern void segmentMax(const Tin* input, const IndexType* segments, size_t numSegments, Tout* output);
 
 } // namespace cstone

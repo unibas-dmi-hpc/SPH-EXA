@@ -41,15 +41,15 @@
 
 #include "gtest/gtest.h"
 
-#include "coord_samples/random.hpp"
+#include <thrust/device_vector.h>
 
+#include "coord_samples/random.hpp"
 #include "cstone/domain/assignment_gpu.cuh"
 #include "cstone/domain/assignment.hpp"
 
-#include "cstone/util/thrust_alloc.cuh"
+#include "cstone/util/thrust_alloc.hpp"
 
 using namespace cstone;
-using thrust::raw_pointer_cast;
 
 /*! @brief random gaussian coordinate init
  *
@@ -111,8 +111,7 @@ void randomGaussianAssignment(int rank, int numRanks)
     DeviceSfcSort<KeyType, LocalIndex> deviceSort;
 
     LocalIndex numAssignedGpu =
-        assignmentGpu.assign(bufDesc, deviceSort, raw_pointer_cast(d_keys.data()), raw_pointer_cast(d_x.data()),
-                             raw_pointer_cast(d_y.data()), raw_pointer_cast(d_z.data()));
+        assignmentGpu.assign(bufDesc, deviceSort, rawPtr(d_keys), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z));
 
     ASSERT_EQ(numAssignedCpu, numAssignedGpu);
     EXPECT_EQ(assignment.treeLeaves().size(), assignmentGpu.treeLeaves().size());
