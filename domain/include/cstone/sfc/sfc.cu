@@ -43,28 +43,28 @@ computeSfcKeysKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t n
 }
 
 template<class KeyType, class T>
-void computeSfcKeysGpu(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
+void computeSfcKeysGpu(const T* x, const T* y, const T* z, KeyType* keys, size_t numKeys, const Box<T>& box)
 {
     constexpr int threadsPerBlock = 256;
     computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
 }
 
 template void
-computeSfcKeysGpu(MortonKey<unsigned>*, const float*, const float*, const float*, size_t, const Box<float>&);
+computeSfcKeysGpu(const float*, const float*, const float*, MortonKey<unsigned>*, size_t, const Box<float>&);
 template void
-computeSfcKeysGpu(MortonKey<unsigned>*, const double*, const double*, const double*, size_t, const Box<double>&);
+computeSfcKeysGpu(const double*, const double*, const double*, MortonKey<unsigned>*, size_t, const Box<double>&);
 template void
-computeSfcKeysGpu(MortonKey<uint64_t>*, const float*, const float*, const float*, size_t, const Box<float>&);
+computeSfcKeysGpu(const float*, const float*, const float*, MortonKey<uint64_t>*, size_t, const Box<float>&);
 template void
-computeSfcKeysGpu(MortonKey<uint64_t>*, const double*, const double*, const double*, size_t, const Box<double>&);
+computeSfcKeysGpu(const double*, const double*, const double*, MortonKey<uint64_t>*, size_t, const Box<double>&);
 
 template void
-computeSfcKeysGpu(HilbertKey<unsigned>*, const float*, const float*, const float*, size_t, const Box<float>&);
+computeSfcKeysGpu(const float*, const float*, const float*, HilbertKey<unsigned>*, size_t, const Box<float>&);
 template void
-computeSfcKeysGpu(HilbertKey<unsigned>*, const double*, const double*, const double*, size_t, const Box<double>&);
+computeSfcKeysGpu(const double*, const double*, const double*, HilbertKey<unsigned>*, size_t, const Box<double>&);
 template void
-computeSfcKeysGpu(HilbertKey<uint64_t>*, const float*, const float*, const float*, size_t, const Box<float>&);
+computeSfcKeysGpu(const float*, const float*, const float*, HilbertKey<uint64_t>*, size_t, const Box<float>&);
 template void
-computeSfcKeysGpu(HilbertKey<uint64_t>*, const double*, const double*, const double*, size_t, const Box<double>&);
+computeSfcKeysGpu(const double*, const double*, const double*, HilbertKey<uint64_t>*, size_t, const Box<double>&);
 
 } // namespace cstone

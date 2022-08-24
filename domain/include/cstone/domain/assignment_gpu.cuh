@@ -89,15 +89,13 @@ public:
     {
         // number of locally assigned particles to consider for global tree building
         LocalIndex numParticles = bufDesc.end - bufDesc.start;
+        LocalIndex start = bufDesc.start;
 
-        box_ =
-            makeGlobalBox<T, MinMaxGpu<T>>(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start, numParticles, box_);
-
-        gsl::span<KeyType> keyView(particleKeys + bufDesc.start, numParticles);
+        box_ = makeGlobalBox<T, MinMaxGpu<T>>(x + start, y + start, z + start, numParticles, box_);
+        gsl::span<KeyType> keyView(particleKeys + start, numParticles);
 
         // compute SFC particle keys only for particles participating in tree build
-        computeSfcKeysGpu(sfcKindPointer(keyView.data()), x + bufDesc.start, y + bufDesc.start, z + bufDesc.start,
-                          numParticles, box_);
+        computeSfcKeysGpu(x + start, y + start, z + start, sfcKindPointer(keyView.data()), numParticles, box_);
 
         // sort keys and keep track of ordering for later use
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
@@ -174,8 +172,7 @@ public:
         LocalIndex envelopeSize          = newEnd - newStart;
         const gsl::span<KeyType> keyView = gsl::span<KeyType>(keys + newStart, envelopeSize);
 
-        computeSfcKeysGpu(sfcKindPointer(keyView.begin()), x + newStart, y + newStart, z + newStart, envelopeSize,
-                          box_);
+        computeSfcKeysGpu(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.data()), envelopeSize, box_);
         // sort keys and keep track of the ordering
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 

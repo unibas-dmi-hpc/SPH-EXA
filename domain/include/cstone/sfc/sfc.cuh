@@ -36,6 +36,6 @@ namespace cstone
 {
 
 template<class KeyType, class T>
-extern void computeSfcKeysGpu(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box);
+extern void computeSfcKeysGpu(const T* x, const T* y, const T* z, KeyType* keys, size_t numKeys, const Box<T>& box);
 
 } // namespace cstone

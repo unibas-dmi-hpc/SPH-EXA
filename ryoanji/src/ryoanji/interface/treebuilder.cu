@@ -107,7 +107,7 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
     thrust::device_vector<int>     d_ordering(numBodies);
     thrust::device_vector<T>       tmp(numBodies);
 
-    cstone::computeSfcKeysGpu(cstone::sfcKindPointer(rawPtr(d_keys)), x, y, z, numBodies, csBox);
+    cstone::computeSfcKeysGpu(x, y, z, cstone::sfcKindPointer(rawPtr(d_keys)), numBodies, csBox);
 
     thrust::sequence(d_ordering.begin(), d_ordering.end(), 0);
     thrust::sort_by_key(thrust::device, d_keys.begin(), d_keys.end(), d_ordering.begin());

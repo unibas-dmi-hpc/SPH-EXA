@@ -145,10 +145,10 @@ int main()
         thrust::device_vector<Real> dz = z;
 
         auto computeHilbert = [&]()
-        { computeSfcKeysGpu(rawPtr(hilbertKeys2), rawPtr(dx), rawPtr(dy), rawPtr(dz), numKeys, box); };
+        { computeSfcKeysGpu(rawPtr(dx), rawPtr(dy), rawPtr(dz), rawPtr(hilbertKeys2), numKeys, box); };
 
         auto computeMorton = [&]()
-        { computeSfcKeysGpu(rawPtr(mortonKeys2), rawPtr(dx), rawPtr(dy), rawPtr(dz), numKeys, box); };
+        { computeSfcKeysGpu(rawPtr(dx), rawPtr(dy), rawPtr(dz), rawPtr(mortonKeys2), numKeys, box); };
 
         float t_hilbert = timeGpu(computeHilbert);
         float t_morton  = timeGpu(computeMorton);
