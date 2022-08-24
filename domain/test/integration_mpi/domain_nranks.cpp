@@ -268,7 +268,7 @@ TEST(FocusDomain, assignmentShift)
         property[i] = rank;
     }
 
-    domain.exchangeHalos(std::tie(property));
+    domain.exchangeHalos(std::tie(property), scratch, scratch2);
 
     EXPECT_TRUE(std::count(property.begin(), property.end(), -1) == 0);
     EXPECT_TRUE(std::count(property.begin(), property.end(), rank) == domain.nParticles());

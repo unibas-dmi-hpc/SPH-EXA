@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include <type_traits>
 #include <vector>
 
 template<class T, class Alloc>
@@ -57,3 +58,20 @@ template<class T, class Alloc>
 class device_vector;
 
 } // namespace thrust
+
+/*! @brief detection trait to determine whether a template parameter is an instance of thrust::device_vector
+ *
+ * @tparam Vector the Vector type to check
+ *
+ * Add specializations for each type of vector that should be recognized as on device
+ */
+template<class Vector>
+struct IsDeviceVector : public std::false_type
+{
+};
+
+//! @brief detection of thrust device vectors
+template<class T, class Alloc>
+struct IsDeviceVector<thrust::device_vector<T, Alloc>> : public std::true_type
+{
+};

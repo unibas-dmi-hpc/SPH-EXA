@@ -219,24 +219,27 @@ public:
      * @param[inout] arrays  std::vector<float or double> of size particleBufferSize_
      *
      * Arrays are not resized or reallocated. Function is const, but modifies mutable haloEpoch_ counter.
+     * Note that if the ScratchVectors are on device, all arrays need to be on the device too.
      */
-    template<class... Arrays>
-    void exchangeHalos(Arrays... arrays) const
+    template<class ScratchVector, class... Vectors>
+    void exchangeHalos(std::tuple<Vectors&...> arrays, ScratchVector& sendBuffer, ScratchVector& receiveBuffer) const
     {
-        haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays...);
-    }
-
-    template<class... DeviceVectors, class DeviceVector>
-    void
-    exchangeHalosGpu(std::tuple<DeviceVectors&...> arrays, DeviceVector& sendBuffer, DeviceVector& receiveBuffer) const
-    {
-        std::apply(
-            [this, &sendBuffer, &receiveBuffer](auto&... arrays)
-            {
-                haloExchangeGpu(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, sendBuffer, receiveBuffer,
-                                rawPtr(arrays)...);
-            },
-            arrays);
+        if constexpr (IsDeviceVector<ScratchVector>{})
+        {
+            std::apply(
+                [this, &sendBuffer, &receiveBuffer](auto&... arrays)
+                {
+                    haloExchangeGpu(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, sendBuffer, receiveBuffer,
+                                    rawPtr(arrays)...);
+                },
+                arrays);
+        }
+        else
+        {
+            std::apply([this](auto&... arrays)
+                       { haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, rawPtr(arrays)...); },
+                       arrays);
+        }
     }
 
     gsl::span<int> haloFlags() { return haloFlags_; }

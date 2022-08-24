@@ -140,8 +140,8 @@ public:
         computeEOS_HydroStd(first, last, d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalosAuto(get<"vx", "vy", "vz", "rho", "p", "c">(d), std::get<0>(get<"ax">(d)),
-                                 std::get<0>(get<"ay">(d)));
+        domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), std::get<0>(get<"ax">(d)),
+                             std::get<0>(get<"ay">(d)));
 
         timer.step("mpi::synchronizeHalos");
         d.devData.release("u");
@@ -150,8 +150,8 @@ public:
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
 
-        domain.exchangeHalosAuto(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), std::get<0>(get<"ax">(d)),
-                                 std::get<0>(get<"ay">(d)));
+        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), std::get<0>(get<"ax">(d)),
+                             std::get<0>(get<"ay">(d)));
 
         timer.step("mpi::synchronizeHalos");
 

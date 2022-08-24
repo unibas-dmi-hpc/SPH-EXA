@@ -202,7 +202,7 @@ public:
 
         updateLayout(exchangeStart, keyView, particleKeys, std::tie(h),
                      std::tuple_cat(std::tie(x, y, z), particleProperties), scratchBuffers);
-        setupHalos(particleKeys, x, y, z, h);
+        setupHalos(particleKeys, x, y, z, h, scratchBuffers);
         firstCall_ = false;
     }
 
@@ -251,31 +251,16 @@ public:
         // diagnostics(keyView.size(), peers);
 
         updateLayout(exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), particleProperties, scratchBuffers);
-        setupHalos(particleKeys, x, y, z, h);
+        setupHalos(particleKeys, x, y, z, h, scratchBuffers);
         firstCall_ = false;
     }
 
     //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
-    template<class... Vectors>
-    void exchangeHalos(std::tuple<Vectors&...> arrays) const
+    template<class... Vectors, class SendBuffer, class ReceiveBuffer>
+    void exchangeHalos(std::tuple<Vectors&...> arrays, SendBuffer& sendBuffer, ReceiveBuffer& receiveBuffer) const
     {
         std::apply([this](auto&... arrays) { this->template checkSizesEqual(this->bufDesc_.size, arrays...); }, arrays);
-        std::apply([this](auto&... arrays) { this->halos_.exchangeHalos(arrays.data()...); }, arrays);
-    }
-
-    //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
-    template<class... Vectors, class SendBuffer, class ReceiveBuffer>
-    void exchangeHalosGpu(std::tuple<Vectors&...> arrays, SendBuffer& sendBuffer, ReceiveBuffer& receiveBuffer) const
-    {
-        std::apply([this](auto&... arrays) { this->template checkSizesEqual(this->bufDesc_.size, arrays...); }, arrays);
-        this->halos_.exchangeHalosGpu(arrays, sendBuffer, receiveBuffer);
-    }
-
-    template<class... Vectors, class SendBuffer, class ReceiveBuffer>
-    void exchangeHalosAuto(std::tuple<Vectors&...> arrays, SendBuffer& sendBuffer, ReceiveBuffer& receiveBuffer) const
-    {
-        if constexpr (HaveGpu<Accelerator>{}) { exchangeHalosGpu(arrays, sendBuffer, receiveBuffer); }
-        else { exchangeHalos(arrays); }
+        this->halos_.exchangeHalos(arrays, sendBuffer, receiveBuffer);
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
@@ -350,10 +335,10 @@ private:
             distributedArrays);
     }
 
-    template<class KeyVec, class VectorX, class VectorH>
-    void setupHalos(KeyVec& keys, VectorX& x, VectorX& y, VectorX& z, VectorH& h)
+    template<class KeyVec, class VectorX, class VectorH, class... Vs>
+    void setupHalos(KeyVec& keys, VectorX& x, VectorX& y, VectorX& z, VectorH& h, std::tuple<Vs&...> scratch)
     {
-        exchangeHalos(std::tie(x, y, z, h));
+        exchangeHalos(std::tie(x, y, z, h), std::get<0>(scratch), std::get<1>(scratch));
 
         // compute SFC keys of received halo particles
         computeSfcKeys(rawPtr(x), rawPtr(y), rawPtr(z), sfcKindPointer(rawPtr(keys)), bufDesc_.start, box());
