@@ -150,10 +150,19 @@ public:
 
         if constexpr (HaveGpu<Accelerator>{})
         {
-            size_t origSize  = reallocateDeviceBytes(scratch, (numNodes + 1) * sizeof(LocalIndex));
+            // round up to multiple of 128 such that the radii pointer will be aligned
+            size_t segBytes   = iceil((numNodes + 1) * sizeof(LocalIndex), 128);
+            size_t radiiBytes = numNodes * sizeof(float);
+            size_t origSize   = reallocateDeviceBytes(scratch, segBytes + radiiBytes);
+
             auto* d_segments = reinterpret_cast<LocalIndex*>(rawPtr(scratch));
+            auto* d_radii    = reinterpret_cast<float*>(rawPtr(scratch)) + segBytes / sizeof(float);
+
             memcpyH2D(layout.data(), numNodes + 1, d_segments);
-            segmentMax(h, d_segments, numNodes, d_segments);
+            segmentMax(h, d_segments, numNodes, d_radii);
+            memcpyD2H(d_radii, numNodes, haloRadii.data());
+
+            std::for_each(haloRadii.begin(), haloRadii.end(), [](float& r) { r *= 2.f; });
             reallocateDevice(scratch, origSize, 1.0);
         }
         else

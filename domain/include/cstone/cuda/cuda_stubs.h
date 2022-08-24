@@ -48,7 +48,7 @@ template<class T>
 void memcpyH2D(const T* src, size_t n, T* dest);
 
 template<class T>
-void memcpyH2D(const T* src, size_t n, T* dest);
+void memcpyD2H(const T* src, size_t n, T* dest);
 
 namespace thrust
 {
