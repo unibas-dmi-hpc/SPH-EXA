@@ -198,7 +198,7 @@ public:
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
 
-        reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
+        reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
                         rawPtr(h), std::get<0>(scratchBuffers));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
@@ -245,7 +245,7 @@ public:
         focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
         focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
 
-        reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
+        reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
                         rawPtr(h), std::get<0>(scratchBuffers));
         focusTree_.addMacs(halos_.haloFlags());
@@ -326,8 +326,8 @@ private:
             global_.assign(bufDesc_, reorderFunctor, rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
 
         size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
-        std::apply([size = exchangeSize](auto&... arrays) { reallocate(size, arrays...); },
-                   std::tuple_cat(distributedArrays, scratchBuffers));
+        for_each_tuple([size = exchangeSize](auto& array) { reallocate(array, size, 1.01); },
+                       std::tuple_cat(distributedArrays, scratchBuffers));
 
         return std::apply(
             [&scratchBuffers, this](auto&... arrays)
@@ -369,9 +369,8 @@ private:
         auto myRange = focusTree_.assignment()[myRank_];
         BufferDescription newBufDesc{layout_[myRange.start()], layout_[myRange.end()], layout_.back()};
 
-        // adjust sizes of all buffers if necessary
-        std::apply([size = newBufDesc.size](auto&... arrays) { reallocate(size, arrays...); },
-                   std::tuple_cat(std::tie(swapKeys_), orderedBuffers, unorderedBuffers, scratchBuffers));
+        for_each_tuple([size = newBufDesc.size](auto& array) { reallocate(array, size, 1.01); },
+                       std::tuple_cat(std::tie(swapKeys_), orderedBuffers, unorderedBuffers, scratchBuffers));
 
         // relocate particle SFC keys
         omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);

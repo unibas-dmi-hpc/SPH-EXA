@@ -32,12 +32,12 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
 
-#include "cstone/tree/octree_mpi.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "coord_samples/random.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/domain/domaindecomp_mpi.hpp"
-
-#include "coord_samples/random.hpp"
+#include "cstone/tree/octree_mpi.hpp"
+#include "cstone/tree/octree_util.hpp"
+#include "cstone/util/reallocate.hpp"
 
 using namespace cstone;
 

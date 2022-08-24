@@ -35,9 +35,9 @@
 #include "cstone/domain/layout.hpp"
 #include "cstone/tree/octree_internal.hpp"
 #include "cstone/tree/octree_mpi.hpp"
-
 #include "cstone/sfc/box_mpi.hpp"
 #include "cstone/sfc/sfc.hpp"
+#include "cstone/util/reallocate.hpp"
 
 namespace cstone
 {
@@ -155,7 +155,7 @@ public:
         LocalIndex numParticles          = bufDesc.end - bufDesc.start;
         LocalIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
-        reallocate(numParticles, sfcOrder_);
+        reallocate(sfcOrder_, numParticles, 1.01);
         reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
 
         gsl::span<KeyType> keyView(keys + bufDesc.start, numParticles);

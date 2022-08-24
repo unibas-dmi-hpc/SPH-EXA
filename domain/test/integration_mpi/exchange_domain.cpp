@@ -33,8 +33,8 @@
 
 #include <gtest/gtest.h>
 
-#include "cstone/domain/layout.hpp"
 #include "cstone/domain/domaindecomp_mpi.hpp"
+#include "cstone/util/reallocate.hpp"
 
 using namespace cstone;
 

@@ -63,3 +63,9 @@ void reallocate(Vector& vector, size_t size, double growthRate)
     }
     vector.resize(size);
 }
+
+template<class... Arrays>
+void reallocate(std::size_t size, Arrays&... arrays)
+{
+    [[maybe_unused]] std::initializer_list<int> list{(reallocate(arrays, size, 1.01), 0)...};
+}

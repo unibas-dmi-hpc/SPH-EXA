@@ -214,22 +214,6 @@ inline SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
     return ret;
 }
 
-//! @brief reallocate arrays to the specified size
-template<class... Arrays>
-void reallocate(std::size_t size, Arrays&... arrays)
-{
-    std::array<std::size_t, sizeof...(Arrays)> capacities{arrays.capacity()...};
-
-    size_t current_capacity = capacities.size() ? capacities[0] : 0;
-    if (size > current_capacity)
-    {
-        // limit reallocation growth to 5% instead of 200%
-        [[maybe_unused]] auto reserve_size = static_cast<size_t>(double(size) * 1.05);
-        [[maybe_unused]] std::initializer_list<int> list{(arrays.reserve(reserve_size), 0)...};
-    }
-    [[maybe_unused]] std::initializer_list<int> list{(arrays.resize(size), 0)...};
-}
-
 template<class KeyType, class LocalIndex, class... Arrays1, class... Arrays2>
 void reorderArrays(const ReorderFunctor_t<CpuTag, KeyType, LocalIndex>& reorderFunctor,
                    size_t inputOffset,

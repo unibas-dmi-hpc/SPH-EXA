@@ -142,7 +142,7 @@ public:
         cstone::LocalIndex   newNParticlesAssigned =
             distributor.assign(bufDesc, reorderFunctor, particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
         size_t exchangeSize = std::max(d.x.size(), size_t(newNParticlesAssigned));
-        cstone::reallocate(exchangeSize, particleKeys, d.x, d.y, d.z);
+        reallocate(exchangeSize, particleKeys, d.x, d.y, d.z);
         auto [exchangeStart, keyView] = distributor.distribute(bufDesc, reorderFunctor, scratch1, scratch2,
                                                                particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
 
