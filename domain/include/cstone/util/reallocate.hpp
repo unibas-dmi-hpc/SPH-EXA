@@ -29,6 +29,8 @@
 
 #pragma once
 
+#include "cstone/cuda/cuda_stubs.h"
+
 template<class Vector>
 extern void reallocateDevice(Vector&, size_t, double);
 
@@ -52,7 +54,7 @@ size_t reallocateDeviceBytes(Vector& vec, size_t numBytes)
 
 //! @brief resizes a vector with a determined growth rate upon reallocation
 template<class Vector>
-void reallocate(Vector& vector, size_t size, double growthRate)
+void reallocateGeneric(Vector& vector, size_t size, double growthRate)
 {
     size_t current_capacity = vector.capacity();
 
@@ -62,6 +64,18 @@ void reallocate(Vector& vector, size_t size, double growthRate)
         vector.reserve(reserve_size);
     }
     vector.resize(size);
+}
+
+template<class Vector, std::enable_if_t<IsDeviceVector<Vector>{}, int> = 0>
+void reallocate(Vector& vector, size_t size, double growthRate)
+{
+    reallocateDevice(vector, size, growthRate);
+}
+
+template<class Vector, std::enable_if_t<!IsDeviceVector<Vector>{}, int> = 0>
+void reallocate(Vector& vector, size_t size, double growthRate)
+{
+    reallocateGeneric(vector, size, growthRate);
 }
 
 template<class... Arrays>

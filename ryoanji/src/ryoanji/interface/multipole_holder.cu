@@ -139,7 +139,7 @@ public:
 
         LocalIndex poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
-        reallocate(globalPool_, poolSize, 1.05);
+        reallocateGeneric(globalPool_, poolSize, 1.05);
         traverse<<<numBlocks, TravConfig::numThreads>>>(
             firstBody, lastBody, {1, 9}, x, y, z, m, h, rawPtr(childOffsets_.data()), rawPtr(internalToLeaf_.data()),
             rawPtr(layout_.data()), rawPtr(centers_.data()), rawPtr(multipoles_.data()), G, (int*)(nullptr), ax, ay, az,
@@ -158,14 +158,14 @@ private:
         size_t numNodes = numLeaves + (numLeaves - 1) / 7;
 
         double growthRate = 1.05;
-        reallocate(leafToInternal_, numLeaves, growthRate);
-        reallocate(internalToLeaf_, numNodes, growthRate);
-        reallocate(childOffsets_, numNodes, growthRate);
+        reallocateGeneric(leafToInternal_, numLeaves, growthRate);
+        reallocateGeneric(internalToLeaf_, numNodes, growthRate);
+        reallocateGeneric(childOffsets_, numNodes, growthRate);
 
-        reallocate(layout_, numLeaves + 1, growthRate);
+        reallocateGeneric(layout_, numLeaves + 1, growthRate);
 
-        reallocate(centers_, numNodes, growthRate);
-        reallocate(multipoles_, numNodes, growthRate);
+        reallocateGeneric(centers_, numNodes, growthRate);
+        reallocateGeneric(multipoles_, numNodes, growthRate);
     }
 
     thrust::device_vector<TreeNodeIndex> leafToInternal_;

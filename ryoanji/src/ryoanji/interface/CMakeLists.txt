@@ -17,5 +17,5 @@ if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
 
     add_library(ryoanji multipole_holder.cu)
     target_include_directories(ryoanji PUBLIC ${PROJECT_SOURCE_DIR}/src ${CSTONE_DIR} ${MPI_CXX_INCLUDE_PATH})
-    target_link_libraries(ryoanji PUBLIC ${MPI_CXX_LIBRARIES})
+    target_link_libraries(ryoanji PUBLIC cstone_gpu ${MPI_CXX_LIBRARIES})
 endif()
