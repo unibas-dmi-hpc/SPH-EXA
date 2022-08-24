@@ -42,6 +42,7 @@
 #endif
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/traversal/collisions.hpp"
+#include "cstone/tree/accel_switch.hpp"
 #include "cstone/util/gsl-lite.hpp"
 #include "cstone/util/reallocate.hpp"
 
@@ -151,7 +152,7 @@ public:
         if constexpr (HaveGpu<Accelerator>{})
         {
             // round up to multiple of 128 such that the radii pointer will be aligned
-            size_t segBytes   = iceil((numNodes + 1) * sizeof(LocalIndex), 128);
+            size_t segBytes   = round_up((numNodes + 1) * sizeof(LocalIndex), 128);
             size_t radiiBytes = numNodes * sizeof(float);
             size_t origSize   = reallocateDeviceBytes(scratch, segBytes + radiiBytes);
 
@@ -160,7 +161,7 @@ public:
 
             memcpyH2D(layout.data(), numNodes + 1, d_segments);
             segmentMax(h, d_segments, numNodes, d_radii);
-            memcpyD2H(d_radii, numNodes, haloRadii.data());
+            memcpyD2H(d_radii, numNodes, haloRadii.data() + firstNode);
 
             std::for_each(haloRadii.begin(), haloRadii.end(), [](float& r) { r *= 2.f; });
             reallocateDevice(scratch, origSize, 1.0);

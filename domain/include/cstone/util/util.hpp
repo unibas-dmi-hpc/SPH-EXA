@@ -157,8 +157,10 @@ constexpr auto makeIntegralTuple(std::index_sequence<Is...>)
     return std::make_tuple(std::integral_constant<size_t, Is>{}...);
 }
 
-//! @brief ceil(divident/divisor) for integers
+//! @brief ceil(dividend/divisor) for integers
 HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
 {
     return (dividend + divisor - 1) / divisor;
 }
+
+HOST_DEVICE_FUN constexpr size_t round_up(size_t n, unsigned multiple) { return iceil(n, multiple) * multiple; }

@@ -79,7 +79,7 @@ int main(int argc, char** argv)
     using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
-    using Domain  = cstone::Domain<KeyType, Real, AccType>;
+    using Domain  = cstone::Domain<KeyType, Real>;
 
     const std::string        initCond          = parser.get("--init");
     const size_t             problemSize       = parser.get("-n", 50);

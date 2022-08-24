@@ -167,7 +167,7 @@ template<class KeyType, class IndexType>
 DeviceGather<KeyType, IndexType>::~DeviceGather() = default;
 
 template<class T, class I>
-__global__ void reorder(I* map, T* source, T* destination, size_t n)
+__global__ void reorder(I* map, const T* source, T* destination, size_t n)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -258,7 +258,6 @@ void DeviceSfcSort<KeyType, IndexType>::setMapFromCodes(KeyType* codes_first, Ke
     thrust::sort_by_key(thrust::device, thrust::device_pointer_cast(codes_first),
                         thrust::device_pointer_cast(codes_last),
                         thrust::device_pointer_cast(deviceMemory_->ordering()));
-    checkGpuErrors(cudaGetLastError());
 }
 
 template<class KeyType, class IndexType>
@@ -273,9 +272,7 @@ void DeviceSfcSort<KeyType, IndexType>::operator()(const T* values,
     constexpr int nThreads = 256;
     int nBlocks            = (numExtract + nThreads - 1) / nThreads;
 
-    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset,
-                                   reinterpret_cast<T*>(deviceMemory_->deviceBuffer(0)),
-                                   reinterpret_cast<T*>(deviceMemory_->deviceBuffer(1)), numExtract);
+    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset, values, destination, numExtract);
     checkGpuErrors(cudaGetLastError());
 }
 

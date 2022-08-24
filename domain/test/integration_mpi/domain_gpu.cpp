@@ -43,9 +43,10 @@
 
 #include <thrust/device_vector.h>
 
+#define USE_CUDA
+
 #include "coord_samples/random.hpp"
-#include "cstone/domain/assignment_gpu.cuh"
-#include "cstone/domain/assignment.hpp"
+#include "cstone/domain/domain.hpp"
 
 #include "cstone/util/reallocate.hpp"
 
@@ -83,68 +84,49 @@ void randomGaussianAssignment(int rank, int numRanks)
 {
     LocalIndex numParticles = 1000;
     Box<T> box(0, 1);
-
-    std::vector<KeyType> keys(numParticles);
+    int bucketSize      = 20;
+    int bucketSizeFocus = 10;
 
     // Note: NOT sorted in SFC order
+    std::vector<KeyType> keys(numParticles);
     std::vector<T> x(numParticles);
     std::vector<T> y(numParticles);
     std::vector<T> z(numParticles);
+    std::vector<T> h(numParticles, 0.0000001);
     initCoordinates(x, y, z, box, rank);
-
-    int bucketSize = 20;
-
-    GlobalAssignment<KeyType, T> assignment(rank, numRanks, bucketSize, box);
-    BufferDescription bufDesc{0, numParticles, numParticles};
-    CpuGather<KeyType, LocalIndex> cpuGather;
-
-    LocalIndex numAssignedCpu = assignment.assign(bufDesc, cpuGather, keys.data(), x.data(), y.data(), z.data());
 
     thrust::device_vector<KeyType> d_keys;
     reallocateDevice(d_keys, numParticles, 1.0);
-
     thrust::device_vector<T> d_x = x;
     thrust::device_vector<T> d_y = y;
     thrust::device_vector<T> d_z = z;
+    thrust::device_vector<T> d_h = h;
 
-    GlobalAssignmentGpu<KeyType, T> assignmentGpu(rank, numRanks, bucketSize, box);
-    DeviceSfcSort<KeyType, LocalIndex> deviceSort;
+    Domain<KeyType, T, CpuTag> domainCpu(rank, numRanks, bucketSize, bucketSizeFocus, 1.0, box);
+    std::vector<T> hs1, hs2;
+    domainCpu.sync(keys, x, y, z, h, {}, std::tie(hs1, hs2));
 
-    LocalIndex numAssignedGpu =
-        assignmentGpu.assign(bufDesc, deviceSort, rawPtr(d_keys), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z));
+    Domain<KeyType, T, GpuTag> domainGpu(rank, numRanks, bucketSize, bucketSizeFocus, 1.0, box);
+    thrust::device_vector<T> s1, s2;
+    domainGpu.sync(d_keys, d_x, d_y, d_z, d_h, {}, std::tie(s1, s2));
 
-    ASSERT_EQ(numAssignedCpu, numAssignedGpu);
-    EXPECT_EQ(assignment.treeLeaves().size(), assignmentGpu.treeLeaves().size());
+    std::cout << "numHalos " << domainGpu.nParticlesWithHalos() - domainGpu.nParticles() << " cpu "
+              << domainCpu.nParticlesWithHalos() - domainCpu.nParticles() << std::endl;
 
-    size_t exchangeSize = std::max(x.size(), size_t(numAssignedCpu));
-
-    reallocate(exchangeSize, keys, x, y, z);
-
-    reallocateDevice(d_keys, exchangeSize, 1.01);
-    reallocateDevice(d_x, exchangeSize, 1.01);
-    reallocateDevice(d_y, exchangeSize, 1.01);
-    reallocateDevice(d_z, exchangeSize, 1.01);
-
-    std::vector<double> dummy;
-    auto [exchangeStartCpu, cpuKeyView] =
-        assignment.distribute(bufDesc, cpuGather, dummy, dummy, keys.data(), x.data(), y.data(), z.data());
-
-    thrust::device_vector<T> sendScratch, receiveScratch;
-    auto [exchangeStart, devKeyView] = assignmentGpu.distribute(bufDesc, deviceSort, sendScratch, receiveScratch,
-                                                                rawPtr(d_keys), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z));
-
-    EXPECT_EQ(exchangeStart, exchangeStartCpu);
-    EXPECT_EQ(devKeyView.size(), cpuKeyView.size());
+    ASSERT_EQ(domainCpu.nParticles(), domainGpu.nParticles());
+    EXPECT_EQ(domainCpu.nParticlesWithHalos(), domainGpu.nParticlesWithHalos());
+    EXPECT_EQ(domainCpu.globalTree().treeLeaves().size(), domainGpu.globalTree().treeLeaves().size());
+    EXPECT_EQ(d_x.size(), x.size());
 
     {
-        std::vector<KeyType> keyDownload(devKeyView.size());
-        thrust::copy_n(thrust::device_pointer_cast(devKeyView.data()), devKeyView.size(), keyDownload.data());
-        EXPECT_TRUE(std::equal(keyDownload.begin(), keyDownload.end(), cpuKeyView.begin()));
+        std::vector<KeyType> dl(d_keys.size());
+        thrust::copy_n(d_keys.data(), d_keys.size(), dl.data());
+        EXPECT_TRUE(std::equal(dl.begin(), dl.end(), keys.begin()));
     }
     {
-        std::vector<T> xdl(d_x.size());
-        thrust::copy_n(d_x.data(), d_x.size(), xdl.data());
-        EXPECT_TRUE(std::equal(xdl.begin(), xdl.end(), x.data()));
+        std::vector<T> dl(d_x.size());
+        thrust::copy_n(d_x.data(), d_x.size(), dl.data());
+        EXPECT_TRUE(std::equal(dl.begin(), dl.end(), x.begin()));
     }
 }
 

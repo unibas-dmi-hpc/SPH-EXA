@@ -51,7 +51,6 @@
 #include <vector>
 
 #include "cstone/domain/domaindecomp.hpp"
-#include "cstone/domain/gather.hpp"
 #include "cstone/util/traits.hpp"
 
 namespace cstone
@@ -214,8 +213,8 @@ inline SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
     return ret;
 }
 
-template<class KeyType, class LocalIndex, class... Arrays1, class... Arrays2>
-void reorderArrays(const ReorderFunctor_t<CpuTag, KeyType, LocalIndex>& reorderFunctor,
+template<class ReorderFunctor, class... Arrays1, class... Arrays2>
+void reorderArrays(const ReorderFunctor& reorderFunctor,
                    size_t inputOffset,
                    size_t outputOffset,
                    std::tuple<Arrays1&...> arrays,
@@ -228,19 +227,6 @@ void reorderArrays(const ReorderFunctor_t<CpuTag, KeyType, LocalIndex>& reorderF
         reorderFunctor(rawPtr(array) + inputOffset, rawPtr(swapSpace) + outputOffset);
         swap(swapSpace, array);
     };
-
-    for_each_tuple(reorderArray, arrays);
-}
-
-template<class KeyType, class LocalIndex, class... Arrays1, class... Arrays2>
-void reorderArrays(const ReorderFunctor_t<GpuTag, KeyType, LocalIndex>& reorderFunctor,
-                   size_t inputOffset,
-                   size_t outputOffset,
-                   std::tuple<Arrays1&...> arrays,
-                   std::tuple<Arrays2&...> /*scratchBuffers*/)
-{
-    auto reorderArray = [inputOffset, outputOffset, &reorderFunctor](auto& array)
-    { reorderFunctor(array.data() + inputOffset, array.data() + outputOffset); };
 
     for_each_tuple(reorderArray, arrays);
 }

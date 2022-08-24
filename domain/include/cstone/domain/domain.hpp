@@ -34,14 +34,19 @@
 #pragma once
 
 #include "cstone/cuda/cuda_utils.hpp"
+#include "cstone/cuda/gather.cuh"
 #include "cstone/domain/assignment.hpp"
-#include "cstone/domain/gather.hpp"
+#ifdef USE_CUDA
+#include "cstone/domain/assignment_gpu.cuh"
+#endif
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/focus/octree_focus_mpi.hpp"
 #include "cstone/halos/halos.hpp"
+#include "cstone/primitives/gather.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/traversal/peers.hpp"
+#include "cstone/tree/accel_switch.hpp"
 #include "cstone/sfc/box_mpi.hpp"
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/sfc/sfc_gpu.h"
@@ -51,12 +56,13 @@
 namespace cstone
 {
 
+template<class KeyType, class T>
+class GlobalAssignmentGpu;
+
 template<class KeyType, class T, class Accelerator = CpuTag>
 class Domain
 {
     static_assert(std::is_unsigned<KeyType>{}, "SFC key type needs to be an unsigned integer\n");
-
-    using ReorderFunctor = ReorderFunctor_t<Accelerator, KeyType, LocalIndex>;
 
 public:
     /*! @brief construct empty Domain
@@ -172,8 +178,8 @@ public:
      *      9. SFC sort exchanged assigned particles
      *     10. exchange halo particles
      */
-    template<class VectorX, class VectorH, class... Vectors1, class... Vectors2>
-    void sync(std::vector<KeyType>& particleKeys,
+    template<class KeyVec, class VectorX, class VectorH, class... Vectors1, class... Vectors2>
+    void sync(KeyVec& particleKeys,
               VectorX& x,
               VectorX& y,
               VectorX& z,
@@ -181,6 +187,8 @@ public:
               std::tuple<Vectors1&...> particleProperties,
               std::tuple<Vectors2&...> scratchBuffers)
     {
+        static_assert(std::is_same_v<typename KeyVec::value_type, KeyType>);
+
         auto [exchangeStart, keyView] =
             distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratchBuffers);
         // h is already reordered here for use in halo discovery
@@ -189,13 +197,20 @@ public:
         float invThetaEff      = invThetaMinMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
 
+        auto keyViewHost = keyView;
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            reallocate(swapKeys_, keyView.size(), 1.01);
+            memcpyD2H(keyView.data(), keyView.size(), swapKeys_.data());
+            keyViewHost = gsl::span<KeyType>(swapKeys_);
+        }
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts(),
-                                invThetaEff);
+            focusTree_.converge(box(), keyViewHost, peers, global_.assignment(), global_.treeLeaves(),
+                                global_.nodeCounts(), invThetaEff);
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.updateCounts(keyViewHost, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
 
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
@@ -209,8 +224,8 @@ public:
         firstCall_ = false;
     }
 
-    template<class VectorX, class VectorH, class VectorM, class... Vectors1, class... Vectors2>
-    void syncGrav(std::vector<KeyType>& particleKeys,
+    template<class KeyVec, class VectorX, class VectorH, class VectorM, class... Vectors1, class... Vectors2>
+    void syncGrav(KeyVec& particleKeys,
                   VectorX& x,
                   VectorX& y,
                   VectorX& z,
@@ -219,6 +234,8 @@ public:
                   std::tuple<Vectors1&...> particleProperties,
                   std::tuple<Vectors2&...> scratchBuffers)
     {
+        static_assert(std::is_same_v<typename KeyVec::value_type, KeyType>);
+
         auto [exchangeStart, keyView] =
             distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratchBuffers);
         reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(x, y, z, h, m), scratchBuffers);
@@ -226,6 +243,13 @@ public:
         float invThetaEff      = invThetaVecMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
 
+        auto keyViewHost = keyView;
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            reallocate(swapKeys_, keyView.size(), 1.01);
+            memcpyD2H(keyView.data(), keyView.size(), swapKeys_.data());
+            keyViewHost = gsl::span<KeyType>(swapKeys_);
+        }
         if (firstCall_)
         {
             int converged = 0;
@@ -233,7 +257,7 @@ public:
             {
                 focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
                 converged = focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-                focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
+                focusTree_.updateCounts(keyViewHost, global_.treeLeaves(), global_.nodeCounts());
                 focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
                 focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -241,7 +265,7 @@ public:
         }
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.updateCounts(keyViewHost, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
         focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
 
@@ -375,10 +399,15 @@ private:
         // re-locate particle SFC keys
         if constexpr (IsDeviceVector<KeyVec>{})
         {
-            auto& swapSpace = util::pickType<double>(scratchBuffers);
-            auto* swapPtr   = reinterpret_cast<KeyType*>(rawPtr(swapSpace));
+            auto& swapSpace = std::get<0>(scratchBuffers);
+            size_t origSize = reallocateDeviceBytes(swapSpace, keyView.size() * sizeof(KeyType));
+
+            auto* swapPtr = reinterpret_cast<KeyType*>(rawPtr(swapSpace));
             memcpyD2D(keyView.data(), keyView.size(), swapPtr);
+            reallocate(keys, newBufDesc.size, 1.01);
             memcpyD2D(swapPtr, keyView.size(), rawPtr(keys) + newBufDesc.start);
+
+            reallocate(swapSpace, origSize, 1.0);
         }
         else
         {
@@ -481,16 +510,21 @@ private:
      */
     FocusedOctree<KeyType, T> focusTree_;
 
-    GlobalAssignment<KeyType, T> global_;
+    using Distributor_t =
+        typename AccelSwitchType<Accelerator, GlobalAssignment, GlobalAssignmentGpu>::template type<KeyType, T>;
+    Distributor_t global_;
 
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalIndex> layout_;
 
-    Halos<KeyType, CpuTag> halos_{myRank_};
+    Halos<KeyType, Accelerator> halos_{myRank_};
 
     bool firstCall_{true};
 
-    ReorderFunctor reorderFunctor;
+    using ReorderFunctor_t =
+        typename AccelSwitchType<Accelerator, CpuGather, DeviceSfcSort>::template type<KeyType, LocalIndex>;
+    ReorderFunctor_t reorderFunctor;
+
     std::vector<KeyType> swapKeys_;
 };
 

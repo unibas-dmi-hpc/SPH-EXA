@@ -35,7 +35,7 @@
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/sfc/sfc_gpu.h"
-#include "cstone/tree/octree.cuh"
+#include "cstone/tree/octree_gpu.cuh"
 #include "cstone/tree/octree_internal.cuh"
 
 #include "ryoanji/nbody/types.h"

@@ -37,7 +37,7 @@
 
 #include "coord_samples/random.hpp"
 
-#include "cstone/tree/octree.cuh"
+#include "cstone/tree/octree_gpu.cuh"
 #include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;
