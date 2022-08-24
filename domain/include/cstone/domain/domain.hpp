@@ -43,6 +43,8 @@
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/traversal/peers.hpp"
 #include "cstone/sfc/box_mpi.hpp"
+#include "cstone/sfc/sfc.hpp"
+#include "cstone/sfc/sfc_gpu.h"
 #include "cstone/util/traits.hpp"
 
 namespace cstone
@@ -341,9 +343,18 @@ private:
         exchangeHalos(std::tie(x, y, z, h), std::get<0>(scratch), std::get<1>(scratch));
 
         // compute SFC keys of received halo particles
-        computeSfcKeys(rawPtr(x), rawPtr(y), rawPtr(z), sfcKindPointer(rawPtr(keys)), bufDesc_.start, box());
-        computeSfcKeys(rawPtr(x) + bufDesc_.end, rawPtr(y) + bufDesc_.end, rawPtr(z) + bufDesc_.end,
-                       sfcKindPointer(rawPtr(keys)) + bufDesc_.end, x.size() - bufDesc_.end, box());
+        if constexpr (IsDeviceVector<KeyVec>{})
+        {
+            computeSfcKeysGpu(rawPtr(x), rawPtr(y), rawPtr(z), sfcKindPointer(rawPtr(keys)), bufDesc_.start, box());
+            computeSfcKeysGpu(rawPtr(x) + bufDesc_.end, rawPtr(y) + bufDesc_.end, rawPtr(z) + bufDesc_.end,
+                              sfcKindPointer(rawPtr(keys)) + bufDesc_.end, x.size() - bufDesc_.end, box());
+        }
+        else
+        {
+            computeSfcKeys(rawPtr(x), rawPtr(y), rawPtr(z), sfcKindPointer(rawPtr(keys)), bufDesc_.start, box());
+            computeSfcKeys(rawPtr(x) + bufDesc_.end, rawPtr(y) + bufDesc_.end, rawPtr(z) + bufDesc_.end,
+                           sfcKindPointer(rawPtr(keys)) + bufDesc_.end, x.size() - bufDesc_.end, box());
+        }
     }
 
     template<class KeyVec, class... Arrays1, class... Arrays2, class... Arrays3>
