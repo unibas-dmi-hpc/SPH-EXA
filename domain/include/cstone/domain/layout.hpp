@@ -225,7 +225,7 @@ void reorderArrays(const ReorderFunctor_t<CpuTag, KeyType, LocalIndex>& reorderF
     {
         auto& swapSpace = util::pickType<decltype(array)>(scratchBuffers);
         assert(swapSpace.size() == array.size());
-        reorderFunctor(array.data() + inputOffset, swapSpace.data() + outputOffset);
+        reorderFunctor(rawPtr(array) + inputOffset, rawPtr(swapSpace) + outputOffset);
         swap(swapSpace, array);
     };
 

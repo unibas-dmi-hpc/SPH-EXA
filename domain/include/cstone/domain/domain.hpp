@@ -370,11 +370,22 @@ private:
         BufferDescription newBufDesc{layout_[myRange.start()], layout_[myRange.end()], layout_.back()};
 
         for_each_tuple([size = newBufDesc.size](auto& array) { reallocate(array, size, 1.01); },
-                       std::tuple_cat(std::tie(swapKeys_), orderedBuffers, unorderedBuffers, scratchBuffers));
+                       std::tuple_cat(orderedBuffers, unorderedBuffers, scratchBuffers));
 
-        // relocate particle SFC keys
-        omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);
-        swap(keys, swapKeys_);
+        // re-locate particle SFC keys
+        if constexpr (IsDeviceVector<KeyVec>{})
+        {
+            auto& swapSpace = util::pickType<double>(scratchBuffers);
+            auto* swapPtr   = reinterpret_cast<KeyType*>(rawPtr(swapSpace));
+            memcpyD2D(keyView.data(), keyView.size(), swapPtr);
+            memcpyD2D(swapPtr, keyView.size(), rawPtr(keys) + newBufDesc.start);
+        }
+        else
+        {
+            reallocate(swapKeys_, newBufDesc.size, 1.01);
+            omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);
+            swap(keys, swapKeys_);
+        }
 
         // relocate ordered buffer contents from offset 0 to offset newBufDesc.start
         auto relocate = [size = keyView.size(), dest = newBufDesc.start, &scratchBuffers](auto& array)
@@ -382,7 +393,11 @@ private:
             static_assert(util::FindIndex<decltype(array), std::tuple<Arrays3&...>>{} < sizeof...(Arrays3),
                           "No suitable scratch buffer available");
             auto& swapSpace = util::pickType<decltype(array)>(scratchBuffers);
-            omp_copy(array.begin(), array.begin() + size, swapSpace.begin() + dest);
+            if constexpr (IsDeviceVector<std::decay_t<decltype(array)>>{})
+            {
+                memcpyD2D(rawPtr(array), size, rawPtr(swapSpace) + dest);
+            }
+            else { omp_copy(array.begin(), array.begin() + size, swapSpace.begin() + dest); }
             swap(array, swapSpace);
         };
         for_each_tuple(relocate, orderedBuffers);
