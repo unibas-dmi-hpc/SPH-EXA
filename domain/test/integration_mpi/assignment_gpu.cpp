@@ -47,7 +47,7 @@
 #include "cstone/domain/assignment_gpu.cuh"
 #include "cstone/domain/assignment.hpp"
 
-#include "cstone/util/thrust_alloc.hpp"
+#include "cstone/util/reallocate.hpp"
 
 using namespace cstone;
 

@@ -24,7 +24,9 @@
  */
 
 /*! @file
- * @brief Reallocation of thrust device vectors in a separate compilation unit for use from .cpp code
+ * @brief Thrust allocator adaptor to prevent value initialization
+ *
+ * Taken from: https://github.com/NVIDIA/thrust/blob/master/examples/uninitialized_vector.cu
  */
 
 #pragma once

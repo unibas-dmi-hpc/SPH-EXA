@@ -34,7 +34,7 @@
 #include <vector>
 #include <variant>
 
-#include "cstone/util/util.hpp"
+#include "cstone/util/reallocate.hpp"
 
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"

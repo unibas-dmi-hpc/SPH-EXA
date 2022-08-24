@@ -24,9 +24,7 @@
  */
 
 /*! @file
- * @brief Thrust allocator adaptor to prevent value initialization
- *
- * Taken from: https://github.com/NVIDIA/thrust/blob/master/examples/uninitialized_vector.cu
+ * @brief Reallocation of thrust device vectors in a separate compilation unit for use from .cpp code
  */
 
 #pragma once
@@ -50,4 +48,18 @@ size_t reallocateDeviceBytes(Vector& vec, size_t numBytes)
     if (currentSizeBytes < numBytes) { reallocateDevice(vec, (numBytes + elementSize - 1) / elementSize, 1.01); }
 
     return originalSize;
+}
+
+//! @brief resizes a vector with a determined growth rate upon reallocation
+template<class Vector>
+void reallocate(Vector& vector, size_t size, double growthRate)
+{
+    size_t current_capacity = vector.capacity();
+
+    if (size > current_capacity)
+    {
+        size_t reserve_size = double(size) * growthRate;
+        vector.reserve(reserve_size);
+    }
+    vector.resize(size);
 }

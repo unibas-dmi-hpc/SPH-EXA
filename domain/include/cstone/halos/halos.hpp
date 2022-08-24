@@ -43,7 +43,7 @@
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/util/gsl-lite.hpp"
-#include "cstone/util/thrust_alloc.hpp"
+#include "cstone/util/reallocate.hpp"
 
 namespace cstone
 {

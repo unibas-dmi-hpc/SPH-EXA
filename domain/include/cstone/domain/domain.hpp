@@ -45,6 +45,7 @@
 #include "cstone/sfc/box_mpi.hpp"
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/sfc/sfc_gpu.h"
+#include "cstone/util/reallocate.hpp"
 #include "cstone/util/traits.hpp"
 
 namespace cstone

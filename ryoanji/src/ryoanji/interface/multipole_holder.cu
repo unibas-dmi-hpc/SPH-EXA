@@ -31,6 +31,7 @@
 
 #include <thrust/device_vector.h>
 
+#include "cstone/util/reallocate.hpp"
 #include "multipole_holder.cuh"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
 #include "ryoanji/nbody/gpu_config.cuh"

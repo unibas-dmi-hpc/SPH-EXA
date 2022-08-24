@@ -36,7 +36,7 @@
 #include <variant>
 
 #include "cstone/cuda/cuda_utils.cuh"
-#include "cstone/util/util.hpp"
+#include "cstone/util/reallocate.hpp"
 
 #include "data_util.hpp"
 #include "field_states.hpp"

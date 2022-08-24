@@ -35,7 +35,7 @@
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/util/gsl-lite.hpp"
-#include "cstone/util/thrust_alloc.hpp"
+#include "cstone/util/reallocate.hpp"
 #include "domaindecomp.hpp"
 
 namespace cstone
