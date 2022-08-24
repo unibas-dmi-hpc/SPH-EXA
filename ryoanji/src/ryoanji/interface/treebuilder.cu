@@ -34,7 +34,7 @@
 #include <thrust/gather.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
-#include "cstone/sfc/sfc.cuh"
+#include "cstone/sfc/sfc_gpu.h"
 #include "cstone/tree/octree.cuh"
 #include "cstone/tree/octree_internal.cuh"
 

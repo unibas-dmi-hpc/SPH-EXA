@@ -35,7 +35,7 @@
 
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/util/util.hpp"
-#include "primitives_gpu.hpp"
+#include "primitives_gpu.h"
 
 namespace cstone
 {

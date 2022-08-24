@@ -6,7 +6,7 @@ add_subdirectory(tree)
 add_subdirectory(util)
 
 if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
-    add_library(cstone_gpu $<TARGET_OBJECTS:gather_scatter_obj>
+    add_library(cstone_gpu $<TARGET_OBJECTS:gather_halos_obj>
                            $<TARGET_OBJECTS:gather_obj>
                            $<TARGET_OBJECTS:octree_obj>
                            $<TARGET_OBJECTS:primitives_gpu_obj>

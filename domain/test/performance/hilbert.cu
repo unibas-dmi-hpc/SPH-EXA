@@ -35,7 +35,7 @@
 #include <thrust/device_vector.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
-#include "cstone/sfc/sfc.cuh"
+#include "cstone/sfc/sfc_gpu.h"
 #include "cstone/util/util.hpp"
 
 #include "timing.cuh"

@@ -31,8 +31,6 @@
 
 #pragma once
 
-#include "cstone/util/array.hpp"
-
 namespace cstone
 {
 

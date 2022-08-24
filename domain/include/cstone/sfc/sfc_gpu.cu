@@ -28,7 +28,7 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include "cstone/sfc/sfc.cuh"
+#include "cstone/sfc/sfc_gpu.h"
 #include "cstone/util/util.hpp"
 
 namespace cstone

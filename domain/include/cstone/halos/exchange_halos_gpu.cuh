@@ -43,7 +43,7 @@
 #include "cstone/util/thrust_alloc.hpp"
 #include "cstone/util/util.hpp"
 
-#include "gather_scatter.cuh"
+#include "gather_halos_gpu.h"
 
 namespace cstone
 {

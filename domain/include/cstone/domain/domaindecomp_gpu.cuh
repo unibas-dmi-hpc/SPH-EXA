@@ -33,7 +33,7 @@
 #pragma once
 
 #include "cstone/cuda/cuda_utils.cuh"
-#include "cstone/primitives/primitives_gpu.hpp"
+#include "cstone/primitives/primitives_gpu.h"
 #include "cstone/util/gsl-lite.hpp"
 #include "cstone/util/thrust_alloc.hpp"
 #include "domaindecomp.hpp"
