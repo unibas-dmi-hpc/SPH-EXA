@@ -243,18 +243,20 @@ public:
             {
                 focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
                 converged = focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-                focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
-                focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box(),
-                                                        std::get<0>(scratchBuffers), std::get<1>(scratchBuffers));
+                focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(),
+                                        std::get<0>(scratchBuffers));
+                focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.assignment(),
+                                         global_.octree(), box(), std::get<0>(scratchBuffers),
+                                         std::get<1>(scratchBuffers));
                 focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
             }
         }
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
-        focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box(),
-                                                std::get<0>(scratchBuffers), std::get<1>(scratchBuffers));
+        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratchBuffers));
+        focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.assignment(), global_.octree(),
+                                 box(), std::get<0>(scratchBuffers), std::get<1>(scratchBuffers));
         focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
 
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);

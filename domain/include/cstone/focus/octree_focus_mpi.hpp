@@ -276,10 +276,10 @@ public:
     }
 
     template<class T, class Tm, class DeviceVector = std::vector<LocalIndex>>
-    void updateCenters(gsl::span<const T> x,
-                       gsl::span<const T> y,
-                       gsl::span<const T> z,
-                       gsl::span<const Tm> m,
+    void updateCenters(const T* x,
+                       const T* y,
+                       const T* z,
+                       const Tm* m,
                        const SpaceCurveAssignment& assignment,
                        const Octree<KeyType>& globalTree,
                        const Box<T>& box,
@@ -299,6 +299,8 @@ public:
         auto intOrd = tree_.internalOrder();
         if constexpr (HaveGpu<Accelerator>{})
         {
+            static_assert(IsDeviceVector<std::decay_t<DeviceVector>>{});
+
             size_t bytesOrd    = round_up(intOrd.size() * sizeof(TreeNodeIndex), 128);
             size_t bytesLayout = layout.size() * sizeof(LocalIndex);
             size_t osz1        = reallocateDeviceBytes(scratch1, bytesOrd + bytesLayout);
@@ -306,13 +308,12 @@ public:
             auto* d_layout     = reinterpret_cast<LocalIndex*>(rawPtr(scratch1)) + bytesOrd / sizeof(LocalIndex);
 
             using CType     = SourceCenterType<RealType>;
-            size_t osz2     = reallocateDeviceBytes(scratch2, centers_.size() * sizeof(CType), 1.01);
+            size_t osz2     = reallocateDeviceBytes(scratch2, centers_.size() * sizeof(CType));
             auto* d_centers = reinterpret_cast<CType*>(rawPtr(scratch2));
 
             memcpyH2D(intOrd.data(), intOrd.size(), d_intOrd);
             memcpyH2D(layout.data(), layout.size(), d_layout);
-            computeLeafSourceCenterGpu(x.data(), y.data(), z.data(), m.data(), d_intOrd, tree_.numLeafNodes(), d_layout,
-                                       d_centers);
+            computeLeafSourceCenterGpu(x, y, z, m, d_intOrd, tree_.numLeafNodes(), d_layout, d_centers);
             memcpyD2H(d_centers, centers_.size(), centers_.data());
 
             reallocateDevice(scratch1, osz1, 1.0);
@@ -325,8 +326,7 @@ public:
             {
                 //! prepare local leaf centers
                 TreeNodeIndex nodeIdx = intOrd[leafIdx];
-                centers_[nodeIdx] =
-                    massCenter<RealType>(x.data(), y.data(), z.data(), m.data(), layout[leafIdx], layout[leafIdx + 1]);
+                centers_[nodeIdx]     = massCenter<RealType>(x, y, z, m, layout[leafIdx], layout[leafIdx + 1]);
             }
         }
 
