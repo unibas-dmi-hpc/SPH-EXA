@@ -266,19 +266,14 @@ void injectKeys(KeyVector& tree, gsl::span<const typename KeyVector::value_type>
     tree.erase(uit, end(tree));
 }
 
+//! @brief Encapsulation to allow making this a friend of Octree<KeyType>
 template<class KeyType>
-class FocusedOctreeCore
+struct CombinedUpdate
 {
-public:
-    FocusedOctreeCore(unsigned bucketSize)
-        : bucketSize_(bucketSize)
-    {
-        std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
-        tree_.update(init.data(), nNodes(init));
-    }
-
-    /*! @brief perform a local update step
+    /*! @brief combined update of a tree based on count-bucketsize in the focus and based on macs outside
      *
+     * @param[inout] tree         the fully linked octree
+     * @param[in] bucketSize      maximum node particle count inside the focus area
      * @param[in] focusStart      start of the focus area
      * @param[in] focusEnd        end of the focus area
      * @param[in] mandatoryKeys   List of SFC keys that have to be present in the focus tree after this function
@@ -290,29 +285,31 @@ public:
      * @param[in] macs            MAC pass/fail results for each node, length = tree_.numTreeNodes()
      * @return                    true if the tree structure did not change
      */
-    bool update(KeyType focusStart,
-                KeyType focusEnd,
-                gsl::span<const KeyType> mandatoryKeys,
-                gsl::span<const unsigned> counts,
-                gsl::span<const char> macs)
+    static bool updateFocus(Octree<KeyType>& tree,
+                            unsigned bucketSize,
+                            KeyType focusStart,
+                            KeyType focusEnd,
+                            gsl::span<const KeyType> mandatoryKeys,
+                            gsl::span<const unsigned> counts,
+                            gsl::span<const char> macs)
     {
-        assert(TreeNodeIndex(counts.size()) == tree_.numTreeNodes());
-        assert(TreeNodeIndex(macs.size()) == tree_.numTreeNodes());
-        assert(TreeNodeIndex(tree_.internalToLeaf_.size()) >= tree_.numTreeNodes());
+        assert(TreeNodeIndex(counts.size()) == tree.numTreeNodes());
+        assert(TreeNodeIndex(macs.size()) == tree.numTreeNodes());
+        assert(TreeNodeIndex(tree.internalToLeaf_.size()) >= tree.numTreeNodes());
 
-        gsl::span<TreeNodeIndex> nodeOpsAll(tree_.internalToLeaf_);
-        bool converged = rebalanceDecisionEssential(tree_.nodeKeys(), tree_.childOffsets().data(),
-                                                    tree_.parents().data(), counts.data(), macs.data(), focusStart,
-                                                    focusEnd, bucketSize_, nodeOpsAll.data());
+        gsl::span<TreeNodeIndex> nodeOpsAll(tree.internalToLeaf_);
+        bool converged =
+            rebalanceDecisionEssential(tree.nodeKeys(), tree.childOffsets().data(), tree.parents().data(),
+                                       counts.data(), macs.data(), focusStart, focusEnd, bucketSize, nodeOpsAll.data());
 
-        assert(tree_.childOffsets_.size() >= size_t(tree_.numLeafNodes() + 1));
-        gsl::span<TreeNodeIndex> nodeOps(tree_.childOffsets_.data(), tree_.numLeafNodes() + 1);
-        gather(tree_.internalOrder(), nodeOpsAll.data(), nodeOps.data());
+        assert(tree.childOffsets_.size() >= size_t(tree.numLeafNodes() + 1));
+        gsl::span<TreeNodeIndex> nodeOps(tree.childOffsets_.data(), tree.numLeafNodes() + 1);
+        gather(tree.internalOrder(), nodeOpsAll.data(), nodeOps.data());
 
         std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
         std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
 
-        gsl::span<const KeyType> leaves = tree_.treeLeaves();
+        gsl::span<const KeyType> leaves = tree.treeLeaves();
         auto status                     = enforceKeys<KeyType>(leaves, allMandatoryKeys, nodeOps);
 
         if (status == ResolutionStatus::cancelMerge)
@@ -321,7 +318,7 @@ public:
         }
         else if (status == ResolutionStatus::rebalance) { converged = false; }
 
-        auto& newLeaves = tree_.prefixes_;
+        auto& newLeaves = tree.prefixes_;
         rebalanceTree(leaves, newLeaves, nodeOps.data());
 
         // if rebalancing couldn't introduce the mandatory keys, we force-inject them now into the tree
@@ -331,24 +328,11 @@ public:
             injectKeys(newLeaves, allMandatoryKeys);
         }
 
-        swap(newLeaves, tree_.cstoneTree_);
-        tree_.updateInternalTree();
+        swap(newLeaves, tree.cstoneTree_);
+        tree.updateInternalTree();
 
         return converged;
     }
-
-    //! @brief provide access to the linked octree
-    const Octree<KeyType>& octree() const { return tree_; }
-
-    //! @brief returns a view of the tree leaves
-    gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
-
-private:
-    //! @brief max number of particles per node in focus
-    unsigned bucketSize_;
-
-    //! @brief the focused tree
-    Octree<KeyType> tree_;
 };
 
 /*! @brief A fully traversable octree, locally focused w.r.t a MinMac criterion
@@ -358,13 +342,17 @@ private:
 template<class KeyType>
 class FocusedOctreeSingleNode
 {
+    using CB = CombinedUpdate<KeyType>;
+
 public:
     FocusedOctreeSingleNode(unsigned bucketSize, float theta)
         : theta_(theta)
-        , tree_(bucketSize)
+        , bucketSize_(bucketSize)
         , counts_{bucketSize + 1}
         , macs_{1}
     {
+        std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
+        tree_.update(init.data(), nNodes(init));
     }
 
     //! @brief perform a local update step, see FocusedOctreeCore
@@ -375,10 +363,10 @@ public:
                 KeyType focusEnd,
                 gsl::span<const KeyType> mandatoryKeys)
     {
-        bool converged = tree_.update(focusStart, focusEnd, mandatoryKeys, counts_, macs_);
+        bool converged = CB::updateFocus(tree_, bucketSize_, focusStart, focusEnd, mandatoryKeys, counts_, macs_);
 
-        std::vector<Vec4<T>> centers_(tree_.octree().numTreeNodes());
-        auto nodeKeys     = octree().nodeKeys();
+        std::vector<Vec4<T>> centers_(tree_.numTreeNodes());
+        auto nodeKeys     = tree_.nodeKeys();
         float invThetaEff = 1.0f / theta_ + 0.5;
 
 #pragma omp parallel for schedule(static)
@@ -388,22 +376,22 @@ public:
             centers_[i] = computeMinMacR2(nodeKeys[i], invThetaEff, box);
         }
 
-        macs_.resize(tree_.octree().numTreeNodes());
-        markMacs(octree(), centers_.data(), box, focusStart, focusEnd, macs_.data());
+        macs_.resize(tree_.numTreeNodes());
+        markMacs(tree_, centers_.data(), box, focusStart, focusEnd, macs_.data());
 
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
         leafCounts_.resize(nNodes(leaves));
         computeNodeCounts(leaves.data(), leafCounts_.data(), nNodes(leaves), particleKeys.data(),
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
-        counts_.resize(octree().numTreeNodes());
-        scatter(octree().internalOrder(), leafCounts_.data(), counts_.data());
-        upsweep(octree().levelRange(), octree().childOffsets(), counts_.data(), SumCombination<unsigned>{});
+        counts_.resize(tree_.numTreeNodes());
+        scatter(tree_.internalOrder(), leafCounts_.data(), counts_.data());
+        upsweep(tree_.levelRange(), tree_.childOffsets(), counts_.data(), SumCombination<unsigned>{});
 
         return converged;
     }
 
-    const Octree<KeyType>& octree() const { return tree_.octree(); }
+    const Octree<KeyType>& octree() const { return tree_; }
 
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
     gsl::span<const unsigned> leafCounts() const { return leafCounts_; }
@@ -411,8 +399,9 @@ public:
 private:
     //! @brief opening angle refinement criterion
     float theta_;
+    unsigned bucketSize_;
 
-    FocusedOctreeCore<KeyType> tree_;
+    Octree<KeyType> tree_;
 
     //! @brief particle counts of the focused tree leaves
     std::vector<unsigned> leafCounts_;

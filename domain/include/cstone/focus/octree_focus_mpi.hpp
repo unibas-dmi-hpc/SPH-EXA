@@ -62,10 +62,11 @@ public:
         , theta_(theta)
         , bucketSize_(bucketSize)
         , treelets_(numRanks_)
-        , tree_(bucketSize)
         , counts_{bucketSize + 1}
         , macs_{1}
     {
+        std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
+        tree_.update(init.data(), nNodes(init));
     }
 
     /*! @brief Update the tree structure according to previously calculated criteria (MAC and particle counts)
@@ -112,7 +113,8 @@ public:
             enforcedKeys.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
         }
 
-        bool converged = tree_.update(focusStart, focusEnd, enforcedKeys, counts_, macs_);
+        bool converged = CombinedUpdate<KeyType>::updateFocus(tree_, bucketSize_, focusStart, focusEnd, enforcedKeys,
+                                                              counts_, macs_);
         translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peers_, myRank_, assignment_);
 
         prevFocusStart   = focusStart;
@@ -170,9 +172,9 @@ public:
                                   gsl::span<unsigned>(leafCounts_.data() + ip.start(), ip.count()));
         }
 
-        counts_.resize(tree_.octree().numTreeNodes());
-        scatter(octree().internalOrder(), leafCounts_.data(), counts_.data());
-        upsweep(octree().levelRange(), octree().childOffsets(), counts_.data(), SumCombination<unsigned>{});
+        counts_.resize(tree_.numTreeNodes());
+        scatter(tree_.internalOrder(), leafCounts_.data(), counts_.data());
+        upsweep(tree_.levelRange(), tree_.childOffsets(), counts_.data(), SumCombination<unsigned>{});
 
         rebalanceStatus_ |= countsCriterion;
     }
@@ -180,8 +182,8 @@ public:
     template<class T>
     void peerExchange(gsl::span<T> quantities, int commTag) const
     {
-        exchangeTreeletGeneral<T>(peers_, treelets_, assignment_, octree().nodeKeys(), octree().levelRange(),
-                                  octree().internalOrder(), quantities, commTag);
+        exchangeTreeletGeneral<T>(peers_, treelets_, assignment_, tree_.nodeKeys(), tree_.levelRange(),
+                                  tree_.internalOrder(), quantities, commTag);
     }
 
     /*! @brief transfer quantities of leaf cells inside the focus into a global array
@@ -207,8 +209,8 @@ public:
 #pragma omp parallel for schedule(static)
         for (TreeNodeIndex globalIdx = firstGlobalIdx; globalIdx < lastGlobalIdx; ++globalIdx)
         {
-            TreeNodeIndex localIdx = octree().locate(globalLeaves[globalIdx], globalLeaves[globalIdx + 1]);
-            if (localIdx == octree().numTreeNodes())
+            TreeNodeIndex localIdx = tree_.locate(globalLeaves[globalIdx], globalLeaves[globalIdx + 1]);
+            if (localIdx == tree_.numTreeNodes())
             {
                 // If the global tree is fully converged, but the locally focused tree is just being built up
                 // for the first time, it's possible that the global tree has a higher resolution than
@@ -235,14 +237,14 @@ public:
     {
         gsl::span<const KeyType> localLeaves = treeLeaves();
         //! requestIndices: range of leaf cell indices in the locally focused tree that need global information
-        auto requestIndices = invertRanges(0, assignment_, octree().numLeafNodes());
+        auto requestIndices = invertRanges(0, assignment_, tree_.numLeafNodes());
         for (auto range : requestIndices)
         {
             //! from global tree, pull in missing elements into locally focused tree
             for (TreeNodeIndex i = range.start(); i < range.end(); ++i)
             {
                 TreeNodeIndex globalIndex    = globalTree.locate(localLeaves[i], localLeaves[i + 1]);
-                TreeNodeIndex internalIdx    = octree().toInternal(i);
+                TreeNodeIndex internalIdx    = tree_.toInternal(i);
                 localQuantities[internalIdx] = globalQuantities[globalIndex];
             }
         }
@@ -265,19 +267,19 @@ public:
                             layout.begin() + firstIdx, 0);
 
         globalCenters_.resize(globalTree.numTreeNodes());
-        centers_.resize(octree().numTreeNodes());
+        centers_.resize(tree_.numTreeNodes());
 
 #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex leafIdx = 0; leafIdx < octree().numLeafNodes(); ++leafIdx)
+        for (TreeNodeIndex leafIdx = 0; leafIdx < tree_.numLeafNodes(); ++leafIdx)
         {
             //! prepare local leaf centers
-            TreeNodeIndex nodeIdx = octree().toInternal(leafIdx);
+            TreeNodeIndex nodeIdx = tree_.toInternal(leafIdx);
             centers_[nodeIdx] =
                 massCenter<RealType>(x.data(), y.data(), z.data(), m.data(), layout[leafIdx], layout[leafIdx + 1]);
         }
 
         //! upsweep with local data in place
-        upsweep(octree().levelRange(), octree().childOffsets(), centers_.data(), CombineSourceCenter<T>{});
+        upsweep(tree_.levelRange(), tree_.childOffsets(), centers_.data(), CombineSourceCenter<T>{});
         //! exchange information with peer close to focus
         peerExchange<SourceCenterType<T>>(centers_, static_cast<int>(P2pTags::focusPeerCenters));
         //! global exchange for the top nodes that are bigger than local domains
@@ -289,9 +291,9 @@ public:
         extractGlobal<SourceCenterType<T>>(globalTree, globalCenters_, centers_);
 
         //! upsweep with all (leaf) data in place
-        upsweep(octree().levelRange(), octree().childOffsets(), centers_.data(), CombineSourceCenter<T>{});
+        upsweep(tree_.levelRange(), tree_.childOffsets(), centers_.data(), CombineSourceCenter<T>{});
         //! calculate mac radius for each cell based on location of expansion centers
-        setMac<T>(octree().nodeKeys(), centers_, 1.0 / theta_, box);
+        setMac<T>(tree_.nodeKeys(), centers_, 1.0 / theta_, box);
     }
 
     /*! @brief Update the MAC criteria based on a min distance MAC
@@ -307,8 +309,8 @@ public:
                       gsl::span<const KeyType> globalTreeLeaves,
                       float invThetaEff)
     {
-        centers_.resize(octree().numTreeNodes());
-        auto nodeKeys = octree().nodeKeys();
+        centers_.resize(tree_.numTreeNodes());
+        auto nodeKeys = tree_.nodeKeys();
 
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < nodeKeys.size(); ++i)
@@ -334,8 +336,8 @@ public:
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
 
-        macs_.resize(octree().numTreeNodes());
-        markMacs(octree(), centers_.data(), box, focusStart, focusEnd, macs_.data());
+        macs_.resize(tree_.numTreeNodes());
+        markMacs(tree_, centers_.data(), box, focusStart, focusEnd, macs_.data());
 
         rebalanceStatus_ |= macCriterion;
     }
@@ -361,7 +363,7 @@ public:
     }
 
     //! @brief the fully linked traversable octree
-    const Octree<KeyType>& octree() const { return tree_.octree(); }
+    const Octree<KeyType>& octree() const { return tree_; }
     //! @brief the cornerstone leaf cell array
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
     //! @brief the assignment of the focus tree leaves to peer ranks
@@ -380,7 +382,7 @@ public:
 #pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = 0; i < haloFlags.ssize(); ++i)
         {
-            size_t iIdx = octree().toInternal(i);
+            size_t iIdx = tree_.toInternal(i);
             if (macs_[iIdx] && !haloFlags[i]) { haloFlags[i] = 1; }
         }
     }
@@ -410,7 +412,7 @@ private:
     //! @brief the tree structures that the peers have for the domain of the executing rank (myRank_)
     std::vector<std::vector<KeyType>> treelets_;
 
-    FocusedOctreeCore<KeyType> tree_;
+    Octree<KeyType> tree_;
 
     //! @brief previous iteration focus start
     KeyType prevFocusStart = 0;
