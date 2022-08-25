@@ -53,14 +53,14 @@ __global__ void computeLeafSourceCenterKernel(const Tc* x,
 }
 
 template<class Tc, class Tm, class Tf>
-void computeLeafSourceCenter(const Tc* x,
-                             const Tc* y,
-                             const Tc* z,
-                             const Tm* m,
-                             const TreeNodeIndex* leafToInternal,
-                             TreeNodeIndex numLeaves,
-                             const LocalIndex* layout,
-                             Vec4<Tf>* centers)
+void computeLeafSourceCenterGpu(const Tc* x,
+                                const Tc* y,
+                                const Tc* z,
+                                const Tm* m,
+                                const TreeNodeIndex* leafToInternal,
+                                TreeNodeIndex numLeaves,
+                                const LocalIndex* layout,
+                                Vec4<Tf>* centers)
 {
     unsigned numThreads = 256;
     unsigned numBlocks  = iceil(numLeaves, numThreads);
@@ -68,40 +68,40 @@ void computeLeafSourceCenter(const Tc* x,
     computeLeafSourceCenterKernel<<<numBlocks, numThreads>>>(x, y, z, m, leafToInternal, numLeaves, layout, centers);
 }
 
-template void computeLeafSourceCenter(const double*,
-                                      const double*,
-                                      const double*,
-                                      const double*,
-                                      const TreeNodeIndex*,
-                                      TreeNodeIndex,
-                                      const LocalIndex*,
-                                      Vec4<double>*);
+template void computeLeafSourceCenterGpu(const double*,
+                                         const double*,
+                                         const double*,
+                                         const double*,
+                                         const TreeNodeIndex*,
+                                         TreeNodeIndex,
+                                         const LocalIndex*,
+                                         Vec4<double>*);
 
-template void computeLeafSourceCenter(const double*,
-                                      const double*,
-                                      const double*,
-                                      const float*,
-                                      const TreeNodeIndex*,
-                                      TreeNodeIndex,
-                                      const LocalIndex*,
-                                      Vec4<double>*);
+template void computeLeafSourceCenterGpu(const double*,
+                                         const double*,
+                                         const double*,
+                                         const float*,
+                                         const TreeNodeIndex*,
+                                         TreeNodeIndex,
+                                         const LocalIndex*,
+                                         Vec4<double>*);
 
-template void computeLeafSourceCenter(const double*,
-                                      const double*,
-                                      const double*,
-                                      const float*,
-                                      const TreeNodeIndex*,
-                                      TreeNodeIndex,
-                                      const LocalIndex*,
-                                      Vec4<float>*);
+template void computeLeafSourceCenterGpu(const double*,
+                                         const double*,
+                                         const double*,
+                                         const float*,
+                                         const TreeNodeIndex*,
+                                         TreeNodeIndex,
+                                         const LocalIndex*,
+                                         Vec4<float>*);
 
-template void computeLeafSourceCenter(const float*,
-                                      const float*,
-                                      const float*,
-                                      const float*,
-                                      const TreeNodeIndex*,
-                                      TreeNodeIndex,
-                                      const LocalIndex*,
-                                      Vec4<float>*);
+template void computeLeafSourceCenterGpu(const float*,
+                                         const float*,
+                                         const float*,
+                                         const float*,
+                                         const TreeNodeIndex*,
+                                         TreeNodeIndex,
+                                         const LocalIndex*,
+                                         Vec4<float>*);
 
 } // namespace cstone

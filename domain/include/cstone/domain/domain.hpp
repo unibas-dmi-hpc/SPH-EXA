@@ -244,7 +244,8 @@ public:
                 focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
                 converged = focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
                 focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
-                focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
+                focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box(),
+                                                        std::get<0>(scratchBuffers), std::get<1>(scratchBuffers));
                 focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
             }
@@ -252,7 +253,8 @@ public:
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
-        focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
+        focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box(),
+                                                std::get<0>(scratchBuffers), std::get<1>(scratchBuffers));
         focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
 
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
@@ -494,7 +496,7 @@ private:
      *  fulfills a MAC with theta as the opening parameter
      * -Also contains particle counts.
      */
-    FocusedOctree<KeyType, T> focusTree_;
+    FocusedOctree<KeyType, T, Accelerator> focusTree_;
 
     using Distributor_t =
         typename AccelSwitchType<Accelerator, GlobalAssignment, GlobalAssignmentGpu>::template type<KeyType, T>;

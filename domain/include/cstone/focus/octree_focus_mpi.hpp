@@ -39,12 +39,13 @@
 #include "cstone/focus/octree_focus.hpp"
 #include "cstone/focus/source_center.hpp"
 #include "cstone/focus/source_center_gpu.h"
+#include "cstone/tree/accel_switch.hpp"
 
 namespace cstone
 {
 
 //! @brief A fully traversable octree with a local focus
-template<class KeyType, class RealType>
+template<class KeyType, class RealType, class Accelerator = CpuTag>
 class FocusedOctree
 {
 public:
@@ -149,8 +150,9 @@ public:
         gsl::span<const KeyType> leaves = treeLeaves();
         leafCounts_.resize(nNodes(leaves));
 
-        if constexpr (IsDeviceVector<std::decay_t<DeviceVector>>{})
+        if constexpr (HaveGpu<Accelerator>{})
         {
+            static_assert(IsDeviceVector<std::decay_t<DeviceVector>>{});
             TreeNodeIndex numNodes = tree_.numLeafNodes();
 
             size_t bytesTree  = round_up((numNodes + 1) * sizeof(KeyType), 128);
@@ -273,14 +275,16 @@ public:
         }
     }
 
-    template<class T, class Tm>
+    template<class T, class Tm, class DeviceVector = std::vector<LocalIndex>>
     void updateCenters(gsl::span<const T> x,
                        gsl::span<const T> y,
                        gsl::span<const T> z,
                        gsl::span<const Tm> m,
                        const SpaceCurveAssignment& assignment,
                        const Octree<KeyType>& globalTree,
-                       const Box<T>& box)
+                       const Box<T>& box,
+                       DeviceVector&& scratch1 = std::vector<LocalIndex>{},
+                       DeviceVector&& scratch2 = std::vector<LocalIndex>{})
     {
         //! compute temporary pre-halo exchange particle layout for local particles only
         std::vector<LocalIndex> layout(leafCounts_.size() + 1, 0);
@@ -292,13 +296,38 @@ public:
         globalCenters_.resize(globalTree.numTreeNodes());
         centers_.resize(tree_.numTreeNodes());
 
-#pragma omp parallel for schedule(static)
-        for (TreeNodeIndex leafIdx = 0; leafIdx < tree_.numLeafNodes(); ++leafIdx)
+        auto intOrd = tree_.internalOrder();
+        if constexpr (HaveGpu<Accelerator>{})
         {
-            //! prepare local leaf centers
-            TreeNodeIndex nodeIdx = tree_.toInternal(leafIdx);
-            centers_[nodeIdx] =
-                massCenter<RealType>(x.data(), y.data(), z.data(), m.data(), layout[leafIdx], layout[leafIdx + 1]);
+            size_t bytesOrd    = round_up(intOrd.size() * sizeof(TreeNodeIndex), 128);
+            size_t bytesLayout = layout.size() * sizeof(LocalIndex);
+            size_t osz1        = reallocateDeviceBytes(scratch1, bytesOrd + bytesLayout);
+            auto* d_intOrd     = reinterpret_cast<TreeNodeIndex*>(rawPtr(scratch1));
+            auto* d_layout     = reinterpret_cast<LocalIndex*>(rawPtr(scratch1)) + bytesOrd / sizeof(LocalIndex);
+
+            using CType     = SourceCenterType<RealType>;
+            size_t osz2     = reallocateDeviceBytes(scratch2, centers_.size() * sizeof(CType), 1.01);
+            auto* d_centers = reinterpret_cast<CType*>(rawPtr(scratch2));
+
+            memcpyH2D(intOrd.data(), intOrd.size(), d_intOrd);
+            memcpyH2D(layout.data(), layout.size(), d_layout);
+            computeLeafSourceCenterGpu(x.data(), y.data(), z.data(), m.data(), d_intOrd, tree_.numLeafNodes(), d_layout,
+                                       d_centers);
+            memcpyD2H(d_centers, centers_.size(), centers_.data());
+
+            reallocateDevice(scratch1, osz1, 1.0);
+            reallocateDevice(scratch2, osz2, 1.0);
+        }
+        else
+        {
+#pragma omp parallel for schedule(static)
+            for (TreeNodeIndex leafIdx = 0; leafIdx < tree_.numLeafNodes(); ++leafIdx)
+            {
+                //! prepare local leaf centers
+                TreeNodeIndex nodeIdx = intOrd[leafIdx];
+                centers_[nodeIdx] =
+                    massCenter<RealType>(x.data(), y.data(), z.data(), m.data(), layout[leafIdx], layout[leafIdx + 1]);
+            }
         }
 
         //! upsweep with local data in place

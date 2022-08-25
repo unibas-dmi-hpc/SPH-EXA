@@ -47,13 +47,13 @@ namespace cstone
  * @param[out] centers          output mass centers, in internal node layout, length >= max(leafToInternal)
  */
 template<class Tc, class Tm, class Tf>
-extern void computeLeafSourceCenter(const Tc* x,
-                                    const Tc* y,
-                                    const Tc* z,
-                                    const Tm* m,
-                                    const TreeNodeIndex* leafToInternal,
-                                    TreeNodeIndex numLeaves,
-                                    const LocalIndex* layout,
-                                    Vec4<Tf>* centers);
+extern void computeLeafSourceCenterGpu(const Tc* x,
+                                       const Tc* y,
+                                       const Tc* z,
+                                       const Tm* m,
+                                       const TreeNodeIndex* leafToInternal,
+                                       TreeNodeIndex numLeaves,
+                                       const LocalIndex* layout,
+                                       Vec4<Tf>* centers);
 
 } // namespace cstone
