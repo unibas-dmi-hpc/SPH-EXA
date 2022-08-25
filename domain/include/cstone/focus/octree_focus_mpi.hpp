@@ -38,6 +38,7 @@
 #include "cstone/focus/exchange_focus.hpp"
 #include "cstone/focus/octree_focus.hpp"
 #include "cstone/focus/source_center.hpp"
+#include "cstone/focus/source_center_gpu.h"
 
 namespace cstone
 {
