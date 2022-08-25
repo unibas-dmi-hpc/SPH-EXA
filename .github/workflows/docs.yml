@@ -14,6 +14,11 @@ jobs:
       - name: Install Doc Requirements
         run: |
           python -m pip install -r docs/requirements.txt
+      - name: doc8-check
+        uses: deep-entertainment/doc8-action@v1
+        with:
+          scan-paths: "/doc"
+          ignore-paths: "/doc/_build"
       - name: Build documentation
         run: |
           make -C docs html
