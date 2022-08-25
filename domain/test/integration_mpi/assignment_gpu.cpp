@@ -141,11 +141,6 @@ void randomGaussianAssignment(int rank, int numRanks)
         thrust::copy_n(thrust::device_pointer_cast(devKeyView.data()), devKeyView.size(), keyDownload.data());
         EXPECT_TRUE(std::equal(keyDownload.begin(), keyDownload.end(), cpuKeyView.begin()));
     }
-    {
-        std::vector<T> xdl(d_x.size());
-        thrust::copy_n(d_x.data(), d_x.size(), xdl.data());
-        EXPECT_TRUE(std::equal(xdl.begin(), xdl.end(), x.data()));
-    }
 }
 
 TEST(AssignmentGpu, matchTreeCpu)
