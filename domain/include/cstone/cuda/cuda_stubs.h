@@ -57,6 +57,9 @@ void memcpyD2D(const T* src, size_t n, T* dest);
 namespace thrust
 {
 
+template<class T>
+class device_allocator;
+
 template<class T, class Alloc>
 class device_vector;
 

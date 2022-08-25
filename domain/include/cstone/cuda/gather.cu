@@ -273,7 +273,7 @@ void DeviceSfcSort<KeyType, IndexType>::operator()(const T* values,
     int nBlocks            = (numExtract + nThreads - 1) / nThreads;
 
     reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset, values, destination, numExtract);
-    checkGpuErrors(cudaGetLastError());
+    checkGpuErrors(cudaDeviceSynchronize());
 }
 
 template<class KeyType, class IndexType>

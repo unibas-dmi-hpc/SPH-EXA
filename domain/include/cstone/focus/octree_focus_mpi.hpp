@@ -33,6 +33,7 @@
 
 #include <numeric>
 
+#include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/focus/exchange_focus.hpp"
 #include "cstone/focus/octree_focus.hpp"
@@ -138,18 +139,39 @@ public:
      *  - All local particle keys must lie within the assignment of @p myRank (checked)
      *    and must be sorted in ascending order (checked)
      */
+    template<class DeviceVector = std::vector<KeyType>>
     void updateCounts(gsl::span<const KeyType> particleKeys,
                       gsl::span<const KeyType> globalTreeLeaves,
-                      gsl::span<const unsigned> globalCounts)
+                      gsl::span<const unsigned> globalCounts,
+                      DeviceVector&& scratch = std::vector<KeyType>{})
     {
-        assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
-
         gsl::span<const KeyType> leaves = treeLeaves();
         leafCounts_.resize(nNodes(leaves));
 
-        // local node counts
-        computeNodeCounts(leaves.data(), leafCounts_.data(), nNodes(leaves), particleKeys.data(),
-                          particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
+        if constexpr (IsDeviceVector<std::decay_t<DeviceVector>>{})
+        {
+            TreeNodeIndex numNodes = tree_.numLeafNodes();
+
+            size_t bytesTree  = round_up((numNodes + 1) * sizeof(KeyType), 128);
+            size_t bytesCount = numNodes * sizeof(unsigned);
+            size_t origSize   = reallocateDeviceBytes(scratch, bytesTree + bytesCount);
+            auto* d_csTree    = reinterpret_cast<KeyType*>(rawPtr(scratch));
+            auto* d_counts    = reinterpret_cast<unsigned*>(rawPtr(scratch)) + bytesTree / sizeof(unsigned);
+
+            memcpyH2D(leaves.data(), leaves.size(), d_csTree);
+            computeNodeCountsGpu(d_csTree, d_counts, numNodes, particleKeys.begin(), particleKeys.end(),
+                                 std::numeric_limits<unsigned>::max(), false);
+            memcpyD2H(d_counts, numNodes, leafCounts_.data());
+
+            reallocateDevice(scratch, origSize, 1.0);
+        }
+        else
+        {
+            // local node counts
+            assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
+            computeNodeCounts(leaves.data(), leafCounts_.data(), nNodes(leaves), particleKeys.data(),
+                              particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
+        }
 
         // counts from neighboring peers
         std::vector<MPI_Request> treeletRequests;
@@ -343,20 +365,21 @@ public:
     }
 
     //! @brief update until converged with a simple min-distance MAC
-    template<class T>
+    template<class T, class DeviceVector = std::vector<KeyType>>
     void converge(const Box<T>& box,
                   gsl::span<const KeyType> particleKeys,
                   gsl::span<const int> peers,
                   const SpaceCurveAssignment& assignment,
                   gsl::span<const KeyType> globalTreeLeaves,
                   gsl::span<const unsigned> globalCounts,
-                  float invThetaEff)
+                  float invThetaEff,
+                  DeviceVector&& scratch = std::vector<KeyType>{})
     {
         int converged = 0;
         while (converged != numRanks_)
         {
             converged = updateTree(peers, assignment, globalTreeLeaves);
-            updateCounts(particleKeys, globalTreeLeaves, globalCounts);
+            updateCounts(particleKeys, globalTreeLeaves, globalCounts, scratch);
             updateMinMac(box, assignment, globalTreeLeaves, invThetaEff);
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         }

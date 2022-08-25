@@ -197,20 +197,13 @@ public:
         float invThetaEff      = invThetaMinMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
 
-        auto keyViewHost = keyView;
-        if constexpr (HaveGpu<Accelerator>{})
-        {
-            reallocate(swapKeys_, keyView.size(), 1.01);
-            memcpyD2H(keyView.data(), keyView.size(), swapKeys_.data());
-            keyViewHost = gsl::span<KeyType>(swapKeys_);
-        }
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyViewHost, peers, global_.assignment(), global_.treeLeaves(),
-                                global_.nodeCounts(), invThetaEff);
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts(),
+                                invThetaEff, std::get<0>(scratchBuffers));
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyViewHost, global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratchBuffers));
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
 
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
@@ -243,13 +236,6 @@ public:
         float invThetaEff      = invThetaVecMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
 
-        auto keyViewHost = keyView;
-        if constexpr (HaveGpu<Accelerator>{})
-        {
-            reallocate(swapKeys_, keyView.size(), 1.01);
-            memcpyD2H(keyView.data(), keyView.size(), swapKeys_.data());
-            keyViewHost = gsl::span<KeyType>(swapKeys_);
-        }
         if (firstCall_)
         {
             int converged = 0;
@@ -257,7 +243,7 @@ public:
             {
                 focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
                 converged = focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-                focusTree_.updateCounts(keyViewHost, global_.treeLeaves(), global_.nodeCounts());
+                focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
                 focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
                 focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -265,7 +251,7 @@ public:
         }
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyViewHost, global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
         focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
 
