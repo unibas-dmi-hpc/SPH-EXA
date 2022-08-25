@@ -47,21 +47,20 @@ namespace cstone
  * @param[in]  tree         octree nodes given as Morton codes of length @a nNodes+1
  *                          needs to satisfy the octree invariants
  * @param[out] counts       output particle counts per node, length = @a nNodes
- * @param[in]  nNodes       number of nodes in tree
- * @param[in]  codesStart   sorted particle SFC code range start
- * @param[in]  codesEnd     sorted particle SFC code range end
+ * @param[in]  numNodes       number of nodes in tree
+ * @param[in]  firstKey   sorted particle SFC code range start
+ * @param[in]  lastKey     sorted particle SFC code range end
  * @param[in]  maxCount     maximum particle count per node to store, this is used
  *                          to prevent overflow in MPI_Allreduce
  */
 template<class KeyType>
 extern void computeNodeCountsGpu(const KeyType* tree,
                                  unsigned* counts,
-                                 TreeNodeIndex nNodes,
-                                 const KeyType* codesStart,
-                                 const KeyType* codesEnd,
+                                 TreeNodeIndex numNodes,
+                                 const KeyType* firstKey,
+                                 const KeyType* lastKey,
                                  unsigned maxCount,
                                  bool useCountsAsGuess = false);
-
 
 /*! @brief split or fuse octree nodes based on node counts relative to bucketSize
  *

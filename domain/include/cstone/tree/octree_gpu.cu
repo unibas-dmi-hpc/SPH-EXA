@@ -99,31 +99,31 @@ findPopulatedNodes(const KeyType* tree, TreeNodeIndex nNodes, const KeyType* cod
 template<class KeyType>
 void computeNodeCountsGpu(const KeyType* tree,
                           unsigned* counts,
-                          TreeNodeIndex nNodes,
-                          const KeyType* codesStart,
-                          const KeyType* codesEnd,
+                          TreeNodeIndex numNodes,
+                          const KeyType* firstKey,
+                          const KeyType* lastKey,
                           unsigned maxCount,
                           bool useCountsAsGuess)
 {
     TreeNodeIndex popNodes[2];
 
-    findPopulatedNodes<<<1, 1>>>(tree, nNodes, codesStart, codesEnd);
+    findPopulatedNodes<<<1, 1>>>(tree, numNodes, firstKey, lastKey);
     checkGpuErrors(cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex)));
 
     checkGpuErrors(cudaMemset(counts, 0, popNodes[0] * sizeof(unsigned)));
-    checkGpuErrors(cudaMemset(counts + popNodes[1], 0, (nNodes - popNodes[1]) * sizeof(unsigned)));
+    checkGpuErrors(cudaMemset(counts + popNodes[1], 0, (numNodes - popNodes[1]) * sizeof(unsigned)));
 
     constexpr unsigned nThreads = 256;
     if (useCountsAsGuess)
     {
         thrust::exclusive_scan(thrust::device, counts + popNodes[0], counts + popNodes[1], counts + popNodes[0]);
         updateNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>(
-            tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
+            tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], firstKey, lastKey, maxCount);
     }
     else
     {
         computeNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>(
-            tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
+            tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], firstKey, lastKey, maxCount);
     }
 }
 

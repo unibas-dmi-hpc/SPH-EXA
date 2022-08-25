@@ -63,16 +63,16 @@ bool updateOctreeGlobalGpu(const KeyType* keyStart,
 {
     // to prevent 32-bit overflow we limit the maximum count to 2^32-1, divided by numRanks due to MPI_Allreduce
     unsigned maxCount = std::numeric_limits<unsigned>::max() / numRanks;
-
-    bool converged = tree.rebalance(bucketSize, counts);
-    reallocateDevice(d_csTree, tree.numLeafNodes() + 1, 1.01);
-    thrust::copy_n(tree.treeLeaves().data(), d_csTree.size(), d_csTree.begin());
+    bool converged    = tree.rebalance(bucketSize, counts);
 
     counts.resize(tree.numLeafNodes());
+    reallocateDevice(d_csTree, tree.numLeafNodes() + 1, 1.01);
     reallocateDevice(d_counts, tree.numLeafNodes(), 1.01);
 
+    thrust::copy_n(tree.treeLeaves().data(), d_csTree.size(), d_csTree.begin());
     computeNodeCountsGpu(rawPtr(d_csTree), rawPtr(d_counts), tree.numLeafNodes(), keyStart, keyEnd, maxCount, true);
     thrust::copy(d_counts.begin(), d_counts.end(), counts.begin());
+
     MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
 
     return converged;
