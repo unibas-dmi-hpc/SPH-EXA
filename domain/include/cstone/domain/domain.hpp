@@ -291,7 +291,7 @@ public:
     //! @brief read only visibility of the global octree leaves to the outside
     const Octree<KeyType>& globalTree() const { return global_.octree(); }
     //! @brief read only visibility of the focused octree
-    const FocusedOctree<KeyType, T>& focusTree() const { return focusTree_; }
+    const FocusedOctree<KeyType, T, Accelerator>& focusTree() const { return focusTree_; }
     //! @brief the index of the first locally assigned cell in focusTree()
     TreeNodeIndex startCell() const { return focusTree_.assignment()[myRank_].start(); }
     //! @brief the index of the last locally assigned cell in focusTree()
