@@ -39,8 +39,8 @@
 #include "cstone/domain/layout.hpp"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/tree/octree_internal.hpp"
-#include "cstone/tree/octree_mpi.hpp"
-#include "cstone/tree/octree_mpi_gpu.cuh"
+#include "cstone/tree/update_mpi.hpp"
+#include "cstone/tree/update_mpi_gpu.cuh"
 #include "cstone/sfc/box_mpi.hpp"
 #include "cstone/sfc/sfc_gpu.h"
 

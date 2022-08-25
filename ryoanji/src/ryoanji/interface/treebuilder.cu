@@ -35,8 +35,8 @@
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/sfc/sfc_gpu.h"
-#include "cstone/tree/octree_gpu.cuh"
-#include "cstone/tree/octree_internal.cuh"
+#include "cstone/tree/octree_internal_gpu.cuh"
+#include "cstone/tree/update_gpu.cuh"
 
 #include "ryoanji/nbody/types.h"
 #include "ryoanji/interface/treebuilder.cuh"
@@ -126,13 +126,12 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
         d_counts_ = std::vector<unsigned>{unsigned(numBodies)};
     }
 
-    while (!cstone::updateOctreeGpu(thrust::raw_pointer_cast(d_keys.data()),
-                                    thrust::raw_pointer_cast(d_keys.data()) + d_keys.size(), bucketSize_, d_tree_,
-                                    d_counts_, tmpTree_, workArray_))
+    while (!cstone::updateOctreeGpu(rawPtr(d_keys), rawPtr(d_keys) + d_keys.size(), bucketSize_, d_tree_, d_counts_,
+                                    tmpTree_, workArray_))
         ;
 
     octreeGpuData_.resize(cstone::nNodes(d_tree_));
-    cstone::buildInternalOctreeGpu(thrust::raw_pointer_cast(d_tree_.data()), octreeGpuData_.getData());
+    cstone::buildInternalOctreeGpu(rawPtr(d_tree_), octreeGpuData_.getData());
 
     return octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
 }
@@ -142,9 +141,7 @@ int TreeBuilder<KeyType>::Impl::extract(int2* h_levelRange)
 {
     d_layout_.resize(d_counts_.size() + 1);
     thrust::copy(d_counts_.begin(), d_counts_.end(), d_layout_.begin());
-    thrust::exclusive_scan(thrust::device, thrust::raw_pointer_cast(d_layout_.data()),
-                           thrust::raw_pointer_cast(d_layout_.data()) + d_layout_.size(),
-                           thrust::raw_pointer_cast(d_layout_.data()));
+    thrust::exclusive_scan(d_layout_.data(), d_layout_.data() + d_layout_.size(), d_layout_.data());
 
     thrust::host_vector<int> cs_levelRange = octreeGpuData_.levelRange;
 

@@ -39,7 +39,7 @@
 #include "cstone/util/util.hpp"
 #include "octree.hpp"
 
-#include "octree_gpu.cuh"
+#include "octree_gpu.h"
 
 namespace cstone
 {

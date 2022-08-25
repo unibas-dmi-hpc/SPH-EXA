@@ -35,7 +35,6 @@
 
 #include <limits>
 
-#include "cstone/cuda/cuda_utils.cuh"
 #include "octree.hpp"
 
 namespace cstone
@@ -82,44 +81,5 @@ extern bool rebalanceTreeGpu(const KeyType* tree,
                              TreeNodeIndex newNumNodes,
                              const TreeNodeIndex* nodeOps,
                              KeyType* newTree);
-
-/*! @brief update the octree with a single rebalance/count step
- *
- * @tparam KeyType           32- or 64-bit unsigned integer for morton code
- * @param[in]    firstKey    first local particle SFC key
- * @param[in]    lastKey     last local particle SFC key
- * @param[in]    bucketSize  maximum number of particles per node
- * @param[inout] tree        the octree leaf nodes (cornerstone format)
- * @param[inout] counts      the octree leaf node particle count
- * @param[-]     tmpTree     temporary array, will be resized as needed
- * @param[-]     workArray   temporary array, will be resized as needed
- * @param[in]    maxCount    if actual node counts are higher, they will be capped to @p maxCount
- * @return                   true if converged, false otherwise
- */
-template<class KeyType, class DevKeyVec, class DevCountVec, class DevIdxVec>
-bool updateOctreeGpu(const KeyType* firstKey,
-                     const KeyType* lastKey,
-                     unsigned bucketSize,
-                     DevKeyVec& tree,
-                     DevCountVec& counts,
-                     DevKeyVec& tmpTree,
-                     DevIdxVec& workArray,
-                     unsigned maxCount = std::numeric_limits<unsigned>::max())
-{
-    workArray.resize(tree.size());
-    TreeNodeIndex newNumNodes =
-        computeNodeOpsGpu(rawPtr(tree), nNodes(tree), rawPtr(counts), bucketSize, rawPtr(workArray));
-
-    tmpTree.resize(newNumNodes + 1);
-    bool converged = rebalanceTreeGpu(rawPtr(tree), nNodes(tree), newNumNodes, rawPtr(workArray), rawPtr(tmpTree));
-
-    swap(tree, tmpTree);
-    counts.resize(nNodes(tree));
-
-    // local node counts
-    computeNodeCountsGpu(rawPtr(tree), rawPtr(counts), nNodes(tree), firstKey, lastKey, maxCount, true);
-
-    return converged;
-}
 
 } // namespace cstone
