@@ -45,10 +45,11 @@
 
 #include <vector>
 
+#include "cstone/domain/index_ranges.hpp"
+#include "cstone/primitives/gather.hpp"
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/tree/octree.hpp"
 #include "cstone/util/gsl-lite.hpp"
-#include "cstone/domain/index_ranges.hpp"
 
 namespace cstone
 {
@@ -232,12 +233,9 @@ void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
         TreeNodeIndex receiveCount = focusAssignment[peer].count();
         buffer.resize(receiveCount);
         mpiRecvSync(buffer.data(), receiveCount, peer, commTag, MPI_STATUS_IGNORE);
-        for (int i = 0; i < receiveCount; ++i)
-        {
-            TreeNodeIndex csIdx       = i + focusAssignment[peer].start();
-            TreeNodeIndex internalIdx = csToInternalMap[csIdx];
-            quantities[internalIdx]   = buffer[i];
-        }
+
+        auto mapToInternal = csToInternalMap.subspan(focusAssignment[peer].start(), receiveCount);
+        scatter(mapToInternal, buffer.data(), quantities.data());
     }
 
     MPI_Waitall(int(sendRequests.size()), sendRequests.data(), MPI_STATUS_IGNORE);
