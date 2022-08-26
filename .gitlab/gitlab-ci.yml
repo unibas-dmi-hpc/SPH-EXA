@@ -101,6 +101,8 @@ sph:pull:cuda:
   # extends: .dom
   stage: SPHpull
   image: ${BUILD_CUDA}
+  script:
+    - echo "Pulling image=${BUILD_CUDA}"
   variables:
     PULL_IMAGE: 'YES'
     CSCS_REGISTRY_LOGIN: 'YES'
