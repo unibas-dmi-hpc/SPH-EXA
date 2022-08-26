@@ -34,11 +34,11 @@ sph:base:cuda:
   variables:
     # tried with if/else, no success -> must comment/uncomment
     # ---
-    DOCKERFILE: '.gitlab/Dockerfile_1'
-    PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_BASE}"
+    # DOCKERFILE: '.gitlab/Dockerfile_1'
+    # PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_BASE}"
     # ---
-    # DOCKERFILE: '.gitlab/Dockerfile_skip'
-    # PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_SKIP}"
+    DOCKERFILE: '.gitlab/Dockerfile_skip'
+    PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_SKIP}"
 #}}}
 #{{{ sph:base:hip:
 sph:base:hip:
@@ -51,11 +51,11 @@ sph:base:hip:
   variables:
     # tried with if/else, no success -> must comment/uncomment
     # ---
-    # DOCKERFILE: '.gitlab/Dockerfile_hip_1'
-    # PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_BASE}"
+    DOCKERFILE: '.gitlab/Dockerfile_hip_1'
+    PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_BASE}"
     # ---
-    DOCKERFILE: '.gitlab/Dockerfile_skip'
-    PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_SKIP}"
+    # DOCKERFILE: '.gitlab/Dockerfile_skip'
+    # PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_SKIP}"
 #}}}
 
 #{{{ sph:build:cuda:
