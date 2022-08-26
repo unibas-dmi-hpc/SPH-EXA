@@ -11,10 +11,10 @@ stages:
 variables:
   docker_jfrog_tag: 'docker_jfrog'
   BASE_CUDA: "${CSCS_REGISTRY_PATH}/sph-exa_base:cuda"
-  BUILD_CUDA: "${CSCS_REGISTRY_PATH}/sph-exa_build:cuda"
+  BASE_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:hip"
   BASE_SKIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:skip"
-  BASE_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:cuda"
-  BUILD_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_build:cuda"
+  BUILD_CUDA: "${CSCS_REGISTRY_PATH}/sph-exa_build:cuda"
+  BUILD_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_build:hip"
   DEPS_PATH: 'ftp://ftp.cscs.ch/out/jgp/hpc/containers'
   VERBOSE: 'YES'
   #no: SYSTEM_NAME: '.dom'
