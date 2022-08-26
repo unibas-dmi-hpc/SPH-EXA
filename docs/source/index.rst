@@ -3,7 +3,7 @@ Welcome to SPH-EXA
 ==================
 
 SPH-EXA is ...
- 
+
 Publications
 ============
 
