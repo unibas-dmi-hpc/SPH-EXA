@@ -13,6 +13,8 @@ variables:
   PERSIST_IMAGE_NAME_BASE: "${CSCS_REGISTRY_PATH}/sph-exa_base:cuda"
   PERSIST_IMAGE_NAME_SKIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:skip"
   PERSIST_IMAGE_NAME_BUILD: "${CSCS_REGISTRY_PATH}/sph-exa_build:cuda"
+  PERSIST_IMAGE_NAME_BASE_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:cuda"
+  PERSIST_IMAGE_NAME_BUILD_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_build:cuda"
   DEPS_PATH: 'ftp://ftp.cscs.ch/out/jgp/hpc/containers'
   VERBOSE: 'YES'
   #no: SYSTEM_NAME: '.dom'
@@ -38,6 +40,23 @@ sph:base:cuda:
     DOCKERFILE: '.gitlab/Dockerfile_skip'
     PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_SKIP}"
 #}}}
+#{{{ sph:base:hip:
+sph:base:hip:
+  tags:
+    - ${docker_jfrog_tag}
+  stage: SPHbase
+  script:
+    - echo "DOCKERFILE=$DOCKERFILE"
+    - echo "PERSIST_IMAGE_NAME=${PERSIST_IMAGE_NAME}"
+  variables:
+    # tried with if/else, no success -> must comment/uncomment
+    # ---
+    # DOCKERFILE: '.gitlab/Dockerfile_hip_1'
+    # PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_BASE}"
+    # ---
+    DOCKERFILE: '.gitlab/Dockerfile_skip'
+    PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_SKIP}"
+#}}}
 
 #{{{ sph:build:cuda:
 sph:build:cuda:
@@ -52,6 +71,22 @@ sph:build:cuda:
   variables:
     # JG: 'YES'
     DOCKERFILE: '.gitlab/Dockerfile_2'
+    PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_BUILD}"
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+#}}}    
+#{{{ sph:build:hip:
+sph:build:hip:
+  needs: ['sph:base:hip']
+  tags:
+    - ${docker_jfrog_tag}
+  stage: SPHbuild
+  script:
+    - echo "PERSIST_IMAGE_NAME=$PERSIST_IMAGE_NAME"
+  # image: "${PERSIST_IMAGE_NAME_BASE}"    
+  # /sources
+  variables:
+    DOCKERFILE: '.gitlab/Dockerfile_hip_2'
     PERSIST_IMAGE_NAME: "${PERSIST_IMAGE_NAME_BUILD}"
     PULL_IMAGE: 'YES'
     CSCS_REGISTRY_LOGIN: 'YES'
