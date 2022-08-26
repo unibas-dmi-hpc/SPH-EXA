@@ -5,6 +5,7 @@ include:
 stages:
   - SPHbase     # no srun (tags=docker_jfrog)
   - SPHbuild    # no srun (tags=docker_jfrog)
+  - SPHpull     # no srun (tags=docker_jfrog)
   - SPHtest     # on daint
 
 #{{{ variables
@@ -34,11 +35,11 @@ sph:base:cuda:
   variables:
     # tried with if/else, no success -> must comment/uncomment
     # ---
-    DOCKERFILE: '.gitlab/Dockerfile_1'
-    PERSIST_IMAGE_NAME: "${BASE_CUDA}"
+    # DOCKERFILE: '.gitlab/Dockerfile_1'
+    # PERSIST_IMAGE_NAME: "${BASE_CUDA}"
     # ---
-    # DOCKERFILE: '.gitlab/Dockerfile_skip'
-    # PERSIST_IMAGE_NAME: "${BASE_SKIP}"
+    DOCKERFILE: '.gitlab/Dockerfile_skip'
+    PERSIST_IMAGE_NAME: "${BASE_SKIP}"
 #}}}
 #{{{ sph:base:hip:
 sph:base:hip:
@@ -51,11 +52,11 @@ sph:base:hip:
   variables:
     # tried with if/else, no success -> must comment/uncomment
     # ---
-    DOCKERFILE: '.gitlab/Dockerfile_hip_1'
-    PERSIST_IMAGE_NAME: "${BASE_HIP}"
+    # DOCKERFILE: '.gitlab/Dockerfile_hip_1'
+    # PERSIST_IMAGE_NAME: "${BASE_HIP}"
     # ---
-    # DOCKERFILE: '.gitlab/Dockerfile_skip'
-    # PERSIST_IMAGE_NAME: "${BASE_SKIP}"
+    DOCKERFILE: '.gitlab/Dockerfile_skip'
+    PERSIST_IMAGE_NAME: "${BASE_SKIP}"
 #}}}
 
 #{{{ sph:build:cuda:
@@ -74,7 +75,7 @@ sph:build:cuda:
     PERSIST_IMAGE_NAME: "${BUILD_CUDA}"
     PULL_IMAGE: 'YES'
     CSCS_REGISTRY_LOGIN: 'YES'
-#}}}    
+#}}}
 #{{{ sph:build:hip:
 sph:build:hip:
   needs: ['sph:base:hip']
@@ -92,9 +93,21 @@ sph:build:hip:
     CSCS_REGISTRY_LOGIN: 'YES'
 #}}}    
 
+#{{{ sph:pull:cuda:
+sph:pull:cuda:
+  needs: ['sph:build:cuda']
+  tags:
+    - ${docker_jfrog_tag}
+  # extends: .dom
+  stage: SPHpull
+  image: ${BUILD_CUDA}
+  variables:
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+#}}}
 #{{{ sph:test:cuda:1:
 sph:build:cuda:1:
-  needs: ['sph:build:cuda']
+  needs: ['sph:pull:cuda']
   extends: .dom
   stage: SPHtest
   image: ${BUILD_CUDA}
@@ -114,14 +127,14 @@ sph:build:cuda:1:
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
+    PULL_IMAGE: 'NO'
+    # CSCS_REGISTRY_LOGIN: 'YES'
     # SLURM_PARTITION
     # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:2:
 sph:build:cuda:2:
-  needs: ['sph:build:cuda']
+  needs: ['sph:pull:cuda']
   extends: .dom
   stage: SPHtest
   image: ${BUILD_CUDA}
@@ -137,14 +150,14 @@ sph:build:cuda:2:
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 2
-    PULL_IMAGE: 'YES'
+    PULL_IMAGE: 'NO'
     CSCS_REGISTRY_LOGIN: 'YES'
     # SLURM_PARTITION
     # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:5:
 sph:build:cuda:5:
-  needs: ['sph:build:cuda']
+  needs: ['sph:pull:cuda']
   extends: .dom
   stage: SPHtest
   image: ${BUILD_CUDA}
@@ -163,14 +176,14 @@ sph:build:cuda:5:
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 5
-    PULL_IMAGE: 'YES'
+    PULL_IMAGE: 'NO'
     CSCS_REGISTRY_LOGIN: 'YES'
     # SLURM_PARTITION
     # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:p100:
 sph:build:cuda:p100:
-  needs: ['sph:build:cuda']
+  needs: ['sph:pull:cuda']
   extends: .dom
   stage: SPHtest
   image: ${BUILD_CUDA}
@@ -186,14 +199,14 @@ sph:build:cuda:p100:
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
-    PULL_IMAGE: 'YES'
+    PULL_IMAGE: 'NO'
     CSCS_REGISTRY_LOGIN: 'YES'
     # SLURM_PARTITION
     # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:sphexa:cpu:
 sph:build:cuda:sphexa:cpu:
-  needs: ['sph:build:cuda']
+  needs: ['sph:pull:cuda']
   extends: .dom
   stage: SPHtest
   image: ${BUILD_CUDA}
@@ -211,7 +224,7 @@ sph:build:cuda:sphexa:cpu:
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
-    PULL_IMAGE: 'YES'
+    PULL_IMAGE: 'NO'
     CSCS_REGISTRY_LOGIN: 'YES'
     # SLURM_PARTITION
     # SLURM_TIMELIMIT    
@@ -219,7 +232,7 @@ sph:build:cuda:sphexa:cpu:
 #{{{ sph:test:cuda:sphexa:gpu:
 # TODO: MPICH_RDMA_ENABLED_CUDA=1 LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcuda.so
 sph:build:cuda:sphexa:gpu:
-  needs: ['sph:build:cuda']
+  needs: ['sph:pull:cuda']
   extends: .dom
   stage: SPHtest
   image: ${BUILD_CUDA}
@@ -250,7 +263,7 @@ sph:build:cuda:sphexa:gpu:
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
-    PULL_IMAGE: 'YES'
+    PULL_IMAGE: 'NO'
     CSCS_REGISTRY_LOGIN: 'YES'
     # SLURM_PARTITION
     # SLURM_TIMELIMIT    
