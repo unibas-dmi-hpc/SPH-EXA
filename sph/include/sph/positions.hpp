@@ -39,25 +39,11 @@
 namespace sph
 {
 
-/*!
- * @brief checks whether a particle is in the fixed boundary region
- *          and has zero velocity
- *
- */
-template<class T>
-bool fbcCheck(T coord, T vx, T vy, T vz, T h, T max, T min, bool fbc)
+//! @brief checks whether a particle is in the fixed boundary region in one dimension
+template<class Tc, class Th>
+HOST_DEVICE_FUN bool fbcCheck(Tc coord, Th h, Tc top, Tc bottom, bool fbc)
 {
-    if (fbc)
-    {
-        T distMax = std::abs(max - coord);
-        T distMin = std::abs(min - coord);
-
-        if (distMax < 2.0 * h || distMin < 2.0 * h)
-        {
-            if (vx == T(0.0) && vy == vx && vz == vx) { return true; }
-        }
-    }
-    return false;
+    return fbc && (std::abs(top - coord) < Th(2) * h || std::abs(bottom - coord) < Th(2) * h);
 }
 
 template<class T, class Dataset>
@@ -95,11 +81,11 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        if (anyFBC)
+        if (anyFBC && vx[i] == T(0) && vy[i] == T(0) && vz[i] == T(0))
         {
-            if (fbcCheck(x[i], vx[i], vy[i], vz[i], h[i], box.xmax(), box.xmin(), fbcX) ||
-                fbcCheck(y[i], vx[i], vy[i], vz[i], h[i], box.ymax(), box.ymin(), fbcY) ||
-                fbcCheck(z[i], vx[i], vy[i], vz[i], h[i], box.zmax(), box.zmin(), fbcZ))
+            if (fbcCheck(x[i], h[i], box.xmax(), box.xmin(), fbcX) ||
+                fbcCheck(y[i], h[i], box.ymax(), box.ymin(), fbcY) ||
+                fbcCheck(z[i], h[i], box.zmax(), box.zmin(), fbcZ))
             {
                 continue;
             }
@@ -177,13 +163,8 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 
 #ifndef NDEBUG
         if (std::isnan(u[i]) || u[i] < 0.0)
-            printf("ERROR::UpdateQuantities(%lu) internal energy: u %f du %f dB %f du_m1 %f dA %f\n",
-                   i,
-                   u[i],
-                   du[i],
-                   deltaB,
-                   du_m1[i],
-                   deltaA);
+            printf("ERROR::UpdateQuantities(%lu) internal energy: u %f du %f dB %f du_m1 %f dA %f\n", i, u[i], du[i],
+                   deltaB, du_m1[i], deltaA);
 #endif
     }
 }
