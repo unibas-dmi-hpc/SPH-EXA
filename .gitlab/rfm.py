@@ -5,6 +5,7 @@ import reframe.utility.sanity as sn
 @rfm.simple_test
 class analytical_solution(rfm.RunOnlyRegressionTest):
     test = parameter(['sedov', 'noh'])  # noh
+    rpt_path = variable(str, value='.')
     valid_systems = ['*']
     valid_prog_environs = ['*']
 
@@ -15,7 +16,8 @@ class analytical_solution(rfm.RunOnlyRegressionTest):
 
     @sanity_function
     def assert_hello(self):
-        return sn.assert_found(r'Loaded \d+ particles', f'{self.test}.rpt')
+        return sn.assert_found(r'Loaded \d+ particles',
+                               f'{self.rpt_path}/{self.test}.rpt')
 
     @performance_function('')
     def extract_L1(self, metric='Density'):
@@ -23,7 +25,7 @@ class analytical_solution(rfm.RunOnlyRegressionTest):
             raise ValueError(f'illegal value (L1 metric={metric!r})')
 
         return sn.extractsingle(rf'{metric} L1 error (\S+)$',
-                                f'{self.test}.rpt', 1, float)
+                                f'{self.rpt_path}/{self.test}.rpt', 1, float)
 
     @run_before('performance')
     def set_perf_variables(self):

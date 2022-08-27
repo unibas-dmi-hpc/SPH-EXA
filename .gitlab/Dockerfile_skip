@@ -1,0 +1,5 @@
+FROM debian:testing-slim
+
+ENV TZ Europe/Zurich
+
+RUN echo "## skipping building base image"

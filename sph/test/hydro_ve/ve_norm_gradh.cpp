@@ -49,7 +49,7 @@ TEST(VeDefGradh, JLoop)
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-    cstone::Box<T> box(0, 6, 0, 6, 0, 6, false, false, false);
+    cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
 
     // particle 0 has 4 neighbors
     std::vector<int> clist{0};
@@ -70,20 +70,8 @@ TEST(VeDefGradh, JLoop)
      * j = 3   5.71577
      * j = 4   7.62102
      */
-    auto [kx, gradh] = sph::veDefGradhJLoop(0,
-                                            sincIndex,
-                                            K,
-                                            box,
-                                            neighbors.data(),
-                                            neighborsCount,
-                                            x.data(),
-                                            y.data(),
-                                            z.data(),
-                                            h.data(),
-                                            m.data(),
-                                            wh.data(),
-                                            whd.data(),
-                                            xm.data());
+    auto [kx, gradh] = sph::veDefGradhJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(),
+                                            z.data(), h.data(), m.data(), wh.data(), whd.data(), xm.data());
 
     EXPECT_NEAR(kx * m[0] / xm[0], 1.67849454056818e-2, 1e-10);
     EXPECT_NEAR(gradh, 0.20340838824719132, 1e-10);
@@ -102,7 +90,7 @@ TEST(VeDefGradh, JLoopPBC)
 
     // box length in any dimension must be bigger than 4*h for any particle
     // otherwise the PBC evaluation does not select the closest image
-    cstone::Box<T> box(0, 10.5, 0, 10.5, 0, 10.5, true, true, true);
+    cstone::Box<T> box(0, 10.5, cstone::BoundaryType::periodic);
 
     // particle 0 has 4 neighbors
     std::vector<int> clist{0};
@@ -125,20 +113,9 @@ TEST(VeDefGradh, JLoopPBC)
      */
 
     T kx;
-    std::tie(kx, std::ignore) = sph::veDefGradhJLoop(0,
-                                                     sincIndex,
-                                                     K,
-                                                     box,
-                                                     neighbors.data(),
-                                                     neighborsCount,
-                                                     x.data(),
-                                                     y.data(),
-                                                     z.data(),
-                                                     h.data(),
-                                                     m.data(),
-                                                     wh.data(),
-                                                     whd.data(),
-                                                     xm.data());
+    std::tie(kx, std::ignore) =
+        sph::veDefGradhJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
+                             h.data(), m.data(), wh.data(), whd.data(), xm.data());
 
     EXPECT_NEAR(kx * m[0] / xm[0], 0.17929212293724384, 1e-10);
 }

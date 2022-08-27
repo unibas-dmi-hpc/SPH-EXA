@@ -39,6 +39,13 @@
 namespace sph
 {
 
+//! @brief checks whether a particle is in the fixed boundary region in one dimension
+template<class Tc, class Th>
+HOST_DEVICE_FUN bool fbcCheck(Tc coord, Th h, Tc top, Tc bottom, bool fbc)
+{
+    return fbc && (std::abs(top - coord) < Th(2) * h || std::abs(bottom - coord) < Th(2) * h);
+}
+
 template<class T, class Dataset>
 void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
@@ -59,10 +66,31 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
     T* z_m1  = d.z_m1.data();
     T* u     = d.u.data();
     T* du_m1 = d.du_m1.data();
+    T* h     = d.h.data();
+
+    bool pbcX = (box.boundaryX() == cstone::BoundaryType::periodic);
+    bool pbcY = (box.boundaryY() == cstone::BoundaryType::periodic);
+    bool pbcZ = (box.boundaryZ() == cstone::BoundaryType::periodic);
+
+    bool fbcX = (box.boundaryX() == cstone::BoundaryType::fixed);
+    bool fbcY = (box.boundaryY() == cstone::BoundaryType::fixed);
+    bool fbcZ = (box.boundaryZ() == cstone::BoundaryType::fixed);
+
+    bool anyFBC = fbcX || fbcY || fbcZ;
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
+        if (anyFBC && vx[i] == T(0) && vy[i] == T(0) && vz[i] == T(0))
+        {
+            if (fbcCheck(x[i], h[i], box.xmax(), box.xmin(), fbcX) ||
+                fbcCheck(y[i], h[i], box.ymax(), box.ymin(), fbcY) ||
+                fbcCheck(z[i], h[i], box.zmax(), box.zmin(), fbcZ))
+            {
+                continue;
+            }
+        }
+
         Vec3T A{d.ax[i], d.ay[i], d.az[i]};
         Vec3T X{x[i], y[i], z[i]};
         Vec3T X_m1{x_m1[i], y_m1[i], z_m1[i]};
@@ -84,32 +112,32 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         X_m1    = X;
         X += dt * Val + A * deltaB * dt;
 
-        if (box.pbcX() && X[0] < box.xmin())
+        if (pbcX && X[0] < box.xmin())
         {
             X[0] += box.lx();
             X_m1[0] += box.lx();
         }
-        else if (box.pbcX() && X[0] > box.xmax())
+        else if (pbcX && X[0] > box.xmax())
         {
             X[0] -= box.lx();
             X_m1[0] -= box.lx();
         }
-        if (box.pbcY() && X[1] < box.ymin())
+        if (pbcY && X[1] < box.ymin())
         {
             X[1] += box.ly();
             X_m1[1] += box.ly();
         }
-        else if (box.pbcY() && X[1] > box.ymax())
+        else if (pbcY && X[1] > box.ymax())
         {
             X[1] -= box.ly();
             X_m1[1] -= box.ly();
         }
-        if (box.pbcZ() && X[2] < box.zmin())
+        if (pbcZ && X[2] < box.zmin())
         {
             X[2] += box.lz();
             X_m1[2] += box.lz();
         }
-        else if (box.pbcZ() && X[2] > box.zmax())
+        else if (pbcZ && X[2] > box.zmax())
         {
             X[2] -= box.lz();
             X_m1[2] -= box.lz();
@@ -135,13 +163,8 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 
 #ifndef NDEBUG
         if (std::isnan(u[i]) || u[i] < 0.0)
-            printf("ERROR::UpdateQuantities(%lu) internal energy: u %f du %f dB %f du_m1 %f dA %f\n",
-                   i,
-                   u[i],
-                   du[i],
-                   deltaB,
-                   du_m1[i],
-                   deltaA);
+            printf("ERROR::UpdateQuantities(%lu) internal energy: u %f du %f dB %f du_m1 %f dA %f\n", i, u[i], du[i],
+                   deltaB, du_m1[i], deltaA);
 #endif
     }
 }

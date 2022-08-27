@@ -108,7 +108,7 @@ public:
         size_t multiplicity  = std::rint(cbrtNumPart / std::cbrt(blockSize));
         d.numParticlesGlobal = multiplicity * multiplicity * multiplicity * blockSize;
 
-        cstone::Box<T> globalBox(-0.5, 0.5, true);
+        cstone::Box<T> globalBox(-0.5, 0.5, cstone::BoundaryType::periodic);
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
