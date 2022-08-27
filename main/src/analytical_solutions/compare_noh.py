@@ -30,8 +30,8 @@ Reference Noh solution:
 
 Usage examples:
     $ python ./compare_noh.py --help
-    $ python ./compare_noh.py dump_noh.h5part --time 0.018
-    $ python ./compare_noh.py dump_noh.h5part --step 100
+    $ python ./compare_noh.py dump_noh.h5 --time 0.018
+    $ python ./compare_noh.py dump_noh.h5 --step 100
 """
 
 __program__ = "compare_noh.py"

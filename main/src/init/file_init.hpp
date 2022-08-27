@@ -42,8 +42,6 @@
 namespace sphexa
 {
 
-#ifdef SPH_EXA_HAVE_H5PART
-
 template<class Dataset>
 class FileInit : public ISimInitializer<Dataset>
 {
@@ -60,13 +58,8 @@ public:
     {
         using T = typename Dataset::RealType;
 
-        H5PartFile* h5_file = nullptr;
-#ifdef H5PART_PARALLEL_IO
-        h5_file = H5PartOpenFileParallel(h5_fname.c_str(), H5PART_READ, d.comm);
-#else
-        h5_file = H5PartOpenFile(h5_fname.c_str(), H5PART_READ);
-#endif
-        size_t numH5Steps = H5PartGetNumSteps(h5_file);
+        H5PartFile* h5_file    = fileutils::openH5Part(h5_fname, H5PART_READ, d.comm);
+        size_t      numH5Steps = H5PartGetNumSteps(h5_file);
         H5PartSetStep(h5_file, numH5Steps - 1);
 
         size_t numParticles  = H5PartGetNumParticles(h5_file);
@@ -82,6 +75,7 @@ public:
         H5PartReadStepAttrib(h5_file, "step", &d.iteration);
         d.iteration++;
         H5PartReadStepAttrib(h5_file, "gravConstant", &d.g);
+        H5PartReadStepAttrib(h5_file, "gamma", &d.gamma);
 
         double extents[6];
         H5PartReadStepAttrib(h5_file, "box", extents);
@@ -179,25 +173,5 @@ private:
     }
 
 };
-
-#else
-
-template<class Dataset>
-class FileInit : public ISimInitializer<Dataset>
-{
-    std::map<std::string, double> constants_;
-
-public:
-    FileInit(std::string) {}
-
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t, Dataset& d) const override
-    {
-        throw std::runtime_error("Initialization from file only possible with HDF5 support enabled\n");
-    }
-
-    const std::map<std::string, double>& constants() const override { return constants_; }
-};
-
-#endif
 
 } // namespace sphexa

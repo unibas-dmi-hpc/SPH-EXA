@@ -31,15 +31,14 @@
 
 #pragma once
 
+#include "sph/sph_gpu.hpp"
 #include "av_switches_kern.hpp"
-#include "sph/sph.cuh"
-#include "sph/traits.hpp"
 
 namespace sph
 {
 
 template<class T, class Dataset>
-void computeAVswitchesImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeAVswitchesImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -79,43 +78,17 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dat
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
-        alpha[i]  = AVswitchesJLoop(i,
-                                   sincIndex,
-                                   K,
-                                   box,
-                                   neighbors + ngmax * ni,
-                                   neighborsCount[i],
-                                   x,
-                                   y,
-                                   z,
-                                   vx,
-                                   vy,
-                                   vz,
-                                   h,
-                                   c,
-                                   c11,
-                                   c12,
-                                   c13,
-                                   c22,
-                                   c23,
-                                   c33,
-                                   wh,
-                                   whd,
-                                   kx,
-                                   xm,
-                                   divv,
-                                   d.minDt,
-                                   alphamin,
-                                   alphamax,
-                                   decay_constant,
-                                   alpha[i]);
+        int    nc = std::min(neighborsCount[i], ngmax);
+        alpha[i]  = AVswitchesJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, c, c11,
+                                    c12, c13, c22, c23, c33, wh, whd, kx, xm, divv, d.minDt, alphamin, alphamax,
+                                    decay_constant, alpha[i]);
     }
 }
 
 template<class T, class Dataset>
-void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeAVswitches(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeAVswitches(startIndex, endIndex, ngmax, d, box);
     }

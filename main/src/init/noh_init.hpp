@@ -35,6 +35,10 @@
 
 #include "cstone/sfc/box.hpp"
 
+#include "io/file_utils.hpp"
+#ifdef SPH_EXA_HAVE_H5PART
+#include "io/mpi_file_utils.hpp"
+#endif
 #include "isim_init.hpp"
 #include "grid.hpp"
 
@@ -80,17 +84,8 @@ void initNohFields(Dataset& d, double totalVolume, const std::map<std::string, d
 
 std::map<std::string, double> nohConstants()
 {
-    return {{"r0", 0},
-            {"r1", 0.5},
-            {"mTotal", 1.},
-            {"dim", 3},
-            {"gamma", 5.0 / 3.0},
-            {"rho0", 1.},
-            {"u0", 1e-20},
-            {"p0", 0.},
-            {"vr0", -1.},
-            {"cs0", 0.},
-            {"firstTimeStep", 1e-4}};
+    return {{"r0", 0},     {"r1", 0.5}, {"mTotal", 1.}, {"dim", 3},  {"gamma", 5.0 / 3.0},   {"rho0", 1.},
+            {"u0", 1e-20}, {"p0", 0.},  {"vr0", -1.},   {"cs0", 0.}, {"firstTimeStep", 1e-4}};
 }
 
 template<class Dataset>

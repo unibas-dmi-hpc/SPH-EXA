@@ -31,16 +31,15 @@
 
 #pragma once
 
-#include "iad_kern.hpp"
+#include "sph/sph_gpu.hpp"
 #include "divv_curlv_kern.hpp"
-#include "sph/sph.cuh"
-#include "sph/traits.hpp"
+#include "iad_kern.hpp"
 
 namespace sph
 {
 
 template<class T, class Dataset>
-void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -75,60 +74,20 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, D
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
+        int    nc = std::min(neighborsCount[i], ngmax);
 
-        IADJLoop(i,
-                 sincIndex,
-                 K,
-                 box,
-                 neighbors + ngmax * ni,
-                 neighborsCount[i],
-                 x,
-                 y,
-                 z,
-                 h,
-                 wh,
-                 whd,
-                 xm,
-                 kx,
-                 c11,
-                 c12,
-                 c13,
-                 c22,
-                 c23,
+        IADJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22, c23,
                  c33);
 
-        divV_curlVJLoop(i,
-                        sincIndex,
-                        K,
-                        box,
-                        neighbors + ngmax * ni,
-                        neighborsCount[i],
-                        x,
-                        y,
-                        z,
-                        vx,
-                        vy,
-                        vz,
-                        h,
-                        c11,
-                        c12,
-                        c13,
-                        c22,
-                        c23,
-                        c33,
-                        wh,
-                        whd,
-                        kx,
-                        xm,
-                        divv,
-                        curlv);
+        divV_curlVJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, c11, c12, c13, c22,
+                        c23, c33, wh, whd, kx, xm, divv, curlv);
     }
 }
 
 template<class T, class Dataset>
-void computeIadDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIadDivvCurlv(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeIadDivvCurlv(startIndex, endIndex, ngmax, d, box);
     }

@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-/*! \file thrust/system/cuda/experimental/pinned_allocator.h
+/*! @file
  *  \brief An allocator which creates new elements in "pinned" memory with \p cudaMallocHost
  */
 
@@ -24,18 +24,12 @@
 #include <limits>
 #include <string>
 
-#include <cuda.h>
 #include <cuda_runtime.h>
 
-/*! \addtogroup memory_management_classes
- *  \ingroup memory_management
- *  \{
- */
-
-/*! \p pinned_allocator is a CUDA-specific host memory allocator
- *  that employs \c cudaMallocHost for allocation.
+/*! @brief pinned_allocator is a CUDA-specific host memory allocator
+ *  that employs @c cudaMallocHost for allocation.
  *
- *  \see http://www.sgi.com/tech/stl/Allocators.html
+ *  @see http://www.sgi.com/tech/stl/Allocators.html
  */
 template<typename T>
 class pinned_allocator;
@@ -133,11 +127,7 @@ public:
         pointer     result(0);
         cudaError_t error = cudaMallocHost(reinterpret_cast<void**>(&result), cnt * sizeof(value_type));
 
-        if (error)
-        {
-            cudaGetLastError(); // Clear global CUDA error state.
-            throw std::bad_alloc();
-        } // end if
+        if (error) { throw std::bad_alloc(); } // end if
 
         return result;
     } // end allocate()
@@ -156,14 +146,8 @@ public:
     {
         cudaError_t error = cudaFreeHost(p);
 
-        cudaGetLastError(); // Clear global CUDA error state.
-
-        if (error)
-        {
-            cudaGetLastError(); // Clear global CUDA error state.
-            throw std::runtime_error("cudaFreeHost error\n");
-        } // end if
-    }     // end deallocate()
+        if (error) { throw std::runtime_error("cudaFreeHost error\n"); } // end if
+    }                                                                    // end deallocate()
 
     /*! This method returns the maximum size of the \c cnt parameter
      *  accepted by the \p allocate() method.

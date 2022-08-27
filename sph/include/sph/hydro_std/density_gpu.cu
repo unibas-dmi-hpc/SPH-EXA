@@ -31,12 +31,12 @@
 
 #include <algorithm>
 
-#include "sph/sph.cuh"
-#include "sph/particles_data.hpp"
-#include "sph/util/cuda_utils.cuh"
-#include "sph/hydro_std/density_kern.hpp"
-
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/findneighbors.cuh"
+
+#include "sph/sph_gpu.hpp"
+#include "sph/particles_data.hpp"
+#include "sph/hydro_std/density_kern.hpp"
 
 namespace sph
 {
@@ -60,16 +60,17 @@ __global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, siz
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
+    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_,
+                          numParticles, ngmax);
 
-    rho[i] = sph::densityJLoop(i, sincIndex, K, box, neighbors, neighborsCount_, x, y, z, h, m, wh, whd);
+    int nc = stl::min(neighborsCount_, ngmax);
+    rho[i] = sph::densityJLoop(i, sincIndex, K, box, neighbors, nc, x, y, z, h, m, wh, whd);
 
     neighborsCount[tid] = neighborsCount_;
 }
 
 template<class Dataset>
-void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeDensity(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
                     const cstone::Box<typename Dataset::RealType>& box)
 {
     using T       = typename Dataset::RealType;
@@ -98,40 +99,25 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
         unsigned numThreads = 256;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-        cudaDensity<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
-                                                          d.K,
-                                                          ngmax,
-                                                          box,
-                                                          firstParticle,
-                                                          lastParticle,
-                                                          sizeWithHalos,
-                                                          rawPtr(d.devData.codes),
-                                                          d_neighborsCount_use,
-                                                          rawPtr(d.devData.x),
-                                                          rawPtr(d.devData.y),
-                                                          rawPtr(d.devData.z),
-                                                          rawPtr(d.devData.h),
-                                                          rawPtr(d.devData.m),
-                                                          rawPtr(d.devData.wh),
-                                                          rawPtr(d.devData.whd),
-                                                          rawPtr(d.devData.rho));
-        CHECK_CUDA_ERR(cudaGetLastError());
+        cudaDensity<<<numBlocks, numThreads, 0, stream>>>(
+            d.sincIndex, d.K, ngmax, box, firstParticle, lastParticle, sizeWithHalos, rawPtr(d.devData.codes),
+            d_neighborsCount_use, rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
+            rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.rho));
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
-                                       d_neighborsCount_use,
+        checkGpuErrors(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle, d_neighborsCount_use,
                                        numParticlesCompute * sizeof(decltype(d.neighborsCount.front())),
-                                       cudaMemcpyDeviceToHost,
-                                       stream));
+                                       cudaMemcpyDeviceToHost, stream));
     }
+    checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>&,
                              const cstone::Box<double>&);
-template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>&,
                              const cstone::Box<double>&);
-template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>&,
                              const cstone::Box<float>&);
-template void computeDensity(size_t, size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>&,
                              const cstone::Box<float>&);
 
 } // namespace cuda

@@ -32,33 +32,11 @@
 #include <vector>
 #include <variant>
 
-#include "traits.hpp"
+#include "cstone/util/traits.hpp"
+#include "particles_data_stubs.hpp"
 
 namespace sphexa
 {
-
-/*! @brief look up indices of field names
- *
- * @tparam     Array
- * @param[in]  allNames     array of strings with names of all fields
- * @param[in]  subsetNames  array of strings of field names to look up in @p allNames
- * @return                  the indices of @p subsetNames in @p allNames
- */
-template<class Array>
-std::vector<int> fieldStringsToInt(const Array& allNames, const std::vector<std::string>& subsetNames)
-{
-    std::vector<int> subsetIndices;
-    subsetIndices.reserve(subsetNames.size());
-    for (const auto& field : subsetNames)
-    {
-        auto it = std::find(allNames.begin(), allNames.end(), field);
-        if (it == allNames.end()) { throw std::runtime_error("Field " + field + " does not exist\n"); }
-
-        size_t fieldIndex = it - allNames.begin();
-        subsetIndices.push_back(fieldIndex);
-    }
-    return subsetIndices;
-}
 
 //! @brief extract a vector of pointers to particle fields for file output
 template<class Dataset>
@@ -88,7 +66,63 @@ void resizeNeighbors(Dataset& d, size_t size)
 {
     double growthRate = 1.05;
     //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
-    reallocate(d.neighbors, HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
+    reallocate(d.neighbors, cstone::HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
+}
+
+//! @brief compile-time index look-up of a string literal in a list of strings
+template<class Array>
+constexpr size_t getFieldIndex(std::string_view field, const Array& fieldNames)
+{
+    for (size_t i = 0; i < fieldNames.size(); ++i)
+    {
+        if (field == fieldNames[i]) { return i; }
+    }
+    return fieldNames.size();
+}
+
+//! @brief translate string fields to an array with the field indices
+template<class Array1, class Array2>
+constexpr auto fieldNamesToIndices(const Array1& queries, const Array2& fieldNames)
+{
+    typename util::SwapArg<Array1, size_t>::type ret;
+    for (size_t i = 0; i < queries.size(); ++i)
+    {
+        ret[i] = getFieldIndex(queries[i], fieldNames);
+    }
+    return ret;
+}
+
+/*! @brief Look up indices of a (runtime-variable) number of field names
+ *
+ * @tparam     Array
+ * @param[in]  subsetNames  array of strings of field names to look up in @p allNames
+ * @param[in]  allNames     array of strings with names of all fields
+ * @return                  the indices of @p subsetNames in @p allNames
+ */
+template<class Array>
+std::vector<int> fieldStringsToInt(const std::vector<std::string>& subsetNames, const Array& allNames)
+{
+    std::vector<int> subsetIndices(subsetNames.size());
+    for (size_t i = 0; i < subsetNames.size(); ++i)
+    {
+        subsetIndices[i] = getFieldIndex(subsetNames[i], allNames);
+        if (subsetIndices[i] == allNames.size()) { throw std::runtime_error("Field not found: " + subsetNames[i]); }
+    }
+    return subsetIndices;
+}
+
+template<auto Indices, class Tuple, size_t... Is>
+auto accessFields_helper(Tuple&& tuple, std::index_sequence<Is...>)
+{
+    return std::tie(std::get<Indices[Is]>(std::forward<Tuple>(tuple))...);
+}
+
+//! @brief return a tuple of references to the elements of @p tuple specified by compile-time Indices
+template<auto Indices, class Tuple>
+auto accessFields(Tuple&& tuple)
+{
+    constexpr size_t numIndices = Indices.size();
+    return accessFields_helper<Indices>(std::forward<Tuple>(tuple), std::make_index_sequence<numIndices>{});
 }
 
 } // namespace sphexa

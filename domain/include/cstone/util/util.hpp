@@ -31,6 +31,8 @@
 
 #pragma once
 
+#include <algorithm>
+#include <tuple>
 #include <utility>
 
 #include "cstone/cuda/annotation.hpp"
@@ -55,9 +57,15 @@ struct StrongType
     using ValueType [[maybe_unused]] = T;
 
     //! default ctor
-    constexpr HOST_DEVICE_FUN StrongType() : value_{} {}
+    constexpr HOST_DEVICE_FUN StrongType()
+        : value_{}
+    {
+    }
     //! construction from the underlying type T, implicit conversions disabled
-    explicit constexpr HOST_DEVICE_FUN StrongType(T v) : value_(std::move(v)) {}
+    explicit constexpr HOST_DEVICE_FUN StrongType(T v)
+        : value_(std::move(v))
+    {
+    }
 
     //! assignment from T
     constexpr HOST_DEVICE_FUN StrongType& operator=(T v)
@@ -76,6 +84,14 @@ private:
     T value_;
 };
 
+//! @brief constexpr string as structural type for use as non-type template parameter (C++20)
+template<size_t N>
+struct StructuralString
+{
+    constexpr StructuralString(const char (&str)[N]) { std::copy_n(str, N, value); }
+    char value[N];
+};
+
 /*! @brief StrongType equality comparison
  *
  * Requires that both T and Phantom template parameters match.
@@ -83,40 +99,37 @@ private:
  * parameters is desired, the underlying value attribute should be compared instead
  */
 template<class T, class Phantom>
-constexpr HOST_DEVICE_FUN
-bool operator==(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN bool operator==(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
 {
     return lhs.value() == rhs.value();
 }
 
 //! @brief comparison function <
 template<class T, class Phantom>
-constexpr HOST_DEVICE_FUN
-bool operator<(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN bool operator<(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
 {
     return lhs.value() < rhs.value();
 }
 
 //! @brief comparison function >
 template<class T, class Phantom>
-constexpr HOST_DEVICE_FUN
-bool operator>(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN bool operator>(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
 {
     return lhs.value() > rhs.value();
 }
 
 //! @brief addition
 template<class T, class Phantom>
-constexpr HOST_DEVICE_FUN
-StrongType<T, Phantom> operator+(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN StrongType<T, Phantom> operator+(const StrongType<T, Phantom>& lhs,
+                                                           const StrongType<T, Phantom>& rhs)
 {
     return StrongType<T, Phantom>(lhs.value() + rhs.value());
 }
 
 //! @brief subtraction
 template<class T, class Phantom>
-constexpr HOST_DEVICE_FUN
-StrongType<T, Phantom> operator-(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN StrongType<T, Phantom> operator-(const StrongType<T, Phantom>& lhs,
+                                                           const StrongType<T, Phantom>& rhs)
 {
     return StrongType<T, Phantom>(lhs.value() - rhs.value());
 }

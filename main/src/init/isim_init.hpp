@@ -35,10 +35,6 @@
 
 #include "cstone/sfc/box.hpp"
 
-#include "io/mpi_file_utils.hpp"
-#include "sedov_constants.hpp"
-#include "grid.hpp"
-
 namespace sphexa
 {
 

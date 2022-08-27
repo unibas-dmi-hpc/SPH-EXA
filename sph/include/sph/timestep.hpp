@@ -36,25 +36,21 @@
 #include <math.h>
 #include <algorithm>
 
-#include "kernels.hpp"
+#include <mpi.h>
 
-#ifdef USE_MPI
-#include "mpi.h"
-#endif
+#include "kernels.hpp"
 
 namespace sph
 {
 
 template<class Dataset>
-void computeTimestep(size_t startIndex, size_t endIndex, Dataset& d)
+void computeTimestep(Dataset& d)
 {
     using T = typename Dataset::RealType;
 
     T minDt = std::min(d.minDt_loc, d.maxDtIncrease * d.minDt);
 
-#ifdef USE_MPI
     MPI_Allreduce(MPI_IN_PLACE, &minDt, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
-#endif
 
     d.ttot += minDt;
 

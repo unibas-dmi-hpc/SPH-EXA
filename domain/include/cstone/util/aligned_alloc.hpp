@@ -75,12 +75,6 @@ public:
 
     void deallocate(pointer p, size_type /*n*/) noexcept { std::free(p); }
 
-    size_type max_size() const noexcept
-    {
-        std::allocator<T> a;
-        return a.max_size();
-    }
-
     template<typename C, class... Args>
     void construct(C* c, Args&&... args)
     {

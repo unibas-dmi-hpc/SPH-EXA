@@ -37,6 +37,9 @@
 #include "ipropagator.hpp"
 #include "std_hydro.hpp"
 #include "ve_hydro.hpp"
+#ifdef SPH_EXA_HAVE_H5PART
+#include "turb_ve.hpp"
+#endif
 
 namespace sphexa
 {
@@ -49,11 +52,15 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
     {
         return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
     }
-    else if (choice == "std")
+    if (choice == "std") { return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
+    if (choice == "turbulence")
     {
-        return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+#ifdef SPH_EXA_HAVE_H5PART
+        return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+#endif
     }
-    else { throw std::runtime_error("Unknown propagator choice: " + choice); }
+
+    throw std::runtime_error("Unknown propagator choice: " + choice);
 }
 
 } // namespace sphexa

@@ -57,7 +57,7 @@ int main()
     thrust::device_vector<KeyType> tree    = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
     thrust::device_vector<unsigned> counts = std::vector<unsigned>{numParticles};
 
-    thrust::device_vector<KeyType>       tmpTree;
+    thrust::device_vector<KeyType> tmpTree;
     thrust::device_vector<TreeNodeIndex> workArray;
 
     thrust::device_vector<KeyType> particleCodes(randomBox.particleKeys().begin(), randomBox.particleKeys().end());
@@ -66,9 +66,10 @@ int main()
 
     auto fullBuild = [&]()
     {
-        while(!updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-                               thrust::raw_pointer_cast(particleCodes.data() + numParticles),
-                               bucketSize, tree, counts, tmpTree, workArray));
+        while (!updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
+                                thrust::raw_pointer_cast(particleCodes.data() + numParticles), bucketSize, tree, counts,
+                                tmpTree, workArray))
+            ;
     };
 
     float buildTime = timeGpu(fullBuild);
@@ -78,8 +79,8 @@ int main()
     auto updateTree = [&]()
     {
         updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-                        thrust::raw_pointer_cast(particleCodes.data() + numParticles),
-                        bucketSize, tree, counts, tmpTree, workArray);
+                        thrust::raw_pointer_cast(particleCodes.data() + numParticles), bucketSize, tree, counts,
+                        tmpTree, workArray);
     };
 
     float updateTime = timeGpu(updateTree);
@@ -90,16 +91,15 @@ int main()
 
     OctreeGpuDataAnchor<KeyType> octree;
     octree.resize(nNodes(tree));
-    auto buildInternal = [&]()
-    {
-        buildInternalOctreeGpu(thrust::raw_pointer_cast(tree.data()), octree.getData());
-    };
+    auto buildInternal = [&]() { buildInternalOctreeGpu(thrust::raw_pointer_cast(tree.data()), octree.getData()); };
 
-    float internalBuildTime = timeGpu(buildInternal);
+    float internalBuildTime                   = timeGpu(buildInternal);
     thrust::host_vector<TreeNodeIndex> ranges = octree.levelRange;
     std::cout << "internal build time " << internalBuildTime / 1000 << std::endl;
     std::cout << "level ranges: ";
-    for (int i = 0; i <= maxTreeLevel<KeyType>{}; ++i) std::cout << ranges[i] << " "; std::cout << std::endl;
+    for (int i = 0; i <= maxTreeLevel<KeyType>{}; ++i)
+        std::cout << ranges[i] << " ";
+    std::cout << std::endl;
 
     // halo discovery benchmark
 
@@ -108,14 +108,12 @@ int main()
                         thrust::raw_pointer_cast(binaryTree.data()));
 
     thrust::device_vector<float> haloRadii(nNodes(tree), 0.01);
-    thrust::device_vector<int>   flags(nNodes(tree), 0);
+    thrust::device_vector<int> flags(nNodes(tree), 0);
 
     auto findHalosLambda = [&]()
     {
-        findHalosGpu(thrust::raw_pointer_cast(tree.data()),
-                     thrust::raw_pointer_cast(binaryTree.data()),
-                     thrust::raw_pointer_cast(haloRadii.data()),
-                     box, 0, nNodes(tree) / 4,
+        findHalosGpu(thrust::raw_pointer_cast(tree.data()), thrust::raw_pointer_cast(binaryTree.data()),
+                     thrust::raw_pointer_cast(haloRadii.data()), box, 0, nNodes(tree) / 4,
                      thrust::raw_pointer_cast(flags.data()));
     };
 

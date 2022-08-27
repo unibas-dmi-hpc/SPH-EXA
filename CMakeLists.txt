@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.21)
 
 project(sphexa CXX C)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
@@ -13,14 +13,11 @@ list(APPEND CMAKE_MODULE_PATH
 
 option(BUILD_TESTING "build unit and integration tests" ON)
 option(BUILD_ANALYTICAL "build analytical solution" ON)
-option(SPH_EXA_WITH_HIP "Build SPH-EXA with HIP" OFF)
+
+option(GPU_DIRECT "Enable CUDA-aware MPI communication" OFF)
 
 if (BUILD_TESTING)
     include(setup_GTest)
-endif()
-
-if (SPH_EXA_WITH_HIP)
-    cmake_minimum_required(VERSION 3.21)
 endif()
 
 find_package(MPI)
@@ -46,28 +43,15 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-if(SPH_EXA_WITH_HIP)
-    if(NOT DEFINED HIP_PATH)
-        if(NOT DEFINED ENV{HIP_PATH})
-            set(HIP_PATH "/opt/rocm/hip" CACHE PATH "Path to which HIP has been installed")
-        else()
-            set(HIP_PATH $ENV{HIP_PATH} CACHE PATH "Path to which HIP has been installed")
-        endif()
-    endif()
 
-    set(CMAKE_MODULE_PATH "${HIP_PATH}/cmake" ${CMAKE_MODULE_PATH})
-    # set(HIP_CLANG_NUM_PARALLEL_JOBS 2)
-    find_package(HIP QUIET)
-
-    if(HIP_FOUND)
-        message(STATUS "Found HIP: " ${HIP_VERSION})
-        check_language(HIP)
-        # find_package(HIP)
-        if(CMAKE_HIP_COMPILER)
-            enable_language(HIP)
-            set(CMAKE_HIP_FLAGS "-fPIC -fgpu-rdc -w")
-        endif()
-    endif()
+check_language(HIP)
+if(CMAKE_HIP_COMPILER)
+    enable_language(HIP)
+    find_package(hip)
+    set(CMAKE_HIP_STANDARD 17)
+    set(CMAKE_HIP_FLAGS "-w \
+                         -I$ENV{GCC_X86_64}/include/g++/x86_64-suse-linux \
+                         -I$ENV{GCC_X86_64}/include/g++")
 endif()
 
 check_language(CUDA)
@@ -76,8 +60,6 @@ if(CMAKE_CUDA_COMPILER)
     find_package(CUDAToolkit)
     set(CMAKE_CUDA_STANDARD 17)
     set(CMAKE_CUDA_ARCHITECTURES OFF)
-else()
-    message(STATUS "No CUDA support")
 endif()
 
 option(SPH_EXA_WITH_H5PART "Enable HDF5 IO using the H5Part library" ON)

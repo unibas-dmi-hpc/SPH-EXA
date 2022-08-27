@@ -108,7 +108,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     std::vector<T> h{hGlobal.begin() + firstExtract, hGlobal.begin() + lastExtract};
 
     std::vector<KeyType> keys(x.size());
-    domain.sync(keys, x, y, z, h);
+    std::vector<T> scratch;
+    domain.sync(keys, x, y, z, h, std::tuple{}, std::tie(scratch));
 
     LocalIndex localCount    = domain.endIndex() - domain.startIndex();
     LocalIndex localCountSum = localCount;
@@ -242,7 +243,8 @@ TEST(FocusDomain, assignmentShift)
 
     std::vector<KeyType> particleKeys(x.size());
 
-    domain.sync(particleKeys, x, y, z, h);
+    std::vector<Real> scratchSpace;
+    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(scratchSpace));
 
     if (rank == 2)
     {
@@ -252,7 +254,7 @@ TEST(FocusDomain, assignmentShift)
         }
     }
 
-    domain.sync(particleKeys, x, y, z, h);
+    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(scratchSpace));
 
     std::vector<Real> property(domain.nParticlesWithHalos(), -1);
     for (LocalIndex i = domain.startIndex(); i < domain.endIndex(); ++i)
@@ -260,7 +262,7 @@ TEST(FocusDomain, assignmentShift)
         property[i] = rank;
     }
 
-    domain.exchangeHalos(property);
+    domain.exchangeHalos(std::tie(property));
 
     EXPECT_TRUE(std::count(property.begin(), property.end(), -1) == 0);
     EXPECT_TRUE(std::count(property.begin(), property.end(), rank) == domain.nParticles());

@@ -95,7 +95,8 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     using T                           = typename Dataset::RealType;
     auto [eKin, eInt, linmom, angmom] = localConservedQuantities(startIndex, endIndex, d);
 
-    T quantities[9], globalQuantities[9];
+    util::array<T, 9> quantities, globalQuantities;
+    std::fill(globalQuantities.begin(), globalQuantities.end(), T(0));
 
     quantities[0] = eKin;
     quantities[1] = eInt;
@@ -108,7 +109,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     quantities[8] = angmom[2];
 
     int rootRank = 0;
-    MPI_Reduce(quantities, globalQuantities, 9, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
+    MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<T>{}, MPI_SUM, rootRank, d.comm);
 
     d.ecin  = globalQuantities[0];
     d.eint  = globalQuantities[1];

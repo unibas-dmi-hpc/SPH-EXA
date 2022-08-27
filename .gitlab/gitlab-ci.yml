@@ -202,11 +202,11 @@ variables:
         echo "sedov:gpu";
         /usr/local/bin/sphexa-cuda --init sedov -s 200 -n 50 -w 200 --quiet |grep -v "Focus Tree Nodes:";
         mkdir -p /usr/local/games/src;
-        python3 /usr/local/bin/compare_solutions.py -s 200 ./dump_sedov.h5part > /usr/local/games/src/sedov.rpt;
+        python3 /usr/local/bin/compare_solutions.py -s 200 ./dump_sedov.h5 > /usr/local/games/src/sedov.rpt;
         echo "noh:gpu";
         /usr/local/bin/sphexa-cuda --init noh -s 200 -n 50 -w 200 --quiet |grep -v "Focus Tree Nodes:";
         mkdir -p /usr/local/games/src;
-        python3 /usr/local/bin/compare_noh.py -s 200 ./dump_noh.h5part > /usr/local/games/src/noh.rpt;
+        python3 /usr/local/bin/compare_noh.py -s 200 ./dump_noh.h5 > /usr/local/games/src/noh.rpt;
         echo "evrard:gpu";
         /usr/local/bin/sphexa-cuda --init evrard --glass /usr/local/games/glass.h5 -s 10 -n 50 -w 10 --quiet |grep -v "Focus Tree Nodes:";
         echo "rpt:";
@@ -217,8 +217,8 @@ variables:
 #}}}
 
 #{{{ NOTES
-# file dump_noh.h5part
-# dump_noh.h5part: Hierarchical Data Format (version 5) data
+# file dump_noh.h5
+# dump_noh.h5: Hierarchical Data Format (version 5) data
 #}}}
 
 #{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda

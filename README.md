@@ -1,4 +1,5 @@
 ![License](https://img.shields.io/github/license/unibas-dmi-hpc/SPH-EXA_mini-app)
+[![Documentation Status](https://readthedocs.org/projects/sph-exa/badge/?version=latest)](https://sph-exa.readthedocs.io/en/latest/?badge=latest)
 [![Unit tests](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/actions/workflows/unittest.yml/badge.svg?branch=develop)](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/actions/workflows/unittest.yml)
 ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/unibas-dmi-hpc/SPH-EXA_mini-app?include_prereleases)
 <p align="center">
@@ -21,12 +22,14 @@ and the absence of a structured grid.
 [ChaNGa](http://faculty.washington.edu/trq/hpcc/tools/changa.html),
 and [SPH-flow](http://www.sph-flow.com) are the three SPH codes selected in the PASC SPH-EXA project to
 act as parent and reference codes to SPH-EXA.
-The performance of these three codes is negatively impacted by factors such as imbalanced multi-scale physics, individual time-stepping, halos exchange, and long-range forces.
-Therefore, the goal is to extrapolate their common basic SPH features, and consolidate them in a fully optimized, Exascale-ready, MPI+X, SPH code: SPH-EXA.
+The performance of these three codes is negatively impacted by factors such as imbalanced multi-scale physics,
+individual time-stepping, halos exchange, and long-range forces.
+Therefore, the goal is to extrapolate their common basic SPH features, and consolidate them in a fully optimized,
+Exascale-ready, MPI+X, SPH code: SPH-EXA.
 
 # SPH-EXA
 
-SPH-EXA is a C++17 simulation code, parallelized with MPI, OpenMP, CUDA and HIP.
+SPH-EXA is a C++20 simulation code, parallelized with MPI, OpenMP, CUDA and HIP.
 
 [Check our wiki for more details](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/wiki)
 
@@ -67,9 +70,16 @@ SPH-EXA
     ├── io                          - file output functionality
     └── sphexa                      - SPH main application front-end
 ```
-#### Compile
+#### Toolchain requirements
 
-Use the following commands to compile the main SPH-EXA application:
+The C++ (.cpp) part of the code requires a **C++20 compiler**, at least GCC 10, clang 12 or cray-clang 14.
+For CUDA (.cu), the minimum supported CUDA version is **CUDA 11.2** with a C++17 host compiler, e.g. GCC 9.3.0.
+
+Note that GCC 10.3.0 does not work as CUDA host compiler due to known compiler bugs.
+For ease of use, the recommended minimum version of CUDA is 11.4.1 which supports GCC 11, providing both the required
+C++20 support and bug-free CUDA host compilation.
+
+#### Compilation
 
 Minimal CMake configuration:
 ```shell
@@ -78,23 +88,48 @@ cd build
 cmake <GIT_SOURCE_DIR>
 ```
 
-Recommended CMake configuration on Piz Daint,
-using the (default) Cray Clang compiler for CPU code (.cpp) and nvcc/g++ for GPU code (.cu):
+CMake configuration on Piz Daint for clang:
+**Cray-clang 14** for CPU code (.cpp), **CUDA 11.6 + GCC 11.2.0** for GPU code (.cu):
 ```shell
 module load daint-gpu
-module load cudatoolkit/11.2.0_3.39-2.1__gf93aa1c # or newer
-module load CMake/3.22.1               # or newer
+module load CMake/3.22.1
+module load PrgEnv-cray
+module load cdt/22.05           # will load cce/14.0.0
+module load nvhpc-nompi/22.2    # will load nvcc/11.6
+module load gcc/11.2.0
 module load cray-hdf5-parallel
-module load gcc/9.3.0                  # nvcc uses gcc as the default host compiler,
-                                       # but the system version is too old
-export GCC_X86_64=/opt/gcc/9.3.0/snos  # system header versions are too old, applies to cray-clang too
 
 mkdir build
 cd build
-cmake -DCMAKE_CXX_COMPILER=CC <GIT_SOURCE_DIR>
+
+# -DCMAKE_CUDA_ARCHITECTURES is turned off, use CMAKE_CUDA_FLAGS instead:
+# -DCMAKE_C_COMPILER=cc is needed for hdf5 detection
+cmake -DCMAKE_CXX_COMPILER=CC -DCMAKE_C_COMPILER=cc \
+-DCMAKE_CUDA_FLAGS=-arch=sm_60 -S <GIT_SOURCE_DIR>
+
+# to avoid "HDF5 library version mismatched error":
+export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+
 ```
 
-* Build everything: ```make -j```
+CMake configuration on Piz Daint for GCC:
+**GCC 10.3.0** for CPU code (.cpp), **CUDA 11.3 + GCC 9.3.0** for GPU code (.cu):
+```shell
+module load daint-gpu
+module load cudatoolkit/21.5_11.3      # or newer
+module load CMake/3.22.1               # or newer
+module load cray-hdf5-parallel
+module swap PrgEnv-cray PrgEnv-gnu
+module swap gcc gcc/10.3.0
+export GCC_X86_64=/opt/gcc/9.3.0/snos  # system header versions are too old
+
+mkdir build
+cd build
+# GCC 10.3.0 cannot be used as CUDA host compiler due to compiler bugs
+cmake -DCMAKE_CXX_COMPILER=CC -DCMAKE_CUDA_FLAGS=-ccbin=/opt/gcc/9.3.0/snos/bin/g++ <GIT_SOURCE_DIR>
+```
+
+Build everything: ```make -j```
 
 
 #### Running the main application

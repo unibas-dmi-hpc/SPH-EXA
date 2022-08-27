@@ -52,10 +52,10 @@ TEST(OctreeGpu, computeNodeCountsKernel)
     thrust::device_vector<I> d_codes = h_codes;
 
     // regular level-3 cornerstone tree with 512 leaves
-    thrust::host_vector<I> h_cstree   = makeUniformNLevelTree<I>(8*8*8, 1);
+    thrust::host_vector<I> h_cstree = makeUniformNLevelTree<I>(8 * 8 * 8, 1);
     // subdivide the first level-3 node
     for (int octant = 1; octant < 8; ++octant)
-        h_cstree.push_back(octant*nodeRange<I>(4));
+        h_cstree.push_back(octant * nodeRange<I>(4));
 
     std::sort(begin(h_cstree), end(h_cstree));
 
@@ -87,10 +87,10 @@ TEST(OctreeGpu, computeNodeCountsGpu)
     using I = unsigned;
 
     // regular level-3 cornerstone tree with 512 leaves
-    thrust::host_vector<I> h_cstree   = makeUniformNLevelTree<I>(8*8*8, 1);
+    thrust::host_vector<I> h_cstree = makeUniformNLevelTree<I>(8 * 8 * 8, 1);
     // subdivide the first level-3 node
     for (int octant = 1; octant < 8; ++octant)
-        h_cstree.push_back(octant*nodeRange<I>(4));
+        h_cstree.push_back(octant * nodeRange<I>(4));
 
     std::sort(begin(h_cstree), end(h_cstree));
 
@@ -98,11 +98,11 @@ TEST(OctreeGpu, computeNodeCountsGpu)
     thrust::device_vector<I> d_cstree = h_cstree;
 
     thrust::host_vector<I> h_codes;
-    for (int nodeIdx = 1; nodeIdx < nNodes(h_cstree)-1; ++nodeIdx)
+    for (int nodeIdx = 1; nodeIdx < nNodes(h_cstree) - 1; ++nodeIdx)
     {
         // put 2 particles in each tree node, except the first and last node
         h_codes.push_back(h_cstree[nodeIdx]);
-        h_codes.push_back(h_cstree[nodeIdx]+1);
+        h_codes.push_back(h_cstree[nodeIdx] + 1);
     }
 
     // upload particle codes to device
@@ -113,9 +113,9 @@ TEST(OctreeGpu, computeNodeCountsGpu)
     // findPopulatedNodes check
     {
         TreeNodeIndex popNodes[2];
-        findPopulatedNodes<<<1,1>>>(thrust::raw_pointer_cast(d_cstree.data()), nNodes(d_cstree),
-                                    thrust::raw_pointer_cast(d_codes.data()),
-                                    thrust::raw_pointer_cast(d_codes.data() + d_codes.size()));
+        findPopulatedNodes<<<1, 1>>>(thrust::raw_pointer_cast(d_cstree.data()), nNodes(d_cstree),
+                                     thrust::raw_pointer_cast(d_codes.data()),
+                                     thrust::raw_pointer_cast(d_codes.data() + d_codes.size()));
         cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex));
         // first and last nodes have no particles
         EXPECT_EQ(popNodes[0], 1);
@@ -123,8 +123,7 @@ TEST(OctreeGpu, computeNodeCountsGpu)
     }
 
     computeNodeCountsGpu(thrust::raw_pointer_cast(d_cstree.data()), thrust::raw_pointer_cast(d_counts.data()),
-                         nNodes(d_cstree),
-                         thrust::raw_pointer_cast(d_codes.data()),
+                         nNodes(d_cstree), thrust::raw_pointer_cast(d_codes.data()),
                          thrust::raw_pointer_cast(d_codes.data() + d_codes.size()),
                          std::numeric_limits<unsigned>::max());
 
@@ -133,7 +132,7 @@ TEST(OctreeGpu, computeNodeCountsGpu)
 
     thrust::host_vector<unsigned> refCounts(nNodes(d_cstree), 2);
     // first and last nodes are empty
-    refCounts[0] = 0;
+    refCounts[0]        = 0;
     *refCounts.rbegin() = 0;
 
     EXPECT_EQ(h_counts, refCounts);
@@ -144,13 +143,16 @@ TEST(OctreeGpu, rebalanceDecision)
     using I = unsigned;
 
     // regular level-3 cornerstone tree with 512 leaves
-    thrust::host_vector<I> h_cstree   = makeUniformNLevelTree<I>(8 * 8 * 8, 1);
+    thrust::host_vector<I> h_cstree = makeUniformNLevelTree<I>(8 * 8 * 8, 1);
     // create + upload tree to the device
     thrust::device_vector<I> d_cstree = h_cstree;
 
     thrust::device_vector<unsigned> d_counts(8 * 8 * 8, 1);
     // set first 8 nodes to empty
-    for (int i = 0; i < 8; ++i) { d_counts[i] = 0; }
+    for (int i = 0; i < 8; ++i)
+    {
+        d_counts[i] = 0;
+    }
 
     d_counts[9] = 2;
 
@@ -159,17 +161,17 @@ TEST(OctreeGpu, rebalanceDecision)
     thrust::device_vector<TreeNodeIndex> d_nodeOps(d_counts.size());
     constexpr unsigned nThreads = 512;
     rebalanceDecisionKernel<<<iceil(d_counts.size(), nThreads), nThreads>>>(
-        thrust::raw_pointer_cast(d_cstree.data()),
-        thrust::raw_pointer_cast(d_counts.data()),
-        nNodes(d_cstree),
-        bucketSize,
-        thrust::raw_pointer_cast(d_nodeOps.data()));
+        thrust::raw_pointer_cast(d_cstree.data()), thrust::raw_pointer_cast(d_counts.data()), nNodes(d_cstree),
+        bucketSize, thrust::raw_pointer_cast(d_nodeOps.data()));
 
     // download result from device
     thrust::host_vector<TreeNodeIndex> h_nodeOps = d_nodeOps;
 
     thrust::host_vector<TreeNodeIndex> reference(d_counts.size(), 1);
-    for (int i = 1; i < 8; ++i) { reference[i] = 0; } // merge
+    for (int i = 1; i < 8; ++i)
+    {
+        reference[i] = 0;
+    }                 // merge
     reference[9] = 8; // fuse
 
     int changeCounter = 0;
@@ -180,12 +182,12 @@ TEST(OctreeGpu, rebalanceDecision)
 
 TEST(OctreeGpu, rebalanceTree)
 {
-    using CodeType = unsigned;
+    using CodeType           = unsigned;
     constexpr int bucketSize = 8;
 
     thrust::device_vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
 
-    thrust::device_vector<CodeType>      tmpTree;
+    thrust::device_vector<CodeType> tmpTree;
     thrust::device_vector<TreeNodeIndex> workArray;
 
     // nodes {7,i} will need to be fused
@@ -196,7 +198,7 @@ TEST(OctreeGpu, rebalanceTree)
     bool converged = rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), bucketSize, tmpTree, workArray);
 
     // download tree from host
-    thrust::host_vector<CodeType> h_tree = tree;
+    thrust::host_vector<CodeType> h_tree    = tree;
     thrust::host_vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
     EXPECT_EQ(h_tree, reference);
     EXPECT_FALSE(converged);
@@ -214,7 +216,6 @@ template<class KeyType>
 class OctreeFixtureGpu
 {
 public:
-
     OctreeFixtureGpu(unsigned numParticles, unsigned bucketSize)
     {
         d_codes = makeRandomGaussianKeys<KeyType>(numParticles);
@@ -222,16 +223,17 @@ public:
         d_tree   = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
         d_counts = std::vector<unsigned>{numParticles};
 
-        thrust::device_vector<KeyType>       tmpTree;
+        thrust::device_vector<KeyType> tmpTree;
         thrust::device_vector<TreeNodeIndex> workArray;
 
-        while(!updateOctreeGpu(thrust::raw_pointer_cast(d_codes.data()),
-                               thrust::raw_pointer_cast(d_codes.data() + d_codes.size()),
-                               bucketSize, d_tree, d_counts, tmpTree, workArray));
+        while (!updateOctreeGpu(thrust::raw_pointer_cast(d_codes.data()),
+                                thrust::raw_pointer_cast(d_codes.data() + d_codes.size()), bucketSize, d_tree, d_counts,
+                                tmpTree, workArray))
+            ;
     }
 
-    thrust::device_vector<KeyType>  d_tree;
-    thrust::device_vector<KeyType>  d_codes;
+    thrust::device_vector<KeyType> d_tree;
+    thrust::device_vector<KeyType> d_codes;
     thrust::device_vector<unsigned> d_counts;
 };
 
@@ -244,7 +246,7 @@ TEST(OctreeGpu, computeOctreeRandom)
     int bucketSize = 64;
 
     // compute octree starting from default uniform octree
-    auto particleKeys = makeRandomGaussianKeys<Integer>(nParticles);
+    auto particleKeys         = makeRandomGaussianKeys<Integer>(nParticles);
     auto [treeCpu, countsCpu] = computeOctree(particleKeys.data(), particleKeys.data() + nParticles, bucketSize);
 
     OctreeFixtureGpu<Integer> fixt(nParticles, bucketSize);
@@ -264,7 +266,8 @@ TEST(OctreeGpu, computeOctreeRandom)
  *
  * In distributed octrees, the executing rank only has a part of the particle SFC codes, such that
  * many nodes in the tree are empty. Here this is simulated by removing a large connected part of the particle codes
- * and recomputing the node counts based on this subset of particle codes. The non-zero node counts should stay the same.
+ * and recomputing the node counts based on this subset of particle codes. The non-zero node counts should stay the
+ * same.
  */
 TEST(OctreeGpu, distributedMockUp)
 {
@@ -283,20 +286,19 @@ TEST(OctreeGpu, distributedMockUp)
     TreeNodeIndex lastNode  = Nodes - Nodes / 10;
 
     // determine the part of the tree that will be empty
-    thrust::host_vector<CodeType> h_codes  = fixt.d_codes;
-    unsigned firstParticleIdx = stl::lower_bound(h_codes.begin(), h_codes.end(), fixt.d_tree[firstNode]) - h_codes.begin();
-    unsigned lastParticleIdx  = stl::lower_bound(h_codes.begin(), h_codes.end(), fixt.d_tree[lastNode]) - h_codes.begin();
+    thrust::host_vector<CodeType> h_codes = fixt.d_codes;
+    unsigned firstParticleIdx =
+        stl::lower_bound(h_codes.begin(), h_codes.end(), fixt.d_tree[firstNode]) - h_codes.begin();
+    unsigned lastParticleIdx =
+        stl::lower_bound(h_codes.begin(), h_codes.end(), fixt.d_tree[lastNode]) - h_codes.begin();
     std::cout << firstNode << " " << lastNode << std::endl;
     std::cout << firstParticleIdx << " " << lastParticleIdx << std::endl;
 
     bool useCountsAsGuess = true;
     computeNodeCountsGpu(thrust::raw_pointer_cast(fixt.d_tree.data()), thrust::raw_pointer_cast(fixt.d_counts.data()),
-                         nNodes(fixt.d_tree),
-                         thrust::raw_pointer_cast(fixt.d_codes.data() + firstParticleIdx),
+                         nNodes(fixt.d_tree), thrust::raw_pointer_cast(fixt.d_codes.data() + firstParticleIdx),
                          thrust::raw_pointer_cast(fixt.d_codes.data() + lastParticleIdx),
-                         std::numeric_limits<unsigned>::max(),
-                         useCountsAsGuess);
-
+                         std::numeric_limits<unsigned>::max(), useCountsAsGuess);
 
     thrust::device_vector<CodeType> d_counts_ref = d_counts_orig;
     thrust::fill(d_counts_ref.begin(), d_counts_ref.begin() + firstNode, 0);

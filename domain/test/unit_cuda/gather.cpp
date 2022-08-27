@@ -56,7 +56,7 @@ void setFromCodeDemo()
 {
     std::vector<I> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
 
-    cstone::DeviceGather<T, I, IndexType> devGather;
+    cstone::DeviceGather<I, IndexType> devGather;
     devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
     std::vector<I> refCodes{0, 10, 20, 30, 40, 50, 60, 70, 80, 90};
@@ -75,16 +75,12 @@ TEST(DeviceGather, smallDemo)
     setFromCodeDemo<float, uint64_t, unsigned>();
     setFromCodeDemo<double, unsigned, unsigned>();
     setFromCodeDemo<double, uint64_t, unsigned>();
-    setFromCodeDemo<float, unsigned, uint64_t>();
-    setFromCodeDemo<float, uint64_t, uint64_t>();
-    setFromCodeDemo<double, unsigned, uint64_t>();
-    setFromCodeDemo<double, uint64_t, uint64_t>();
 }
 
 template<class T, class I, class IndexType>
 void reorderCheck(int nElements, bool reallocate = false)
 {
-    cstone::DeviceGather<T, I, IndexType> devGather;
+    cstone::DeviceGather<I, IndexType> devGather;
     if (reallocate)
     {
         // initialize with a small size to trigger buffer reallocation
@@ -138,10 +134,6 @@ TEST(DeviceGather, matchCpu)
     reorderCheck<float, uint64_t, unsigned>(nElements);
     reorderCheck<double, unsigned, unsigned>(nElements);
     reorderCheck<double, uint64_t, unsigned>(nElements);
-    reorderCheck<float, unsigned, uint64_t>(nElements);
-    reorderCheck<float, uint64_t, uint64_t>(nElements);
-    reorderCheck<double, unsigned, uint64_t>(nElements);
-    reorderCheck<double, uint64_t, uint64_t>(nElements);
 }
 
 TEST(DeviceGather, reallocate)
@@ -152,8 +144,4 @@ TEST(DeviceGather, reallocate)
     reorderCheck<float, uint64_t, unsigned>(nElements, true);
     reorderCheck<double, unsigned, unsigned>(nElements, true);
     reorderCheck<double, uint64_t, unsigned>(nElements, true);
-    reorderCheck<float, unsigned, uint64_t>(nElements, true);
-    reorderCheck<float, uint64_t, uint64_t>(nElements, true);
-    reorderCheck<double, unsigned, uint64_t>(nElements, true);
-    reorderCheck<double, uint64_t, uint64_t>(nElements, true);
 }

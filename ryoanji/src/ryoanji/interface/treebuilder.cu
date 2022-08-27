@@ -56,15 +56,9 @@ public:
 
     int extract(int2* h_levelRange);
 
-    const LocalIndex* layout() const
-    {
-        return thrust::raw_pointer_cast(d_layout_.data());
-    }
+    const LocalIndex* layout() const { return thrust::raw_pointer_cast(d_layout_.data()); }
 
-    const TreeNodeIndex* childOffsets() const
-    {
-        return thrust::raw_pointer_cast(octreeGpuData_.childOffsets.data());
-    }
+    const TreeNodeIndex* childOffsets() const { return thrust::raw_pointer_cast(octreeGpuData_.childOffsets.data()); }
 
     const TreeNodeIndex* leafToInternal() const
     {
@@ -76,10 +70,7 @@ public:
         return thrust::raw_pointer_cast(octreeGpuData_.internalToLeaf.data());
     }
 
-    TreeNodeIndex numLeafNodes() const
-    {
-        return octreeGpuData_.numLeafNodes;
-    }
+    TreeNodeIndex numLeafNodes() const { return octreeGpuData_.numLeafNodes; }
 
 private:
     unsigned bucketSize_;
@@ -115,8 +106,8 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
     thrust::device_vector<int>     d_ordering(numBodies);
     thrust::device_vector<T>       tmp(numBodies);
 
-    cstone::computeSfcRealKeys(
-        cstone::sfcKindPointer(thrust::raw_pointer_cast(d_keys.data())), x, y, z, numBodies, csBox);
+    cstone::computeSfcRealKeys(cstone::sfcKindPointer(thrust::raw_pointer_cast(d_keys.data())), x, y, z, numBodies,
+                               csBox);
 
     thrust::sequence(d_ordering.begin(), d_ordering.end(), 0);
     thrust::sort_by_key(thrust::device, d_keys.begin(), d_keys.end(), d_ordering.begin());
@@ -136,12 +127,8 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
     }
 
     while (!cstone::updateOctreeGpu(thrust::raw_pointer_cast(d_keys.data()),
-                                    thrust::raw_pointer_cast(d_keys.data()) + d_keys.size(),
-                                    bucketSize_,
-                                    d_tree_,
-                                    d_counts_,
-                                    tmpTree_,
-                                    workArray_))
+                                    thrust::raw_pointer_cast(d_keys.data()) + d_keys.size(), bucketSize_, d_tree_,
+                                    d_counts_, tmpTree_, workArray_))
         ;
 
     octreeGpuData_.resize(cstone::nNodes(d_tree_));
@@ -155,17 +142,16 @@ int TreeBuilder<KeyType>::Impl::extract(int2* h_levelRange)
 {
     d_layout_.resize(d_counts_.size() + 1);
     thrust::copy(d_counts_.begin(), d_counts_.end(), d_layout_.begin());
-    thrust::exclusive_scan(thrust::device,
-                           thrust::raw_pointer_cast(d_layout_.data()),
+    thrust::exclusive_scan(thrust::device, thrust::raw_pointer_cast(d_layout_.data()),
                            thrust::raw_pointer_cast(d_layout_.data()) + d_layout_.size(),
                            thrust::raw_pointer_cast(d_layout_.data()));
 
     thrust::host_vector<int> cs_levelRange = octreeGpuData_.levelRange;
 
     int numLevels = 0;
-    for (int level = 1; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
+    for (int level = 0; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
     {
-        if (cs_levelRange[level + 1] == 0)
+        if (cs_levelRange[level] == cs_levelRange[level + 1])
         {
             numLevels = level - 1;
             break;

@@ -63,61 +63,91 @@
  *        neighbors[(id-firstId)*ngmax, (id-firstId)*ngmax + neighborsCount[id-firstId]]
  */
 template<class T, class Integer>
-void findNeighborsMortonGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                            cstone::Box<T> box, const Integer* particleKeys,
-                            int* neighbors, int* neighborsCount, int ngmax,
+void findNeighborsMortonGpu(const T* x,
+                            const T* y,
+                            const T* z,
+                            const T* h,
+                            int firstId,
+                            int lastId,
+                            int n,
+                            cstone::Box<T> box,
+                            const Integer* particleKeys,
+                            int* neighbors,
+                            int* neighborsCount,
+                            int ngmax,
                             cudaStream_t stream = cudaStreamDefault);
 
-
-#define FIND_NEIGHBORS_MORTON_GPU(T, Integer) \
-void findNeighborsMortonGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
-                            cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, \
-                            int ngmax, cudaStream_t stream)
+#define FIND_NEIGHBORS_MORTON_GPU(T, Integer)                                                                          \
+    void findNeighborsMortonGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,        \
+                                cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount,  \
+                                int ngmax, cudaStream_t stream)
 
 template<class T, class Integer>
-void findNeighborsHilbertGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                             cstone::Box<T> box, const Integer* particleKeys,
-                             int* neighbors, int* neighborsCount, int ngmax,
+void findNeighborsHilbertGpu(const T* x,
+                             const T* y,
+                             const T* z,
+                             const T* h,
+                             int firstId,
+                             int lastId,
+                             int n,
+                             cstone::Box<T> box,
+                             const Integer* particleKeys,
+                             int* neighbors,
+                             int* neighborsCount,
+                             int ngmax,
                              cudaStream_t stream = cudaStreamDefault);
 
+#define FIND_NEIGHBORS_HILBERT_GPU(T, Integer)                                                                         \
+    void findNeighborsHilbertGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,       \
+                                 cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, \
+                                 int ngmax, cudaStream_t stream)
 
-#define FIND_NEIGHBORS_HILBERT_GPU(T, Integer) \
-void findNeighborsHilbertGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
-cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, \
-int ngmax, cudaStream_t stream)
-
-extern template FIND_NEIGHBORS_MORTON_GPU(float,  uint32_t);
-extern template FIND_NEIGHBORS_MORTON_GPU(float,  uint64_t);
+extern template FIND_NEIGHBORS_MORTON_GPU(float, uint32_t);
+extern template FIND_NEIGHBORS_MORTON_GPU(float, uint64_t);
 extern template FIND_NEIGHBORS_MORTON_GPU(double, uint32_t);
 extern template FIND_NEIGHBORS_MORTON_GPU(double, uint64_t);
 
-extern template FIND_NEIGHBORS_HILBERT_GPU(float,  uint32_t);
-extern template FIND_NEIGHBORS_HILBERT_GPU(float,  uint64_t);
+extern template FIND_NEIGHBORS_HILBERT_GPU(float, uint32_t);
+extern template FIND_NEIGHBORS_HILBERT_GPU(float, uint64_t);
 extern template FIND_NEIGHBORS_HILBERT_GPU(double, uint32_t);
 extern template FIND_NEIGHBORS_HILBERT_GPU(double, uint64_t);
 
 //! @brief convenience KeyType selector
 template<class T, class KeyType>
-inline std::enable_if_t<cstone::IsMorton<KeyType>{}>
-findNeighborsSfcGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                    cstone::Box<T> box, const KeyType* particleKeys,
-                    int* neighbors, int* neighborsCount, int ngmax,
-                    cudaStream_t stream = cudaStreamDefault)
+inline std::enable_if_t<cstone::IsMorton<KeyType>{}> findNeighborsSfcGpu(const T* x,
+                                                                         const T* y,
+                                                                         const T* z,
+                                                                         const T* h,
+                                                                         int firstId,
+                                                                         int lastId,
+                                                                         int n,
+                                                                         cstone::Box<T> box,
+                                                                         const KeyType* particleKeys,
+                                                                         int* neighbors,
+                                                                         int* neighborsCount,
+                                                                         int ngmax,
+                                                                         cudaStream_t stream = cudaStreamDefault)
 {
     const auto* mortonKeys = (const typename KeyType::ValueType*)(particleKeys);
-    findNeighborsMortonGpu(x, y, z, h, firstId, lastId, n, box, mortonKeys, neighbors, neighborsCount,
-                           ngmax, stream);
+    findNeighborsMortonGpu(x, y, z, h, firstId, lastId, n, box, mortonKeys, neighbors, neighborsCount, ngmax, stream);
 }
 
 //! @brief convenience KeyType selector
 template<class T, class KeyType>
-inline std::enable_if_t<cstone::IsHilbert<KeyType>{}>
-findNeighborsSfcGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                    cstone::Box<T> box, const KeyType* particleKeys,
-                    int* neighbors, int* neighborsCount, int ngmax,
-                    cudaStream_t stream = cudaStreamDefault)
+inline std::enable_if_t<cstone::IsHilbert<KeyType>{}> findNeighborsSfcGpu(const T* x,
+                                                                          const T* y,
+                                                                          const T* z,
+                                                                          const T* h,
+                                                                          int firstId,
+                                                                          int lastId,
+                                                                          int n,
+                                                                          cstone::Box<T> box,
+                                                                          const KeyType* particleKeys,
+                                                                          int* neighbors,
+                                                                          int* neighborsCount,
+                                                                          int ngmax,
+                                                                          cudaStream_t stream = cudaStreamDefault)
 {
     const auto* hilbertKeys = (const typename KeyType::ValueType*)(particleKeys);
-    findNeighborsHilbertGpu(x, y, z, h, firstId, lastId, n, box, hilbertKeys, neighbors, neighborsCount,
-                            ngmax, stream);
+    findNeighborsHilbertGpu(x, y, z, h, firstId, lastId, n, box, hilbertKeys, neighbors, neighborsCount, ngmax, stream);
 }

@@ -8,11 +8,15 @@
 #include "sph/update_h.hpp"
 
 #include "sph/hydro_std/density.hpp"
+#include "sph/hydro_std/eos.hpp"
 #include "sph/hydro_std/iad.hpp"
 #include "sph/hydro_std/momentum_energy.hpp"
 
 #include "sph/hydro_ve/av_switches.hpp"
+#include "sph/hydro_ve/eos.hpp"
 #include "sph/hydro_ve/ve_def_gradh.hpp"
 #include "sph/hydro_ve/iad_divv_curlv.hpp"
 #include "sph/hydro_ve/momentum_energy.hpp"
 #include "sph/hydro_ve/xmass.hpp"
+
+#include "sph/hydro_turb/driver.hpp"

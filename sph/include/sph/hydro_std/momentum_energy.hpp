@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,18 +32,14 @@
 
 #pragma once
 
-#include "sph/math.hpp"
-#include "sph/kernels.hpp"
+#include "sph/sph_gpu.hpp"
 #include "momentum_energy_kern.hpp"
-#include "sph/sph.cuh"
-#include "sph/traits.hpp"
 
 namespace sph
 {
 
 template<class T, class Dataset>
-void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
-                                  const cstone::Box<T>& box)
+void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -87,36 +83,9 @@ void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, size_t ngm
 
         T maxvsignal = 0;
 
-        momentumAndEnergyJLoop(i,
-                               sincIndex,
-                               K,
-                               box,
-                               neighbors + ngmax * ni,
-                               neighborsCount[i],
-                               x,
-                               y,
-                               z,
-                               vx,
-                               vy,
-                               vz,
-                               h,
-                               m,
-                               rho,
-                               p,
-                               c,
-                               c11,
-                               c12,
-                               c13,
-                               c22,
-                               c23,
-                               c33,
-                               wh,
-                               whd,
-                               grad_P_x,
-                               grad_P_y,
-                               grad_P_z,
-                               du,
-                               &maxvsignal);
+        int nc = std::min(neighborsCount[i], ngmax);
+        momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, m, rho, p, c,
+                               c11, c12, c13, c22, c23, c33, wh, whd, grad_P_x, grad_P_y, grad_P_z, du, &maxvsignal);
 
         T dt_i = tsKCourant(maxvsignal, h[i], c[i], d.Kcour);
         minDt  = std::min(minDt, dt_i);
@@ -126,9 +95,9 @@ void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, size_t ngm
 }
 
 template<class T, class Dataset>
-void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeMomentumEnergySTD(startIndex, endIndex, ngmax, d, box);
     }

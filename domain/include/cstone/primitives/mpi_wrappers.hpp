@@ -32,6 +32,8 @@
 #pragma once
 
 #include <mpi.h>
+#include <type_traits>
+#include <vector>
 
 template<class T>
 struct MpiType

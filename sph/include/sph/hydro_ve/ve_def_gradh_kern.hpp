@@ -31,15 +31,18 @@
 
 #pragma once
 
+#include "cstone/cuda/annotation.hpp"
 #include "cstone/sfc/box.hpp"
 
+#include "sph/kernels.hpp"
+#include "sph/math.hpp"
 #include "sph/tables.hpp"
 
 namespace sph
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline util::tuple<T, T>
+HOST_DEVICE_FUN inline util::tuple<T, T>
 veDefGradhJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
                 const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, const T* xm)
 {

@@ -26,8 +26,8 @@ simulations.
 
 Usage examples:
     $ python ./compare_solutions.py --version'
-    $ python ./compare_solutions.py dump_sedov.h5part --time 0.018
-    $ python ./compare_solutions.py dump_sedov.h5part --step 100
+    $ python ./compare_solutions.py dump_sedov.h5 --time 0.018
+    $ python ./compare_solutions.py dump_sedov.h5 --step 100
 """
 
 __program__ = "compare_solutions.py"

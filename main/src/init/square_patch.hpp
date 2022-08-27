@@ -16,12 +16,10 @@ public:
     {
         ParticlesData<T> pd;
 
-#ifdef USE_MPI
         pd.comm = MPI_COMM_WORLD;
         MPI_Comm_size(pd.comm, &pd.nrank);
         MPI_Comm_rank(pd.comm, &pd.rank);
         MPI_Get_processor_name(pd.pname, &pd.pnamelen);
-#endif
 
         pd.n     = side * side * side;
         pd.side  = side;
@@ -126,13 +124,8 @@ public:
 
         if (pd.rank == 0 && 2.0 * pd.h[0] > (pd.bbox.zmax - pd.bbox.zmin) / 2.0)
         {
-            printf("ERROR::SqPatch::init()::SmoothingLength (%.2f) too large (%.2f) (n too small?)\n",
-                   pd.h[0],
+            printf("ERROR::SqPatch::init()::SmoothingLength (%.2f) too large (%.2f) (n too small?)\n", pd.h[0],
                    pd.bbox.zmax - pd.bbox.zmin);
-#ifdef USE_MPI
-            MPI_Finalize();
-            exit(0);
-#endif
         }
     }
 };

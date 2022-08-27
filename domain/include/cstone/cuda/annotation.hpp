@@ -44,3 +44,9 @@
 #else
 #define DEVICE_INLINE
 #endif
+
+#if defined(__CUDACC__) || defined(__HIPCC__)
+#define HOST_DEVICE_INLINE __forceinline__
+#else
+#define HOST_DEVICE_INLINE inline
+#endif

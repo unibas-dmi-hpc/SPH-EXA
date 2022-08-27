@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *               2021 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -33,6 +33,7 @@
 #pragma once
 
 #include <cassert>
+#include <cuda_runtime.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 

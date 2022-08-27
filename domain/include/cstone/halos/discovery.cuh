@@ -58,16 +58,15 @@ namespace cstone
  *                               should be zero-initialized prior to calling this function.
  */
 template<class KeyType, class RadiusType, class CoordinateType>
-__global__ void
-findHalosKernel(const KeyType* leaves,
-                const BinaryNode<KeyType>* binaryTree,
-                const RadiusType* interactionRadii,
-                const Box<CoordinateType> box,
-                TreeNodeIndex firstNode,
-                TreeNodeIndex lastNode,
-                int* collisionFlags)
+__global__ void findHalosKernel(const KeyType* leaves,
+                                const BinaryNode<KeyType>* binaryTree,
+                                const RadiusType* interactionRadii,
+                                const Box<CoordinateType> box,
+                                TreeNodeIndex firstNode,
+                                TreeNodeIndex lastNode,
+                                int* collisionFlags)
 {
-    unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned tid     = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned nodeIdx = firstNode + tid;
 
     if (tid < lastNode - firstNode)
@@ -97,10 +96,10 @@ void findHalosGpu(const KeyType* leaves,
                   int* collisionFlags)
 {
     constexpr unsigned numThreads = 128;
-    unsigned numBlocks = iceil(lastNode - firstNode, numThreads);
+    unsigned numBlocks            = iceil(lastNode - firstNode, numThreads);
 
-    findHalosKernel<<<numBlocks, numThreads>>>
-        (leaves, binaryTree, interactionRadii, box, firstNode, lastNode, collisionFlags);
+    findHalosKernel<<<numBlocks, numThreads>>>(leaves, binaryTree, interactionRadii, box, firstNode, lastNode,
+                                               collisionFlags);
 }
 
 } // namespace cstone

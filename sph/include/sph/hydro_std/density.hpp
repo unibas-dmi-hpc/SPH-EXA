@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,14 +35,14 @@
 #include <vector>
 
 #include "cstone/findneighbors.hpp"
+
+#include "sph/sph_gpu.hpp"
 #include "density_kern.hpp"
-#include "sph/sph.cuh"
-#include "sph/traits.hpp"
 
 namespace sph
 {
 template<class T, class Dataset>
-void computeDensityImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeDensityImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -71,7 +71,8 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
 
         size_t ni = i - startIndex;
 
-        rho[i] = densityJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd);
+        int nc = std::min(neighborsCount[i], ngmax);
+        rho[i] = densityJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd);
 
 #ifndef NDEBUG
         if (std::isnan(rho[i]))
@@ -81,9 +82,9 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
 }
 
 template<class T, class Dataset>
-void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeDensity(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (sphexa::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeDensity(startIndex, endIndex, ngmax, d, box);
     }

@@ -55,14 +55,8 @@ public:
 
         reallocate(multipoles_, octree.numTreeNodes(), 1.05);
 
-        ryoanji::computeGlobalMultipoles(d.x.data(),
-                                         d.y.data(),
-                                         d.z.data(),
-                                         d.m.data(),
-                                         d.x.size(),
-                                         domain.globalTree(),
-                                         domain.focusTree(),
-                                         domain.layout().data(),
+        ryoanji::computeGlobalMultipoles(d.x.data(), d.y.data(), d.z.data(), d.m.data(), d.x.size(),
+                                         domain.globalTree(), domain.focusTree(), domain.layout().data(),
                                          multipoles_.data());
     }
 
@@ -74,20 +68,9 @@ public:
         //! the focused octree, structure only
         const cstone::Octree<KeyType>& octree = focusTree.octree();
 
-        d.egrav = ryoanji::computeGravity(octree,
-                                          focusTree.expansionCenters().data(),
-                                          multipoles_.data(),
-                                          domain.layout().data(),
-                                          domain.startCell(),
-                                          domain.endCell(),
-                                          d.x.data(),
-                                          d.y.data(),
-                                          d.z.data(),
-                                          d.h.data(),
-                                          d.m.data(),
-                                          d.g,
-                                          d.ax.data(),
-                                          d.ay.data(),
+        d.egrav = ryoanji::computeGravity(octree, focusTree.expansionCenters().data(), multipoles_.data(),
+                                          domain.layout().data(), domain.startCell(), domain.endCell(), d.x.data(),
+                                          d.y.data(), d.z.data(), d.h.data(), d.m.data(), d.g, d.ax.data(), d.ay.data(),
                                           d.az.data());
     }
 
@@ -96,12 +79,6 @@ public:
 private:
     std::vector<MType> multipoles_;
 };
-
-template<class ThrustVec>
-typename ThrustVec::value_type* rawPtr(ThrustVec& p);
-
-template<class ThrustVec>
-const typename ThrustVec::value_type* rawPtr(const ThrustVec& p);
 
 template<class MType, class KeyType, class Tc, class Tm, class Tf>
 class MultipoleHolderGpu
@@ -119,30 +96,16 @@ public:
 
         reallocate(multipoles_, octree.numTreeNodes(), 1.05);
 
-        mHolder_.upsweep(rawPtr(d.devData.x),
-                         rawPtr(d.devData.y),
-                         rawPtr(d.devData.z),
-                         rawPtr(d.devData.m),
-                         domain.globalTree(),
-                         domain.focusTree(),
-                         domain.layout().data(),
-                         multipoles_.data());
+        mHolder_.upsweep(rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.m),
+                         domain.globalTree(), domain.focusTree(), domain.layout().data(), multipoles_.data());
     }
 
     template<class Dataset, class Domain>
     void traverse(Dataset& d, const Domain& domain)
     {
-        d.egrav = mHolder_.compute(domain.startIndex(),
-                                   domain.endIndex(),
-                                   rawPtr(d.devData.x),
-                                   rawPtr(d.devData.y),
-                                   rawPtr(d.devData.z),
-                                   rawPtr(d.devData.m),
-                                   rawPtr(d.devData.h),
-                                   d.g,
-                                   rawPtr(d.devData.ax),
-                                   rawPtr(d.devData.ay),
-                                   rawPtr(d.devData.az));
+        d.egrav = mHolder_.compute(domain.startIndex(), domain.endIndex(), rawPtr(d.devData.x), rawPtr(d.devData.y),
+                                   rawPtr(d.devData.z), rawPtr(d.devData.m), rawPtr(d.devData.h), d.g,
+                                   rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az));
     }
 
     const MType* multipoles() const { return multipoles_.data(); }

@@ -41,7 +41,7 @@
 using namespace cstone;
 
 //! @brief check binary node prefixes
-template <class I>
+template<class I>
 void internal4x4x4PrefixTest()
 {
     // a tree with 4 subdivisions along each dimension, 64 nodes
@@ -81,4 +81,3 @@ TEST(BinaryTreeGpu, internalTree4x4x4PrefixTest)
     internal4x4x4PrefixTest<unsigned>();
     internal4x4x4PrefixTest<uint64_t>();
 }
-

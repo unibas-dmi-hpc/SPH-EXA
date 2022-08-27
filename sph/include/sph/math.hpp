@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <array>
 
-#include "sph/util/annotation.hpp"
+#include "cstone/cuda/annotation.hpp"
 
 #define PI 3.14159265358979323846
 
@@ -15,7 +15,7 @@ namespace math
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline T pow(T a, int b)
+HOST_DEVICE_FUN inline T pow(T a, int b)
 {
     if (b == 0)
         return 1;

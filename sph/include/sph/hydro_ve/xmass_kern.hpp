@@ -31,8 +31,11 @@
 
 #pragma once
 
+#include "cstone/cuda/annotation.hpp"
 #include "cstone/sfc/box.hpp"
 
+#include "sph/kernels.hpp"
+#include "sph/math.hpp"
 #include "sph/tables.hpp"
 
 namespace sph
@@ -40,15 +43,15 @@ namespace sph
 
 //! @brief a particular choice of defining generalized volume elements
 template<class T>
-CUDA_DEVICE_HOST_FUN inline T veDefinition(T mass, T rhoZero)
+HOST_DEVICE_FUN inline T veDefinition(T mass, T rhoZero)
 {
     return mass / rhoZero;
 }
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline T xmassJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
-                                         int neighborsCount, const T* x, const T* y, const T* z, const T* h, const T* m,
-                                         const T* wh, const T* whd)
+HOST_DEVICE_FUN inline T xmassJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
+                                    int neighborsCount, const T* x, const T* y, const T* z, const T* h, const T* m,
+                                    const T* wh, const T* whd)
 {
     T xi = x[i];
     T yi = y[i];

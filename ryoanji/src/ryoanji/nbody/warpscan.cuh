@@ -31,37 +31,22 @@
 
 #pragma once
 
-#include "gpu_config.h"
+#include "gpu_config.cuh"
 #include "types.h"
 
 namespace ryoanji
 {
 
 //! @brief there's no int overload for min in AMD ROCM
-__device__ __forceinline__ int imin(int a, int b)
-{
-    return a < b ? a : b;
-}
+__device__ __forceinline__ int imin(int a, int b) { return a < b ? a : b; }
 
-__device__ __forceinline__ int countLeadingZeros(uint32_t x)
-{
-    return __clz(x);
-}
+__device__ __forceinline__ int countLeadingZeros(uint32_t x) { return __clz(x); }
 
-__device__ __forceinline__ int countLeadingZeros(uint64_t x)
-{
-    return __clzll(x);
-}
+__device__ __forceinline__ int countLeadingZeros(uint64_t x) { return __clzll(x); }
 
-__device__ __forceinline__ uint32_t reverseBits(uint32_t x)
-{
-    return __brev(x);
-}
+__device__ __forceinline__ uint32_t reverseBits(uint32_t x) { return __brev(x); }
 
-__device__ __forceinline__ uint64_t reverseBits(uint64_t x)
-{
-    return __brevll(x);
-}
+__device__ __forceinline__ uint64_t reverseBits(uint64_t x) { return __brevll(x); }
 
 template<class T, std::enable_if_t<sizeof(T) == 4 && std::is_integral_v<T>, int> = 0>
 __device__ __forceinline__ int popCount(T x)
@@ -140,7 +125,7 @@ __device__ __forceinline__ GpuConfig::ThreadMask ballotSync(bool flag)
 template<class T>
 __device__ __forceinline__ T warpMin(T laneVal)
 {
-    #pragma unroll
+#pragma unroll
     for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
     {
         laneVal = min(laneVal, shflXorSync(laneVal, 1 << i));
@@ -153,7 +138,7 @@ __device__ __forceinline__ T warpMin(T laneVal)
 template<class T>
 __device__ __forceinline__ T warpMax(T laneVal)
 {
-    #pragma unroll
+#pragma unroll
     for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
     {
         laneVal = max(laneVal, shflXorSync(laneVal, 1 << i));
@@ -166,14 +151,11 @@ __device__ __forceinline__ T warpMax(T laneVal)
 __device__ __forceinline__ int inclusiveScanInt(int value)
 {
     unsigned lane = threadIdx.x & (GpuConfig::warpSize - 1);
-    #pragma unroll
+#pragma unroll
     for (int i = 1; i < GpuConfig::warpSize; i *= 2)
     {
         int partial = shflUpSync(value, i);
-        if (i <= lane)
-        {
-            value += partial;
-        }
+        if (i <= lane) { value += partial; }
     }
     return value;
 }
@@ -187,14 +169,14 @@ __device__ __forceinline__ GpuConfig::ThreadMask lanemask_lt()
 
 __device__ __forceinline__ int exclusiveScanBool(const bool p)
 {
-    using SignedMask = std::make_signed_t<GpuConfig::ThreadMask>;
+    using SignedMask        = std::make_signed_t<GpuConfig::ThreadMask>;
     GpuConfig::ThreadMask b = ballotSync(p);
     return popCount(SignedMask(b & lanemask_lt()));
 }
 
 __device__ __forceinline__ int reduceBool(const bool p)
 {
-    using SignedMask = std::make_signed_t<GpuConfig::ThreadMask>;
+    using SignedMask        = std::make_signed_t<GpuConfig::ThreadMask>;
     GpuConfig::ThreadMask b = ballotSync(p);
     return popCount(SignedMask(b));
 }
@@ -222,15 +204,12 @@ __device__ __forceinline__ GpuConfig::ThreadMask lanemask_le()
 __device__ __forceinline__ int inclusiveSegscan(int value, int distance)
 {
     // distance should be less-equal the lane index
-    assert (distance <= (threadIdx.x & (GpuConfig::warpSize - 1)));
-    #pragma unroll
+    assert(distance <= (threadIdx.x & (GpuConfig::warpSize - 1)));
+#pragma unroll
     for (int i = 1; i < GpuConfig::warpSize; i *= 2)
     {
         int partial = shflUpSync(value, i);
-        if (i <= distance)
-        {
-            value += partial;
-        }
+        if (i <= distance) { value += partial; }
     }
 
     return value;
@@ -247,10 +226,10 @@ __device__ __forceinline__ int inclusiveSegscan(int value, int distance)
  */
 __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const int carryValue)
 {
-    int laneIdx  = int(threadIdx.x) & (GpuConfig::warpSize - 1);
+    int laneIdx = int(threadIdx.x) & (GpuConfig::warpSize - 1);
 
     int isNegative = packedValue < 0;
-    int mask = -isNegative;
+    int mask       = -isNegative;
 
     // value = packedValue if packedValue >= 0
     // value = -packedValue - 1 if packedValue < 0
@@ -260,7 +239,7 @@ __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const 
 
     // distance = number of preceding lanes to include in scanned value
     // e.g. if distance = 0, then no preceding lane value will be added to scannedValue
-    int distance     = countLeadingZeros(flags & lanemask_le()) + laneIdx - (GpuConfig::warpSize - 1);
+    int distance = countLeadingZeros(flags & lanemask_le()) + laneIdx - (GpuConfig::warpSize - 1);
     assert(distance >= 0);
     int scannedValue = inclusiveSegscan(value, imin(distance, laneIdx));
 
@@ -291,7 +270,7 @@ __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const 
 template<class T>
 __device__ __forceinline__ int streamCompact(T* value, bool keep, volatile T* sm_exchange)
 {
-    using SignedMask = std::make_signed_t<GpuConfig::ThreadMask>;
+    using SignedMask                 = std::make_signed_t<GpuConfig::ThreadMask>;
     GpuConfig::ThreadMask keepBallot = ballotSync(keep);
     // exclusive scan of keepBallot
     int laneCompacted = popCount(SignedMask(keepBallot & lanemask_lt()));
@@ -300,7 +279,7 @@ __device__ __forceinline__ int streamCompact(T* value, bool keep, volatile T* sm
     syncWarp();
 
     int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
-    *value = sm_exchange[laneIdx];
+    *value      = sm_exchange[laneIdx];
 
     int numKeep = popCount(SignedMask(keepBallot));
     return numKeep;

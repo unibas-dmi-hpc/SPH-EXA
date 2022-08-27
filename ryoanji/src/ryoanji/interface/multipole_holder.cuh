@@ -61,10 +61,9 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-//extern template class MultipoleHolder<double, double, double, SphericalMultipole<double, 4>>;
-//extern template class MultipoleHolder<double, float, double, SphericalMultipole<double, 4>>;
-//extern template class MultipoleHolder<double, float, double, SphericalMultipole<float, 4>>;
-//extern template class MultipoleHolder<float, float, float, SphericalMultipole<float, 4>>;
-
+// extern template class MultipoleHolder<double, double, double, SphericalMultipole<double, 4>>;
+// extern template class MultipoleHolder<double, float, double, SphericalMultipole<double, 4>>;
+// extern template class MultipoleHolder<double, float, double, SphericalMultipole<float, 4>>;
+// extern template class MultipoleHolder<float, float, float, SphericalMultipole<float, 4>>;
 
 } // namespace ryoanji

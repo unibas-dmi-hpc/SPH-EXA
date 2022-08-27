@@ -35,7 +35,7 @@
 #include <thrust/device_vector.h>
 
 #include "dataset.hpp"
-#include "ryoanji/nbody/gpu_config.h"
+#include "ryoanji/nbody/gpu_config.cuh"
 #include "ryoanji/nbody/direct.cuh"
 #include "ryoanji/nbody/traversal_cpu.hpp"
 
@@ -53,16 +53,8 @@ TEST(DirectSum, MatchCpu)
     thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m, d_h = h;
     thrust::device_vector<T> p(numBodies), ax(numBodies), ay(numBodies), az(numBodies);
 
-    directSum(numBodies,
-              rawPtr(d_x.data()),
-              rawPtr(d_y.data()),
-              rawPtr(d_z.data()),
-              rawPtr(d_m.data()),
-              rawPtr(d_h.data()),
-              rawPtr(p.data()),
-              rawPtr(ax.data()),
-              rawPtr(ay.data()),
-              rawPtr(az.data()));
+    directSum(numBodies, rawPtr(d_x.data()), rawPtr(d_y.data()), rawPtr(d_z.data()), rawPtr(d_m.data()),
+              rawPtr(d_h.data()), rawPtr(p.data()), rawPtr(ax.data()), rawPtr(ay.data()), rawPtr(az.data()));
 
     // download body accelerations
     thrust::host_vector<T> h_p = p, h_ax = ax, h_ay = ay, h_az = az;
@@ -70,16 +62,7 @@ TEST(DirectSum, MatchCpu)
     T G = 1.0;
 
     std::vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
-    directSum(x.data(),
-              y.data(),
-              z.data(),
-              h.data(),
-              m.data(),
-              numBodies,
-              G,
-              refAx.data(),
-              refAy.data(),
-              refAz.data(),
+    directSum(x.data(), y.data(), z.data(), h.data(), m.data(), numBodies, G, refAx.data(), refAy.data(), refAz.data(),
               refP.data());
 
     for (int i = 0; i < numBodies; ++i)

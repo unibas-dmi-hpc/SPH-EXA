@@ -168,7 +168,8 @@ void extractRange()
     std::swap(ordering[0], ordering[1]);
 
     std::vector<double> output(manifest.totalCount());
-    extractRange(manifest, x.data(), ordering.data(), output.data());
+    extractRange(manifest, reinterpret_cast<char*>(x.data()), ordering.data(), reinterpret_cast<char*>(output.data()),
+                 sizeof(double));
 
     // note sorted reference
     std::vector<double> ref{0, 1, 2, 3, 4, 5, 6, 7, 40, 41};
