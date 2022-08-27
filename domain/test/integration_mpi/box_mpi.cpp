@@ -74,29 +74,32 @@ void makeGlobalBox(int rank, int numRanks)
     EXPECT_EQ(box.zmin(), -2 * rVal);
     EXPECT_EQ(box.zmax(), T(-1));
 
+    auto open     = BoundaryType::open;
+    auto periodic = BoundaryType::periodic;
+
     // PBC case
     {
-        Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, true, true};
+        Box<T> pbcBox{0, 1, 0, 1, 0, 1, periodic, periodic, periodic};
         Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
         EXPECT_EQ(pbcBox, newPbcBox);
     }
     // partial PBC
     {
-        Box<T> pbcBox{0, 1, 0, 1, 0, 1, false, true, true};
+        Box<T> pbcBox{0, 1, 0, 1, 0, 1, open, periodic, periodic};
         Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
-        Box<T> refBox{-rVal, rVal, 0, 1, 0, 1, false, true, true};
+        Box<T> refBox{-rVal, rVal, 0, 1, 0, 1, open, periodic, periodic};
         EXPECT_EQ(refBox, newPbcBox);
     }
     {
-        Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, false, true};
+        Box<T> pbcBox{0, 1, 0, 1, 0, 1, periodic, open, periodic};
         Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
-        Box<T> refBox{0, 1, T(1), 2 * rVal, 0, 1, true, false, true};
+        Box<T> refBox{0, 1, T(1), 2 * rVal, 0, 1, periodic, open, periodic};
         EXPECT_EQ(refBox, newPbcBox);
     }
     {
-        Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, true, false};
+        Box<T> pbcBox{0, 1, 0, 1, 0, 1, periodic, periodic, open};
         Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
-        Box<T> refBox{0, 1, 0, 1, -2 * rVal, T(-1), true, true, false};
+        Box<T> refBox{0, 1, 0, 1, -2 * rVal, T(-1), periodic, periodic, open};
         EXPECT_EQ(refBox, newPbcBox);
     }
 }

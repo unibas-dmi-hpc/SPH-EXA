@@ -43,7 +43,7 @@ namespace sphexa
 
 template<class Tc, class Tm>
 std::array<Tc, 3> localGrowthRate(size_t startIndex, size_t endIndex, const Tc* x, const Tc* y, const Tm* vy,
-                                  const Tm* rho, const Tm* m, const Tm* kx, const cstone::Box<Tc>& box)
+                                  const Tm* xm, const Tm* kx, const cstone::Box<Tc>& box)
 {
     const Tc ybox = box.ly();
 
@@ -54,7 +54,7 @@ std::array<Tc, 3> localGrowthRate(size_t startIndex, size_t endIndex, const Tc* 
 #pragma omp parallel for reduction(+ : sumsi, sumci, sumdi)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        Tc voli = m[i] / (rho[i] * kx[i]);
+        Tc voli = xm[i] / kx[i];
         Tc aux;
         if (y[i] > ybox * 0.5) { aux = std::exp(-4.0 * PI * std::abs(y[i] - 0.25)); }
         else { aux = std::exp(-4.0 * PI * std::abs(ybox - y[i] - 0.25)); }
@@ -88,8 +88,8 @@ T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const csto
         throw std::runtime_error("kx was empty. KHGrowthRate only supported with volume elements (--ve)\n");
     }
 
-    std::array<T, 3> localSum = localGrowthRate(
-        startIndex, endIndex, d.x.data(), d.y.data(), d.vy.data(), d.rho.data(), d.m.data(), d.kx.data(), box);
+    std::array<T, 3> localSum =
+        localGrowthRate(startIndex, endIndex, d.x.data(), d.y.data(), d.vy.data(), d.xm.data(), d.kx.data(), box);
 
     int              rootRank = 0;
     std::array<T, 3> sum;

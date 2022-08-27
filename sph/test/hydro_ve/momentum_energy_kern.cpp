@@ -52,7 +52,7 @@ TEST(MomentumEnergy, JLoop)
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-    cstone::Box<T> box(0, 6, 0, 6, 0, 6, false, false, false);
+    cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
@@ -111,40 +111,10 @@ TEST(MomentumEnergy, JLoop)
     T maxvsignal = -1;
 
     // compute gradient for for particle 0
-    momentumAndEnergyJLoop(0,
-                           sincIndex,
-                           K,
-                           box,
-                           neighbors.data(),
-                           neighborsCount,
-                           x.data(),
-                           y.data(),
-                           z.data(),
-                           vx.data(),
-                           vy.data(),
-                           vz.data(),
-                           h.data(),
-                           m.data(),
-                           prho.data(),
-                           c.data(),
-                           c11.data(),
-                           c12.data(),
-                           c13.data(),
-                           c22.data(),
-                           c23.data(),
-                           c33.data(),
-                           Atmin,
-                           Atmax,
-                           ramp,
-                           wh.data(),
-                           whd.data(),
-                           kx.data(),
-                           xm.data(),
-                           alpha.data(),
-                           &grad_Px,
-                           &grad_Py,
-                           &grad_Pz,
-                           &du,
+    momentumAndEnergyJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
+                           vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(), c.data(), c11.data(),
+                           c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), Atmin, Atmax, ramp, wh.data(),
+                           whd.data(), kx.data(), xm.data(), alpha.data(), &grad_Px, &grad_Py, &grad_Pz, &du,
                            &maxvsignal);
 
     EXPECT_NEAR(grad_Px, 4.6852624676440924e-1, 1e-10);

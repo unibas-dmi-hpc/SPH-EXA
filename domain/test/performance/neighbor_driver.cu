@@ -47,7 +47,7 @@ void benchmarkGpu()
 {
     using Integer = typename KeyType::ValueType;
 
-    Box<T> box{0, 1, true};
+    Box<T> box{0, 1, BoundaryType::periodic};
     int n = 2000000;
 
     RandomCoordinates<T, KeyType> coords(n, box);

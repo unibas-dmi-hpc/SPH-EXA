@@ -40,13 +40,20 @@ using namespace cstone;
 
 //! @brief simple N^2 all-to-all neighbor search
 template<class T>
-void all2allNeighbors(const T* x, const T* y, const T* z, const T* h, int n, int* neighbors, int* neighborsCount,
-                      int ngmax, const Box<T>& box)
+void all2allNeighbors(const T* x,
+                      const T* y,
+                      const T* z,
+                      const T* h,
+                      int n,
+                      int* neighbors,
+                      int* neighborsCount,
+                      int ngmax,
+                      const Box<T>& box)
 {
     for (int i = 0; i < n; ++i)
     {
         T radius = 2 * h[i];
-        T r2 = radius * radius;
+        T r2     = radius * radius;
 
         T xi = x[i], yi = y[i], zi = z[i];
 
@@ -74,13 +81,13 @@ void sortNeighbors(int* neighbors, int* neighborsCount, int n, int ngmax)
 TEST(FindNeighbors, distanceSqPbc)
 {
     {
-        Box<double> box{0, 10, 0, 10, 0, 10, false, false, false};
+        Box<double> box(0, 10, BoundaryType::open);
         EXPECT_DOUBLE_EQ(64.0, distanceSqPbc(1., 0., 0., 9., 0., 0., box));
         EXPECT_DOUBLE_EQ(64.0, distanceSqPbc(9., 0., 0., 1., 0., 0., box));
         EXPECT_DOUBLE_EQ(192.0, distanceSqPbc(9., 9., 9., 1., 1., 1., box));
     }
     {
-        Box<double> box{0, 10, 0, 10, 0, 10, true, true, true};
+        Box<double> box(0, 10, BoundaryType::periodic);
         EXPECT_DOUBLE_EQ(4.0, distanceSqPbc(1., 0., 0., 9., 0., 0., box));
         EXPECT_DOUBLE_EQ(4.0, distanceSqPbc(9., 0., 0., 1., 0., 0., box));
         EXPECT_DOUBLE_EQ(12.0, distanceSqPbc(9., 9., 9., 1., 1., 1., box));
@@ -109,15 +116,15 @@ void findNeighborBoxesInterior()
 
     Box<T> bbox(0, 1);
 
-    T x = 1.5 * uL;
-    T y = 1.5 * uL;
-    T z = 1.5 * uL;
-    T radius = 0.867 * uL;
-    T radiusSq = radius * radius;
+    T x            = 1.5 * uL;
+    T y            = 1.5 * uL;
+    T z            = 1.5 * uL;
+    T radius       = 0.867 * uL;
+    T radiusSq     = radius * radius;
     unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
 
     KeyType neighborCodes[27];
-    auto pbi = findNeighborBoxes(x, y, z, radiusSq, level, bbox, neighborCodes);
+    auto pbi   = findNeighborBoxes(x, y, z, radiusSq, level, bbox, neighborCodes);
     int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 27);
@@ -136,10 +143,10 @@ void findNeighborBoxesInterior()
     EXPECT_EQ(probeBoxes, refBoxes);
 
     // now, the 8 farthest corners are not hit any more
-    radius = 0.866 * uL;
+    radius   = 0.866 * uL;
     radiusSq = radius * radius;
-    level = radiusToTreeLevel(radius, bbox.minExtent());
-    pbi = findNeighborBoxes(x, y, z, radiusSq, level, bbox, neighborCodes);
+    level    = radiusToTreeLevel(radius, bbox.minExtent());
+    pbi      = findNeighborBoxes(x, y, z, radiusSq, level, bbox, neighborCodes);
     EXPECT_EQ(pbi[0], 19);
 }
 
@@ -169,14 +176,14 @@ void findNeighborBoxesCorner()
     Box<T> bbox(0, 1);
     T halfUnitDiagonal = 0.867; // slightly more than sqrt(3) / 2
 
-    T x = 0.5 * uL;
-    T y = 0.5 * uL;
-    T z = 0.5 * uL;
-    T radius = halfUnitDiagonal * uL;
+    T x            = 0.5 * uL;
+    T y            = 0.5 * uL;
+    T z            = 0.5 * uL;
+    T radius       = halfUnitDiagonal * uL;
     unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
 
     KeyType neighborCodes[27];
-    auto pbi = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
+    auto pbi   = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
     int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 8);
@@ -213,18 +220,18 @@ void findNeighborBoxesUpperCorner()
     Box<T> bbox(0, 1);
     T halfUnitDiagonal = 0.867; // slightly more than sqrt(3) / 2
 
-    unsigned level = 3;
+    unsigned level    = 3;
     unsigned nodeEdge = 1u << (maxTreeLevel<KeyType>{} - level);
-    T nodeEdgeF = nodeEdge * uL;
+    T nodeEdgeF       = nodeEdge * uL;
 
     // point centered in the level-3 box with coordinates (0, 0, 7)
-    T x = nodeEdgeF / 2;
-    T y = nodeEdgeF / 2;
-    T z = 7.5 * nodeEdgeF;
+    T x      = nodeEdgeF / 2;
+    T y      = nodeEdgeF / 2;
+    T z      = 7.5 * nodeEdgeF;
     T radius = halfUnitDiagonal * nodeEdgeF;
 
     KeyType neighborCodes[27];
-    auto pbi = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
+    auto pbi   = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
     int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 8);
@@ -260,17 +267,17 @@ void findNeighborBoxesCornerPbc()
     // smallest octree cell edge length in unit cube
     constexpr T uL = T(1.) / (1u << maxTreeLevel<KeyType>{});
 
-    Box<T> bbox(0, 1, true);
+    Box<T> bbox(0, 1, BoundaryType::periodic);
 
-    T x = 0.5 * uL;
-    T y = 0.5 * uL;
-    T z = 0.5 * uL;
-    T radius = 0.867 * uL;
+    T x            = 0.5 * uL;
+    T y            = 0.5 * uL;
+    T z            = 0.5 * uL;
+    T radius       = 0.867 * uL;
     unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
 
     KeyType neighborCodes[27];
-    auto pbi = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
-    int nBoxes = pbi[0];
+    auto pbi    = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
+    int nBoxes  = pbi[0];
     int iBoxPbc = pbi[1];
 
     EXPECT_EQ(nBoxes, 8);
@@ -288,7 +295,7 @@ TEST(FindNeighbors, findNeighborBoxesCornerPbc)
 template<class Coordinates, class T>
 void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
 {
-    int n = coords.x().size();
+    int n     = coords.x().size();
     int ngmax = n;
 
     std::vector<T> h(n, radius / 2);
@@ -301,24 +308,25 @@ void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
     std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
 
     auto particleKeys = (typename Coordinates::KeyType*)(coords.particleKeys().data());
-    findNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), 0, n, n, box,
-                  particleKeys, neighborsProbe.data(), neighborsCountProbe.data(), ngmax);
+    findNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), 0, n, n, box, particleKeys,
+                  neighborsProbe.data(), neighborsCountProbe.data(), ngmax);
     sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
 
     EXPECT_EQ(neighborsRef, neighborsProbe);
     EXPECT_EQ(neighborsCountRef, neighborsCountProbe);
 }
 
-class FindNeighborsRandom : public testing::TestWithParam<std::tuple<double, int, std::array<double, 6>, bool>>
+class FindNeighborsRandom
+    : public testing::TestWithParam<std::tuple<double, int, std::array<double, 6>, cstone::BoundaryType>>
 {
 public:
     template<class KeyType, template<class...> class CoordinateKind>
     void check()
     {
-        double radius = std::get<0>(GetParam());
-        int nParticles = std::get<1>(GetParam());
+        double radius                = std::get<0>(GetParam());
+        int nParticles               = std::get<1>(GetParam());
         std::array<double, 6> limits = std::get<2>(GetParam());
-        bool usePbc = std::get<3>(GetParam());
+        cstone::BoundaryType usePbc  = std::get<3>(GetParam());
         Box<double> box{limits[0], limits[1], limits[2], limits[3], limits[4], limits[5], usePbc, usePbc, usePbc};
 
         CoordinateKind<double, KeyType> coords(nParticles, box);
@@ -327,24 +335,30 @@ public:
     }
 };
 
-TEST_P(FindNeighborsRandom, MortonUniform32)   { check<MortonKey<uint32_t>, RandomCoordinates>(); }
-//TEST_P(FindNeighborsRandom, MortonUniform64)   { check<MortonKey<uint64_t>, RandomCoordinates>(); }
-//TEST_P(FindNeighborsRandom, MortonGaussian32)  { check<MortonKey<uint32_t>, RandomGaussianCoordinates>(); }
-//TEST_P(FindNeighborsRandom, MortonGaussian64)  { check<MortonKey<uint64_t>, RandomGaussianCoordinates>(); }
-TEST_P(FindNeighborsRandom, HilbertUniform32)  { check<HilbertKey<uint32_t>, RandomCoordinates>(); }
-//TEST_P(FindNeighborsRandom, HilbertUniform64)  { check<HilbertKey<uint64_t>, RandomCoordinates>(); }
+TEST_P(FindNeighborsRandom, MortonUniform32) { check<MortonKey<uint32_t>, RandomCoordinates>(); }
+// TEST_P(FindNeighborsRandom, MortonUniform64)   { check<MortonKey<uint64_t>, RandomCoordinates>(); }
+// TEST_P(FindNeighborsRandom, MortonGaussian32)  { check<MortonKey<uint32_t>, RandomGaussianCoordinates>(); }
+// TEST_P(FindNeighborsRandom, MortonGaussian64)  { check<MortonKey<uint64_t>, RandomGaussianCoordinates>(); }
+TEST_P(FindNeighborsRandom, HilbertUniform32) { check<HilbertKey<uint32_t>, RandomCoordinates>(); }
+// TEST_P(FindNeighborsRandom, HilbertUniform64)  { check<HilbertKey<uint64_t>, RandomCoordinates>(); }
 TEST_P(FindNeighborsRandom, HilbertGaussian32) { check<HilbertKey<uint32_t>, RandomGaussianCoordinates>(); }
 TEST_P(FindNeighborsRandom, HilbertGaussian64) { check<HilbertKey<uint64_t>, RandomGaussianCoordinates>(); }
 
 std::array<double, 2> radii{0.124, 0.0624};
 std::array<int, 1> nParticles{2500};
 std::array<std::array<double, 6>, 2> boxes{{{0., 1., 0., 1., 0., 1.}, {-1.2, 0.23, -0.213, 3.213, -5.1, 1.23}}};
-std::array<bool, 2> pbcUsage{false, true};
+std::array<cstone::BoundaryType, 2> pbcUsage{BoundaryType::open, BoundaryType::periodic};
 
-INSTANTIATE_TEST_SUITE_P(RandomNeighbors, FindNeighborsRandom,
-                         testing::Combine(testing::ValuesIn(radii), testing::ValuesIn(nParticles),
-                                          testing::ValuesIn(boxes), testing::ValuesIn(pbcUsage)));
+INSTANTIATE_TEST_SUITE_P(RandomNeighbors,
+                         FindNeighborsRandom,
+                         testing::Combine(testing::ValuesIn(radii),
+                                          testing::ValuesIn(nParticles),
+                                          testing::ValuesIn(boxes),
+                                          testing::ValuesIn(pbcUsage)));
 
-INSTANTIATE_TEST_SUITE_P(RandomNeighborsLargeRadius, FindNeighborsRandom,
-                         testing::Combine(testing::Values(3.0), testing::Values(500), testing::ValuesIn(boxes),
+INSTANTIATE_TEST_SUITE_P(RandomNeighborsLargeRadius,
+                         FindNeighborsRandom,
+                         testing::Combine(testing::Values(3.0),
+                                          testing::Values(500),
+                                          testing::ValuesIn(boxes),
                                           testing::ValuesIn(pbcUsage)));

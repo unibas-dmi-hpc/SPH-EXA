@@ -61,7 +61,7 @@ static void generalCollisionTest(const std::vector<KeyType>& tree, const std::ve
     std::vector<std::vector<TreeNodeIndex>> collisions(nNodes(tree));
     for (std::size_t leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
     {
-        T radius = haloRadii[leafIdx];
+        T radius     = haloRadii[leafIdx];
         IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx + 1], radius, box);
 
         auto storeCollisions = [&collisionList = collisions[leafIdx]](TreeNodeIndex i) { collisionList.push_back(i); };
@@ -82,7 +82,7 @@ static void generalCollisionTest(const std::vector<KeyType>& tree, const std::ve
 }
 
 //! @brief an irregular tree with level-3 nodes next to level-1 ones
-template<class I, class T, bool Pbc>
+template<class I, class T, BoundaryType Pbc>
 void irregularTreeTraversal()
 {
     auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0, 7).makeTree();
@@ -94,22 +94,22 @@ void irregularTreeTraversal()
 
 TEST(Collisions, irregularTreeTraversal)
 {
-    irregularTreeTraversal<unsigned, float, false>();
-    irregularTreeTraversal<uint64_t, float, false>();
-    irregularTreeTraversal<unsigned, double, false>();
-    irregularTreeTraversal<uint64_t, double, false>();
+    irregularTreeTraversal<unsigned, float, BoundaryType::open>();
+    irregularTreeTraversal<uint64_t, float, BoundaryType::open>();
+    irregularTreeTraversal<unsigned, double, BoundaryType::open>();
+    irregularTreeTraversal<uint64_t, double, BoundaryType::open>();
 }
 
 TEST(Collisions, irregularTreeTraversalPbc)
 {
-    irregularTreeTraversal<unsigned, float, true>();
-    irregularTreeTraversal<uint64_t, float, true>();
-    irregularTreeTraversal<unsigned, double, true>();
-    irregularTreeTraversal<uint64_t, double, true>();
+    irregularTreeTraversal<unsigned, float, BoundaryType::periodic>();
+    irregularTreeTraversal<uint64_t, float, BoundaryType::periodic>();
+    irregularTreeTraversal<unsigned, double, BoundaryType::periodic>();
+    irregularTreeTraversal<uint64_t, double, BoundaryType::periodic>();
 }
 
 //! @brief a regular tree with level-3 nodes, 8x8x8 grid
-template<class I, class T, bool Pbc>
+template<class I, class T, BoundaryType Pbc>
 void regularTreeTraversal()
 {
     auto tree = makeUniformNLevelTree<I>(512, 1);
@@ -122,18 +122,18 @@ void regularTreeTraversal()
 
 TEST(Collisions, regularTreeTraversal)
 {
-    regularTreeTraversal<unsigned, float, false>();
-    regularTreeTraversal<uint64_t, float, false>();
-    regularTreeTraversal<unsigned, double, false>();
-    regularTreeTraversal<uint64_t, double, false>();
+    regularTreeTraversal<unsigned, float, BoundaryType::open>();
+    regularTreeTraversal<uint64_t, float, BoundaryType::open>();
+    regularTreeTraversal<unsigned, double, BoundaryType::open>();
+    regularTreeTraversal<uint64_t, double, BoundaryType::open>();
 }
 
 TEST(Collisions, regularTreeTraversalPbc)
 {
-    regularTreeTraversal<unsigned, float, true>();
-    regularTreeTraversal<uint64_t, float, true>();
-    regularTreeTraversal<unsigned, double, true>();
-    regularTreeTraversal<uint64_t, double, true>();
+    regularTreeTraversal<unsigned, float, BoundaryType::periodic>();
+    regularTreeTraversal<uint64_t, float, BoundaryType::periodic>();
+    regularTreeTraversal<unsigned, double, BoundaryType::periodic>();
+    regularTreeTraversal<uint64_t, double, BoundaryType::periodic>();
 }
 
 /*! @brief test tree traversal with anisotropic boxes

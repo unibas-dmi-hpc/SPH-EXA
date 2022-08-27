@@ -48,7 +48,7 @@ TEST(Density, JLoop)
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-    cstone::Box<T> box(0, 6, 0, 6, 0, 6, false, false, false);
+    cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
 
     // particle 0 has 4 neighbors
     std::vector<int> clist{0};
@@ -69,19 +69,8 @@ TEST(Density, JLoop)
      * j = 4   7.62102
      */
 
-    T rho = densityJLoop(0,
-                         sincIndex,
-                         K,
-                         box,
-                         neighbors.data(),
-                         neighborsCount,
-                         x.data(),
-                         y.data(),
-                         z.data(),
-                         h.data(),
-                         m.data(),
-                         wh.data(),
-                         whd.data());
+    T rho = densityJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(),
+                         m.data(), wh.data(), whd.data());
 
     EXPECT_NEAR(rho, 0.014286303130604867, 1e-10);
 }
@@ -98,7 +87,7 @@ TEST(Density, JLoopPBC)
 
     // box length in any dimension must be bigger than 4*h for any particle
     // otherwise the PBC evaluation does not select the closest image
-    cstone::Box<T> box(0, 10.5, 0, 10.5, 0, 10.5, true, true, true);
+    cstone::Box<T> box(0, 10.5, cstone::BoundaryType::periodic);
 
     // particle 0 has 4 neighbors
     std::vector<int> clist{0};
@@ -120,19 +109,8 @@ TEST(Density, JLoopPBC)
      * j = 4  15.9367    2.26495
      */
 
-    T rho = densityJLoop(0,
-                         sincIndex,
-                         K,
-                         box,
-                         neighbors.data(),
-                         neighborsCount,
-                         x.data(),
-                         y.data(),
-                         z.data(),
-                         h.data(),
-                         m.data(),
-                         wh.data(),
-                         whd.data());
+    T rho = densityJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(),
+                         m.data(), wh.data(), whd.data());
 
     EXPECT_NEAR(rho, 0.17929212293724384, 1e-10);
 }
