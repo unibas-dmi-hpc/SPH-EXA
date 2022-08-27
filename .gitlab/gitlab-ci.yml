@@ -1,448 +1,272 @@
+# https://gitlab.com/cscs-ci/ci-testing/webhook-ci/gitlab-runner-docker-jfrog.git
 include:
   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.cscs.yml'
 
 stages:
-  - SPHbase
-  - SPHinstall
-  - SPHtest
+  - SPHbase     # no srun (tags=docker_jfrog)
+  - SPHbuild    # no srun (tags=docker_jfrog)
+  - SPHpull     # no srun (tags=docker_jfrog)
+  - SPHtest     # on daint
 
+#{{{ variables
 variables:
-  jfrogtag: 'docker_jfrog'
-  JG_DEPS_PATH: ftp://ftp.cscs.ch/out/jgp/hpc/containers
-  # https://hub.docker.com/r/nvidia/cuda
+  docker_jfrog_tag: 'docker_jfrog'
+  BASE_CUDA: "${CSCS_REGISTRY_PATH}/sph-exa_base:cuda"
+  BASE_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:hip"
+  BASE_SKIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:skip"
+  BUILD_CUDA: "${CSCS_REGISTRY_PATH}/sph-exa_build:cuda"
+  BUILD_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_build:hip"
+  DEPS_PATH: 'ftp://ftp.cscs.ch/out/jgp/hpc/containers'
+  VERBOSE: 'YES'
+  #no: SYSTEM_NAME: '.dom'
+  # REBUILD_BASE_IMAGE: 'YES'
+  # SARUS_VERBOSE: 'YES'
+  # CSCS_REGISTRY_PATH=contbuild/testing/anfink/9590261141699040/
+#}}} 
 
-#{{{ .sph-base
-.sph-base: &sph-base
-  # tag must be 'docker_jfrog'
-  tags:
-    - docker_jfrog
-  before_script:
-    # - echo CI_PROJECT_DIR=$CI_PROJECT_DIR PWD=$PWD
-    - date
-    - sed -i 's@archive.ubuntu.com@ubuntu.ethz.ch@' /etc/apt/sources.list
-    - export TZ=Europe/Zurich DEBIAN_FRONTEND=noninteractive
-    - apt update > /dev/null
-    #
-    - if [ "$VARIANT" = "cuda" ]; then
-        echo "## apt nvcc/11.6 (+gcc9+clang12+make+thrust)";
-        apt install -y --no-install-recommends wget vim-tiny file cuda-nvcc-11-6 clang-12 libomp-12-dev python3-pip zlib1g-dev > /dev/null;
-      fi
-    - if [ "$VARIANT" = "hip" ]; then
-        echo "## apt hipcc/4.5 (+rocthrust-dev +parallel)";
-        apt install -y --no-install-recommends wget vim-tiny file rocthrust-dev time parallel python3-pip > /dev/null;
-      fi
-    - apt clean autoremove > /dev/null
-    #
-    - cd /usr/local/games
-    - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.22.2-linux-x86_64.tar.gz
-    - wget --quiet $JG_DEPS_PATH/m/MPICH/mpich-3.1.4.tar.gz
-    - wget --quiet $JG_DEPS_PATH/h/hdf5/hdf5-1.13.0.tar.bz2
-    - wget --quiet $JG_DEPS_PATH/g/googletest/release-1.11.0.tar.gz
-    - wget --quiet $JG_DEPS_PATH/in/glass.h5
-    #
-    - date; echo "## cmake:"
-    #- cd /usr/local/games
-    - tar xf cmake-3.22.2-linux-x86_64.tar.gz
-    - cp -a cmake-3.22.2-linux-x86_64/bin/* /usr/bin/
-    - cp -a cmake-3.22.2-linux-x86_64/share/cmake-3.22 /usr/share/cmake-3.22
-    - rm -fr cmake-3.22.2-linux-x86_64.tar.gz cmake-3.22.2-linux-x86_64/bin/cmake-gui
-    #
-    - date; echo "## mpich/3.1.4:"
-    #- cd /usr/local/games
-    - tar xf /usr/local/games/mpich-3.1.4.tar.gz
-    - cd mpich-3.1.4/
-    - ./configure --prefix=/usr --enable-fortran=no > /dev/null
-    - make --quiet -j `grep processor /proc/cpuinfo | wc -l` install > /dev/null
-    - cd /usr/local/games
-    - rm -fr mpich-3.1.4 mpich-3.1.4.tar.gz
-    - ldconfig
-    #
-    - date; echo "## hdf5"
-    #- cd /usr/local/games
-    - tar xf hdf5-1.13.0.tar.bz2
-    - cmake 
-      -DCMAKE_C_COMPILER:STRING=mpicc 
-      -DONLY_SHARED_LIBS:BOOL=ON 
-      -DHDF5_BUILD_HL_LIB:BOOL=ON 
-      -DHDF5_ENABLE_Z_LIB_SUPPORT:BOOL=ON 
-      -DBUILD_SHARED_LIBS:BOOL=ON 
-      -DHDF5_ENABLE_PARALLEL:BOOL=ON 
-      -DHDF5_BUILD_TOOLS:BOOL=OFF 
-      -DBUILD_STATIC_LIBS=OFF 
-      -DHDF5_BUILD_EXAMPLES:BOOL=OFF 
-      -DBUILD_TESTING:BOOL=OFF 
-      -DHDF5_ENABLE_SZIP_SUPPORT:BOOL=OFF 
-      -DHDF5_ENABLE_SZIP_ENCODING:BOOL=OFF 
-      -DHDF5_ENABLE_THREADSAFE:BOOL=OFF 
-      -DHDF5_BUILD_CPP_LIB:BOOL=OFF 
-      -DHDF5_BUILD_FORTRAN:BOOL=OFF 
-      -DHDF5_BUILD_JAVA:BOOL=OFF 
-      -S hdf5-1.13.0 -B build > /dev/null
-    - cd build
-    - make --quiet -j `grep processor /proc/cpuinfo | wc -l` install > /dev/null
-    - export CMAKE_PREFIX_PATH=/usr/local/HDF_Group/HDF5/1.13.0/share/cmake:$CMAKE_PREFIX_PATH
-    - cd /usr/local/games
-    - rm -fr hdf5-1.13.0.tar.bz2 hdf5-1.13.0 build
-    - ln -fs /usr/lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
-    - ln -fs /usr/lib/x86_64-linux-gnu/libpthread.so.0 /usr/lib/x86_64-linux-gnu/libpthread.so
-    #
-    - date; echo "## googletest:"
-    #- cd /usr/local/games
-    - tar xf release-1.11.0.tar.gz
-    - rm -f release-1.11.0.tar.gz
-    #
-    - date; echo "## analytical_solutions + reframe:"
-    #-apt install python3-pip
-    - pip install ReFrame-HPC h5py matplotlib
-    #
-    - date; echo "## done"
-#}}}
-#{{{ .sph-base-skip
-.sph-base-skip: &sph-base-skip
-  # tag must be 'docker_jfrog'
-  tags:
-    - docker_jfrog
-  before_script:
-    - echo "skipping build of base image"
-#}}}
-#{{{ .sph-install
-.sph-install: &sph-install
-  # tag must be 'docker_jfrog'
-  tags:
-    - docker_jfrog
-  before_script:
-    - cd $CI_PROJECT_DIR
-    - pwd
-    - echo "## sph"
-    - sed -i "s@GIT_REPOSITORY@SOURCE_DIR /usr/local/games/googletest-release-1.11.0/\n#@" ./domain/cmake/setup_GTest.cmake
-    - sed -i "s@GIT_REPOSITORY@SOURCE_DIR /usr/local/games/googletest-release-1.11.0/\n#@" ./cmake/setup_GTest.cmake
-    - sed -i "s@GIT_REPOSITORY@SOURCE_DIR /usr/local/games/googletest-release-1.11.0/\n#@" ./ryoanji/cmake/setup_GTest.cmake
-    - sed -i "s@GIT_TAG@#GIT_TAG @" ./domain/cmake/setup_GTest.cmake
-    - sed -i "s@GIT_TAG@#GIT_TAG @" ./cmake/setup_GTest.cmake
-    - sed -i "s@GIT_TAG@#GIT_TAG @" ./ryoanji/cmake/setup_GTest.cmake
-    #
-    - if [ "$VARIANT" = "hip" ]; then
-        sed -i '1,7{s/^/### /}' ./src/sedov/CMakeLists.txt;
-        echo "## hipify-perl";
-        date;
-        /usr/bin/time ./.gitlab/hipify.sh;
-        date;
-      fi
-    - date
-    - echo
-      BUILD_TESTING=$BUILD_TESTING
-      BUILD_ANALYTICAL=$BUILD_ANALYTICAL
-      SPH_EXA_WITH_HIP=$SPH_EXA_WITH_HIP
-      CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
-    - export CMAKE_PREFIX_PATH=/usr/local/HDF_Group/HDF5/1.13.0/share/cmake:$CMAKE_PREFIX_PATH
-    - cmake -S . -B build
-      -DCMAKE_CXX_COMPILER=mpicxx
-      -DBUILD_TESTING=$BUILD_TESTING
-      -DBUILD_ANALYTICAL=$BUILD_ANALYTICAL
-      -DSPH_EXA_WITH_HIP=$SPH_EXA_WITH_HIP
-      -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
-    - cd build
-    - make help
-    - make -j `grep processor /proc/cpuinfo | wc -l` install
-    # - make sedov_solution # ./main/src/analytical_solutions/sedov_solution/sedov_solution
-    - date; echo "## done"
-#}}}
-#{{{ .sph-test
-.sph-test: &sph-test
-  extends: .daint
-  # extends: .dom
-  # tag is set in .dom
-  before_script:
-    # /usr/local/bin/evrard <-- (needs input file)
-    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "1" ]; then
-        /usr/local/sbin/performance/scan_perf;echo;
-        /usr/local/sbin/coord_samples/coordinate_test;echo;
-        /usr/local/sbin/hydro/kernel_tests_ve;echo;
-        /usr/local/sbin/hydro/kernel_tests_std;echo;
-        /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests;echo;
-        /usr/local/sbin/unit/component_units;echo;
-        /usr/local/sbin/unit/component_units_omp;echo;
-      fi
-    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "2" ]; then
-        /usr/local/sbin/integration_mpi/domain_2ranks;echo;
-        /usr/local/sbin/integration_mpi/exchange_focus;echo;
-        /usr/local/sbin/integration_mpi/exchange_halos;echo;
-        /usr/local/sbin/integration_mpi/focus_transfer;echo;
-        /usr/local/sbin/integration_mpi/globaloctree;echo;
-      fi
-    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "5" ]; then
-        /usr/local/sbin/integration_mpi/exchange_domain;echo;
-        /usr/local/sbin/integration_mpi/box_mpi;echo;
-        /usr/local/sbin/integration_mpi/focus_tree;echo;
-        /usr/local/sbin/integration_mpi/treedomain;echo;
-        /usr/local/sbin/integration_mpi/domain_nranks;echo;
-        /usr/local/sbin/integration_mpi/exchange_general;echo;
-        /usr/local/sbin/integration_mpi/exchange_keys;echo;
-        /usr/local/sbin/ryoanji/global_upsweep_cpu;echo;
-      fi
-    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "p100" ]; then
-        /usr/local/sbin/performance/hilbert_perf_gpu;echo;
-        /usr/local/sbin/performance/cudaNeighborsTest;echo;
-        /usr/local/sbin/performance/octree_perf_gpu;echo;
-        /usr/local/sbin/unit_cuda/component_units_cuda;echo;
-        /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests;echo;
-      fi
-    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "sphexa_cpu" ]; then
-        export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.0/lib:$LD_LIBRARY_PATH;
-        echo "sedov:cpu";
-        /usr/local/bin/sphexa --init sedov -s 1 -n 50 ;
-        echo "sedov+ve:cpu";
-        /usr/local/bin/sphexa --init sedov --ve -s 1 -n 50 ;
-        echo "noh:cpu";
-        /usr/local/bin/sphexa --init noh -s 1 -n 50 ;
-      fi
-    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "sphexa_gpu" ]; then
-        export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.0/lib:$LD_LIBRARY_PATH;
-        ln -fs /usr/local/bin/sedov_solution . ;
-        echo "sedov:gpu";
-        /usr/local/bin/sphexa-cuda --init sedov -s 200 -n 50 -w 200 --quiet |grep -v "Focus Tree Nodes:";
-        mkdir -p /usr/local/games/src;
-        python3 /usr/local/bin/compare_solutions.py -s 200 ./dump_sedov.h5 > /usr/local/games/src/sedov.rpt;
-        echo "noh:gpu";
-        /usr/local/bin/sphexa-cuda --init noh -s 200 -n 50 -w 200 --quiet |grep -v "Focus Tree Nodes:";
-        mkdir -p /usr/local/games/src;
-        python3 /usr/local/bin/compare_noh.py -s 200 ./dump_noh.h5 > /usr/local/games/src/noh.rpt;
-        echo "evrard:gpu";
-        /usr/local/bin/sphexa-cuda --init evrard --glass /usr/local/games/glass.h5 -s 10 -n 50 -w 10 --quiet |grep -v "Focus Tree Nodes:";
-        echo "rpt:";
-        cat /usr/local/games/src/sedov.rpt /usr/local/games/src/noh.rpt;
-        cp /sources/.gitlab/rfm.py /usr/local/games/rfm.py;
-        reframe -c /usr/local/games/rfm.py -r;
-      fi
-#}}}
-
-#{{{ NOTES
-# file dump_noh.h5
-# dump_noh.h5: Hierarchical Data Format (version 5) data
-#}}}
-
-#{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda
-#{{{ BUILD base image:
-# sph:base:cuda:
-#   # notice the final ':'
-#   stage: SPHbase
-#   extends: .sph-base
-#   image: nvidia/cuda:11.6.0-base-ubuntu20.04
-#   tags: 
-#     - $jfrogtag
-#   script:
-#     - nvcc --version
-#   variables:
-#     VARIANT: 'cuda'
-#     PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
-#}}}
-#{{{ SKIP base image:
+#{{{ sph:base:cuda:
 sph:base:cuda:
-  # notice the final ':'
+  tags:
+    - ${docker_jfrog_tag}
   stage: SPHbase
-  extends: .sph-base-skip
-  image: nvidia/cuda:11.6.0-base-ubuntu20.04
-  tags: 
-    - $jfrogtag
   script:
-    - echo "skipping build of base image"
+    - echo "DOCKERFILE=$DOCKERFILE"
+    - echo "PERSIST_IMAGE_NAME=${PERSIST_IMAGE_NAME}"
   variables:
-    VARIANT: 'cuda'
-    PERSIST_IMAGE_NAME: 'sph-exa_base:skip'
+    # tried with if/else, no success -> must comment/uncomment
+    # ---
+    # DOCKERFILE: '.gitlab/Dockerfile_1'
+    # PERSIST_IMAGE_NAME: "${BASE_CUDA}"
+    # ---
+    DOCKERFILE: '.gitlab/Dockerfile_skip'
+    PERSIST_IMAGE_NAME: "${BASE_SKIP}"
 #}}}
+#{{{ sph:base:hip:
+sph:base:hip:
+  tags:
+    - ${docker_jfrog_tag}
+  stage: SPHbase
+  script:
+    - echo "DOCKERFILE=$DOCKERFILE"
+    - echo "PERSIST_IMAGE_NAME=${PERSIST_IMAGE_NAME}"
+  variables:
+    # tried with if/else, no success -> must comment/uncomment
+    # ---
+    # DOCKERFILE: '.gitlab/Dockerfile_hip_1'
+    # PERSIST_IMAGE_NAME: "${BASE_HIP}"
+    # ---
+    DOCKERFILE: '.gitlab/Dockerfile_skip'
+    PERSIST_IMAGE_NAME: "${BASE_SKIP}"
 #}}}
-#{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda --> sph-exa_install:cuda
-sph:install:cuda:
-  stage: SPHinstall
-  extends: .sph-install
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:cuda
+
+#{{{ sph:build:cuda:
+sph:build:cuda:
   needs: ['sph:base:cuda']
   tags:
-    - $jfrogtag
+    - ${docker_jfrog_tag}
+  stage: SPHbuild
   script:
-    - ls -l /usr/local/bin/
+    - echo "PERSIST_IMAGE_NAME=$PERSIST_IMAGE_NAME"
+  # image: "${BASE_CUDA}"    
+  # /sources
   variables:
-    VARIANT: 'cuda'
-    BUILD_TESTING: 'ON'
-    BUILD_ANALYTICAL: 'ON'
-    SPH_EXA_WITH_HIP: 'OFF'
-    CMAKE_BUILD_TYPE: 'Debug'
-    PERSIST_IMAGE_NAME: 'sph-exa_install:cuda'
-    # TODO: HDF5
-    # TODO: INSITU
-    # TODO: ./sphexa --init evrard_65k.h5 --grav
-#}}}
-
-#{{{ sph:test:cuda:1:
-sph:test:cuda:1:
-  stage: SPHtest
-  extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
-  needs: ['sph:install:cuda']
-  script:
-    - date
-  variables:
-    VARIANT: 'cuda'
-    RUN_VARIANT: '1'
+    # JG: 'YES'
+    DOCKERFILE: '.gitlab/Dockerfile_2'
+    PERSIST_IMAGE_NAME: "${BUILD_CUDA}"
     PULL_IMAGE: 'YES'
     CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
+#}}}
+#{{{ sph:build:hip:
+sph:build:hip:
+  needs: ['sph:base:hip']
+  tags:
+    - ${docker_jfrog_tag}
+  stage: SPHbuild
+  script:
+    - echo "PERSIST_IMAGE_NAME=$PERSIST_IMAGE_NAME"
+  # image: "${BASE_CUDA}"    
+  # /sources
+  variables:
+    DOCKERFILE: '.gitlab/Dockerfile_hip_2'
+    PERSIST_IMAGE_NAME: "${BUILD_HIP}"
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+#}}}    
+
+#{{{ sph:pull:cuda:
+sph:pull:cuda:
+  needs: ['sph:build:cuda']
+  tags:
+    - ${docker_jfrog_tag}
+  # extends: .dom
+  stage: SPHpull
+  image: ${BUILD_CUDA}
+  script:
+    - echo "Pulling image=${BUILD_CUDA}"
+  variables:
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+#}}}
+#{{{ sph:test:cuda:1:
+sph:build:cuda:1:
+  needs: ['sph:pull:cuda']
+  extends: .dom
+  stage: SPHtest
+  image: ${BUILD_CUDA}
+  script:
+    - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
+    - ls -la /usr/local/games/
+    - /usr/local/sbin/coord_samples/coordinate_test
+    - /usr/local/sbin/performance/scan_perf
+    - /usr/local/sbin/coord_samples/coordinate_test
+    - /usr/local/sbin/hydro/kernel_tests_ve
+    - /usr/local/sbin/hydro/kernel_tests_std
+    - /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests
+    - /usr/local/sbin/unit/component_units
+    - /usr/local/sbin/unit/component_units_omp
+  variables:
+    USE_MPI: 'NO'
+    SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
+    PULL_IMAGE: 'NO'
+    # CSCS_REGISTRY_LOGIN: 'YES'
+    # SLURM_PARTITION
+    # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:2:
-sph:test:cuda:2:
+sph:build:cuda:2:
+  needs: ['sph:pull:cuda']
+  extends: .dom
   stage: SPHtest
-  extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
-  needs: ['sph:install:cuda']
+  image: ${BUILD_CUDA}
   script:
-    - date
+    - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
+    - /usr/local/sbin/integration_mpi/domain_2ranks
+    - /usr/local/sbin/integration_mpi/exchange_focus
+    - /usr/local/sbin/integration_mpi/exchange_halos
+    - /usr/local/sbin/integration_mpi/focus_transfer
+    - /usr/local/sbin/integration_mpi/globaloctree
   variables:
-    VARIANT: 'cuda'
-    RUN_VARIANT: '2'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
+    USE_MPI: 'YES'
+    SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 2
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+    PULL_IMAGE: 'NO'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    # SLURM_PARTITION
+    # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:5:
-sph:test:cuda:5:
+sph:build:cuda:5:
+  needs: ['sph:pull:cuda']
+  extends: .dom
   stage: SPHtest
-  extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
-  needs: ['sph:install:cuda']
+  image: ${BUILD_CUDA}
   script:
-    - date
+    - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
+    - /usr/local/sbin/integration_mpi/exchange_domain
+    - /usr/local/sbin/integration_mpi/box_mpi
+    - /usr/local/sbin/integration_mpi/focus_tree
+    - /usr/local/sbin/integration_mpi/treedomain
+    - /usr/local/sbin/integration_mpi/domain_nranks
+    - /usr/local/sbin/integration_mpi/exchange_general
+    - /usr/local/sbin/integration_mpi/exchange_keys
+    - /usr/local/sbin/ryoanji/global_upsweep_cpu
   variables:
-    VARIANT: 'cuda'
-    RUN_VARIANT: '5'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
+    USE_MPI: 'YES'
+    SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 5
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # OMP_NUM_THREADS: 2
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+    PULL_IMAGE: 'NO'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    # SLURM_PARTITION
+    # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:p100:
-sph:test:cuda:p100:
+sph:build:cuda:p100:
+  needs: ['sph:pull:cuda']
+  extends: .dom
   stage: SPHtest
-  extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
-  needs: ['sph:install:cuda']
-  #needs: ['build:ubu:gnu']
+  image: ${BUILD_CUDA}
   script:
-    - date
+    - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
+    - /usr/local/sbin/performance/hilbert_perf_gpu
+    - /usr/local/sbin/performance/cudaNeighborsTest
+    - /usr/local/sbin/performance/octree_perf_gpu
+    - /usr/local/sbin/unit_cuda/component_units_cuda
+    - /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests
   variables:
-    VARIANT: 'cuda'
-    RUN_VARIANT: 'p100'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
+    USE_MPI: 'NO'
+    SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-#}}}
-
-#{{{ sph:test:cuda:sphexa:
-sph:test:cuda:sphexa:cpu:
-  stage: SPHtest
-  extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
-  needs: ['sph:install:cuda']
-  script:
-    - date
-  variables:
-    VARIANT: 'cuda'
-    RUN_VARIANT: 'sphexa_cpu'
-    PULL_IMAGE: 'YES'
+    PULL_IMAGE: 'NO'
     CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 12
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+    # SLURM_PARTITION
+    # SLURM_TIMELIMIT    
 #}}}
-#{{{ sph:test:cuda:sphexa:
-sph:test:cuda:sphexa:gpu:
+#{{{ sph:test:cuda:sphexa:cpu:
+sph:build:cuda:sphexa:cpu:
+  needs: ['sph:pull:cuda']
+  extends: .dom
   stage: SPHtest
-  extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
-  needs: ['sph:install:cuda']
+  image: ${BUILD_CUDA}
   script:
-    - date
+    - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
+    - export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.2/lib:$LD_LIBRARY_PATH
+    - echo "sedov:cpu"
+    - /usr/local/bin/sphexa --init sedov -s 1 -n 50
+    - echo "sedov+ve:cpu"
+    - /usr/local/bin/sphexa --init sedov --ve -s 1 -n 50
+    - echo "noh:cpu"
+    - /usr/local/bin/sphexa --init noh -s 1 -n 50 
   variables:
-    VARIANT: 'cuda'
-    RUN_VARIANT: 'sphexa_gpu'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
+    USE_MPI: 'YES'
+    SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+    PULL_IMAGE: 'NO'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    # SLURM_PARTITION
+    # SLURM_TIMELIMIT    
 #}}}
-
-#{{{ list of tests:
-# NOTE: -s1 means 1 step (was 2 before)
-# G bin/sphexa-cuda <-- sedov-cuda
-# N bin/sedov_solution <-- TODO
-#12 bin/sphexa  <-- sedov
-#   bin/compare_solutions.py
-# -------------------------------------
-# ./sphexa --init sedov -s0 -n50
-# ./sphexa --init noh
-# ./sphexa --init evrard.h5
-# -------------------------------------
-# N sbin/performance/octree_perf
-# N sbin/performance/peers_perf
-# G sbin/performance/hilbert_perf_gpu
-# G sbin/performance/cudaNeighborsTest
-# 1 sbin/performance/scan_perf
-# G sbin/performance/octree_perf_gpu
-# N sbin/performance/hilbert_perf
-#
-# 5 sbin/integration_mpi/exchange_domain
-# 5 sbin/integration_mpi/box_mpi
-# 5 sbin/integration_mpi/focus_tree
-# 2 sbin/integration_mpi/domain_2ranks
-# 2 sbin/integration_mpi/exchange_focus
-# 5 sbin/integration_mpi/treedomain
-# 5 sbin/integration_mpi/domain_nranks
-# 2 sbin/integration_mpi/exchange_halos
-# 2 sbin/integration_mpi/focus_transfer
-# 5 sbin/integration_mpi/exchange_general
-# 5 sbin/integration_mpi/exchange_keys
-# 2 sbin/integration_mpi/globaloctree
-#
-# 1 sbin/coord_samples/coordinate_test
-# 1 sbin/hydro/kernel_tests_ve
-# 1 sbin/hydro/kernel_tests_std
-# G sbin/unit_cuda/component_units_cuda
-# 5 sbin/ryoanji/multi_rank
-# G sbin/ryoanji/unit_tests/ryoanji_unit_tests
-# 1 sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests
-# 1 sbin/unit/component_units
-# 1 sbin/unit/component_units_omp
-#
-# TODO: cp ./dump_sedov200.txt file before container ends!
+#{{{ sph:test:cuda:sphexa:gpu:
+# TODO: MPICH_RDMA_ENABLED_CUDA=1 LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcuda.so
+sph:build:cuda:sphexa:gpu:
+  needs: ['sph:pull:cuda']
+  extends: .dom
+  stage: SPHtest
+  image: ${BUILD_CUDA}
+  script:
+    - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
+    - export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.2/lib:$LD_LIBRARY_PATH
+    - ln -fs /usr/local/bin/sedov_solution .
+    - echo "# --- sedov:gpu"
+    - /usr/local/bin/sphexa-cuda --init sedov -f rho,p,u,x,y,z,vx,vy,vz -s 200 -n 50 -w 200 --outDir /scratch/ --quiet |grep -v "Focus Tree Nodes:"
+    - python3 /usr/local/bin/compare_solutions.py -s 200 /scratch/dump_sedov.h5 > /scratch/sedov.rpt
+    #
+    - echo "# --- noh:gpu"
+    - /usr/local/bin/sphexa-cuda --init noh -f rho,p,u,x,y,z,vx,vy,vz -s 200 -n 50 -w 200 --outDir /scratch/ --quiet |grep -v "Focus Tree Nodes:"
+    - python3 /usr/local/bin/compare_noh.py -s 200 /scratch/dump_noh.h5 > /scratch/noh.rpt
+    - echo "# --- evrard:gpu"
+    - wget --quiet ${DEPS_PATH}/in/glass.h5
+    - /usr/local/bin/sphexa-cuda --init evrard --glass ./glass.h5 -s 10 -n 50 -w 10 --outDir /scratch/ --quiet |grep -v "Focus Tree Nodes:"
+    - echo "# --- rpt:"
+    - cat /scratch/sedov.rpt
+    - cat /scratch/noh.rpt
+    # - cp /sources/.gitlab/rfm.py /usr/local/games/rfm.py
+    - pwd
+    - ls -la
+    - cp .gitlab/rfm.py /usr/local/games/rfm.py
+    - reframe -c /usr/local/games/rfm.py -r -S rpt_path=/scratch
+  variables:
+    USE_MPI: 'YES'
+    SLURM_CONSTRAINT: 'gpu'
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 1
+    PULL_IMAGE: 'NO'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    # SLURM_PARTITION
+    # SLURM_TIMELIMIT    
 #}}}
