@@ -37,7 +37,6 @@
 
 #include "io/mpi_file_utils.hpp"
 #include "isim_init.hpp"
-#include "fixed_boundaries.hpp"
 
 namespace sphexa
 {
@@ -56,7 +55,8 @@ public:
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t /*n*/, Dataset& d) const override
     {
-        using T = typename Dataset::RealType;
+        using T        = typename Dataset::RealType;
+        using Boundary = cstone::BoundaryType;
 
         H5PartFile* h5_file    = fileutils::openH5Part(h5_fname, H5PART_READ, d.comm);
         size_t      numH5Steps = H5PartGetNumSteps(h5_file);
@@ -79,18 +79,12 @@ public:
 
         double extents[6];
         H5PartReadStepAttrib(h5_file, "box", extents);
-        int boundaries[3];
-        H5PartReadStepAttrib(h5_file, "boundaryType", boundaries);
+        h5part_int32_t b[3];
+        H5PartReadStepAttrib(h5_file, "boundaryType", b);
+        Boundary boundary[3] = {static_cast<Boundary>(b[0]), static_cast<Boundary>(b[1]), static_cast<Boundary>(b[2])};
 
-        cstone::Box<T> box(extents[0],
-                           extents[1],
-                           extents[2],
-                           extents[3],
-                           extents[4],
-                           extents[5],
-                           static_cast<cstone::BoundaryType>(boundaries[0]),
-                           static_cast<cstone::BoundaryType>(boundaries[1]),
-                           static_cast<cstone::BoundaryType>(boundaries[2]));
+        cstone::Box<T> box(extents[0], extents[1], extents[2], extents[3], extents[4], extents[5], boundary[0],
+                           boundary[1], boundary[2]);
 
         d.resize(count);
 
@@ -171,7 +165,6 @@ private:
             }
         }
     }
-
 };
 
 } // namespace sphexa

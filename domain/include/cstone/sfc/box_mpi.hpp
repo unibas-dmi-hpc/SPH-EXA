@@ -84,9 +84,9 @@ auto makeGlobalBox(Iterator xB, Iterator xE, Iterator yB, Iterator zB, const Box
 {
     std::size_t nElements = xE - xB;
 
-    bool pbcX = (previousBox.boundaryX() == cstone::BoundaryType::periodic);
-    bool pbcY = (previousBox.boundaryY() == cstone::BoundaryType::periodic);
-    bool pbcZ = (previousBox.boundaryZ() == cstone::BoundaryType::periodic);
+    bool pbcX = (previousBox.boundaryX() == BoundaryType::periodic);
+    bool pbcY = (previousBox.boundaryY() == BoundaryType::periodic);
+    bool pbcZ = (previousBox.boundaryZ() == BoundaryType::periodic);
 
     std::array<T, 6> extrema;
     std::tie(extrema[0], extrema[1]) =

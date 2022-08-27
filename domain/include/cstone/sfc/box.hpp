@@ -158,7 +158,6 @@ public:
     HOST_DEVICE_FUN constexpr BoundaryType boundaryY() const { return boundaries[1]; } // NOLINT
     HOST_DEVICE_FUN constexpr BoundaryType boundaryZ() const { return boundaries[2]; } // NOLINT
 
-
     //! @brief return the shortest coordinate range in any dimension
     HOST_DEVICE_FUN constexpr T minExtent() const { return stl::min(stl::min(lengths_[0], lengths_[1]), lengths_[2]); }
 
@@ -185,9 +184,9 @@ private:
 template<class T>
 HOST_DEVICE_FUN inline Vec3<T> applyPbc(Vec3<T> X, const Box<T>& box)
 {
-    bool pbcX = (box.boundaryX() == cstone::BoundaryType::periodic);
-    bool pbcY = (box.boundaryY() == cstone::BoundaryType::periodic);
-    bool pbcZ = (box.boundaryZ() == cstone::BoundaryType::periodic);
+    bool pbcX = (box.boundaryX() == BoundaryType::periodic);
+    bool pbcY = (box.boundaryY() == BoundaryType::periodic);
+    bool pbcZ = (box.boundaryZ() == BoundaryType::periodic);
 
     X[0] -= pbcX * box.lx() * std::rint(X[0] * box.ilx());
     X[1] -= pbcY * box.ly() * std::rint(X[1] * box.ily());
@@ -200,10 +199,9 @@ HOST_DEVICE_FUN inline Vec3<T> applyPbc(Vec3<T> X, const Box<T>& box)
 template<class T>
 HOST_DEVICE_FUN inline void applyPBC(const cstone::Box<T>& box, T r, T& xx, T& yy, T& zz)
 {
-
-    bool pbcX = (box.boundaryX() == cstone::BoundaryType::periodic);
-    bool pbcY = (box.boundaryY() == cstone::BoundaryType::periodic);
-    bool pbcZ = (box.boundaryZ() == cstone::BoundaryType::periodic);
+    bool pbcX = (box.boundaryX() == BoundaryType::periodic);
+    bool pbcY = (box.boundaryY() == BoundaryType::periodic);
+    bool pbcZ = (box.boundaryZ() == BoundaryType::periodic);
 
     if (pbcX && xx > r)
         xx -= box.lx();
@@ -219,10 +217,6 @@ HOST_DEVICE_FUN inline void applyPBC(const cstone::Box<T>& box, T r, T& xx, T& y
         zz -= box.lz();
     else if (pbcZ && zz < -r)
         zz += box.lz();
-
-    // xx += bbox.PBCx * ((xx < -r) - (xx > r)) * (bbox.xmax-bbox.xmin);
-    // yy += bbox.PBCy * ((yy < -r) - (yy > r)) * (bbox.ymax-bbox.ymin);
-    // zz += bbox.PBCz * ((zz < -r) - (zz > r)) * (bbox.zmax-bbox.zmin);
 }
 
 template<class T>

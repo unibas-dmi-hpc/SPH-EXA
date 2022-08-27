@@ -82,7 +82,7 @@ static void generalCollisionTest(const std::vector<KeyType>& tree, const std::ve
 }
 
 //! @brief an irregular tree with level-3 nodes next to level-1 ones
-template<class I, class T, cstone::BoundaryType Pbc>
+template<class I, class T, BoundaryType Pbc>
 void irregularTreeTraversal()
 {
     auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0, 7).makeTree();
@@ -94,22 +94,22 @@ void irregularTreeTraversal()
 
 TEST(Collisions, irregularTreeTraversal)
 {
-    irregularTreeTraversal<unsigned, float, cstone::BoundaryType::open>();
-    irregularTreeTraversal<uint64_t, float, cstone::BoundaryType::open>();
-    irregularTreeTraversal<unsigned, double, cstone::BoundaryType::open>();
-    irregularTreeTraversal<uint64_t, double, cstone::BoundaryType::open>();
+    irregularTreeTraversal<unsigned, float, BoundaryType::open>();
+    irregularTreeTraversal<uint64_t, float, BoundaryType::open>();
+    irregularTreeTraversal<unsigned, double, BoundaryType::open>();
+    irregularTreeTraversal<uint64_t, double, BoundaryType::open>();
 }
 
 TEST(Collisions, irregularTreeTraversalPbc)
 {
-    irregularTreeTraversal<unsigned, float, cstone::BoundaryType::periodic>();
-    irregularTreeTraversal<uint64_t, float, cstone::BoundaryType::periodic>();
-    irregularTreeTraversal<unsigned, double, cstone::BoundaryType::periodic>();
-    irregularTreeTraversal<uint64_t, double, cstone::BoundaryType::periodic>();
+    irregularTreeTraversal<unsigned, float, BoundaryType::periodic>();
+    irregularTreeTraversal<uint64_t, float, BoundaryType::periodic>();
+    irregularTreeTraversal<unsigned, double, BoundaryType::periodic>();
+    irregularTreeTraversal<uint64_t, double, BoundaryType::periodic>();
 }
 
 //! @brief a regular tree with level-3 nodes, 8x8x8 grid
-template<class I, class T, cstone::BoundaryType Pbc>
+template<class I, class T, BoundaryType Pbc>
 void regularTreeTraversal()
 {
     auto tree = makeUniformNLevelTree<I>(512, 1);
@@ -122,18 +122,18 @@ void regularTreeTraversal()
 
 TEST(Collisions, regularTreeTraversal)
 {
-    regularTreeTraversal<unsigned, float, cstone::BoundaryType::open>();
-    regularTreeTraversal<uint64_t, float, cstone::BoundaryType::open>();
-    regularTreeTraversal<unsigned, double, cstone::BoundaryType::open>();
-    regularTreeTraversal<uint64_t, double, cstone::BoundaryType::open>();
+    regularTreeTraversal<unsigned, float, BoundaryType::open>();
+    regularTreeTraversal<uint64_t, float, BoundaryType::open>();
+    regularTreeTraversal<unsigned, double, BoundaryType::open>();
+    regularTreeTraversal<uint64_t, double, BoundaryType::open>();
 }
 
 TEST(Collisions, regularTreeTraversalPbc)
 {
-    regularTreeTraversal<unsigned, float, cstone::BoundaryType::periodic>();
-    regularTreeTraversal<uint64_t, float, cstone::BoundaryType::periodic>();
-    regularTreeTraversal<unsigned, double, cstone::BoundaryType::periodic>();
-    regularTreeTraversal<uint64_t, double, cstone::BoundaryType::periodic>();
+    regularTreeTraversal<unsigned, float, BoundaryType::periodic>();
+    regularTreeTraversal<uint64_t, float, BoundaryType::periodic>();
+    regularTreeTraversal<unsigned, double, BoundaryType::periodic>();
+    regularTreeTraversal<uint64_t, double, BoundaryType::periodic>();
 }
 
 /*! @brief test tree traversal with anisotropic boxes

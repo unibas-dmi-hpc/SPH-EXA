@@ -81,22 +81,13 @@ void sortNeighbors(int* neighbors, int* neighborsCount, int n, int ngmax)
 TEST(FindNeighbors, distanceSqPbc)
 {
     {
-        Box<double> box{
-            0, 10, 0, 10, 0, 10, cstone::BoundaryType::open, cstone::BoundaryType::open, cstone::BoundaryType::open};
+        Box<double> box(0, 10, BoundaryType::open);
         EXPECT_DOUBLE_EQ(64.0, distanceSqPbc(1., 0., 0., 9., 0., 0., box));
         EXPECT_DOUBLE_EQ(64.0, distanceSqPbc(9., 0., 0., 1., 0., 0., box));
         EXPECT_DOUBLE_EQ(192.0, distanceSqPbc(9., 9., 9., 1., 1., 1., box));
     }
     {
-        Box<double> box{0,
-                        10,
-                        0,
-                        10,
-                        0,
-                        10,
-                        cstone::BoundaryType::periodic,
-                        cstone::BoundaryType::periodic,
-                        cstone::BoundaryType::periodic};
+        Box<double> box(0, 10, BoundaryType::periodic);
         EXPECT_DOUBLE_EQ(4.0, distanceSqPbc(1., 0., 0., 9., 0., 0., box));
         EXPECT_DOUBLE_EQ(4.0, distanceSqPbc(9., 0., 0., 1., 0., 0., box));
         EXPECT_DOUBLE_EQ(12.0, distanceSqPbc(9., 9., 9., 1., 1., 1., box));
@@ -276,7 +267,7 @@ void findNeighborBoxesCornerPbc()
     // smallest octree cell edge length in unit cube
     constexpr T uL = T(1.) / (1u << maxTreeLevel<KeyType>{});
 
-    Box<T> bbox(0, 1, cstone::BoundaryType::periodic);
+    Box<T> bbox(0, 1, BoundaryType::periodic);
 
     T x            = 0.5 * uL;
     T y            = 0.5 * uL;
@@ -356,7 +347,7 @@ TEST_P(FindNeighborsRandom, HilbertGaussian64) { check<HilbertKey<uint64_t>, Ran
 std::array<double, 2> radii{0.124, 0.0624};
 std::array<int, 1> nParticles{2500};
 std::array<std::array<double, 6>, 2> boxes{{{0., 1., 0., 1., 0., 1.}, {-1.2, 0.23, -0.213, 3.213, -5.1, 1.23}}};
-std::array<cstone::BoundaryType, 2> pbcUsage{cstone::BoundaryType::open, cstone::BoundaryType::periodic};
+std::array<cstone::BoundaryType, 2> pbcUsage{BoundaryType::open, BoundaryType::periodic};
 
 INSTANTIATE_TEST_SUITE_P(RandomNeighbors,
                          FindNeighborsRandom,

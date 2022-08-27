@@ -123,9 +123,9 @@ findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned level, const Box<T>& bbox,
     constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
     int cubeLength         = maxCoord >> level;
 
-    bool pbcX = (bbox.boundaryX() == cstone::BoundaryType::periodic);
-    bool pbcY = (bbox.boundaryY() == cstone::BoundaryType::periodic);
-    bool pbcZ = (bbox.boundaryZ() == cstone::BoundaryType::periodic);
+    bool pbcX = (bbox.boundaryX() == BoundaryType::periodic);
+    bool pbcY = (bbox.boundaryY() == BoundaryType::periodic);
+    bool pbcZ = (bbox.boundaryZ() == BoundaryType::periodic);
 
     int mask = ~(cubeLength - 1);
     int ix   = stl::min(int((x - bbox.xmin()) * maxCoord * bbox.ilx()), maxCoord - 1) & mask;
