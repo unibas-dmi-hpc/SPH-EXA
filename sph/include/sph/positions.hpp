@@ -46,6 +46,16 @@ HOST_DEVICE_FUN bool fbcCheck(Tc coord, Th h, Tc top, Tc bottom, bool fbc)
     return fbc && (std::abs(top - coord) < Th(2) * h || std::abs(bottom - coord) < Th(2) * h);
 }
 
+template<class T1, class T2>
+HOST_DEVICE_FUN T2 energyUpdate(T1 dt, T1 dt_m1, T2 du, T2 du_m1)
+{
+    // Update the energy according to Adams-Bashforth (2nd order)
+    T1 deltaA = 0.5 * dt * dt / dt_m1;
+    T1 deltaB = dt + deltaA;
+
+    return du * deltaB - du_m1 * deltaA;
+}
+
 template<class T, class Dataset>
 void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
@@ -153,12 +163,7 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         vy[i]   = V[1];
         vz[i]   = V[2];
 
-        // Update the energy according to Adams-Bashforth (2nd order)
-        deltaA = 0.5 * dt * dt / dt_m1;
-        deltaB = dt + deltaA;
-
-        u[i] += du[i] * deltaB - du_m1[i] * deltaA;
-
+        u[i] += energyUpdate(dt, dt_m1, du[i], du_m1[i]);
         du_m1[i] = du[i];
 
 #ifndef NDEBUG
