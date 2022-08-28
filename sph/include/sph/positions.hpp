@@ -46,10 +46,10 @@ HOST_DEVICE_FUN bool fbcCheck(Tc coord, Th h, Tc top, Tc bottom, bool fbc)
     return fbc && (std::abs(top - coord) < Th(2) * h || std::abs(bottom - coord) < Th(2) * h);
 }
 
+//! @brief update the energy according to Adams-Bashforth (2nd order)
 template<class T1, class T2>
 HOST_DEVICE_FUN T2 energyUpdate(T1 dt, T1 dt_m1, T2 du, T2 du_m1)
 {
-    // Update the energy according to Adams-Bashforth (2nd order)
     T1 deltaA = 0.5 * dt * dt / dt_m1;
     T1 deltaB = dt + deltaA;
 
@@ -111,67 +111,22 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 
         Vec3T Val = (X - X_m1) * (T(1) / dt_m1);
 
-#ifndef NDEBUG
-        if (std::isnan(A[0]) || std::isnan(A[1]) || std::isnan(A[2]))
-        {
-            printf("ERROR::UpdateQuantities(%lu) acceleration: (%f %f %f)\n", i, A[0], A[1], A[2]);
-        }
-#endif
-
         Vec3T V = Val + A * deltaA;
         X_m1    = X;
         X += dt * Val + A * deltaB * dt;
 
-        if (pbcX && X[0] < box.xmin())
-        {
-            X[0] += box.lx();
-            X_m1[0] += box.lx();
-        }
-        else if (pbcX && X[0] > box.xmax())
-        {
-            X[0] -= box.lx();
-            X_m1[0] -= box.lx();
-        }
-        if (pbcY && X[1] < box.ymin())
-        {
-            X[1] += box.ly();
-            X_m1[1] += box.ly();
-        }
-        else if (pbcY && X[1] > box.ymax())
-        {
-            X[1] -= box.ly();
-            X_m1[1] -= box.ly();
-        }
-        if (pbcZ && X[2] < box.zmin())
-        {
-            X[2] += box.lz();
-            X_m1[2] += box.lz();
-        }
-        else if (pbcZ && X[2] > box.zmax())
-        {
-            X[2] -= box.lz();
-            X_m1[2] -= box.lz();
-        }
+        Vec3T Xpbc = cstone::applyPbc(X, box);
+        X_m1 += Xpbc - X;
+        X = Xpbc;
 
-        x[i]    = X[0];
-        y[i]    = X[1];
-        z[i]    = X[2];
-        x_m1[i] = X_m1[0];
-        y_m1[i] = X_m1[1];
-        z_m1[i] = X_m1[2];
-        vx[i]   = V[0];
-        vy[i]   = V[1];
-        vz[i]   = V[2];
+        util::tie(x[i], y[i], z[i])          = util::tie(X[0], X[1], X[2]);
+        util::tie(x_m1[i], y_m1[i], z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
+        util::tie(vx[i], vy[i], vz[i])       = util::tie(V[0], V[1], V[2]);
 
         u[i] += energyUpdate(dt, dt_m1, du[i], du_m1[i]);
         du_m1[i] = du[i];
-
-#ifndef NDEBUG
-        if (std::isnan(u[i]) || u[i] < 0.0)
-            printf("ERROR::UpdateQuantities(%lu) internal energy: u %f du %f dB %f du_m1 %f dA %f\n", i, u[i], du[i],
-                   deltaB, du_m1[i], deltaA);
-#endif
     }
 }
 
 } // namespace sph
+
