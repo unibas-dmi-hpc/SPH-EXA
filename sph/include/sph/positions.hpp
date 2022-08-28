@@ -56,6 +56,27 @@ HOST_DEVICE_FUN T2 energyUpdate(T1 dt, T1 dt_m1, T2 du, T2 du_m1)
     return du * deltaB - du_m1 * deltaA;
 }
 
+//! @brief Update positions according to Press (2nd order)
+template<class T, class Tc, class Ta, class Tm1>
+HOST_DEVICE_FUN auto positionUpdate(T dt, T dt_m1, cstone::Vec3<Tc> X, cstone::Vec3<Ta> A, cstone::Vec3<Tm1> X_m1,
+                                    const cstone::Box<Tc>& box)
+{
+    T deltaA = dt + T(0.5) * dt_m1;
+    T deltaB = T(0.5) * (dt + dt_m1);
+
+    auto Val = (X - X_m1) * (T(1) / dt_m1);
+
+    auto V = Val + A * deltaA;
+    X_m1   = X;
+    X += dt * Val + A * deltaB * dt;
+
+    auto Xpbc = cstone::applyPbc(X, box);
+    X_m1 += Xpbc - X;
+    X = Xpbc;
+
+    return util::tuple<cstone::Vec3<Tc>, cstone::Vec3<Tc>, cstone::Vec3<Tm1>>{X, V, X_m1};
+}
+
 template<class T, class Dataset>
 void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
@@ -63,24 +84,20 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
     T dt        = d.minDt;
     T dt_m1     = d.minDt_m1;
 
-    const T* du = d.du.data();
+    const auto* du = d.du.data();
+    const auto* h  = d.h.data();
 
-    T* x     = d.x.data();
-    T* y     = d.y.data();
-    T* z     = d.z.data();
-    T* vx    = d.vx.data();
-    T* vy    = d.vy.data();
-    T* vz    = d.vz.data();
-    T* x_m1  = d.x_m1.data();
-    T* y_m1  = d.y_m1.data();
-    T* z_m1  = d.z_m1.data();
-    T* u     = d.u.data();
-    T* du_m1 = d.du_m1.data();
-    T* h     = d.h.data();
-
-    bool pbcX = (box.boundaryX() == cstone::BoundaryType::periodic);
-    bool pbcY = (box.boundaryY() == cstone::BoundaryType::periodic);
-    bool pbcZ = (box.boundaryZ() == cstone::BoundaryType::periodic);
+    auto* x     = d.x.data();
+    auto* y     = d.y.data();
+    auto* z     = d.z.data();
+    auto* vx    = d.vx.data();
+    auto* vy    = d.vy.data();
+    auto* vz    = d.vz.data();
+    auto* x_m1  = d.x_m1.data();
+    auto* y_m1  = d.y_m1.data();
+    auto* z_m1  = d.z_m1.data();
+    auto* u     = d.u.data();
+    auto* du_m1 = d.du_m1.data();
 
     bool fbcX = (box.boundaryX() == cstone::BoundaryType::fixed);
     bool fbcY = (box.boundaryY() == cstone::BoundaryType::fixed);
@@ -104,20 +121,8 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         Vec3T A{d.ax[i], d.ay[i], d.az[i]};
         Vec3T X{x[i], y[i], z[i]};
         Vec3T X_m1{x_m1[i], y_m1[i], z_m1[i]};
-
-        // Update positions according to Press (2nd order)
-        T deltaA = dt + T(0.5) * dt_m1;
-        T deltaB = T(0.5) * (dt + dt_m1);
-
-        Vec3T Val = (X - X_m1) * (T(1) / dt_m1);
-
-        Vec3T V = Val + A * deltaA;
-        X_m1    = X;
-        X += dt * Val + A * deltaB * dt;
-
-        Vec3T Xpbc = cstone::applyPbc(X, box);
-        X_m1 += Xpbc - X;
-        X = Xpbc;
+        Vec3T V;
+        util::tie(X, V, X_m1) = positionUpdate(dt, dt_m1, X, A, X_m1, box);
 
         util::tie(x[i], y[i], z[i])          = util::tie(X[0], X[1], X[2]);
         util::tie(x_m1[i], y_m1[i], z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
