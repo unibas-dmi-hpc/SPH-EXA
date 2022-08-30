@@ -5,6 +5,7 @@ add_subdirectory(hydro_ve)
 if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     add_library(sph_gpu
             positions_gpu.cu
+            update_h_gpu.cu
             $<TARGET_OBJECTS:hydro_std_gpu>
             $<TARGET_OBJECTS:hydro_turb_gpu>
             $<TARGET_OBJECTS:hydro_ve_gpu>)
