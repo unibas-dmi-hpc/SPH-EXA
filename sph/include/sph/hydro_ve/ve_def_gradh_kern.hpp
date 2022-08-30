@@ -42,9 +42,10 @@ namespace sph
 {
 
 template<typename T>
-HOST_DEVICE_FUN inline util::tuple<T, T>
-veDefGradhJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
-                const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, const T* xm)
+HOST_DEVICE_FUN inline util::tuple<T, T> veDefGradhJLoop(cstone::LocalIndex i, T sincIndex, T K,
+                                                         const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
+                                                         unsigned neighborsCount, const T* x, const T* y, const T* z,
+                                                         const T* h, const T* m, const T* wh, const T* whd, const T* xm)
 {
     T xi     = x[i];
     T yi     = y[i];
@@ -61,15 +62,16 @@ veDefGradhJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
     T whomegai = -T(3) * xmassi;
     T wrho0i   = -T(3) * mi;
 
-    for (int pj = 0; pj < neighborsCount; ++pj)
+    for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
-        int j      = neighbors[pj];
-        T   dist   = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
-        T   vloc   = dist * hInv;
-        T   w      = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
-        T   dw     = wharmonic_derivative(vloc, w) * sincIndex;
-        T   dterh  = -(T(3) * w + vloc * dw);
-        T   xmassj = xm[j];
+        cstone::LocalIndex j = neighbors[pj];
+
+        T dist   = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
+        T vloc   = dist * hInv;
+        T w      = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
+        T dw     = wharmonic_derivative(vloc, w) * sincIndex;
+        T dterh  = -(T(3) * w + vloc * dw);
+        T xmassj = xm[j];
 
         kxi += w * xmassj;
         whomegai += dterh * xmassj;

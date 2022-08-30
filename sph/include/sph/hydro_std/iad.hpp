@@ -39,10 +39,10 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeIADImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIADImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    const int* neighbors      = d.neighbors.data();
-    const int* neighborsCount = d.nc.data();
+    const cstone::LocalIndex* neighbors      = d.neighbors.data();
+    const unsigned*           neighborsCount = d.nc.data();
 
     const T* h   = d.h.data();
     const T* m   = d.m.data();
@@ -67,15 +67,15 @@ void computeIADImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, c
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
-        size_t ni = i - startIndex;
-        int    nc = std::min(neighborsCount[i], ngmax);
+        size_t   ni = i - startIndex;
+        unsigned nc = std::min(neighborsCount[i], ngmax);
         IADJLoopSTD(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22,
                     c23, c33);
     }
 }
 
 template<class T, class Dataset>
-void computeIAD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIAD(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

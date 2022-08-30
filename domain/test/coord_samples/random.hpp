@@ -203,8 +203,8 @@ private:
 //! @brief can be used to calculate reasonable smoothing lengths for each particle
 template<class KeyType, class Tc, class Th>
 void adjustSmoothingLength(LocalIndex numParticles,
-                           int ng0,
-                           int ngmax,
+                           unsigned ng0,
+                           unsigned ngmax,
                            const std::vector<Tc>& xGlob,
                            const std::vector<Tc>& yGlob,
                            const std::vector<Tc>& zGlob,
@@ -238,8 +238,8 @@ void adjustSmoothingLength(LocalIndex numParticles,
     std::vector<LocalIndex> orderCpy = ordering;
     sort_by_key(orderCpy.begin(), orderCpy.end(), inverseOrdering.begin());
 
-    std::vector<int> neighbors(numParticles * ngmax);
-    std::vector<int> neighborCounts(numParticles);
+    std::vector<cstone::LocalIndex> neighbors(numParticles * ngmax);
+    std::vector<unsigned> neighborCounts(numParticles);
 
     // adjust h[i] such that each particle has between ng0/2 and ngmax neighbors
     for (LocalIndex i = 0; i < numParticles; ++i)
@@ -251,9 +251,9 @@ void adjustSmoothingLength(LocalIndex numParticles,
                           neighbors.data() + i * ngmax, neighborCounts.data() + i, numParticles, ngmax);
 
             const Tc c0 = 7.0;
-            int nn      = std::max(neighborCounts[i], 1);
+            unsigned nn = std::max(neighborCounts[i], 1u);
             h[i]        = h[i] * 0.5 * pow(1.0 + (c0 * ng0) / nn, 1.0 / 3.0);
-        } while ((neighborCounts[i] < ng0 / 4 || neighborCounts[i] >= ngmax) && iteration++ < 10);
+        } while ((neighborCounts[i] < ng0 / 4u || neighborCounts[i] >= ngmax) && iteration++ < 10);
     }
 
     for (LocalIndex i = 0; i < numParticles; ++i)

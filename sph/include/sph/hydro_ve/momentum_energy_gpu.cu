@@ -54,7 +54,7 @@ __device__ float minDt_ve_device;
 
 template<typename T, class KeyType>
 __global__ void
-momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, int ngmax, const cstone::Box<T> box,
+momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, unsigned ngmax, const cstone::Box<T> box,
                   size_t first, size_t last, size_t numParticles, const KeyType* particleKeys, const T* x, const T* y,
                   const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* prho, const T* c,
                   const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
@@ -65,8 +65,8 @@ momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, int ngmax
 
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired size");
-    int neighbors[NGMAX];
-    int neighborsCount;
+    cstone::LocalIndex neighbors[NGMAX];
+    unsigned           neighborsCount;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
@@ -98,7 +98,7 @@ momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, int ngmax
 }
 
 template<class Dataset>
-void computeMomentumEnergy(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
+void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
                            const cstone::Box<typename Dataset::RealType>& box)
 {
     size_t sizeWithHalos       = d.x.size();
@@ -125,13 +125,15 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, int ngmax, Datase
     d.minDt_loc = minDt;
 }
 
-template void computeMomentumEnergy(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeMomentumEnergy(size_t, size_t, unsigned,
+                                    sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                     const cstone::Box<double>&);
-template void computeMomentumEnergy(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumEnergy(size_t, size_t, unsigned,
+                                    sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                     const cstone::Box<double>&);
-template void computeMomentumEnergy(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeMomentumEnergy(size_t, size_t, unsigned, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                     const cstone::Box<float>&);
-template void computeMomentumEnergy(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumEnergy(size_t, size_t, unsigned, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                     const cstone::Box<float>&);
 
 } // namespace cuda

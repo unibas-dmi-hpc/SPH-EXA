@@ -44,18 +44,19 @@ namespace cuda
 {
 
 template<class T, class KeyType>
-__global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, size_t firstParticle, size_t lastParticle,
-                            size_t numParticles, const KeyType* particleKeys, int* nc, const T* x,
-                            const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, T* rho)
+__global__ void cudaDensity(T sincIndex, T K, unsigned ngmax, cstone::Box<T> box, size_t firstParticle,
+                            size_t lastParticle, size_t numParticles, const KeyType* particleKeys, unsigned* nc,
+                            const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd,
+                            T* rho)
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned i   = tid + firstParticle;
+    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
+    cstone::LocalIndex i   = tid + firstParticle;
     if (i >= lastParticle) return;
 
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired value");
-    int neighbors[NGMAX];
-    int ncTrue;
+    cstone::LocalIndex neighbors[NGMAX];
+    unsigned ncTrue;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
@@ -63,13 +64,13 @@ __global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, siz
     cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &ncTrue, numParticles,
                           ngmax);
 
-    int ncCapped = stl::min(ncTrue, ngmax);
-    rho[i]       = sph::densityJLoop(i, sincIndex, K, box, neighbors, ncCapped, x, y, z, h, m, wh, whd);
-    nc[i]        = ncTrue;
+    unsigned ncCapped = stl::min(ncTrue, ngmax);
+    rho[i]            = sph::densityJLoop(i, sincIndex, K, box, neighbors, ncCapped, x, y, z, h, m, wh, whd);
+    nc[i]             = ncTrue;
 }
 
 template<class Dataset>
-void computeDensity(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
+void computeDensity(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
                     const cstone::Box<typename Dataset::RealType>& box)
 {
     using T       = typename Dataset::RealType;
@@ -88,13 +89,13 @@ void computeDensity(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, unsigned, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>&,
                              const cstone::Box<double>&);
-template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, unsigned, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>&,
                              const cstone::Box<double>&);
-template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, unsigned, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>&,
                              const cstone::Box<float>&);
-template void computeDensity(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>&,
+template void computeDensity(size_t, size_t, unsigned, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>&,
                              const cstone::Box<float>&);
 
 } // namespace cuda

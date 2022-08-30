@@ -43,12 +43,12 @@ __global__ void findNeighborsKernel(const T* x,
                                     int n,
                                     cstone::Box<T> box,
                                     const KeyType* particleKeys,
-                                    int* neighbors,
-                                    int* neighborsCount,
-                                    int ngmax)
+                                    cstone::LocalIndex* neighbors,
+                                    unsigned* neighborsCount,
+                                    unsigned ngmax)
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned id  = firstId + tid;
+    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
+    cstone::LocalIndex id  = firstId + tid;
     if (id >= lastId) { return; }
 
     findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + tid * ngmax, neighborsCount + tid, n, ngmax);
@@ -65,9 +65,9 @@ inline void findNeighborsGpu(const T* x,
                              int n,
                              cstone::Box<T> box,
                              const Integer* particleKeys,
-                             int* neighbors,
-                             int* neighborsCount,
-                             int ngmax,
+                             cstone::LocalIndex* neighbors,
+                             unsigned* neighborsCount,
+                             unsigned ngmax,
                              cudaStream_t stream)
 {
     unsigned numThreads = 256;
@@ -87,9 +87,9 @@ void findNeighborsMortonGpu(const T* x,
                             int n,
                             cstone::Box<T> box,
                             const Integer* particleKeys,
-                            int* neighbors,
-                            int* neighborsCount,
-                            int ngmax,
+                            cstone::LocalIndex* neighbors,
+                            unsigned* neighborsCount,
+                            unsigned ngmax,
                             cudaStream_t stream)
 {
     const MortonKey<Integer>* mortonKeys = (MortonKey<Integer>*)(particleKeys);
@@ -107,9 +107,9 @@ void findNeighborsHilbertGpu(const T* x,
                              int n,
                              cstone::Box<T> box,
                              const Integer* particleKeys,
-                             int* neighbors,
-                             int* neighborsCount,
-                             int ngmax,
+                             cstone::LocalIndex* neighbors,
+                             unsigned* neighborsCount,
+                             unsigned ngmax,
                              cudaStream_t stream)
 {
     const HilbertKey<Integer>* hilbertKeys = (HilbertKey<Integer>*)(particleKeys);

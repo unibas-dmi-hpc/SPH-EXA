@@ -127,8 +127,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     EXPECT_TRUE(std::is_sorted(begin(keysRef), end(keysRef)));
 
     int ngmax = 300;
-    std::vector<int> neighbors(localCount * ngmax);
-    std::vector<int> neighborsCount(localCount);
+    std::vector<cstone::LocalIndex> neighbors(localCount * ngmax);
+    std::vector<unsigned> neighborsCount(localCount);
     findNeighbors(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(), box,
                   sfcKindPointer(keysRef.data()), neighbors.data(), neighborsCount.data(), ngmax);
 
@@ -155,8 +155,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         swap(temp, hGlobal);
 
         // calculate reference neighbor sum from the full arrays
-        std::vector<int> neighborsRef(numParticles * ngmax);
-        std::vector<int> neighborsCountRef(numParticles);
+        std::vector<cstone::LocalIndex> neighborsRef(numParticles * ngmax);
+        std::vector<unsigned> neighborsCountRef(numParticles);
         findNeighbors(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), 0, numParticles, numParticles,
                       box, sfcKindPointer(codesGlobal.data()), neighborsRef.data(), neighborsCountRef.data(), ngmax);
 

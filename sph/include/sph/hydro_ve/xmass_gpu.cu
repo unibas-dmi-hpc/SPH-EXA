@@ -42,9 +42,9 @@ namespace cuda
 {
 
 template<typename T, class KeyType>
-__global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> box, size_t first, size_t last,
-                         size_t numParticles, const KeyType* particleKeys, int* neighborsCount, const T* x, const T* y,
-                         const T* z, const T* h, const T* m, const T* wh, const T* whd, T* xm)
+__global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<T> box, size_t first, size_t last,
+                         size_t numParticles, const KeyType* particleKeys, unsigned* neighborsCount, const T* x,
+                         const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, T* xm)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + first;
@@ -53,15 +53,15 @@ __global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> box, 
 
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired size");
-    int neighbors[NGMAX];
-    int neighborsCount_;
+    cstone::LocalIndex neighbors[NGMAX];
+    unsigned           neighborsCount_;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
     cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_,
                           numParticles, ngmax);
-    int nc = stl::min(neighborsCount_, ngmax);
+    unsigned nc = stl::min(neighborsCount_, ngmax);
 
     xm[i] = sph::xmassJLoop(i, sincIndex, K, box, neighbors, nc, x, y, z, h, m, wh, whd);
 
@@ -69,7 +69,7 @@ __global__ void xmassGpu(T sincIndex, T K, int ngmax, const cstone::Box<T> box, 
 }
 
 template<class Dataset>
-void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
+void computeXMass(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
                   const cstone::Box<typename Dataset::RealType>& box)
 {
     using T       = typename Dataset::RealType;
@@ -89,7 +89,7 @@ void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
         int          sIdx   = i % NST;
         cudaStream_t stream = d.devData.d_stream[sIdx].stream;
 
-        int* d_neighborsCount_use = d.devData.d_stream[sIdx].d_neighborsCount;
+        unsigned* d_neighborsCount_use = d.devData.d_stream[sIdx].d_neighborsCount;
 
         size_t firstParticle       = startIndex + i * taskSize;
         size_t lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
@@ -110,13 +110,13 @@ void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeXMass(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeXMass(size_t, size_t, unsigned, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                            const cstone::Box<double>&);
-template void computeXMass(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeXMass(size_t, size_t, unsigned, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                            const cstone::Box<double>&);
-template void computeXMass(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeXMass(size_t, size_t, unsigned, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                            const cstone::Box<float>&);
-template void computeXMass(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeXMass(size_t, size_t, unsigned, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                            const cstone::Box<float>&);
 
 } // namespace cuda

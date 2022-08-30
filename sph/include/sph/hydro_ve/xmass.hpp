@@ -37,10 +37,10 @@
 namespace sph
 {
 template<typename T, class Dataset>
-void computeXMassImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeXMassImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    const int* neighbors      = d.neighbors.data();
-    const int* neighborsCount = d.nc.data();
+    const cstone::LocalIndex* neighbors      = d.neighbors.data();
+    const unsigned*           neighborsCount = d.nc.data();
 
     const T* h = d.h.data();
     const T* m = d.m.data();
@@ -59,9 +59,9 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        size_t ni = i - startIndex;
-        int    nc = std::min(neighborsCount[i], ngmax);
-        xm[i]     = xmassJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd);
+        size_t   ni = i - startIndex;
+        unsigned nc = std::min(neighborsCount[i], ngmax);
+        xm[i]       = xmassJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd);
 #ifndef NDEBUG
         if (std::isnan(xm[i]))
             printf("ERROR::Rho0(%zu) rho0 %f, position: (%f %f %f), h: %f\n", i, xm[i], x[i], y[i], z[i], h[i]);

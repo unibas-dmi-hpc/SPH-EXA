@@ -11,10 +11,10 @@ namespace sph
 {
 
 template<typename T>
-HOST_DEVICE_FUN inline void IADJLoopSTD(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
-                                        int neighborsCount, const T* x, const T* y, const T* z, const T* h, const T* m,
-                                        const T* ro, const T* wh, const T* whd, T* c11, T* c12, T* c13, T* c22, T* c23,
-                                        T* c33)
+HOST_DEVICE_FUN inline void IADJLoopSTD(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
+                                        const cstone::LocalIndex* neighbors, unsigned neighborsCount, const T* x,
+                                        const T* y, const T* z, const T* h, const T* m, const T* rho, const T* wh,
+                                        const T* whd, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
 {
     T tau11 = 0.0, tau12 = 0.0, tau13 = 0.0, tau22 = 0.0, tau23 = 0.0, tau33 = 0.0;
 
@@ -25,9 +25,9 @@ HOST_DEVICE_FUN inline void IADJLoopSTD(int i, T sincIndex, T K, const cstone::B
     T hi    = h[i];
     T hiInv = T(1) / hi;
 
-    for (int pj = 0; pj < neighborsCount; ++pj)
+    for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
-        int j = neighbors[pj];
+        cstone::LocalIndex j = neighbors[pj];
 
         T rx = (xi - x[j]);
         T ry = (yi - y[j]);
@@ -41,7 +41,7 @@ HOST_DEVICE_FUN inline void IADJLoopSTD(int i, T sincIndex, T K, const cstone::B
         T vloc = dist * hiInv;
         T w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
 
-        T mj_roj_w = m[j] / ro[j] * w;
+        T mj_roj_w = m[j] / rho[j] * w;
 
         tau11 += rx * rx * mj_roj_w;
         tau12 += rx * ry * mj_roj_w;

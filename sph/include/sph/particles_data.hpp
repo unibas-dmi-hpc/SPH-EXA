@@ -34,6 +34,7 @@
 #include <vector>
 #include <variant>
 
+#include "cstone/tree/definitions.h"
 #include "cstone/util/reallocate.hpp"
 
 #include "sph/kernels.hpp"
@@ -91,31 +92,31 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    FieldVector<T>       x, y, z, x_m1, y_m1, z_m1;    // Positions
-    FieldVector<T>       vx, vy, vz;                   // Velocities
-    FieldVector<T>       rho;                          // Density
-    FieldVector<T>       temp;                         // Temperature
-    FieldVector<T>       u;                            // Internal Energy
-    FieldVector<T>       p;                            // Pressure
-    FieldVector<T>       prho;                         // p / (kx * m^2 * gradh)
-    FieldVector<T>       h;                            // Smoothing Length
-    FieldVector<T>       m;                            // Mass
-    FieldVector<T>       c;                            // Speed of sound
-    FieldVector<T>       cv;                           // Specific heat
-    FieldVector<T>       mue, mui;                     // mean molecular weight (electrons, ions)
-    FieldVector<T>       divv, curlv;                  // Div(velocity), Curl(velocity)
-    FieldVector<T>       ax, ay, az;                   // acceleration
-    FieldVector<T>       du, du_m1;                    // energy rate of change (du/dt)
-    FieldVector<T>       c11, c12, c13, c22, c23, c33; // IAD components
-    FieldVector<T>       alpha;                        // AV coeficient
-    FieldVector<T>       xm;                           // Volume element definition
-    FieldVector<T>       kx;                           // Volume element normalization
-    FieldVector<T>       gradh;                        // grad(h) term
-    std::vector<KeyType> keys;                         // Particle space-filling-curve keys
-    PinnedVec<int>       nc;                           // number of neighbors of each particle
+    FieldVector<T>        x, y, z, x_m1, y_m1, z_m1;    // Positions
+    FieldVector<T>        vx, vy, vz;                   // Velocities
+    FieldVector<T>        rho;                          // Density
+    FieldVector<T>        temp;                         // Temperature
+    FieldVector<T>        u;                            // Internal Energy
+    FieldVector<T>        p;                            // Pressure
+    FieldVector<T>        prho;                         // p / (kx * m^2 * gradh)
+    FieldVector<T>        h;                            // Smoothing Length
+    FieldVector<T>        m;                            // Mass
+    FieldVector<T>        c;                            // Speed of sound
+    FieldVector<T>        cv;                           // Specific heat
+    FieldVector<T>        mue, mui;                     // mean molecular weight (electrons, ions)
+    FieldVector<T>        divv, curlv;                  // Div(velocity), Curl(velocity)
+    FieldVector<T>        ax, ay, az;                   // acceleration
+    FieldVector<T>        du, du_m1;                    // energy rate of change (du/dt)
+    FieldVector<T>        c11, c12, c13, c22, c23, c33; // IAD components
+    FieldVector<T>        alpha;                        // AV coeficient
+    FieldVector<T>        xm;                           // Volume element definition
+    FieldVector<T>        kx;                           // Volume element normalization
+    FieldVector<T>        gradh;                        // grad(h) term
+    FieldVector<KeyType>  keys;                         // Particle space-filling-curve keys
+    FieldVector<unsigned> nc;                           // number of neighbors of each particle
 
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
-    std::vector<int> neighbors;
+    std::vector<cstone::LocalIndex> neighbors;
 
     DeviceData_t<AccType, T, KeyType> devData;
 
@@ -154,10 +155,8 @@ public:
      */
     auto data()
     {
-        using IntVecType = std::decay_t<decltype(nc)>;
-        using KeyVecType = std::decay_t<decltype(keys)>;
-
-        using FieldType = std::variant<FieldVector<float>*, FieldVector<double>*, KeyVecType*, IntVecType*>;
+        using FieldType =
+            std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
 
         return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
                           dataTuple());

@@ -62,7 +62,7 @@ public:
     struct neighbors_stream
     {
         cudaStream_t stream;
-        int*         d_neighborsCount;
+        unsigned*    d_neighborsCount;
     };
 
     struct neighbors_stream d_stream[NST];
@@ -72,28 +72,28 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    DevVector<T>       x, y, z, x_m1, y_m1, z_m1;    // Positions
-    DevVector<T>       vx, vy, vz;                   // Velocities
-    DevVector<T>       rho;                          // Density
-    DevVector<T>       temp;                         // Temperature
-    DevVector<T>       u;                            // Internal Energy
-    DevVector<T>       p;                            // Pressure
-    DevVector<T>       prho;                         // p / (kx * m^2 * gradh)
-    DevVector<T>       h;                            // Smoothing Length
-    DevVector<T>       m;                            // Mass
-    DevVector<T>       c;                            // Speed of sound
-    DevVector<T>       cv;                           // Specific heat
-    DevVector<T>       mue, mui;                     // mean molecular weight (electrons, ions)
-    DevVector<T>       divv, curlv;                  // Div(velocity), Curl(velocity)
-    DevVector<T>       ax, ay, az;                   // acceleration
-    DevVector<T>       du, du_m1;                    // energy rate of change (du/dt)
-    DevVector<T>       c11, c12, c13, c22, c23, c33; // IAD components
-    DevVector<T>       alpha;                        // AV coeficient
-    DevVector<T>       xm;                           // Volume element definition
-    DevVector<T>       kx;                           // Volume element normalization
-    DevVector<T>       gradh;                        // grad(h) term
-    DevVector<KeyType> keys;                        // Particle space-filling-curve keys
-    DevVector<int>     nc;                           // number of neighbors of each particle
+    DevVector<T>        x, y, z, x_m1, y_m1, z_m1;    // Positions
+    DevVector<T>        vx, vy, vz;                   // Velocities
+    DevVector<T>        rho;                          // Density
+    DevVector<T>        temp;                         // Temperature
+    DevVector<T>        u;                            // Internal Energy
+    DevVector<T>        p;                            // Pressure
+    DevVector<T>        prho;                         // p / (kx * m^2 * gradh)
+    DevVector<T>        h;                            // Smoothing Length
+    DevVector<T>        m;                            // Mass
+    DevVector<T>        c;                            // Speed of sound
+    DevVector<T>        cv;                           // Specific heat
+    DevVector<T>        mue, mui;                     // mean molecular weight (electrons, ions)
+    DevVector<T>        divv, curlv;                  // Div(velocity), Curl(velocity)
+    DevVector<T>        ax, ay, az;                   // acceleration
+    DevVector<T>        du, du_m1;                    // energy rate of change (du/dt)
+    DevVector<T>        c11, c12, c13, c22, c23, c33; // IAD components
+    DevVector<T>        alpha;                        // AV coeficient
+    DevVector<T>        xm;                           // Volume element definition
+    DevVector<T>        kx;                           // Volume element normalization
+    DevVector<T>        gradh;                        // grad(h) term
+    DevVector<KeyType>  keys;                         // Particle space-filling-curve keys
+    DevVector<unsigned> nc;                           // number of neighbors of each particle
 
     DevVector<T> wh;
     DevVector<T> whd;
@@ -127,9 +127,8 @@ public:
      */
     auto data()
     {
-        using IntVecType = std::decay_t<decltype(nc)>;
-        using KeyVecType = std::decay_t<decltype(keys)>;
-        using FieldType  = std::variant<DevVector<float>*, DevVector<double>*, KeyVecType*, IntVecType*>;
+        using FieldType =
+            std::variant<DevVector<float>*, DevVector<double>*, DevVector<unsigned>*, DevVector<uint64_t>*>;
 
         return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
                           dataTuple());
@@ -202,7 +201,7 @@ private:
 
             for (int i = 0; i < NST; ++i)
             {
-                checkGpuErrors(cudaMalloc((void**)&(d_stream[i].d_neighborsCount), newTaskSize * sizeof(int)));
+                checkGpuErrors(cudaMalloc((void**)&(d_stream[i].d_neighborsCount), newTaskSize * sizeof(unsigned)));
             }
 
             allocatedTaskSize = newTaskSize;

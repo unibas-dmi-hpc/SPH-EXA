@@ -44,21 +44,21 @@ void all2allNeighbors(const T* x,
                       const T* y,
                       const T* z,
                       const T* h,
-                      int n,
-                      int* neighbors,
-                      int* neighborsCount,
-                      int ngmax,
+                      LocalIndex n,
+                      LocalIndex* neighbors,
+                      unsigned* neighborsCount,
+                      unsigned ngmax,
                       const Box<T>& box)
 {
-    for (int i = 0; i < n; ++i)
+    for (LocalIndex i = 0; i < n; ++i)
     {
         T radius = 2 * h[i];
         T r2     = radius * radius;
 
         T xi = x[i], yi = y[i], zi = z[i];
 
-        int ngcount = 0;
-        for (int j = 0; j < n; ++j)
+        unsigned ngcount = 0;
+        for (LocalIndex j = 0; j < n; ++j)
         {
             if (j == i) { continue; }
             if (ngcount < ngmax && distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < r2)
@@ -70,9 +70,9 @@ void all2allNeighbors(const T* x,
     }
 }
 
-void sortNeighbors(int* neighbors, int* neighborsCount, int n, int ngmax)
+void sortNeighbors(LocalIndex* neighbors, unsigned* neighborsCount, LocalIndex n, unsigned ngmax)
 {
-    for (int i = 0; i < n; ++i)
+    for (LocalIndex i = 0; i < n; ++i)
     {
         std::sort(neighbors + i * ngmax, neighbors + i * ngmax + neighborsCount[i]);
     }
@@ -295,17 +295,19 @@ TEST(FindNeighbors, findNeighborBoxesCornerPbc)
 template<class Coordinates, class T>
 void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
 {
-    int n     = coords.x().size();
-    int ngmax = n;
+    cstone::LocalIndex n = coords.x().size();
+    unsigned ngmax       = n;
 
     std::vector<T> h(n, radius / 2);
 
-    std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
+    std::vector<LocalIndex> neighborsRef(n * ngmax);
+    std::vector<unsigned> neighborsCountRef(n);
     all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), n, neighborsRef.data(),
                      neighborsCountRef.data(), ngmax, box);
     sortNeighbors(neighborsRef.data(), neighborsCountRef.data(), n, ngmax);
 
-    std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
+    std::vector<LocalIndex> neighborsProbe(n * ngmax);
+    std::vector<unsigned> neighborsCountProbe(n);
 
     auto particleKeys = (typename Coordinates::KeyType*)(coords.particleKeys().data());
     findNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), 0, n, n, box, particleKeys,

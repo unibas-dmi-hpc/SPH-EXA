@@ -63,8 +63,8 @@ void benchmarkGpu()
     thrust::device_vector<T> d_h = h;
     thrust::device_vector<Integer> d_codes(coords.particleKeys().begin(), coords.particleKeys().end());
 
-    thrust::device_vector<int> d_neighbors(neighborsGPU.size());
-    thrust::device_vector<int> d_neighborsCount(neighborsCountGPU.size());
+    thrust::device_vector<LocalIndex> d_neighbors(neighborsGPU.size());
+    thrust::device_vector<unsigned> d_neighborsCount(neighborsCountGPU.size());
 
     const auto* deviceKeys = (const KeyType*)(thrust::raw_pointer_cast(d_codes.data()));
 
@@ -84,8 +84,8 @@ void benchmarkGpu()
     std::copy(neighborsCountGPU.data(), neighborsCountGPU.data() + 10, std::ostream_iterator<int>(std::cout, " "));
     std::cout << std::endl;
 
-    std::vector<int> neighborsCPU(ngmax * n);
-    std::vector<int> neighborsCountCPU(n);
+    std::vector<LocalIndex> neighborsCPU(ngmax * n);
+    std::vector<unsigned> neighborsCountCPU(n);
 
     const T* x        = coords.x().data();
     const T* y        = coords.y().data();

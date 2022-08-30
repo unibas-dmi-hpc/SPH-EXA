@@ -53,19 +53,19 @@ struct GradPConfig
 __device__ float minDt_device;
 
 template<class T, class KeyType>
-__global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> box, size_t firstParticle,
+__global__ void cudaGradP(T sincIndex, T K, T Kcour, unsigned ngmax, cstone::Box<T> box, size_t firstParticle,
                           size_t lastParticle, size_t numParticles, const KeyType* particleKeys, const T* x, const T* y,
                           const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* rho,
                           const T* p, const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
                           const T* c33, const T* wh, const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du)
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned i   = tid + firstParticle;
+    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
+    cstone::LocalIndex i   = tid + firstParticle;
 
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired value");
-    int neighbors[NGMAX];
-    int neighborsCount;
+    cstone::LocalIndex neighbors[NGMAX];
+    unsigned neighborsCount;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
@@ -96,7 +96,7 @@ __global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> b
 }
 
 template<class Dataset>
-void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
+void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
                               const cstone::Box<typename Dataset::RealType>& box)
 {
     size_t sizeWithHalos       = d.x.size();
@@ -123,13 +123,17 @@ void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dat
     d.minDt_loc = minDt;
 }
 
-template void computeMomentumEnergySTD(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeMomentumEnergySTD(size_t, size_t, unsigned,
+                                       sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
-template void computeMomentumEnergySTD(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumEnergySTD(size_t, size_t, unsigned,
+                                       sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
-template void computeMomentumEnergySTD(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeMomentumEnergySTD(size_t, size_t, unsigned,
+                                       sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                        const cstone::Box<float>&);
-template void computeMomentumEnergySTD(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumEnergySTD(size_t, size_t, unsigned,
+                                       sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<float>&);
 
 } // namespace cuda

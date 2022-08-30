@@ -39,10 +39,11 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
+                                  const cstone::Box<T>& box)
 {
-    const int* neighbors      = d.neighbors.data();
-    const int* neighborsCount = d.nc.data();
+    const cstone::LocalIndex* neighbors      = d.neighbors.data();
+    const unsigned*           neighborsCount = d.nc.data();
 
     const T* h   = d.h.data();
     const T* m   = d.m.data();
@@ -83,7 +84,7 @@ void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, int ngmax,
 
         T maxvsignal = 0;
 
-        int nc = std::min(neighborsCount[i], ngmax);
+        unsigned nc = std::min(neighborsCount[i], ngmax);
         momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, m, rho, p, c,
                                c11, c12, c13, c22, c23, c33, wh, whd, grad_P_x, grad_P_y, grad_P_z, du, &maxvsignal);
 
@@ -95,7 +96,7 @@ void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, int ngmax,
 }
 
 template<class T, class Dataset>
-void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

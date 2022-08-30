@@ -38,10 +38,11 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
+                               const cstone::Box<T>& box)
 {
-    const int* neighbors      = d.neighbors.data();
-    const int* neighborsCount = d.nc.data();
+    const cstone::LocalIndex* neighbors      = d.neighbors.data();
+    const unsigned*           neighborsCount = d.nc.data();
 
     const T* h     = d.h.data();
     const T* m     = d.m.data();
@@ -83,8 +84,8 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, int ngmax, Da
 #pragma omp parallel for schedule(static) reduction(min : minDt)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
-        size_t ni = i - startIndex;
-        int    nc = stl::min(neighborsCount[i], ngmax);
+        size_t   ni = i - startIndex;
+        unsigned nc = stl::min(neighborsCount[i], ngmax);
 
         T maxvsignal = 0;
 
@@ -100,7 +101,7 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, int ngmax, Da
 }
 
 template<class T, class Dataset>
-void computeMomentumEnergy(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

@@ -12,11 +12,11 @@ namespace sph
 
 template<typename T>
 HOST_DEVICE_FUN inline void
-momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
-                       const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h,
-                       const T* m, const T* ro, const T* p, const T* c, const T* c11, const T* c12, const T* c13,
-                       const T* c22, const T* c23, const T* c33, const T* wh, const T* whd, T* grad_P_x, T* grad_P_y,
-                       T* grad_P_z, T* du, T* maxvsignal)
+momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
+                       const cstone::LocalIndex* neighbors, unsigned neighborsCount, const T* x, const T* y, const T* z,
+                       const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* ro, const T* p,
+                       const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
+                       const T* wh, const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
 {
     constexpr T gradh_i = 1.0;
     constexpr T gradh_j = 1.0;
@@ -48,9 +48,9 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
     T c23i = c23[i];
     T c33i = c33[i];
 
-    for (int pj = 0; pj < neighborsCount; ++pj)
+    for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
-        int j = neighbors[pj];
+        cstone::LocalIndex j = neighbors[pj];
 
         T rx = xi - x[j];
         T ry = yi - y[j];

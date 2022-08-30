@@ -70,20 +70,20 @@ namespace cuda
  * @param[out] c33
  */
 template<class T, class KeyType>
-__global__ void cudaIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box, size_t firstParticle, size_t lastParticle,
+__global__ void cudaIAD(T sincIndex, T K, unsigned ngmax, cstone::Box<T> box, size_t firstParticle, size_t lastParticle,
                         size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
                         const T* h, const T* m, const T* rho, const T* wh, const T* whd, T* c11, T* c12, T* c13, T* c22,
                         T* c23, T* c33)
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned i   = tid + firstParticle;
+    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
+    cstone::LocalIndex i   = tid + firstParticle;
 
     if (i >= lastParticle) return;
 
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired size");
-    int neighbors[NGMAX];
-    int neighborsCount;
+    cstone::LocalIndex neighbors[NGMAX];
+    unsigned neighborsCount;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
@@ -97,7 +97,7 @@ __global__ void cudaIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box, size_t 
 }
 
 template<class Dataset>
-void computeIAD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
+void computeIAD(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
                 const cstone::Box<typename Dataset::RealType>& box)
 {
     using T = typename Dataset::RealType;
@@ -118,13 +118,13 @@ void computeIAD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeIAD(size_t, size_t, int, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeIAD(size_t, size_t, unsigned, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                          const cstone::Box<double>&);
-template void computeIAD(size_t, size_t, int, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeIAD(size_t, size_t, unsigned, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                          const cstone::Box<double>&);
-template void computeIAD(size_t, size_t, int, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeIAD(size_t, size_t, unsigned, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                          const cstone::Box<float>&);
-template void computeIAD(size_t, size_t, int, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeIAD(size_t, size_t, unsigned, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                          const cstone::Box<float>&);
 
 } // namespace cuda

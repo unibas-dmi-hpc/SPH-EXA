@@ -122,7 +122,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     d.angmom = std::sqrt(norm2(globalAngmom));
 }
 
-size_t neighborsSum(size_t startIndex, size_t endIndex, gsl::span<const int> neighborsCount)
+size_t neighborsSum(size_t startIndex, size_t endIndex, gsl::span<const unsigned> neighborsCount)
 {
     size_t sum = 0;
 #pragma omp parallel for reduction(+ : sum)
