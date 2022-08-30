@@ -12,7 +12,7 @@ void updateSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d, size_
     const T c0  = 7.0;
     const T exp = 1.0 / 3.0;
 
-    const int* neighborsCount = d.neighborsCount.data();
+    const int* neighborsCount = d.nc.data();
     T*         h              = d.h.data();
 
 #pragma omp parallel for schedule(static)

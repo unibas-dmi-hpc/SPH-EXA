@@ -42,7 +42,7 @@ template<class T, class Dataset>
 void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
-    const int* neighborsCount = d.neighborsCount.data();
+    const int* neighborsCount = d.nc.data();
 
     const T* x  = d.x.data();
     const T* y  = d.y.data();

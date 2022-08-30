@@ -92,8 +92,8 @@ public:
     DevVector<T>       xm;                           // Volume element definition
     DevVector<T>       kx;                           // Volume element normalization
     DevVector<T>       gradh;                        // grad(h) term
-    DevVector<KeyType> codes;                        // Particle space-filling-curve keys
-    DevVector<int>     neighborsCount;               // number of neighbors of each particle
+    DevVector<KeyType> keys;                        // Particle space-filling-curve keys
+    DevVector<int>     nc;                           // number of neighbors of each particle
 
     DevVector<T> wh;
     DevVector<T> whd;
@@ -114,7 +114,7 @@ public:
     {
         auto ret =
             std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11, c12,
-                     c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, codes, neighborsCount);
+                     c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc);
 
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
         return ret;
@@ -127,8 +127,8 @@ public:
      */
     auto data()
     {
-        using IntVecType = std::decay_t<decltype(neighborsCount)>;
-        using KeyVecType = std::decay_t<decltype(codes)>;
+        using IntVecType = std::decay_t<decltype(nc)>;
+        using KeyVecType = std::decay_t<decltype(keys)>;
         using FieldType  = std::variant<DevVector<float>*, DevVector<double>*, KeyVecType*, IntVecType*>;
 
         return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },

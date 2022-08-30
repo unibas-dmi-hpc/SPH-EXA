@@ -99,12 +99,12 @@ void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
         xmassGpu<<<numBlocks, numThreads, 0, stream>>>(
-            d.sincIndex, d.K, ngmax, box, firstParticle, lastParticle, sizeWithHalos, rawPtr(d.devData.codes),
+            d.sincIndex, d.K, ngmax, box, firstParticle, lastParticle, sizeWithHalos, rawPtr(d.devData.keys),
             d_neighborsCount_use, rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
             rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm));
 
-        checkGpuErrors(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle, d_neighborsCount_use,
-                                       numParticlesCompute * sizeof(decltype(d.neighborsCount.front())),
+        checkGpuErrors(cudaMemcpyAsync(d.nc.data() + firstParticle, d_neighborsCount_use,
+                                       numParticlesCompute * sizeof(decltype(d.nc.front())),
                                        cudaMemcpyDeviceToHost, stream));
     }
     checkGpuErrors(cudaDeviceSynchronize());

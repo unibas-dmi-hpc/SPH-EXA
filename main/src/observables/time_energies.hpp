@@ -54,13 +54,13 @@ public:
         int rank;
         MPI_Comm_rank(d.comm, &rank);
 
-        d.totalNeighbors = neighborsSum(firstIndex, lastIndex, d.neighborsCount);
+        d.totalNeighbors = neighborsSum(firstIndex, lastIndex, d.nc);
         computeConservedQuantities(firstIndex, lastIndex, d);
 
         if (rank == 0)
         {
-            fileutils::writeColumns(
-                constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, d.linmom, d.angmom);
+            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
+                                    d.linmom, d.angmom);
         }
     }
 };

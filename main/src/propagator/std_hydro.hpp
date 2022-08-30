@@ -104,11 +104,11 @@ public:
     {
         if (d.g != 0.0)
         {
-            domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, getHost<ConservedFields>(d), getHost<DependentFields>(d));
+            domain.syncGrav(d.keys, d.x, d.y, d.z, d.h, d.m, getHost<ConservedFields>(d), getHost<DependentFields>(d));
         }
         else
         {
-            domain.sync(d.codes, d.x, d.y, d.z, d.h, std::tuple_cat(std::tie(d.m), getHost<ConservedFields>(d)),
+            domain.sync(d.keys, d.x, d.y, d.z, d.h, std::tuple_cat(std::tie(d.m), getHost<ConservedFields>(d)),
                         getHost<DependentFields>(d));
         }
     }
@@ -127,8 +127,7 @@ public:
         std::fill(begin(d.m), begin(d.m) + first, d.m[first]);
         std::fill(begin(d.m) + last, end(d.m), d.m[first]);
 
-        findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount,
-                                     domain.box());
+        findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.keys, d.neighbors, d.nc, domain.box());
         transferToDevice(d, first, last, {"vx", "vy", "vz", "u"});
         timer.step("FindNeighbors");
 
@@ -161,7 +160,6 @@ public:
             mHolder_.traverse(d, domain);
             timer.step("Gravity");
         }
-        // transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
         computeTimestep(d);
         timer.step("Timestep");

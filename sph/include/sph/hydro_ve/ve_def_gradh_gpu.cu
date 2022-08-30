@@ -83,7 +83,7 @@ void computeVeDefGradh(size_t startIndex, size_t endIndex, int ngmax, Dataset& d
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
     veDefGradhGpu<<<numBlocks, numThreads>>>(
-        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes), rawPtr(d.devData.x),
+        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.keys), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh),
         rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx), rawPtr(d.devData.gradh));
 

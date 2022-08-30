@@ -109,7 +109,7 @@ void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dat
     checkGpuErrors(cudaMemcpyToSymbol(minDt_device, &huge, sizeof(huge)));
 
     cudaGradP<<<numBlocks, numThreads>>>(
-        d.sincIndex, d.K, d.Kcour, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.codes),
+        d.sincIndex, d.K, d.Kcour, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.keys),
         rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
         rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho), rawPtr(d.devData.p),
         rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),

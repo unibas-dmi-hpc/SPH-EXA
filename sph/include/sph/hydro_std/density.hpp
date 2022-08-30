@@ -45,7 +45,7 @@ template<class T, class Dataset>
 void computeDensityImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
-    const int* neighborsCount = d.neighborsCount.data();
+    const int* neighborsCount = d.nc.data();
 
     const T* h = d.h.data();
     const T* m = d.m.data();
