@@ -146,15 +146,26 @@ template size_t reduceGpu(const unsigned*, size_t, size_t);
 
 #include <thrust/iterator/zip_iterator.h>
 
-template<class Tm, class Tv>
-struct ekin
+template<class Tm, class Tv, class Tu>
+struct EKinInt
 {
     HOST_DEVICE_FUN
-    double operator()(const thrust::tuple<Tm, Tv, Tv, Tv>& vm)
+    thrust::tuple<double, double> operator()(const thrust::tuple<Tm, Tv, Tv, Tv, Tu>& p)
     {
-        cstone::Vec3<Tv> V{thrust::get<1>(vm), thrust::get<2>(vm), thrust::get<3>(vm)};
-        return thrust::get<0>(vm) * norm2(V);
+        cstone::Vec3<Tv> V{thrust::get<1>(p), thrust::get<2>(p), thrust::get<3>(p)};
+        Tm m = thrust::get<0>(p);
+        Tu u = thrust::get<4>(p);
+        return thrust::make_tuple(m * norm2(V), m * u);
     }
+};
+
+template<class T1, class T2>
+struct TuplePlus
+{
+   HOST_DEVICE_FUN thrust::tuple<T1, T2> operator()(const thrust::tuple<T1, T2>& a, const thrust::tuple<T1, T2>& b)
+   {
+       return thrust::make_tuple(thrust::get<0>(a) + thrust::get<0>(b), thrust::get<1>(a) + thrust::get<1>(b));
+   }
 };
 
 template<class Tc, class Tv, class Tu, class Tm>
@@ -169,11 +180,13 @@ std::tuple<Tc, Tc, Vec3<Tc>, Vec3<Tc>> conservedQuantitiesGpu(const Tc* x,
                                                               size_t first,
                                                               size_t last)
 {
-    auto it1 = thrust::make_zip_iterator(thrust::make_tuple(m + first, vx + first, vy + first, vz + first));
-    auto it2 = thrust::make_zip_iterator(thrust::make_tuple(m + last, vx + last, vy + last, vz + last));
+    auto it1 = thrust::make_zip_iterator(thrust::make_tuple(m + first, vx + first, vy + first, vz + first, u + first));
+    auto it2 = thrust::make_zip_iterator(thrust::make_tuple(m + last, vx + last, vy + last, vz + last, u + last));
 
-    double result = thrust::transform_reduce(thrust::device, it1, it2, ekin<Tm, Tv>{}, 0.0, thrust::plus<double>{});
-    return {result, 0.0, Vec3<Tc>{0, 0, 0}, Vec3<Tc>{0, 0, 0}};
+    auto plus = TuplePlus<double, double>{};
+    auto init = thrust::make_tuple(0.0, 0.0);
+    auto result = thrust::transform_reduce(thrust::device, it1, it2, EKinInt<Tm, Tv, Tu>{}, init, plus);
+    return {0.5 * thrust::get<0>(result), thrust::get<1>(result), Vec3<Tc>{0, 0, 0}, Vec3<Tc>{0, 0, 0}};
 }
 
 #define CONSERVED_Q_GPU(Tc, Tv, Tu, Tm)                                                                                \
