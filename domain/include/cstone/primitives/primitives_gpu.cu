@@ -144,4 +144,44 @@ Tout reduceGpu(const Tin* input, size_t numElements, Tout init)
 
 template size_t reduceGpu(const unsigned*, size_t, size_t);
 
+#include <thrust/iterator/zip_iterator.h>
+
+template<class Tm, class Tv>
+struct ekin
+{
+    HOST_DEVICE_FUN
+    double operator()(const thrust::tuple<Tm, Tv, Tv, Tv>& vm)
+    {
+        cstone::Vec3<Tv> V{thrust::get<1>(vm), thrust::get<2>(vm), thrust::get<3>(vm)};
+        return thrust::get<0>(vm) * norm2(V);
+    }
+};
+
+template<class Tc, class Tv, class Tu, class Tm>
+std::tuple<Tc, Tc, Vec3<Tc>, Vec3<Tc>> conservedQuantitiesGpu(const Tc* x,
+                                                              const Tc* y,
+                                                              const Tc* z,
+                                                              const Tv* vx,
+                                                              const Tv* vy,
+                                                              const Tv* vz,
+                                                              const Tu* u,
+                                                              const Tm* m,
+                                                              size_t first,
+                                                              size_t last)
+{
+    auto it1 = thrust::make_zip_iterator(thrust::make_tuple(m + first, vx + first, vy + first, vz + first));
+    auto it2 = thrust::make_zip_iterator(thrust::make_tuple(m + last, vx + last, vy + last, vz + last));
+
+    double result = thrust::transform_reduce(thrust::device, it1, it2, ekin<Tm, Tv>{}, 0.0, thrust::plus<double>{});
+    return {result, 0.0, Vec3<Tc>{0, 0, 0}, Vec3<Tc>{0, 0, 0}};
+}
+
+#define CONSERVED_Q_GPU(Tc, Tv, Tu, Tm)                                                                                \
+    template std::tuple<Tc, Tc, Vec3<Tc>, Vec3<Tc>> conservedQuantitiesGpu(const Tc* x, const Tc* y, const Tc* z,      \
+                                                                           const Tv* vx, const Tv* vy, const Tv* vz,   \
+                                                                           const Tu* u, const Tm* m, size_t, size_t)
+
+CONSERVED_Q_GPU(double, double, double, double);
+CONSERVED_Q_GPU(float, float, float, float);
+
 } // namespace cstone

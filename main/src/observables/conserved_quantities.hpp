@@ -92,14 +92,18 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 template<class Dataset>
 void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    using T                           = typename Dataset::RealType;
-    auto [eKin, eInt, linmom, angmom] = localConservedQuantities(startIndex, endIndex, d);
+    using T = typename Dataset::RealType;
 
-    size_t ncsum = 0;
+    T               eKin, eInt;
+    cstone::Vec3<T> linmom, angmom;
+    size_t          ncsum = 0;
 
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         ncsum = cstone::reduceGpu(rawPtr(d.devData.nc) + startIndex, endIndex - startIndex, size_t(0));
+        std::tie(eKin, eInt, linmom, angmom) = cstone::conservedQuantitiesGpu(
+            rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
+            rawPtr(d.devData.vz), rawPtr(d.devData.u), rawPtr(d.devData.m), startIndex, endIndex);
     }
     else
     {
@@ -108,6 +112,8 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
         {
             ncsum += d.nc[i];
         }
+
+        std::tie(eKin, eInt, linmom, angmom) = localConservedQuantities(startIndex, endIndex, d);
     }
 
     util::array<T, 10> quantities, globalQuantities;

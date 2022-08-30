@@ -33,6 +33,8 @@
 
 #include <tuple>
 
+#include "cstone/tree/definitions.h"
+
 namespace cstone
 {
 
@@ -66,5 +68,17 @@ extern void segmentMax(const Tin* input, const IndexType* segments, size_t numSe
 
 template<class Tin, class Tout>
 extern Tout reduceGpu(const Tin* input, size_t numElements, Tout init);
+
+template<class Tc, class Tv, class Tu, class Tm>
+extern std::tuple<Tc, Tc, Vec3<Tc>, Vec3<Tc>> conservedQuantitiesGpu(const Tc* x,
+                                                                     const Tc* y,
+                                                                     const Tc* z,
+                                                                     const Tv* vx,
+                                                                     const Tv* vy,
+                                                                     const Tv* vz,
+                                                                     const Tu* u,
+                                                                     const Tm* m,
+                                                                     size_t,
+                                                                     size_t);
 
 } // namespace cstone
