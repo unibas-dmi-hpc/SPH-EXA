@@ -47,7 +47,7 @@ namespace sphexa
 std::map<std::string, double> TurbulenceConstants()
 {
     return {{"solWeight", 0.5},      {"stMaxModes", 100000}, {"Lbox", 1.0},       {"stMachVelocity", 0.3e0},
-            {"firstTimeStep", 1e-4}, {"epsilon", 1e-15},     {"rngSeed", 251299}, {"stSpectForm", 2},
+            {"firstTimeStep", 1e-4}, {"epsilon", 1e-15},     {"rngSeed", 251299}, {"stSpectForm", 1},
             {"mTotal", 1.0},         {"powerLawExp", 5 / 3}, {"anglesExp", 2.0}};
 }
 
