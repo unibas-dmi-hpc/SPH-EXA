@@ -13,6 +13,5 @@ if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
                            $<TARGET_OBJECTS:primitives_gpu_obj>
                            $<TARGET_OBJECTS:sfc_obj>
                            $<TARGET_OBJECTS:source_center_gpu_obj>
-                           $<TARGET_OBJECTS:reallocate_obj>
-                           $<TARGET_OBJECTS:cuda_find_neighbors_obj>)
+                           $<TARGET_OBJECTS:reallocate_obj>)
 endif ()

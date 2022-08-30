@@ -35,12 +35,33 @@
 #include <thrust/device_vector.h>
 
 #include "cstone/findneighbors.hpp"
-#include "cstone/cuda/findneighbors.cuh"
+#include "cstone/cuda/cuda_utils.cuh"
 
 #include "../coord_samples/random.hpp"
 #include "timing.cuh"
 
 using namespace cstone;
+
+template<class T, class KeyType>
+__global__ void findNeighborsKernel(const T* x,
+                                    const T* y,
+                                    const T* z,
+                                    const T* h,
+                                    LocalIndex firstId,
+                                    LocalIndex lastId,
+                                    LocalIndex n,
+                                    cstone::Box<T> box,
+                                    const KeyType* particleKeys,
+                                    cstone::LocalIndex* neighbors,
+                                    unsigned* neighborsCount,
+                                    unsigned ngmax)
+{
+    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
+    cstone::LocalIndex id  = firstId + tid;
+    if (id >= lastId) { return; }
+
+    findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + tid * ngmax, neighborsCount + tid, n, ngmax);
+}
 
 template<class T, class KeyType>
 void benchmarkGpu()
@@ -66,14 +87,12 @@ void benchmarkGpu()
     thrust::device_vector<LocalIndex> d_neighbors(neighborsGPU.size());
     thrust::device_vector<unsigned> d_neighborsCount(neighborsCountGPU.size());
 
-    const auto* deviceKeys = (const KeyType*)(thrust::raw_pointer_cast(d_codes.data()));
+    const auto* deviceKeys = (const KeyType*)(rawPtr(d_codes));
 
     auto findNeighborsLambda = [&]()
     {
-        findNeighborsSfcGpu(thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
-                            thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_h.data()), 0, n, n, box,
-                            deviceKeys, thrust::raw_pointer_cast(d_neighbors.data()),
-                            thrust::raw_pointer_cast(d_neighborsCount.data()), ngmax);
+        findNeighborsKernel<<<iceil(n, 256), 256>>>(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_h), 0, n, n, box,
+                                                    deviceKeys, rawPtr(d_neighbors), rawPtr(d_neighborsCount), ngmax);
     };
 
     float gpuTime = timeGpu(findNeighborsLambda);

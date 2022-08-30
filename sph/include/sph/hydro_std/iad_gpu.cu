@@ -31,7 +31,7 @@
  */
 
 #include "cstone/cuda/cuda_utils.cuh"
-#include "cstone/cuda/findneighbors.cuh"
+#include "cstone/findneighbors.hpp"
 
 #include "sph/sph_gpu.hpp"
 #include "sph/particles_data.hpp"
