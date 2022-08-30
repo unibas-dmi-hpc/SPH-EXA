@@ -41,6 +41,7 @@ template<class Dataset>
 class TimeAndEnergy : public IObservables<Dataset>
 {
     std::ofstream& constantsFile;
+    using T = typename Dataset::RealType;
 
 public:
     TimeAndEnergy(std::ofstream& constPath)
@@ -48,13 +49,11 @@ public:
     {
     }
 
-    using T = typename Dataset::RealType;
     void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
         int rank;
         MPI_Comm_rank(d.comm, &rank);
 
-        d.totalNeighbors = neighborsSum(firstIndex, lastIndex, d.nc);
         computeConservedQuantities(firstIndex, lastIndex, d);
 
         if (rank == 0)

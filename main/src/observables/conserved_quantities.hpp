@@ -95,7 +95,14 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     using T                           = typename Dataset::RealType;
     auto [eKin, eInt, linmom, angmom] = localConservedQuantities(startIndex, endIndex, d);
 
-    util::array<T, 9> quantities, globalQuantities;
+    size_t ncsum = 0;
+#pragma omp parallel for reduction(+ : ncsum)
+    for (size_t i = startIndex; i < endIndex; i++)
+    {
+        ncsum += d.nc[i];
+    }
+
+    util::array<T, 10> quantities, globalQuantities;
     std::fill(globalQuantities.begin(), globalQuantities.end(), T(0));
 
     quantities[0] = eKin;
@@ -107,6 +114,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     quantities[6] = angmom[0];
     quantities[7] = angmom[1];
     quantities[8] = angmom[2];
+    quantities[9] = T(ncsum);
 
     int rootRank = 0;
     MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<T>{}, MPI_SUM, rootRank, d.comm);
@@ -118,24 +126,11 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 
     util::array<T, 3> globalLinmom{globalQuantities[3], globalQuantities[4], globalQuantities[5]};
     util::array<T, 3> globalAngmom{globalQuantities[6], globalQuantities[7], globalQuantities[8]};
-    d.linmom = std::sqrt(norm2(globalLinmom));
-    d.angmom = std::sqrt(norm2(globalAngmom));
+    d.linmom         = std::sqrt(norm2(globalLinmom));
+    d.angmom         = std::sqrt(norm2(globalAngmom));
+    d.totalNeighbors = size_t(globalQuantities[9]);
 }
 
-size_t neighborsSum(size_t startIndex, size_t endIndex, gsl::span<const unsigned> neighborsCount)
-{
-    size_t sum = 0;
-#pragma omp parallel for reduction(+ : sum)
-    for (size_t i = startIndex; i < endIndex; i++)
-    {
-        sum += neighborsCount[i];
-    }
-
-    int    rootRank  = 0;
-    size_t globalSum = 0;
-    MPI_Reduce(&sum, &globalSum, 1, MpiType<size_t>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
-
-    return globalSum;
-}
+size_t neighborsSum(size_t startIndex, size_t endIndex, gsl::span<const unsigned> neighborsCount) { return 0; }
 
 } // namespace sphexa
