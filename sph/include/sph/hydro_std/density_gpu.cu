@@ -45,7 +45,7 @@ namespace cuda
 
 template<class T, class KeyType>
 __global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, size_t firstParticle, size_t lastParticle,
-                            size_t numParticles, const KeyType* particleKeys, int* neighborsCount, const T* x,
+                            size_t numParticles, const KeyType* particleKeys, int* nc, const T* x,
                             const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, T* rho)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -55,18 +55,17 @@ __global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, siz
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired value");
     int neighbors[NGMAX];
-    int neighborsCount_;
+    int ncTrue;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_,
-                          numParticles, ngmax);
+    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &ncTrue, numParticles,
+                          ngmax);
 
-    int nc = stl::min(neighborsCount_, ngmax);
-    rho[i] = sph::densityJLoop(i, sincIndex, K, box, neighbors, nc, x, y, z, h, m, wh, whd);
-
-    neighborsCount[tid] = neighborsCount_;
+    int ncCapped = stl::min(ncTrue, ngmax);
+    rho[i]       = sph::densityJLoop(i, sincIndex, K, box, neighbors, ncCapped, x, y, z, h, m, wh, whd);
+    nc[i]        = ncTrue;
 }
 
 template<class Dataset>
@@ -76,38 +75,16 @@ void computeDensity(size_t startIndex, size_t endIndex, int ngmax, Dataset& d,
     using T       = typename Dataset::RealType;
     using KeyType = typename Dataset::KeyType;
 
-    size_t sizeWithHalos     = d.x.size();
-    size_t numLocalParticles = endIndex - startIndex;
+    size_t numParticles  = endIndex - startIndex;
+    size_t sizeWithHalos = d.devData.x.size();
 
-    size_t taskSize = sphexa::DeviceParticlesData<T, KeyType>::taskSize;
-    size_t numTasks = iceil(numLocalParticles, taskSize);
+    unsigned numThreads = 256;
+    unsigned numBlocks  = (numParticles + numThreads - 1) / numThreads;
 
-    // number of CUDA streams to use
-    constexpr int NST = sphexa::DeviceParticlesData<T, Dataset>::NST;
-
-    for (int i = 0; i < numTasks; ++i)
-    {
-        int          sIdx   = i % NST;
-        cudaStream_t stream = d.devData.d_stream[sIdx].stream;
-
-        int* d_neighborsCount_use = d.devData.d_stream[sIdx].d_neighborsCount;
-
-        size_t firstParticle       = startIndex + i * taskSize;
-        size_t lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
-        size_t numParticlesCompute = lastParticle - firstParticle;
-
-        unsigned numThreads = 256;
-        unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
-
-        cudaDensity<<<numBlocks, numThreads, 0, stream>>>(
-            d.sincIndex, d.K, ngmax, box, firstParticle, lastParticle, sizeWithHalos, rawPtr(d.devData.keys),
-            d_neighborsCount_use, rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
-            rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.rho));
-
-        checkGpuErrors(cudaMemcpyAsync(d.nc.data() + firstParticle, d_neighborsCount_use,
-                                       numParticlesCompute * sizeof(decltype(d.nc.front())),
-                                       cudaMemcpyDeviceToHost, stream));
-    }
+    cudaDensity<<<numBlocks, numThreads>>>(
+        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.keys), rawPtr(d.devData.nc),
+        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m),
+        rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.rho));
     checkGpuErrors(cudaDeviceSynchronize());
 }
 

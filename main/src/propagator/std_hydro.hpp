@@ -166,7 +166,7 @@ public:
 
         transferToDevice(d, first, last, {"x_m1", "y_m1", "z_m1", "du_m1"});
         computePositions(first, last, d, domain.box());
-        transferToHost(d, first, last, {"x", "y", "z", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "u", "du_m1"});
+        transferToHost(d, first, last, {"x", "y", "z", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "u", "du_m1", "nc"});
 
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d, ng0_);
