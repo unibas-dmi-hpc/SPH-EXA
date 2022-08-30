@@ -91,13 +91,13 @@ public:
         //! @brief Fields accessed in domain sync are not part of extensible lists.
         d.setConserved("x", "y", "z", "h", "m");
         d.setDependent("keys");
-
         std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
         std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
-        d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz");
-        d.devData.setDependent("rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33",
-                               "keys");
+        d.devData.setConserved("x", "y", "z", "h", "m");
+        d.devData.setDependent("keys");
+        std::apply([&d](auto... f) { d.devData.setConserved(f.value...); }, make_tuple(ConservedFields{}));
+        std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
@@ -129,8 +129,6 @@ public:
 
         findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount,
                                      domain.box());
-        d.devData.release("du");
-        d.devData.acquire("u");
         transferToDevice(d, first, last, {"vx", "vy", "vz", "u"});
         timer.step("FindNeighbors");
 
@@ -144,8 +142,6 @@ public:
                              std::get<0>(get<"ay">(d)));
 
         timer.step("mpi::synchronizeHalos");
-        d.devData.release("u");
-        d.devData.acquire("du");
 
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
@@ -165,11 +161,15 @@ public:
             mHolder_.traverse(d, domain);
             timer.step("Gravity");
         }
-        transferToHost(d, first, last, {"ax", "ay", "az", "du"});
+        // transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
         computeTimestep(d);
         timer.step("Timestep");
+
+        transferToDevice(d, first, last, {"x_m1", "y_m1", "z_m1", "du_m1"});
         computePositions(first, last, d, domain.box());
+        transferToHost(d, first, last, {"x", "y", "z", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "u", "du_m1"});
+
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");

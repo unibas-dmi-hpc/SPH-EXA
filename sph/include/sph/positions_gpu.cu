@@ -37,7 +37,7 @@ namespace sph
 template<class Tc, class Tv, class Ta, class Tm1, class Tu, class Thydro>
 __global__ void computePositionsKernel(size_t first, size_t last, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx,
                                        Tv* vy, Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, Tu* u,
-                                       Tm1* du, Tm1* du_m1, Thydro* h, const cstone::Box<Tc>& box)
+                                       Tm1* du, Tm1* du_m1, Thydro* h, const cstone::Box<Tc> box)
 {
     cstone::LocalIndex i = first + blockDim.x * blockIdx.x + threadIdx.x;
     if (i >= last) { return; }
@@ -79,8 +79,8 @@ void computePositionsGpu(size_t first, size_t last, double dt, double dt_m1, Tc*
     unsigned           numThreads   = 256;
     unsigned           numBlocks    = (numParticles + numThreads - 1) / numThreads;
 
-    computePositionsKernel<<<numBlocks, numParticles>>>(first, last, dt, dt_m1, x, y, z, vx, vy, vz, x_m1, y_m1, z_m1,
-                                                        ax, ay, az, u, du, du_m1, h, box);
+    computePositionsKernel<<<numBlocks, numThreads>>>(first, last, dt, dt_m1, x, y, z, vx, vy, vz, x_m1, y_m1, z_m1, ax,
+                                                      ay, az, u, du, du_m1, h, box);
 }
 
 #define POS_GPU(Tc, Tv, Ta, Tm1, Tu, Thydro)                                                                           \

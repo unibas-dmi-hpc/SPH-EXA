@@ -35,6 +35,9 @@
 #include "cstone/sfc/box.hpp"
 #include "cstone/util/array.hpp"
 #include "cstone/util/tuple.hpp"
+#include "cstone/tree/accel_switch.hpp"
+
+#include "sph/sph_gpu.hpp"
 
 namespace sph
 {
@@ -78,7 +81,7 @@ HOST_DEVICE_FUN auto positionUpdate(T dt, T dt_m1, cstone::Vec3<T> X, cstone::Ve
 }
 
 template<class T, class Dataset>
-void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
+void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     double dt    = d.minDt;
     double dt_m1 = d.minDt_m1;
@@ -115,6 +118,20 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         d.u[i] += energyUpdate(dt, dt_m1, d.du[i], d.du_m1[i]);
         d.du_m1[i] = d.du[i];
     }
+}
+
+template<class T, class Dataset>
+void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
+{
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        computePositionsGpu(startIndex, endIndex, d.minDt, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y),
+                            rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
+                            rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1),
+                            rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.u),
+                            rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h), box);
+    }
+    else { computePositionsHost(startIndex, endIndex, d, box); }
 }
 
 } // namespace sph
