@@ -32,6 +32,7 @@
 #include <thrust/binary_search.h>
 #include <thrust/execution_policy.h>
 #include <thrust/extrema.h>
+#include <thrust/reduce.h>
 
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/util/util.hpp"
@@ -134,5 +135,13 @@ void segmentMax(const Tin* input, const IndexType* segments, size_t numSegments,
 template void segmentMax(const float*, const unsigned*, size_t, float*);
 template void segmentMax(const double*, const unsigned*, size_t, float*);
 template void segmentMax(const double*, const unsigned*, size_t, double*);
+
+template<class Tin, class Tout>
+Tout reduceGpu(const Tin* input, size_t numElements, Tout init)
+{
+    return thrust::reduce(thrust::device, input, input + numElements, init);
+}
+
+template size_t reduceGpu(const unsigned*, size_t, size_t);
 
 } // namespace cstone

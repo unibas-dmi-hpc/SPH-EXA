@@ -96,10 +96,18 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     auto [eKin, eInt, linmom, angmom] = localConservedQuantities(startIndex, endIndex, d);
 
     size_t ncsum = 0;
-#pragma omp parallel for reduction(+ : ncsum)
-    for (size_t i = startIndex; i < endIndex; i++)
+
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        ncsum += d.nc[i];
+        ncsum = cstone::reduceGpu(rawPtr(d.devData.nc) + startIndex, endIndex - startIndex, size_t(0));
+    }
+    else
+    {
+#pragma omp parallel for reduction(+ : ncsum)
+        for (size_t i = startIndex; i < endIndex; i++)
+        {
+            ncsum += d.nc[i];
+        }
     }
 
     util::array<T, 10> quantities, globalQuantities;
@@ -130,7 +138,5 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     d.angmom         = std::sqrt(norm2(globalAngmom));
     d.totalNeighbors = size_t(globalQuantities[9]);
 }
-
-size_t neighborsSum(size_t startIndex, size_t endIndex, gsl::span<const unsigned> neighborsCount) { return 0; }
 
 } // namespace sphexa

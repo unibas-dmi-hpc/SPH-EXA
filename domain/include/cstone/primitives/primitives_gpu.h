@@ -64,4 +64,7 @@ extern void lowerBoundGpu(const T* first, const T* last, const T* valueFirst, co
 template<class Tin, class Tout, class IndexType>
 extern void segmentMax(const Tin* input, const IndexType* segments, size_t numSegments, Tout* output);
 
+template<class Tin, class Tout>
+extern Tout reduceGpu(const Tin* input, size_t numElements, Tout init);
+
 } // namespace cstone
