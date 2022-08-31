@@ -167,6 +167,12 @@ public:
 
         timer.stop();
     }
+
+    void prepareOutput(ParticleDataType& d, size_t first, size_t last) override
+    {
+        transferToHost(d, first, last, conservedFields());
+    }
 };
 
 } // namespace sphexa
+
