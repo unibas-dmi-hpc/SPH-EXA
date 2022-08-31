@@ -58,3 +58,48 @@ TEST(SfcBox, pbcDistance)
     EXPECT_EQ(pbcDistance<1024>(513), -511);
     EXPECT_EQ(pbcDistance<1024>(1024), 0);
 }
+
+TEST(SfcBox, applyPbc)
+{
+    using T = double;
+
+    Box<T> box(0, 1, BoundaryType::periodic);
+    Vec3<T> X{0.9, 0.9, 0.9};
+    auto Xpbc = cstone::applyPbc(X, box);
+
+    EXPECT_NEAR(Xpbc[0], -0.1, 1e-10);
+    EXPECT_NEAR(Xpbc[1], -0.1, 1e-10);
+    EXPECT_NEAR(Xpbc[2], -0.1, 1e-10);
+}
+
+TEST(SfcBox, putInBox)
+{
+    using T = double;
+    {
+        Box<T> box(0, 1, BoundaryType::periodic);
+        Vec3<T> X{0.9, 0.9, 0.9};
+        auto Xpbc = cstone::putInBox(X, box);
+
+        EXPECT_NEAR(Xpbc[0], 0.9, 1e-10);
+        EXPECT_NEAR(Xpbc[1], 0.9, 1e-10);
+        EXPECT_NEAR(Xpbc[2], 0.9, 1e-10);
+    }
+    {
+        Box<T> box(0, 1, BoundaryType::periodic);
+        Vec3<T> X{1.1, 1.1, 1.1};
+        auto Xpbc = cstone::putInBox(X, box);
+
+        EXPECT_NEAR(Xpbc[0], 0.1, 1e-10);
+        EXPECT_NEAR(Xpbc[1], 0.1, 1e-10);
+        EXPECT_NEAR(Xpbc[2], 0.1, 1e-10);
+    }
+    {
+        Box<T> box(-1, 1, BoundaryType::periodic);
+        Vec3<T> X{-0.9, -0.9, -0.9};
+        auto Xpbc = cstone::putInBox(X, box);
+
+        EXPECT_NEAR(Xpbc[0], -0.9, 1e-10);
+        EXPECT_NEAR(Xpbc[1], -0.9, 1e-10);
+        EXPECT_NEAR(Xpbc[2], -0.9, 1e-10);
+    }
+}

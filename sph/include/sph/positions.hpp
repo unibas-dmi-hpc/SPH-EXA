@@ -73,7 +73,7 @@ HOST_DEVICE_FUN auto positionUpdate(T dt, T dt_m1, cstone::Vec3<T> X, cstone::Ve
     X_m1   = X;
     X += dt * Val + A * deltaB * dt;
 
-    auto Xpbc = cstone::applyPbc(X, box);
+    auto Xpbc = cstone::putInBox(X, box);
     X_m1 += Xpbc - X;
     X = Xpbc;
 
