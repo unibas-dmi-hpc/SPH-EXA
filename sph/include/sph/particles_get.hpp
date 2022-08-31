@@ -44,44 +44,52 @@ struct FieldList
 };
 
 template<StructuralString... Fields, class Dataset>
-auto getHost(Dataset& d)
+decltype(auto) getHost(Dataset& d)
 {
-    return std::tie(std::get<getFieldIndex(Fields.value, Dataset::fieldNames)>(d.dataTuple())...);
+    if constexpr (sizeof...(Fields) == 1)
+    {
+        return std::get<getFieldIndex(Fields.value..., Dataset::fieldNames)>(d.dataTuple());
+    }
+    else { return std::tie(std::get<getFieldIndex(Fields.value, Dataset::fieldNames)>(d.dataTuple())...); }
 }
 
 template<StructuralString... Fields, class Dataset>
-auto getHostHelper(Dataset& d, FieldList<Fields...>)
+decltype(auto) getHostHelper(Dataset& d, FieldList<Fields...>)
 {
     return getHost<Fields...>(d);
 }
 
 template<class FieldList, class Dataset>
-auto getHost(Dataset& d)
+decltype(auto) getHost(Dataset& d)
 {
     return getHostHelper(d, FieldList{});
 }
 
 template<StructuralString... Fields, class Dataset>
-auto getDevice(Dataset& d)
+decltype(auto) getDevice(Dataset& d)
 {
-    return std::tie(std::get<getFieldIndex(Fields.value, Dataset::fieldNames)>(d.devData.dataTuple())...);
+    if constexpr (sizeof...(Fields) == 1)
+    {
+        return std::get<getFieldIndex(Fields.value..., Dataset::fieldNames)>(d.devData.dataTuple());
+    }
+    else { return std::tie(std::get<getFieldIndex(Fields.value, Dataset::fieldNames)>(d.devData.dataTuple())...); }
 }
 
 template<StructuralString... Fields, class Dataset>
-auto getDeviceHelper(Dataset& d, FieldList<Fields...>)
+decltype(auto) getDeviceHelper(Dataset& d, FieldList<Fields...>)
 {
     return getDevice<Fields...>(d);
 }
 
 template<class FieldList, class Dataset>
-auto getDevice(Dataset& d)
+decltype(auto) getDevice(Dataset& d)
 {
     return getDeviceHelper(d, FieldList{});
 }
 
 //! @brief Return a tuple of references to the specified particle field indices, to GPU fields if GPU is enabled
 template<StructuralString... Fields, class Dataset>
-auto get(Dataset& d)
+decltype(auto) get(Dataset& d)
 {
     using AcceleratorType = typename Dataset::AcceleratorType;
     if constexpr (std::is_same_v<AcceleratorType, cstone::CpuTag>) { return getHost<Fields...>(d); }
@@ -89,13 +97,13 @@ auto get(Dataset& d)
 }
 
 template<StructuralString... Fields, class Dataset>
-auto getHelper(Dataset& d, FieldList<Fields...>)
+decltype(auto) getHelper(Dataset& d, FieldList<Fields...>)
 {
     return get<Fields...>(d);
 }
 
 template<class FieldList, class Dataset>
-auto get(Dataset& d)
+decltype(auto) get(Dataset& d)
 {
     return getHelper(d, FieldList{});
 }

@@ -104,12 +104,13 @@ public:
     {
         if (d.g != 0.0)
         {
-            domain.syncGrav(d.keys, d.x, d.y, d.z, d.h, d.m, getHost<ConservedFields>(d), getHost<DependentFields>(d));
+            domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
+                            get<ConservedFields>(d), get<DependentFields>(d));
         }
         else
         {
-            domain.sync(d.keys, d.x, d.y, d.z, d.h, std::tuple_cat(std::tie(d.m), getHost<ConservedFields>(d)),
-                        getHost<DependentFields>(d));
+            domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
+                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d));
         }
     }
 
@@ -137,16 +138,14 @@ public:
         computeEOS_HydroStd(first, last, d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), std::get<0>(get<"ax">(d)),
-                             std::get<0>(get<"ay">(d)));
+        domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
 
         timer.step("mpi::synchronizeHalos");
 
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
 
-        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), std::get<0>(get<"ax">(d)),
-                             std::get<0>(get<"ay">(d)));
+        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
 
         timer.step("mpi::synchronizeHalos");
 

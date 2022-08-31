@@ -134,7 +134,7 @@ public:
         transferToDevice(d, 0, domain.nParticlesWithHalos(), {"x", "y", "z", "h", "m", "keys"});
         computeXMass(first, last, ngmax_, d, domain.box());
         timer.step("XMass");
-        domain.exchangeHalos(get<"xm">(d), std::get<0>(get<"ax">(d)), std::get<0>(get<"ay">(d)));
+        domain.exchangeHalos(std::tie(get<"xm">(d)), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
 
         d.release("ax");
@@ -148,8 +148,7 @@ public:
         computeEOS(first, last, d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(get<"vx", "vy", "vz", "prho", "c", "kx">(d), std::get<0>(get<"gradh">(d)),
-                             std::get<0>(get<"ay">(d)));
+        domain.exchangeHalos(get<"vx", "vy", "vz", "prho", "c", "kx">(d), get<"gradh">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
 
         d.release("gradh");
@@ -160,15 +159,14 @@ public:
         transferToHost(d, first, last, {"divv", "curlv"});
         timer.step("IadVelocityDivCurl");
 
-        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), std::get<0>(get<"az">(d)),
-                             std::get<0>(get<"du">(d)));
+        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"az">(d), get<"du">(d));
         timer.step("mpi::synchronizeHalos");
 
         computeAVswitches(first, last, ngmax_, d, domain.box());
         transferToHost(d, first, last, {"alpha"});
         timer.step("AVswitches");
 
-        domain.exchangeHalos(get<"alpha">(d), std::get<0>(get<"az">(d)), std::get<0>(get<"du">(d)));
+        domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"az">(d), get<"du">(d));
         timer.step("mpi::synchronizeHalos");
 
         d.devData.release("divv", "curlv");
