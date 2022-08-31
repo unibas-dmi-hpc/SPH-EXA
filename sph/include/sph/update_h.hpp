@@ -21,7 +21,7 @@ void updateSmoothingLengthCpu(size_t startIndex, size_t endIndex, unsigned ng0, 
         h[i] = h[i] * 0.5 * std::pow((1.0 + c0 * ng0 / nc[i]), exp);
 
 #ifndef NDEBUG
-        if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%lu) ngi %d h %f\n", i, nn, h[i]);
+        if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%lu) ngi %d h %f\n", i, nc[i], h[i]);
 #endif
     }
 }

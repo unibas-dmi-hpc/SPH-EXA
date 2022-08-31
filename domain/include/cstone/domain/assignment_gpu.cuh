@@ -128,11 +128,11 @@ public:
     /*! @brief Distribute particles to their assigned ranks based on previous assignment
      *
      * @param[in]    bufDesc            Buffer description with range of assigned particles and total buffer size
-     * @param[inout] reorderFunctor     contains the ordering that accesses the range [particleStart:particleEnd]
+     * @param[inout] reorderFunctor     contains the ordering that accesses the range [bufDesc.start:bufDesc.end]
      *                                  in SFC order
-     * @param[out]   sfcOrder           If using the CPU reorderer, this is a duplicate copy. Otherwise provides
-     *                                  the host space to download the ordering from the device.
-     * @param[in]    keys               Sorted particle keys in [particleStart:particleEnd]
+     * @param[-]     sendScratch        scratch space for send buffers
+     * @param[-]     receiveScratch     scratch space for receive buffers
+     * @param[in]    keys               particle SFC keys, sorted in [bufDesc.start:bufDesc.end]
      * @param[inout] x                  particle x-coordinates
      * @param[inout] y                  particle y-coordinates
      * @param[inout] z                  particle z-coordinates
@@ -160,8 +160,8 @@ public:
         LocalIndex numParticles          = bufDesc.end - bufDesc.start;
         LocalIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
-        SendList domainExchangeSends = createSendListGpu<KeyType>(assignment_, tree_.treeLeaves(), {keys, numParticles},
-                                                                  sendScratch, receiveScratch);
+        SendList domainExchangeSends = createSendListGpu<KeyType>(
+            assignment_, tree_.treeLeaves(), {keys + bufDesc.start, numParticles}, sendScratch, receiveScratch);
 
         // Assigned particles are now inside the [newStart:newEnd] range, but not exclusively.
         // Leftover particles from the previous step can also be contained in the range.

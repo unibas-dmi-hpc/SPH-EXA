@@ -70,13 +70,12 @@ struct MinMax
 /*! @brief compute global bounding box for local x,y,z arrays
  *
  * @tparam     T             float or double
- * @param[in]  xB            x coordinate array start
- * @param[in]  xE            x coordinate array end
- * @param[in]  yB            y coordinate array start
- * @param[in]  zB            z coordinate array start
- * @param[in]  previousBox   previous coordinate bounding box, default non-pbc box
- *                           with limits ignored
- * @return                   the new bounding box
+ * @param[in]  x            x coordinate array start
+ * @param[in]  y            y coordinate array start
+ * @param[in]  z            z coordinate array start
+ * @param[in]  numElements  length of @a x,y,z arrays
+ * @param[in]  previousBox  previous coordinate bounding box, default open-boundary box with limits ignored
+ * @return                  the new bounding box
  *
  * For each periodic dimension, limits are fixed and will not be modified.
  * For non-periodic dimensions, limits are determined by global min/max.

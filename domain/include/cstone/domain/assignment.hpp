@@ -70,7 +70,7 @@ public:
      *
      * @param[in]  bufDesc         Buffer description with range of assigned particles
      * @param[in]  reorderFunctor  records the SFC order of the owned input coordinates
-     * @param[out] particleKeys    will contain sorted particle SFC keys in the range [particleStart:particleEnd]
+     * @param[out] particleKeys    will contain sorted particle SFC keys in the range [bufDesc.start:bufDesc.end]
      * @param[in]  x               x coordinates
      * @param[in]  y               y coordinates
      * @param[in]  z               z coordinates
@@ -125,9 +125,7 @@ public:
      * @param[in]    bufDesc            Buffer description with range of assigned particles and total buffer size
      * @param[inout] reorderFunctor     contains the ordering that accesses the range [particleStart:particleEnd]
      *                                  in SFC order
-     * @param[out]   sfcOrder           If using the CPU reorderer, this is a duplicate copy. Otherwise provides
-     *                                  the host space to download the ordering from the device.
-     * @param[in]    keys               Sorted particle keys in [particleStart:particleEnd]
+     * @param[in]    keys               particle SFC keys, sorted in [bufDesc.start:bufDesc.end]
      * @param[inout] x                  particle x-coordinates
      * @param[inout] y                  particle y-coordinates
      * @param[inout] z                  particle z-coordinates
