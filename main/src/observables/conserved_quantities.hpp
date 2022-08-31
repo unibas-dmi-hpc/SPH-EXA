@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +39,7 @@
 #include "mpi.h"
 
 #include "cstone/util/array.hpp"
+#include "conserved_gpu.h"
 
 namespace sphexa
 {
@@ -48,14 +49,14 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 {
     using T = typename Dataset::RealType;
 
-    const T* x  = d.x.data();
-    const T* y  = d.y.data();
-    const T* z  = d.z.data();
-    const T* vx = d.vx.data();
-    const T* vy = d.vy.data();
-    const T* vz = d.vz.data();
-    const T* m  = d.m.data();
-    const T* u  = d.u.data();
+    const auto* x  = d.x.data();
+    const auto* y  = d.y.data();
+    const auto* z  = d.z.data();
+    const auto* vx = d.vx.data();
+    const auto* vy = d.vy.data();
+    const auto* vz = d.vz.data();
+    const auto* m  = d.m.data();
+    const auto* u  = d.u.data();
 
     T eKin = 0.0;
     T eInt = 0.0;
@@ -101,7 +102,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         ncsum = cstone::reduceGpu(rawPtr(d.devData.nc) + startIndex, endIndex - startIndex, size_t(0));
-        std::tie(eKin, eInt, linmom, angmom) = cstone::conservedQuantitiesGpu(
+        std::tie(eKin, eInt, linmom, angmom) = conservedQuantitiesGpu(
             rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
             rawPtr(d.devData.vz), rawPtr(d.devData.u), rawPtr(d.devData.m), startIndex, endIndex);
     }
