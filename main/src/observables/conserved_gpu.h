@@ -39,7 +39,7 @@ namespace sphexa
 {
 
 template<class Tc, class Tv, class Tu, class Tm>
-extern std::tuple<Tc, Tc, cstone::Vec3<Tc>, cstone::Vec3<Tc>>
+extern std::tuple<double, double, cstone::Vec3<double>, cstone::Vec3<double>>
 conservedQuantitiesGpu(const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz, const Tu* u,
                        const Tm* m, size_t, size_t);
 
