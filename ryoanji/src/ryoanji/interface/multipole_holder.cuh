@@ -48,7 +48,7 @@ public:
     ~MultipoleHolder();
 
     void upsweep(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalOctree,
-                 const cstone::FocusedOctree<KeyType, Tf>& focusTree, const cstone::LocalIndex* layout,
+                 const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles);
 
     float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,

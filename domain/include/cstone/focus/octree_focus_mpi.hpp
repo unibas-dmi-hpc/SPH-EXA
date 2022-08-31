@@ -515,9 +515,9 @@ private:
  * Postcondition: each element of quantities corresponding to non-local cells not owned by any of the peer
  *                ranks contains data obtained through global collective communication between ranks
  */
-template<class Q, class KeyType, class T, class F, class... UArgs>
+template<class Q, class KeyType, class T, class F, class Accelerator, class... UArgs>
 void globalFocusExchange(const Octree<KeyType>& globalOctree,
-                         const FocusedOctree<KeyType, T>& focusTree,
+                         const FocusedOctree<KeyType, T, Accelerator>& focusTree,
                          gsl::span<Q> quantities,
                          F&& upsweepFunction,
                          UArgs&&... upsweepArgs)

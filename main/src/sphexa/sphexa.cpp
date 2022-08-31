@@ -79,7 +79,7 @@ int main(int argc, char** argv)
     using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
-    using Domain  = cstone::Domain<KeyType, Real>;
+    using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
     const std::string        initCond          = parser.get("--init");
     const size_t             problemSize       = parser.get("-n", 50);
@@ -111,6 +111,7 @@ int main(int argc, char** argv)
     propagator->activateFields(d);
     propagator->restoreState(initCond, d.comm);
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, d);
+    transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
     d.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
 
     bool  haveGrav = (d.g != 0.0);

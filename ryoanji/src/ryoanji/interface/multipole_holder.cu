@@ -55,7 +55,7 @@ public:
     Impl() {}
 
     void upsweep(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalOctree,
-                 const cstone::FocusedOctree<KeyType, Tf>& focusTree, const cstone::LocalIndex* layout,
+                 const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles)
     {
         constexpr int                  numThreads = UpsweepConfig::numThreads;
@@ -190,10 +190,9 @@ template<class Tc, class Tm, class Tf, class KeyType, class MType>
 MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::~MultipoleHolder() = default;
 
 template<class Tc, class Tm, class Tf, class KeyType, class MType>
-void MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::upsweep(const Tc* x, const Tc* y, const Tc* z, const Tm* m,
-                                                          const cstone::Octree<KeyType>&            globalTree,
-                                                          const cstone::FocusedOctree<KeyType, Tf>& focusTree,
-                                                          const LocalIndex* layout, MType* multipoles)
+void MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::upsweep(
+    const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalTree,
+    const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const LocalIndex* layout, MType* multipoles)
 {
     impl_->upsweep(x, y, z, m, globalTree, focusTree, layout, multipoles);
 }

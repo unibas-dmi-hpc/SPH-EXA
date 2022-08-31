@@ -43,9 +43,9 @@ namespace ryoanji
 
 template<class Tc, class Tm, class Tf, class KeyType, class MType>
 void computeGlobalMultipoles(const Tc* x, const Tc* y, const Tc* z, const Tm* m, cstone::LocalIndex numParticles,
-                             const cstone::Octree<KeyType>&            globalOctree,
-                             const cstone::FocusedOctree<KeyType, Tf>& focusTree, const cstone::LocalIndex* layout,
-                             MType* multipoles)
+                             const cstone::Octree<KeyType>&                            globalOctree,
+                             const cstone::FocusedOctree<KeyType, Tf, cstone::CpuTag>& focusTree,
+                             const cstone::LocalIndex* layout, MType* multipoles)
 {
     const cstone::Octree<KeyType>& octree = focusTree.octree();
 

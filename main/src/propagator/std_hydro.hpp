@@ -129,10 +129,8 @@ public:
         std::fill(begin(d.m) + last, end(d.m), d.m[first]);
 
         findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.keys, d.neighbors, d.nc, domain.box());
-        transferToDevice(d, first, last, {"vx", "vy", "vz", "u"});
         timer.step("FindNeighbors");
 
-        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"x", "y", "z", "h", "m", "keys"});
         computeDensity(first, last, ngmax_, d, domain.box());
         timer.step("Density");
         computeEOS_HydroStd(first, last, d);
@@ -162,14 +160,10 @@ public:
 
         computeTimestep(d);
         timer.step("Timestep");
-
-        transferToDevice(d, first, last, {"x_m1", "y_m1", "z_m1", "du_m1"});
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
-
-        transferToHost(d, first, last, {"x", "y", "z", "h", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "u", "du_m1"});
 
         timer.stop();
     }
