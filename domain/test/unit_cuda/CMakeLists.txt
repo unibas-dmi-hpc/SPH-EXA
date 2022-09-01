@@ -12,7 +12,6 @@ if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
             btree.cu
             octree.cu
             octree_internal.cu
-            gather.cpp
             test_main.cpp)
     target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/include)
     target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/test)
