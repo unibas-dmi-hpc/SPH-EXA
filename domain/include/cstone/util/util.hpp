@@ -157,6 +157,22 @@ constexpr auto makeIntegralTuple(std::index_sequence<Is...>)
     return std::make_tuple(std::integral_constant<size_t, Is>{}...);
 }
 
+template<class Tuple, size_t... Is>
+constexpr auto discardLastImpl(const Tuple& tuple, std::index_sequence<Is...>)
+{
+    return std::make_tuple(std::get<Is>(tuple)...);
+}
+
+template<class Tuple>
+constexpr auto discardLastElement(const Tuple& tuple)
+{
+    constexpr int tupleSize = std::tuple_size_v<Tuple>;
+    static_assert(tupleSize > 1);
+
+    using Seq = std::make_index_sequence<tupleSize - 1>;
+    return discardLastImpl(tuple, Seq{});
+}
+
 //! @brief ceil(dividend/divisor) for integers
 HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
 {
