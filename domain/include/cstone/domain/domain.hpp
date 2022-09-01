@@ -187,7 +187,7 @@ public:
               std::tuple<Vectors1&...> particleProperties,
               std::tuple<Vectors2&...> scratchBuffers)
     {
-        static_assert(std::is_same_v<typename KeyVec::value_type, KeyType>);
+        staticChecks(particleKeys, scratchBuffers);
 
         auto [exchangeStart, keyView] =
             distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratchBuffers);
@@ -227,7 +227,7 @@ public:
                   std::tuple<Vectors1&...> particleProperties,
                   std::tuple<Vectors2&...> scratchBuffers)
     {
-        static_assert(std::is_same_v<typename KeyVec::value_type, KeyType>);
+        staticChecks(particleKeys, scratchBuffers);
 
         auto [exchangeStart, keyView] =
             distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratchBuffers);
@@ -321,6 +321,13 @@ private:
         if (!allEqual) { throw std::runtime_error("Domain sync: input array sizes are inconsistent\n"); }
     }
 
+    template<class KeyVec, class ScratchBuffers>
+    void staticChecks(const KeyVec& keys, const ScratchBuffers& scratchBuffers)
+    {
+        static_assert(std::is_same_v<typename KeyVec::value_type, KeyType>);
+        static_assert(std::tuple_size_v<ScratchBuffers> >= 3);
+    }
+
     template<class KeyVec, class VectorX, class... Vectors1, class... Vectors2>
     auto distribute(KeyVec& keys,
                     VectorX& x,
@@ -329,8 +336,6 @@ private:
                     std::tuple<Vectors1&...> particleProperties,
                     std::tuple<Vectors2&...> scratchBuffers)
     {
-        static_assert(std::tuple_size_v<decltype(scratchBuffers)> > 1);
-
         initBounds(x.size());
         auto distributedArrays = std::tuple_cat(std::tie(keys, x, y, z), particleProperties);
         std::apply([size = x.size()](auto&... arrays) { checkSizesEqual(size, arrays...); }, distributedArrays);

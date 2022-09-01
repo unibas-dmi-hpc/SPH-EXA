@@ -108,8 +108,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     std::vector<T> h{hGlobal.begin() + firstExtract, hGlobal.begin() + lastExtract};
 
     std::vector<KeyType> keys(x.size());
-    std::vector<T> scratch, scratch2;
-    domain.sync(keys, x, y, z, h, std::tuple{}, std::tie(scratch, scratch2));
+    std::vector<T> s1, s2, s3;
+    domain.sync(keys, x, y, z, h, std::tuple{}, std::tie(s1, s2, s3));
 
     LocalIndex localCount    = domain.endIndex() - domain.startIndex();
     LocalIndex localCountSum = localCount;
@@ -250,8 +250,8 @@ TEST(FocusDomain, assignmentShift)
 
     std::vector<KeyType> particleKeys(x.size());
 
-    std::vector<Real> scratch, scratch2;
-    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(scratch, scratch2));
+    std::vector<Real> s1, s2, s3;
+    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(s1, s2, s3));
 
     if (rank == 2)
     {
@@ -261,7 +261,7 @@ TEST(FocusDomain, assignmentShift)
         }
     }
 
-    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(scratch, scratch2));
+    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(s1, s2, s3));
 
     std::vector<Real> property(domain.nParticlesWithHalos(), -1);
     for (LocalIndex i = domain.startIndex(); i < domain.endIndex(); ++i)
@@ -269,7 +269,7 @@ TEST(FocusDomain, assignmentShift)
         property[i] = rank;
     }
 
-    domain.exchangeHalos(std::tie(property), scratch, scratch2);
+    domain.exchangeHalos(std::tie(property), s1, s2);
 
     EXPECT_TRUE(std::count(property.begin(), property.end(), -1) == 0);
     EXPECT_TRUE(std::count(property.begin(), property.end(), rank) == domain.nParticles());

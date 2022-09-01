@@ -105,12 +105,12 @@ void randomGaussianAssignment(int rank, int numRanks)
     thrust::device_vector<T> d_m = m;
 
     Domain<KeyType, T, CpuTag> domainCpu(rank, numRanks, bucketSize, bucketSizeFocus, 1.0, box);
-    std::vector<T> hs1, hs2;
-    domainCpu.sync(keys, x, y, z, h, std::tie(m), std::tie(hs1, hs2));
+    std::vector<T> hs1, hs2, hs3;
+    domainCpu.sync(keys, x, y, z, h, std::tie(m), std::tie(hs1, hs2, hs3));
 
     Domain<KeyType, T, GpuTag> domainGpu(rank, numRanks, bucketSize, bucketSizeFocus, 1.0, box);
-    thrust::device_vector<T> s1, s2;
-    domainGpu.sync(d_keys, d_x, d_y, d_z, d_h, std::tie(d_m), std::tie(s1, s2));
+    thrust::device_vector<T> s1, s2, s3;
+    domainGpu.sync(d_keys, d_x, d_y, d_z, d_h, std::tie(d_m), std::tie(s1, s2, s3));
 
     std::cout << "numHalos " << domainGpu.nParticlesWithHalos() - domainGpu.nParticles() << " cpu "
               << domainCpu.nParticlesWithHalos() - domainCpu.nParticles() << std::endl;

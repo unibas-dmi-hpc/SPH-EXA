@@ -82,8 +82,8 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
     thrust::device_vector<KeyType> d_keys = particleKeys;
     thrust::device_vector<T>       d_x = x, d_y = y, d_z = z, d_h = h, d_m = m;
-    thrust::device_vector<T>       scratch, scratch2;
-    domain.syncGrav(d_keys, d_x, d_y, d_z, d_h, d_m, std::tuple{}, std::tie(scratch, scratch2));
+    thrust::device_vector<T>       s1, s2, s3;
+    domain.syncGrav(d_keys, d_x, d_y, d_z, d_h, d_m, std::tuple{}, std::tie(s1, s2, s3));
 
     //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
     const cstone::FocusedOctree<KeyType, T, cstone::GpuTag>& focusTree = domain.focusTree();
