@@ -34,6 +34,7 @@
 
 #include <variant>
 
+#include "sph/particles_data.hpp"
 #include "sph/particles_get.hpp"
 #include "sph/sph.hpp"
 
@@ -125,8 +126,9 @@ public:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        std::fill(begin(d.m), begin(d.m) + first, d.m[first]);
-        std::fill(begin(d.m) + last, end(d.m), d.m[first]);
+        transferToHost(d, first, first + 1, {"m"});
+        fill(get<"m">(d), 0, first, d.m[first]);
+        fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
         findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.keys, d.neighbors, d.nc, domain.box());
         timer.step("FindNeighbors");
@@ -175,4 +177,3 @@ public:
 };
 
 } // namespace sphexa
-

@@ -41,6 +41,15 @@
 namespace cstone
 {
 
+template<class T>
+void fillGpu(T* first, T* last, T value)
+{
+    thrust::fill(thrust::device, first, last, value);
+}
+
+template void fillGpu(double*, double*, double);
+template void fillGpu(float*, float*, float);
+
 template<class T, class IndexType>
 __global__ void gatherGpuKernel(const IndexType* map, size_t n, const T* source, T* destination)
 {

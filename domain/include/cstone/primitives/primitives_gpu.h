@@ -36,6 +36,9 @@
 namespace cstone
 {
 
+template<class T>
+extern void fillGpu(T* first, T* last, T value);
+
 template<class T, class IndexType>
 extern void gatherGpu(const IndexType* ordering, size_t numElements, const T* src, T* buffer);
 

@@ -34,6 +34,7 @@
 #include <vector>
 #include <variant>
 
+#include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/tree/definitions.h"
 #include "cstone/util/reallocate.hpp"
 
@@ -223,6 +224,12 @@ void transferToDevice(Dataset&, size_t, size_t, const std::vector<std::string>&)
 template<class Dataset, std::enable_if_t<not cstone::HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
 void transferToHost(Dataset&, size_t, size_t, const std::vector<std::string>&)
 {
+}
+
+template<class Vector, class T, std::enable_if_t<not IsDeviceVector<Vector>{}, int> = 0>
+void fill(Vector& v, size_t first, size_t last, T value)
+{
+    std::fill(v.data() + first, v.data() + last, value);
 }
 
 } // namespace sphexa

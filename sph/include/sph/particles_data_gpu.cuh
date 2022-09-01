@@ -36,6 +36,7 @@
 #include <variant>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/primitives/primitives_gpu.h"
 #include "cstone/util/reallocate.hpp"
 
 #include "data_util.hpp"
@@ -265,6 +266,12 @@ void transferToHost(DataType& d, size_t first, size_t last, const std::vector<st
             std::find(DataType::fieldNames.begin(), DataType::fieldNames.end(), field) - DataType::fieldNames.begin();
         std::visit(launchTransfer, hostData[fieldIdx], deviceData[fieldIdx]);
     }
+}
+
+template<class Vector, class T, std::enable_if_t<IsDeviceVector<Vector>{}, int> = 0>
+void fill(Vector& v, size_t first, size_t last, T value)
+{
+    cstone::fillGpu(rawPtr(v) + first, rawPtr(v) + last, value);
 }
 
 } // namespace sphexa
