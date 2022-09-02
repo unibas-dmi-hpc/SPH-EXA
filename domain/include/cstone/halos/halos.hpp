@@ -105,12 +105,12 @@ void checkHalos(int myRank, gsl::span<const TreeIndexPair> focusAssignment, gsl:
 
 } // namespace detail
 
-template<class DeviceVector, class... Arrays>
+template<class DevVec1, class DevVec2, class... Arrays>
 void haloExchangeGpu(int epoch,
                      const SendList& incomingHalos,
                      const SendList& outgoingHalos,
-                     DeviceVector& sendScratchBuffer,
-                     DeviceVector& receiveScratchBuffer,
+                     DevVec1& sendScratchBuffer,
+                     DevVec2& receiveScratchBuffer,
                      Arrays... arrays);
 
 template<class KeyType, class Accelerator>
@@ -222,11 +222,12 @@ public:
      * Arrays are not resized or reallocated. Function is const, but modifies mutable haloEpoch_ counter.
      * Note that if the ScratchVectors are on device, all arrays need to be on the device too.
      */
-    template<class ScratchVector, class... Vectors>
-    void exchangeHalos(std::tuple<Vectors&...> arrays, ScratchVector& sendBuffer, ScratchVector& receiveBuffer) const
+    template<class Scratch1, class Scratch2, class... Vectors>
+    void exchangeHalos(std::tuple<Vectors&...> arrays, Scratch1& sendBuffer, Scratch2& receiveBuffer) const
     {
-        if constexpr (IsDeviceVector<ScratchVector>{})
+        if constexpr (HaveGpu<Accelerator>{})
         {
+            static_assert(IsDeviceVector<Scratch1>{} && IsDeviceVector<Scratch2>{});
             std::apply(
                 [this, &sendBuffer, &receiveBuffer](auto&... arrays)
                 {

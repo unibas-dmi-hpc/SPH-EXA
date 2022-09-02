@@ -34,8 +34,7 @@
 #include <numeric>
 #include <vector>
 
-#include <thrust/device_vector.h>
-
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/primitives/mpi_cuda.cuh"
@@ -48,12 +47,12 @@
 namespace cstone
 {
 
-template<class DeviceVector, class... Arrays>
+template<class DevVec1, class DevVec2, class... Arrays>
 void haloExchangeGpu(int epoch,
                      const SendList& incomingHalos,
                      const SendList& outgoingHalos,
-                     DeviceVector& sendScratchBuffer,
-                     DeviceVector& receiveScratchBuffer,
+                     DevVec1& sendScratchBuffer,
+                     DevVec2& receiveScratchBuffer,
                      Arrays... arrays)
 {
     using IndexType         = SendManifest::IndexType;
@@ -65,7 +64,7 @@ void haloExchangeGpu(int epoch,
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
     const size_t oldSendSize = reallocateDeviceBytes(sendScratchBuffer, outgoingHalos.totalCount() * bytesPerElement);
-    char* sendBuffer         = reinterpret_cast<char*>(thrust::raw_pointer_cast(sendScratchBuffer.data()));
+    char* sendBuffer         = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
 
     std::vector<MPI_Request> sendRequests;
     std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
@@ -123,7 +122,7 @@ void haloExchangeGpu(int epoch,
     }
 
     const size_t oldRecvSize = reallocateDeviceBytes(receiveScratchBuffer, maxReceiveSize * bytesPerElement);
-    char* receiveBuffer      = reinterpret_cast<char*>(thrust::raw_pointer_cast(receiveScratchBuffer.data()));
+    char* receiveBuffer      = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
     while (numMessages > 0)
     {
