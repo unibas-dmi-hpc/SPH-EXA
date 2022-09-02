@@ -187,7 +187,7 @@ public:
               std::tuple<Vectors1&...> particleProperties,
               std::tuple<Vectors2&...> scratchBuffers)
     {
-        staticChecks(particleKeys, scratchBuffers);
+        staticChecks<KeyVec, VectorX, VectorH, Vectors1...>(scratchBuffers);
 
         auto [exchangeStart, keyView] =
             distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratchBuffers);
@@ -227,7 +227,7 @@ public:
                   std::tuple<Vectors1&...> particleProperties,
                   std::tuple<Vectors2&...> scratchBuffers)
     {
-        staticChecks(particleKeys, scratchBuffers);
+        staticChecks<KeyVec, VectorX, VectorH, VectorM, Vectors1...>(scratchBuffers);
 
         auto [exchangeStart, keyView] =
             distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratchBuffers);
@@ -321,11 +321,32 @@ private:
         if (!allEqual) { throw std::runtime_error("Domain sync: input array sizes are inconsistent\n"); }
     }
 
-    template<class KeyVec, class ScratchBuffers>
-    void staticChecks(const KeyVec& keys, const ScratchBuffers& scratchBuffers)
+    /*! @brief check type requirements on scratch buffers
+     *
+     * @tparam KeyVec           type of vector used to store SFC keys
+     * @tparam ConservedVectors types of conserved particle field vectors (x,y,z,...)
+     * @param  scratchBuffers   a tuple of references to vectors for scratch usage
+     *
+     * At least 3 scratch buffers are needed. 2 for send/receive and the last one is used to store the SFC ordering.
+     * An additional requirement is that for each value type (float, double) appearing in the list of conserved
+     * vectors, a scratch buffers with a matching type is needed to allow for vector swaps.
+     */
+    template<class KeyVec, class... ConservedVectors, class ScratchBuffers>
+    void staticChecks(ScratchBuffers& scratchBuffers)
     {
         static_assert(std::is_same_v<typename KeyVec::value_type, KeyType>);
         static_assert(std::tuple_size_v<ScratchBuffers> >= 3);
+
+        auto tup               = discardLastElement(scratchBuffers);
+        constexpr auto indices = std::make_tuple(util::FindIndex<ConservedVectors&, std::decay_t<decltype(tup)>>{}...);
+
+        auto valueTypeCheck = [](auto index)
+        {
+            static_assert(
+                index < std::tuple_size_v<std::decay_t<decltype(tup)>>,
+                "one of the conserved fields has a value type that was not found among the available scratch buffers");
+        };
+        for_each_tuple(valueTypeCheck, indices);
     }
 
     template<class KeyVec, class VectorX, class... Vectors1, class... Vectors2>

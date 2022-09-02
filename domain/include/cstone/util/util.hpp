@@ -160,7 +160,7 @@ constexpr auto makeIntegralTuple(std::index_sequence<Is...>)
 template<class Tuple, size_t... Is>
 constexpr auto discardLastImpl(const Tuple& tuple, std::index_sequence<Is...>)
 {
-    return std::make_tuple(std::get<Is>(tuple)...);
+    return std::tie(std::get<Is>(tuple)...);
 }
 
 template<class Tuple>
