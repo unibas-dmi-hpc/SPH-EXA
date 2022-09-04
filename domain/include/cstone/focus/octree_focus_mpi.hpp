@@ -157,7 +157,7 @@ public:
 
             size_t bytesTree  = round_up((numNodes + 1) * sizeof(KeyType), 128);
             size_t bytesCount = numNodes * sizeof(unsigned);
-            size_t origSize   = reallocateDeviceBytes(scratch, bytesTree + bytesCount);
+            size_t origSize   = reallocateBytes(scratch, bytesTree + bytesCount);
             auto* d_csTree    = reinterpret_cast<KeyType*>(rawPtr(scratch));
             auto* d_counts    = reinterpret_cast<unsigned*>(rawPtr(scratch)) + bytesTree / sizeof(unsigned);
 
@@ -303,12 +303,12 @@ public:
 
             size_t bytesOrd    = round_up(intOrd.size() * sizeof(TreeNodeIndex), 128);
             size_t bytesLayout = layout.size() * sizeof(LocalIndex);
-            size_t osz1        = reallocateDeviceBytes(scratch1, bytesOrd + bytesLayout);
+            size_t osz1        = reallocateBytes(scratch1, bytesOrd + bytesLayout);
             auto* d_intOrd     = reinterpret_cast<TreeNodeIndex*>(rawPtr(scratch1));
             auto* d_layout     = reinterpret_cast<LocalIndex*>(rawPtr(scratch1)) + bytesOrd / sizeof(LocalIndex);
 
             using CType     = SourceCenterType<RealType>;
-            size_t osz2     = reallocateDeviceBytes(scratch2, centers_.size() * sizeof(CType));
+            size_t osz2     = reallocateBytes(scratch2, centers_.size() * sizeof(CType));
             auto* d_centers = reinterpret_cast<CType*>(rawPtr(scratch2));
 
             memcpyH2D(intOrd.data(), intOrd.size(), d_intOrd);

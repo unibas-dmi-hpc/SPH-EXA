@@ -89,7 +89,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
     const int bytesPerElement = std::accumulate(elementSizes.begin(), elementSizes.end(), 0);
     constexpr auto indices    = makeIntegralTuple(std::make_index_sequence<numArrays>{});
 
-    const size_t oldSendSize = reallocateDeviceBytes(sendScratchBuffer, sendList.totalCount() * bytesPerElement);
+    const size_t oldSendSize = reallocateBytes(sendScratchBuffer, sendList.totalCount() * bytesPerElement);
     int numRanks = int(sendList.size());
 
     char* const sendBuffer = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
@@ -160,7 +160,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
     if (!fitHead && !fitTail && numIncoming > 0)
     {
         std::size_t requiredBytes = numParticlesPresent * *std::max_element(elementSizes.begin(), elementSizes.end());
-        reallocateDeviceBytes(receiveScratchBuffer, requiredBytes);
+        reallocateBytes(receiveScratchBuffer, requiredBytes);
         char* bufferPtr = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
         auto gatherArray = [bufferPtr, ordering, &sourceArrays, &destinationArrays, &elementSizes,
@@ -190,7 +190,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
         util::array<size_t, numArrays> arrayByteOffsets = receiveCount * elementSizes;
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
 
-        reallocateDeviceBytes(receiveScratchBuffer, receiveCountBytes);
+        reallocateBytes(receiveScratchBuffer, receiveCountBytes);
         char* receiveBuffer = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
         mpiRecvGpuDirect(receiveBuffer, receiveCountBytes, receiveRank, domainExchangeTag, &status);

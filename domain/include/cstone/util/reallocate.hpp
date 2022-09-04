@@ -34,24 +34,6 @@
 template<class Vector>
 extern void reallocateDevice(Vector&, size_t, double);
 
-/*! @brief resize a device vector to given number of bytes if current size is smaller
- *
- * @param[inout] vec       a device vector like thrust::device_vector
- * @param[in]    numBytes  minimum buffer size in bytes of @a vec
- * @return                 number of elements (vec.size(), not bytes) of supplied argument vector
- */
-template<class Vector>
-size_t reallocateDeviceBytes(Vector& vec, size_t numBytes)
-{
-    constexpr size_t elementSize = sizeof(typename Vector::value_type);
-    size_t originalSize          = vec.size();
-
-    size_t currentSizeBytes = originalSize * elementSize;
-    if (currentSizeBytes < numBytes) { reallocateDevice(vec, (numBytes + elementSize - 1) / elementSize, 1.01); }
-
-    return originalSize;
-}
-
 //! @brief resizes a vector with a determined growth rate upon reallocation
 template<class Vector>
 void reallocateGeneric(Vector& vector, size_t size, double growthRate)
@@ -82,4 +64,22 @@ template<class... Arrays>
 void reallocate(std::size_t size, Arrays&... arrays)
 {
     [[maybe_unused]] std::initializer_list<int> list{(reallocate(arrays, size, 1.01), 0)...};
+}
+
+/*! @brief resize a vector to given number of bytes if current size is smaller
+ *
+ * @param[inout] vec       an STL or thrust-like vector
+ * @param[in]    numBytes  minimum buffer size in bytes of @a vec
+ * @return                 number of elements (vec.size(), not bytes) of supplied argument vector
+ */
+template<class Vector>
+size_t reallocateBytes(Vector& vec, size_t numBytes)
+{
+    constexpr size_t elementSize = sizeof(typename Vector::value_type);
+    size_t originalSize          = vec.size();
+
+    size_t currentSizeBytes = originalSize * elementSize;
+    if (currentSizeBytes < numBytes) { reallocate(vec, (numBytes + elementSize - 1) / elementSize, 1.01); }
+
+    return originalSize;
 }

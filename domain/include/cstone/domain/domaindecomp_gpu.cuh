@@ -63,8 +63,8 @@ SendList createSendListGpu(const SpaceCurveAssignment& assignment,
     size_t numRanks = assignment.numRanks();
     using IndexType = SendManifest::IndexType;
 
-    size_t ssz = reallocateDeviceBytes(sendScratch, numRanks * sizeof(KeyType));
-    size_t rsz = reallocateDeviceBytes(receiveScratch, numRanks * sizeof(LocalIndex));
+    size_t ssz = reallocateBytes(sendScratch, numRanks * sizeof(KeyType));
+    size_t rsz = reallocateBytes(receiveScratch, numRanks * sizeof(LocalIndex));
     gsl::span<KeyType> d_searchKeys{reinterpret_cast<KeyType*>(rawPtr(sendScratch)), numRanks};
     gsl::span<LocalIndex> d_indices{reinterpret_cast<LocalIndex*>(rawPtr(receiveScratch)), numRanks};
 

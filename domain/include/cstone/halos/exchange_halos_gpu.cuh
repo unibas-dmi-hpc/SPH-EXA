@@ -63,7 +63,7 @@ void haloExchangeGpu(int epoch,
 
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
-    const size_t oldSendSize = reallocateDeviceBytes(sendScratchBuffer, outgoingHalos.totalCount() * bytesPerElement);
+    const size_t oldSendSize = reallocateBytes(sendScratchBuffer, outgoingHalos.totalCount() * bytesPerElement);
     char* sendBuffer         = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
 
     std::vector<MPI_Request> sendRequests;
@@ -121,7 +121,7 @@ void haloExchangeGpu(int epoch,
         }
     }
 
-    const size_t oldRecvSize = reallocateDeviceBytes(receiveScratchBuffer, maxReceiveSize * bytesPerElement);
+    const size_t oldRecvSize = reallocateBytes(receiveScratchBuffer, maxReceiveSize * bytesPerElement);
     char* receiveBuffer      = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
     while (numMessages > 0)

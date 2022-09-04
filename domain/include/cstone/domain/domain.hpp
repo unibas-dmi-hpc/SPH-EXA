@@ -188,11 +188,12 @@ public:
               std::tuple<Vectors2&...> scratchBuffers)
     {
         staticChecks<KeyVec, VectorX, VectorH, Vectors1...>(scratchBuffers);
+        auto scratch = discardLastElement(scratchBuffers);
 
         auto [exchangeStart, keyView] =
-            distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratchBuffers);
+            distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratch);
         // h is already reordered here for use in halo discovery
-        reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(h), scratchBuffers);
+        reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(h), scratch);
 
         float invThetaEff      = invThetaMinMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
@@ -200,20 +201,20 @@ public:
         if (firstCall_)
         {
             focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts(),
-                                invThetaEff, std::get<0>(scratchBuffers));
+                                invThetaEff, std::get<0>(scratch));
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratchBuffers));
+        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
 
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
-                        rawPtr(h), std::get<0>(scratchBuffers));
+                        rawPtr(h), std::get<0>(scratch));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
         updateLayout(exchangeStart, keyView, particleKeys, std::tie(h),
-                     std::tuple_cat(std::tie(x, y, z), particleProperties), scratchBuffers);
-        setupHalos(particleKeys, x, y, z, h, scratchBuffers);
+                     std::tuple_cat(std::tie(x, y, z), particleProperties), scratch);
+        setupHalos(particleKeys, x, y, z, h, scratch);
         firstCall_ = false;
     }
 
@@ -228,10 +229,11 @@ public:
                   std::tuple<Vectors2&...> scratchBuffers)
     {
         staticChecks<KeyVec, VectorX, VectorH, VectorM, Vectors1...>(scratchBuffers);
+        auto scratch   = discardLastElement(scratchBuffers);
 
         auto [exchangeStart, keyView] =
-            distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratchBuffers);
-        reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(x, y, z, h, m), scratchBuffers);
+            distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratch);
+        reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(x, y, z, h, m), scratch);
 
         float invThetaEff      = invThetaVecMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
@@ -243,32 +245,30 @@ public:
             {
                 focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
                 converged = focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-                focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(),
-                                        std::get<0>(scratchBuffers));
+                focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
                 focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.assignment(),
-                                         global_.octree(), box(), std::get<0>(scratchBuffers),
-                                         std::get<1>(scratchBuffers));
+                                         global_.octree(), box(), std::get<0>(scratch), std::get<1>(scratch));
                 focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
             }
         }
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratchBuffers));
+        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
         focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.assignment(), global_.octree(),
-                                 box(), std::get<0>(scratchBuffers), std::get<1>(scratchBuffers));
+                                 box(), std::get<0>(scratch), std::get<1>(scratch));
         focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
 
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
-                        rawPtr(h), std::get<0>(scratchBuffers));
+                        rawPtr(h), std::get<0>(scratch));
         focusTree_.addMacs(halos_.haloFlags());
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
         // diagnostics(keyView.size(), peers);
 
-        updateLayout(exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), particleProperties, scratchBuffers);
-        setupHalos(particleKeys, x, y, z, h, scratchBuffers);
+        updateLayout(exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), particleProperties, scratch);
+        setupHalos(particleKeys, x, y, z, h, scratch);
         firstCall_ = false;
     }
 
@@ -416,7 +416,7 @@ private:
         if constexpr (IsDeviceVector<KeyVec>{})
         {
             auto& swapSpace = std::get<0>(scratchBuffers);
-            size_t origSize = reallocateDeviceBytes(swapSpace, keyView.size() * sizeof(KeyType));
+            size_t origSize = reallocateBytes(swapSpace, keyView.size() * sizeof(KeyType));
 
             auto* swapPtr = reinterpret_cast<KeyType*>(rawPtr(swapSpace));
             memcpyD2D(keyView.data(), keyView.size(), swapPtr);

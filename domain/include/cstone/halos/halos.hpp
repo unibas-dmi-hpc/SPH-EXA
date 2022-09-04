@@ -154,7 +154,7 @@ public:
             // round up to multiple of 128 such that the radii pointer will be aligned
             size_t segBytes   = round_up((numNodes + 1) * sizeof(LocalIndex), 128);
             size_t radiiBytes = numNodes * sizeof(float);
-            size_t origSize   = reallocateDeviceBytes(scratch, segBytes + radiiBytes);
+            size_t origSize   = reallocateBytes(scratch, segBytes + radiiBytes);
 
             auto* d_segments = reinterpret_cast<LocalIndex*>(rawPtr(scratch));
             auto* d_radii    = reinterpret_cast<float*>(rawPtr(scratch)) + segBytes / sizeof(float);
