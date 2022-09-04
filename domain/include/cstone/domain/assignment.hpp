@@ -153,9 +153,6 @@ public:
         LocalIndex numParticles          = bufDesc.end - bufDesc.start;
         LocalIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
-        reallocate(sfcOrder_, numParticles, 1.01);
-        reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
-
         gsl::span<KeyType> keyView(keys + bufDesc.start, numParticles);
         SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_.treeLeaves(), keyView);
 
@@ -163,7 +160,7 @@ public:
         // Leftover particles from the previous step can also be contained in the range.
         auto [newStart, newEnd] =
             exchangeParticles(domainExchangeSends, myRank_, bufDesc.start, bufDesc.end, bufDesc.size,
-                              newNParticlesAssigned, sfcOrder_.data(), x, y, z, particleProperties...);
+                              newNParticlesAssigned, reorderFunctor.getReorderMap(), x, y, z, particleProperties...);
 
         LocalIndex envelopeSize = newEnd - newStart;
         keyView                 = gsl::span<KeyType>(keys + newStart, envelopeSize);
@@ -201,9 +198,6 @@ private:
     Box<T> box_;
 
     SpaceCurveAssignment assignment_;
-
-    //! @brief storage for downloading the sfc ordering from the GPU
-    mutable std::vector<LocalIndex> sfcOrder_;
 
     //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;

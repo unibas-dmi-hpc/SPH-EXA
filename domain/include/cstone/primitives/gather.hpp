@@ -130,22 +130,7 @@ class CpuGather
 public:
     CpuGather() = default;
 
-    /*! @brief upload the new reorder map to the device and reallocates buffers if necessary
-     *
-     * If the sequence [map_first:map_last] does not contain each element [0:map_last-map_first]
-     * exactly once, the behavior is undefined.
-     */
-    void setReorderMap(const IndexType* map_first, const IndexType* map_last)
-    {
-        mapSize_ = std::size_t(map_last - map_first);
-        ordering_.resize(mapSize_);
-        omp_copy(map_first, map_last, begin(ordering_));
-    }
-
-    void getReorderMap(IndexType* map_first, LocalIndex first, LocalIndex last)
-    {
-        omp_copy(ordering_.data() + first, ordering_.data() + last, map_first);
-    }
+    const IndexType* getReorderMap() const { return ordering_.data(); }
 
     /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
      *
@@ -180,7 +165,7 @@ public:
     /*! @brief reorder the array @p values according to the reorder map provided previously
      *
      * @p values must have at least as many elements as the reorder map provided in the last call
-     * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
+     * to setMapFromCodes, otherwise the behavior is undefined.
      */
     template<class T>
     void operator()(const T* source, T* destination, IndexType offset, IndexType numExtract) const
