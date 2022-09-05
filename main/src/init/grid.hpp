@@ -278,4 +278,37 @@ void cutSphere(T radius, Vector& x, Vector& y, Vector& z)
     swap(z, zSphere);
 }
 
+template<class Vector, class Criterion>
+void selectParticles(Vector& x, Vector& y, Vector& z, Criterion&& crit)
+{
+    std::vector<int> particleSelection(x.size());
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < x.size(); ++i)
+    {
+        particleSelection[i] = crit(x[i], y[i], z[i]);
+    }
+
+    size_t numSelect = std::count(particleSelection.begin(), particleSelection.end(), 1);
+
+    Vector xSphere, ySphere, zSphere;
+    xSphere.reserve(numSelect);
+    ySphere.reserve(numSelect);
+    zSphere.reserve(numSelect);
+
+    for (size_t i = 0; i < x.size(); ++i)
+    {
+        if (particleSelection[i])
+        {
+            xSphere.push_back(x[i]);
+            ySphere.push_back(y[i]);
+            zSphere.push_back(z[i]);
+        }
+    }
+
+    swap(x, xSphere);
+    swap(y, ySphere);
+    swap(z, zSphere);
+}
+
 } // namespace sphexa
