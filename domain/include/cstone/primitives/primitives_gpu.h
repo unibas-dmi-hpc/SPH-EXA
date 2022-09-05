@@ -70,4 +70,10 @@ extern void segmentMax(const Tin* input, const IndexType* segments, size_t numSe
 template<class Tin, class Tout>
 extern Tout reduceGpu(const Tin* input, size_t numElements, Tout init);
 
+template<class IndexType>
+extern void sequenceGpu(IndexType* input, size_t numElements, IndexType init);
+
+template<class KeyType, class ValueType>
+extern void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values);
+
 } // namespace cstone

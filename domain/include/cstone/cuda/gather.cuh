@@ -30,8 +30,11 @@
 
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <memory>
+
+#include "cstone/primitives/primitives_gpu.h"
 
 namespace cstone
 {
@@ -100,5 +103,84 @@ private:
 
 extern template class DeviceSfcSort<unsigned, unsigned>;
 extern template class DeviceSfcSort<uint64_t, unsigned>;
+
+template<class IndexType, class BufferType>
+class DeviceSfcSortRef
+{
+public:
+    DeviceSfcSortRef(BufferType& buffer)
+        : buffer_(buffer)
+    {
+    }
+
+    DeviceSfcSortRef(const DeviceSfcSortRef&) = delete;
+
+    //! @brief download the reorder map from the device
+    const IndexType* getReorderMap() const { return ordering(); }
+
+    /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
+     *
+     * \param[inout] firstKey   pointer to first Morton code
+     * \param[inout] lastKey    pointer to last Morton code
+     *
+     * Precondition:
+     *   - [codes_first:codes_last] is a continues sequence of accessible elements of size N
+     *
+     * Postcondition
+     *   - [codes_first:codes_last] is sorted
+     *   - subsequent calls to operator() apply a gather operation to the input sequence
+     *     with the map obtained from sort_by_key with [codes_first:codes_last] as the keys
+     *     and the identity permutation as the values
+     *
+     *  Remarks:
+     *    - reallocates space on the device if necessary to fit N elements of type IndexType
+     *      and a second buffer of size max(2N*sizeof(T), N*sizeof(KeyType))
+     */
+    template<class KeyType>
+    void setMapFromCodes(KeyType* first, KeyType* last)
+    {
+        offset_     = 0;
+        mapSize_    = std::size_t(last - first);
+        numExtract_ = mapSize_;
+
+        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
+        sequenceGpu(ordering(), ordering() + mapSize_, 0);
+        sortByKeyGpu(first, last, ordering());
+    }
+
+    /*! @brief reorder the array \a values according to the reorder map provided previously
+     *
+     * \a values must have at least as many elements as the reorder map provided in the last call
+     * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
+     */
+    template<class T>
+    void operator()(const T* source, T* destination, IndexType offset, IndexType numExtract) const
+    {
+        gatherGpu(ordering() + offset, numExtract, source, destination);
+    }
+
+    template<class T>
+    void operator()(const T* source, T* destination) const
+    {
+        this->operator()(source, destination, offset_, numExtract_);
+    }
+
+    void restrictRange(std::size_t offset, std::size_t numExtract)
+    {
+        assert(offset + numExtract <= mapSize_);
+
+        offset_     = offset;
+        numExtract_ = numExtract;
+    }
+
+private:
+    IndexType* ordering() { return reinterpret_cast<IndexType*>(buffer_.data()); }
+
+    std::size_t offset_{0};
+    std::size_t numExtract_{0};
+    std::size_t mapSize_{0};
+
+    BufferType& buffer_;
+};
 
 } // namespace cstone

@@ -33,6 +33,8 @@
 #include <thrust/execution_policy.h>
 #include <thrust/extrema.h>
 #include <thrust/reduce.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
 
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/util/util.hpp"
@@ -152,5 +154,26 @@ Tout reduceGpu(const Tin* input, size_t numElements, Tout init)
 }
 
 template size_t reduceGpu(const unsigned*, size_t, size_t);
+
+template<class IndexType>
+void sequenceGpu(IndexType* input, size_t numElements, IndexType init)
+{
+    thrust::sequence(thrust::device, input, input + numElements, init);
+}
+
+template void sequenceGpu(int*, size_t, int);
+template void sequenceGpu(unsigned*, size_t, unsigned);
+template void sequenceGpu(size_t*, size_t, size_t);
+
+template<class KeyType, class ValueType>
+void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values)
+{
+    thrust::sort_by_key(thrust::device, first, last, values);
+}
+
+template void sortByKeyGpu(unsigned*, unsigned*, unsigned*);
+template void sortByKeyGpu(unsigned*, unsigned*, int*);
+template void sortByKeyGpu(uint64_t*, uint64_t*, unsigned*);
+template void sortByKeyGpu(uint64_t*, uint64_t*, int*);
 
 } // namespace cstone
