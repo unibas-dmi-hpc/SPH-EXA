@@ -176,6 +176,7 @@ public:
 
 private:
     IndexType* ordering() { return reinterpret_cast<IndexType*>(buffer_.data()); }
+    const IndexType* ordering() const { return reinterpret_cast<const IndexType*>(buffer_.data()); }
 
     std::size_t offset_{0};
     std::size_t numExtract_{0};

@@ -117,26 +117,21 @@ public:
 
     DeviceSfcSortRef(const DeviceSfcSortRef&) = delete;
 
-    //! @brief download the reorder map from the device
     const IndexType* getReorderMap() const { return ordering(); }
 
     /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
      *
-     * \param[inout] firstKey   pointer to first Morton code
-     * \param[inout] lastKey    pointer to last Morton code
+     * @param[inout] first   pointer to first SFC code
+     * @param[inout] last    pointer to last SFC code
      *
      * Precondition:
-     *   - [codes_first:codes_last] is a continues sequence of accessible elements of size N
+     *   - [first:last] is a continuous sequence of accessible elements
      *
      * Postcondition
-     *   - [codes_first:codes_last] is sorted
+     *   - [first:last] is sorted
      *   - subsequent calls to operator() apply a gather operation to the input sequence
-     *     with the map obtained from sort_by_key with [codes_first:codes_last] as the keys
+     *     with the map obtained from sort_by_key with [first:last] as the keys
      *     and the identity permutation as the values
-     *
-     *  Remarks:
-     *    - reallocates space on the device if necessary to fit N elements of type IndexType
-     *      and a second buffer of size max(2N*sizeof(T), N*sizeof(KeyType))
      */
     template<class KeyType>
     void setMapFromCodes(KeyType* first, KeyType* last)
@@ -150,9 +145,9 @@ public:
         sortByKeyGpu(first, last, ordering());
     }
 
-    /*! @brief reorder the array \a values according to the reorder map provided previously
+    /*! @brief reorder the array @a values according to the reorder map provided previously
      *
-     * \a values must have at least as many elements as the reorder map provided in the last call
+     * @a values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
     template<class T>
@@ -183,6 +178,7 @@ private:
     std::size_t numExtract_{0};
     std::size_t mapSize_{0};
 
+    //! @brief reference to (non-owning) buffer for ordering
     BufferType& buffer_;
 };
 

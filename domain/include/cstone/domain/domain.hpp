@@ -59,8 +59,8 @@ namespace cstone
 template<class KeyType, class T>
 class GlobalAssignmentGpu;
 
-template<class KeyType, class IndexType>
-class DeviceSfcSort;
+template<class IndexType, class BufferType>
+class DeviceSfcSortRef;
 
 template<class KeyType, class T, class Accelerator = CpuTag>
 class Domain
@@ -191,12 +191,18 @@ public:
               std::tuple<Vectors2&...> scratchBuffers)
     {
         staticChecks<KeyVec, VectorX, VectorH, Vectors1...>(scratchBuffers);
+        auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
+        using ReorderFunctor_t =
+            typename AccelSwitchType<Accelerator, CpuGatherRef,
+                                     DeviceSfcSortRef>::template type<LocalIndex, std::decay_t<decltype(sfcOrder)>>;
+        ReorderFunctor_t reorderer(sfcOrder);
+
         auto scratch = discardLastElement(scratchBuffers);
 
         auto [exchangeStart, keyView] =
-            distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratch);
+            distribute(reorderer, particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratch);
         // h is already reordered here for use in halo discovery
-        reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(h), scratch);
+        reorderArrays(reorderer, exchangeStart, 0, std::tie(h), scratch);
 
         float invThetaEff      = invThetaMinMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
@@ -215,7 +221,7 @@ public:
                         rawPtr(h), std::get<0>(scratch));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
-        updateLayout(exchangeStart, keyView, particleKeys, std::tie(h),
+        updateLayout(reorderer, exchangeStart, keyView, particleKeys, std::tie(h),
                      std::tuple_cat(std::tie(x, y, z), particleProperties), scratch);
         setupHalos(particleKeys, x, y, z, h, scratch);
         firstCall_ = false;
@@ -232,11 +238,17 @@ public:
                   std::tuple<Vectors2&...> scratchBuffers)
     {
         staticChecks<KeyVec, VectorX, VectorH, VectorM, Vectors1...>(scratchBuffers);
+        auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
+        using ReorderFunctor_t =
+            typename AccelSwitchType<Accelerator, CpuGatherRef,
+                                     DeviceSfcSortRef>::template type<LocalIndex, std::decay_t<decltype(sfcOrder)>>;
+        ReorderFunctor_t reorderer(sfcOrder);
+
         auto scratch = discardLastElement(scratchBuffers);
 
         auto [exchangeStart, keyView] =
-            distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratch);
-        reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(x, y, z, h, m), scratch);
+            distribute(reorderer, particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratch);
+        reorderArrays(reorderer, exchangeStart, 0, std::tie(x, y, z, h, m), scratch);
 
         float invThetaEff      = invThetaVecMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
@@ -270,7 +282,8 @@ public:
 
         // diagnostics(keyView.size(), peers);
 
-        updateLayout(exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), particleProperties, scratch);
+        updateLayout(reorderer, exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), particleProperties,
+                     scratch);
         setupHalos(particleKeys, x, y, z, h, scratch);
         firstCall_ = false;
     }
@@ -352,8 +365,9 @@ private:
         for_each_tuple(valueTypeCheck, indices);
     }
 
-    template<class KeyVec, class VectorX, class... Vectors1, class... Vectors2>
-    auto distribute(KeyVec& keys,
+    template<class Reord, class KeyVec, class VectorX, class... Vectors1, class... Vectors2>
+    auto distribute(Reord& reorderFunctor,
+                    KeyVec& keys,
                     VectorX& x,
                     VectorX& y,
                     VectorX& z,
@@ -373,7 +387,7 @@ private:
                        std::tuple_cat(distributedArrays, scratchBuffers));
 
         return std::apply(
-            [&scratchBuffers, this](auto&... arrays)
+            [&reorderFunctor, &scratchBuffers, this](auto&... arrays)
             {
                 return global_.distribute(bufDesc_, reorderFunctor, std::get<0>(scratchBuffers),
                                           std::get<1>(scratchBuffers), rawPtr(arrays)...);
@@ -401,8 +415,9 @@ private:
         }
     }
 
-    template<class KeyVec, class... Arrays1, class... Arrays2, class... Arrays3>
-    void updateLayout(LocalIndex exchangeStart,
+    template<class Reord, class KeyVec, class... Arrays1, class... Arrays2, class... Arrays3>
+    void updateLayout(Reord& reorderFunctor,
+                      LocalIndex exchangeStart,
                       gsl::span<const KeyType> keyView,
                       KeyVec& keys,
                       std::tuple<Arrays1&...> orderedBuffers,
@@ -539,10 +554,6 @@ private:
     Halos<KeyType, Accelerator> halos_{myRank_};
 
     bool firstCall_{true};
-
-    using ReorderFunctor_t =
-        typename AccelSwitchType<Accelerator, CpuGather, DeviceSfcSort>::template type<KeyType, LocalIndex>;
-    ReorderFunctor_t reorderFunctor;
 
     std::vector<KeyType> swapKeys_;
 };
