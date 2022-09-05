@@ -36,6 +36,7 @@
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/primitives_gpu.h"
+#include "cstone/util/reallocate.hpp"
 
 namespace cstone
 {

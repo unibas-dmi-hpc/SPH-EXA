@@ -107,7 +107,6 @@ public:
 
     void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
-        d.totalNeighbors = neighborsSum(firstIndex, lastIndex, d.neighborsCount);
         computeConservedQuantities(firstIndex, lastIndex, d);
 
         if (d.kx.empty())

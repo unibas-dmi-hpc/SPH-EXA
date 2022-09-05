@@ -34,9 +34,9 @@
 #pragma once
 
 #include "cstone/cuda/cuda_utils.hpp"
-#include "cstone/cuda/gather.cuh"
 #include "cstone/domain/assignment.hpp"
 #ifdef USE_CUDA
+#include "cstone/cuda/gather.cuh"
 #include "cstone/domain/assignment_gpu.cuh"
 #endif
 #include "cstone/domain/exchange_keys.hpp"
@@ -58,6 +58,9 @@ namespace cstone
 
 template<class KeyType, class T>
 class GlobalAssignmentGpu;
+
+template<class KeyType, class IndexType>
+class DeviceSfcSort;
 
 template<class KeyType, class T, class Accelerator = CpuTag>
 class Domain
@@ -229,7 +232,7 @@ public:
                   std::tuple<Vectors2&...> scratchBuffers)
     {
         staticChecks<KeyVec, VectorX, VectorH, VectorM, Vectors1...>(scratchBuffers);
-        auto scratch   = discardLastElement(scratchBuffers);
+        auto scratch = discardLastElement(scratchBuffers);
 
         auto [exchangeStart, keyView] =
             distribute(particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratch);
