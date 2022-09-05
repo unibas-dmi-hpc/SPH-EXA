@@ -159,17 +159,16 @@ public:
         T rSphere = constants_.at("rSphere");
         T rhoInt  = constants_.at("rhoInt");
         T rhoExt  = constants_.at("rhoExt");
-        T epsilon = constants_.at("epsilon");
 
-        T densityRatio = rhoInt / rhoExt;
-        T cubeVolume = std::pow(2 * r, 3);
+        T densityRatio   = rhoInt / rhoExt;
+        T cubeVolume     = std::pow(2 * r, 3);
         T blobMultiplier = std::cbrt(cubeVolume / densityRatio) / (2. * rSphere);
 
         std::vector<T> xBlock, yBlock, zBlock;
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
-        size_t multiplicity  = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        size_t multiplicity = std::rint(cbrtNumPart / std::cbrt(blockSize));
 
         cstone::Box<T> globalBox(0, 8 * r, 0, 2 * r, 0, 2 * r, true, true, true);
         cstone::Box<T> boxA(0, 2 * r, 0, 2 * r, 0, 2 * r, true, true, true);
@@ -182,7 +181,6 @@ public:
         assembleCube<T>(keyStart, keyEnd, boxB, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
         assembleCube<T>(keyStart, keyEnd, boxC, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
         assembleCube<T>(keyStart, keyEnd, boxD, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-
 
         auto cutSphereOut = [r, rSphere](auto x, auto y, auto z)
         {
@@ -215,7 +213,7 @@ public:
 
         size_t numParticlesInternal = xBlob.size();
         MPI_Allreduce(MPI_IN_PLACE, &numParticlesInternal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
-        T massPart    = innerVolume * rhoInt / numParticlesInternal;
+        T massPart = innerVolume * rhoInt / numParticlesInternal;
 
         // Initialize Wind shock domain variables
         d.resize(d.x.size());

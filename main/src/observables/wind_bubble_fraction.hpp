@@ -40,7 +40,8 @@ namespace sphexa
 {
 //!@brief counts the number of particles that still belong to the cloud on each rank
 template<class T>
-size_t localSurvivors(size_t first, size_t last, const T* u, const T* kx, const T* xmass, const T* m, double rhoBubble, double uWind)
+size_t localSurvivors(size_t first, size_t last, const T* u, const T* kx, const T* xmass, const T* m, double rhoBubble,
+                      double uWind)
 {
     size_t survivors = 0;
 
@@ -49,7 +50,7 @@ size_t localSurvivors(size_t first, size_t last, const T* u, const T* kx, const 
     {
         T rhoi = kx[i] / xmass[i] * m[i];
 
-        if (rhoi >= 0.64 * rhoBubble && u[i] <= 0.9 * uWind) survivors++;
+        if (rhoi >= 0.64 * rhoBubble && u[i] <= 0.9 * uWind) { survivors++; }
     }
 
     return survivors;
@@ -59,30 +60,29 @@ size_t localSurvivors(size_t first, size_t last, const T* u, const T* kx, const 
  *
  * @brief calculates the percent of surviving cloud mass
  *
- * @param rhoBubble         initial density inside the cloud
- * @param uWind             initial internal energy of the supersonic wind
- * @param initialMass       initial total mass of the cloud
+ * @param[in] first       index of first locally owned particle in @a u,kx,xmass fields
+ * @param[in] last        index of last locally owned particle in @a u,kx,xmass fields
+ * @param[in] u           internal energy
+ * @param[in] kx          VE normalization
+ * @param[in] xmass       VE definition
+ * @param[in] m           particles masses
+ * @param[in] rhoBubble   initial density inside the cloud
+ * @param[in] uWind       initial internal energy of the supersonic wind
+ * @param[in] initialMass initial total mass of the cloud
+ * @return                fraction of particles surviving in the bubble
  *
  */
-template<class T, class Dataset>
-auto calculateSurvivingFraction(size_t startIndex, size_t endIndex, Dataset& d, double rhoBubble, double uWind,
-                                double initialMass)
+template<class Tu, class Thydro, class Tm>
+double calculateSurvivingFraction(size_t first, size_t last, const Tu* u, const Thydro* kx, const Thydro* xmass,
+                                  const Tm* m, double rhoBubble, double uWind, double initialMass)
 {
-
-    if (d.kx.empty())
-    {
-        throw std::runtime_error("kx was empty. Wind Shock surviving fraction is only supported with volume elements (--prop ve)\n");
-    }
-
-    size_t localSurvived = localSurvivors<T>(startIndex, endIndex, d.u.data(), d.kx.data(), d.xm.data(), d.m.data(), rhoBubble, uWind);
+    size_t localSurvived = localSurvivors(first, last, u, kx, xmass, m, rhoBubble, uWind);
 
     int    rootRank = 0;
     size_t globalSurvivors;
     MPI_Reduce(&localSurvived, &globalSurvivors, 1, MpiType<size_t>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
 
-    T globalFraction = globalSurvivors * d.m.data()[0] / initialMass;
-
-    return globalFraction;
+    return globalSurvivors * m[0] / initialMass;
 }
 
 //! @brief Observables that includes times, energies and bubble surviving fraction
@@ -110,30 +110,24 @@ public:
         d.totalNeighbors = neighborsSum(firstIndex, lastIndex, d.neighborsCount);
         computeConservedQuantities(firstIndex, lastIndex, d);
 
-        auto bubbleFraction =
-            calculateSurvivingFraction<T, Dataset>(firstIndex, lastIndex, d, rhoBubble, uWind, initialMass);
-
-        int rank;
+        if (d.kx.empty())
+        {
+            throw std::runtime_error(
+                "kx was empty. Wind Shock surviving fraction is only supported with volume elements (--prop ve)\n");
+        }
+        transferToHost(d, firstIndex, lastIndex, {"kx", "xm"});
+        auto bubbleFraction = calculateSurvivingFraction(firstIndex, lastIndex, d.u.data(), d.kx.data(), d.xm.data(),
+                                                         d.m.data(), rhoBubble, uWind, initialMass);
+        int  rank;
         MPI_Comm_rank(d.comm, &rank);
- 
+
         if (rank == 0)
         {
             T tkh            = 0.0937;
             T normalizedTime = d.ttot / tkh;
 
-            fileutils::writeColumns(constantsFile,
-                                    ' ',
-                                    d.iteration,
-                                    d.ttot,
-                                    d.minDt,
-                                    d.etot,
-                                    d.ecin,
-                                    d.eint,
-                                    d.egrav,
-                                    d.linmom,
-                                    d.angmom,
-                                    bubbleFraction,
-                                    normalizedTime);
+            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
+                                    d.linmom, d.angmom, bubbleFraction, normalizedTime);
         }
     }
 };
