@@ -125,15 +125,15 @@ void scatter(gsl::span<const IndexType> ordering, const ValueType* source, Value
 }
 
 template<class IndexType, class BufferType>
-class CpuGatherRef
+class SfcSorter
 {
 public:
-    CpuGatherRef(BufferType& buffer)
+    SfcSorter(BufferType& buffer)
         : buffer_(buffer)
     {
     }
 
-    CpuGatherRef(const CpuGatherRef&) = delete;
+    SfcSorter(const SfcSorter&) = delete;
 
     const IndexType* getReorderMap() const { return ordering(); }
 
@@ -184,78 +184,6 @@ private:
 
     //! @brief reference to (non-owning) buffer for ordering
     BufferType& buffer_;
-};
-
-//! @brief This class conforms to the same interface as the device version to allow abstraction
-template<class CodeType, class IndexType>
-class CpuGather
-{
-public:
-    CpuGather() = default;
-
-    const IndexType* getReorderMap() const { return ordering_.data(); }
-
-    /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
-     *
-     * @param[inout] codes_first   pointer to first Morton code
-     * @param[inout] codes_last    pointer to last Morton code
-     *
-     * Precondition:
-     *   - [codes_first:codes_last] is a continues sequence of accessible elements of size N
-     *
-     * Postcondition:
-     *   - [codes_first:codes_last] is sorted
-     *   - subsequent calls to operator() apply a gather operation to the input sequence
-     *     with the map obtained from sort_by_key with [codes_first:codes_last] as the keys
-     *     and the identity permutation as the values
-     *
-     *  Remarks:
-     *    - reallocates space on the device if necessary to fit N elements of type LocalParticleIndex
-     *      and a second buffer of size max(2N*sizeof(T), N*sizeof(KeyType))
-     */
-    void setMapFromCodes(CodeType* codes_first, CodeType* codes_last)
-    {
-        offset_     = 0;
-        mapSize_    = std::size_t(codes_last - codes_first);
-        numExtract_ = mapSize_;
-
-        ordering_.resize(mapSize_);
-        std::iota(begin(ordering_), end(ordering_), 0);
-
-        sort_by_key(codes_first, codes_last, begin(ordering_));
-    }
-
-    /*! @brief reorder the array @p values according to the reorder map provided previously
-     *
-     * @p values must have at least as many elements as the reorder map provided in the last call
-     * to setMapFromCodes, otherwise the behavior is undefined.
-     */
-    template<class T>
-    void operator()(const T* source, T* destination, IndexType offset, IndexType numExtract) const
-    {
-        gather<IndexType>({ordering_.data() + offset, numExtract}, source, destination);
-    }
-
-    template<class T>
-    void operator()(const T* source, T* destination) const
-    {
-        this->operator()(source, destination, offset_, numExtract_);
-    }
-
-    void restrictRange(std::size_t offset, std::size_t numExtract)
-    {
-        assert(offset + numExtract <= mapSize_);
-
-        offset_     = offset;
-        numExtract_ = numExtract;
-    }
-
-private:
-    std::size_t offset_{0};
-    std::size_t numExtract_{0};
-    std::size_t mapSize_{0};
-
-    std::vector<IndexType, util::DefaultInitAdaptor<IndexType>> ordering_;
 };
 
 } // namespace cstone

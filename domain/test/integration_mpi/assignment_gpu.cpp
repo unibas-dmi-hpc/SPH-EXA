@@ -96,7 +96,8 @@ void randomGaussianAssignment(int rank, int numRanks)
 
     GlobalAssignment<KeyType, T> assignment(rank, numRanks, bucketSize, box);
     BufferDescription bufDesc{0, numParticles, numParticles};
-    CpuGather<KeyType, LocalIndex> cpuGather;
+    std::vector<unsigned> sfcScratchCpu;
+    SfcSorter<LocalIndex, std::vector<unsigned>> cpuGather(sfcScratchCpu);
 
     LocalIndex numAssignedCpu = assignment.assign(bufDesc, cpuGather, keys.data(), x.data(), y.data(), z.data());
 
@@ -109,7 +110,7 @@ void randomGaussianAssignment(int rank, int numRanks)
 
     GlobalAssignmentGpu<KeyType, T> assignmentGpu(rank, numRanks, bucketSize, box);
     thrust::device_vector<unsigned> sfcScratch;
-    DeviceSfcSortRef<LocalIndex, thrust::device_vector<unsigned>> deviceSort(sfcScratch);
+    GpuSfcSorter<LocalIndex, thrust::device_vector<unsigned>> deviceSort(sfcScratch);
 
     LocalIndex numAssignedGpu =
         assignmentGpu.assign(bufDesc, deviceSort, rawPtr(d_keys), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z));

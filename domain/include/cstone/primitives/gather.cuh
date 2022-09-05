@@ -41,81 +41,16 @@
 namespace cstone
 {
 
-template<class LocalIndex>
-class DeviceMemory;
-
-/*! @brief A stateful functor for reordering arrays on the gpu
- *
- * @tparam ValueType   any type that behaves like a built-in type (check template instantation list)
- * @tparam KeyType     32- or 64-bit unsigned integer
- * @tparam IndexType   type to index node-local particles, 32-bit or 64-bit integer
- */
-template<class KeyType, class IndexType>
-class DeviceSfcSort
-{
-public:
-
-    DeviceSfcSort();
-
-    ~DeviceSfcSort();
-
-    //! @brief download the reorder map from the device
-    const IndexType* getReorderMap() const;
-
-    /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
-     *
-     * \param[inout] firstKey   pointer to first Morton code
-     * \param[inout] lastKey    pointer to last Morton code
-     *
-     * Precondition:
-     *   - [codes_first:codes_last] is a continues sequence of accessible elements of size N
-     *
-     * Postcondition
-     *   - [codes_first:codes_last] is sorted
-     *   - subsequent calls to operator() apply a gather operation to the input sequence
-     *     with the map obtained from sort_by_key with [codes_first:codes_last] as the keys
-     *     and the identity permutation as the values
-     *
-     *  Remarks:
-     *    - reallocates space on the device if necessary to fit N elements of type IndexType
-     *      and a second buffer of size max(2N*sizeof(T), N*sizeof(KeyType))
-     */
-    void setMapFromCodes(KeyType* firstKey, KeyType* lastKey);
-
-    /*! @brief reorder the array \a values according to the reorder map provided previously
-     *
-     * \a values must have at least as many elements as the reorder map provided in the last call
-     * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
-     */
-    template<class T>
-    void operator()(const T* values, T* destination, IndexType offset, IndexType numExtract) const;
-
-    template<class T>
-    void operator()(const T* values, T* destination) const;
-
-    void restrictRange(std::size_t offset, std::size_t numExtract);
-
-private:
-    std::size_t offset_{0};
-    std::size_t numExtract_{0};
-    std::size_t mapSize_{0};
-
-    std::unique_ptr<DeviceMemory<IndexType>> deviceMemory_;
-};
-
-extern template class DeviceSfcSort<unsigned, unsigned>;
-extern template class DeviceSfcSort<uint64_t, unsigned>;
-
 template<class IndexType, class BufferType>
-class DeviceSfcSortRef
+class GpuSfcSorter
 {
 public:
-    DeviceSfcSortRef(BufferType& buffer)
+    GpuSfcSorter(BufferType& buffer)
         : buffer_(buffer)
     {
     }
 
-    DeviceSfcSortRef(const DeviceSfcSortRef&) = delete;
+    GpuSfcSorter(const GpuSfcSorter&) = delete;
 
     const IndexType* getReorderMap() const { return ordering(); }
 

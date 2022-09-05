@@ -36,7 +36,7 @@
 #include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/domain/assignment.hpp"
 #ifdef USE_CUDA
-#include "cstone/cuda/gather.cuh"
+#include "cstone/primitives/gather.cuh"
 #include "cstone/domain/assignment_gpu.cuh"
 #endif
 #include "cstone/domain/exchange_keys.hpp"
@@ -60,7 +60,7 @@ template<class KeyType, class T>
 class GlobalAssignmentGpu;
 
 template<class IndexType, class BufferType>
-class DeviceSfcSortRef;
+class GpuSfcSorter;
 
 template<class KeyType, class T, class Accelerator = CpuTag>
 class Domain
@@ -193,8 +193,8 @@ public:
         staticChecks<KeyVec, VectorX, VectorH, Vectors1...>(scratchBuffers);
         auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
         using ReorderFunctor_t =
-            typename AccelSwitchType<Accelerator, CpuGatherRef,
-                                     DeviceSfcSortRef>::template type<LocalIndex, std::decay_t<decltype(sfcOrder)>>;
+            typename AccelSwitchType<Accelerator, SfcSorter,
+                                     GpuSfcSorter>::template type<LocalIndex, std::decay_t<decltype(sfcOrder)>>;
         ReorderFunctor_t reorderer(sfcOrder);
 
         auto scratch = discardLastElement(scratchBuffers);
@@ -240,8 +240,8 @@ public:
         staticChecks<KeyVec, VectorX, VectorH, VectorM, Vectors1...>(scratchBuffers);
         auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
         using ReorderFunctor_t =
-            typename AccelSwitchType<Accelerator, CpuGatherRef,
-                                     DeviceSfcSortRef>::template type<LocalIndex, std::decay_t<decltype(sfcOrder)>>;
+            typename AccelSwitchType<Accelerator, SfcSorter,
+                                     GpuSfcSorter>::template type<LocalIndex, std::decay_t<decltype(sfcOrder)>>;
         ReorderFunctor_t reorderer(sfcOrder);
 
         auto scratch = discardLastElement(scratchBuffers);
