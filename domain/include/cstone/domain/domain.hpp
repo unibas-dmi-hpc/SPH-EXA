@@ -383,8 +383,7 @@ private:
             global_.assign(bufDesc_, reorderFunctor, rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
 
         size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
-        for_each_tuple([size = exchangeSize](auto& array) { reallocate(array, size, 1.01); },
-                       std::tuple_cat(distributedArrays, scratchBuffers));
+        lowMemReallocate(exchangeSize, 1.01, distributedArrays, scratchBuffers);
 
         return std::apply(
             [&reorderFunctor, &scratchBuffers, this](auto&... arrays)
@@ -427,8 +426,7 @@ private:
         auto myRange = focusTree_.assignment()[myRank_];
         BufferDescription newBufDesc{layout_[myRange.start()], layout_[myRange.end()], layout_.back()};
 
-        for_each_tuple([size = newBufDesc.size](auto& array) { reallocate(array, size, 1.01); },
-                       std::tuple_cat(orderedBuffers, unorderedBuffers, scratchBuffers));
+        lowMemReallocate(newBufDesc.size, 1.01, std::tuple_cat(orderedBuffers, unorderedBuffers), scratchBuffers);
 
         // re-locate particle SFC keys
         if constexpr (IsDeviceVector<KeyVec>{})
@@ -438,7 +436,7 @@ private:
 
             auto* swapPtr = reinterpret_cast<KeyType*>(rawPtr(swapSpace));
             memcpyD2D(keyView.data(), keyView.size(), swapPtr);
-            reallocate(keys, newBufDesc.size, 1.01);
+            reallocateDestructive(keys, newBufDesc.size, 1.01);
             memcpyD2D(swapPtr, keyView.size(), rawPtr(keys) + newBufDesc.start);
 
             reallocate(swapSpace, origSize, 1.0);
