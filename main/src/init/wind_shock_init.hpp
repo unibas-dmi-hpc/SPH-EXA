@@ -170,11 +170,12 @@ public:
 
         size_t multiplicity = std::rint(cbrtNumPart / std::cbrt(blockSize));
 
-        cstone::Box<T> globalBox(0, 8 * r, 0, 2 * r, 0, 2 * r, true, true, true);
-        cstone::Box<T> boxA(0, 2 * r, 0, 2 * r, 0, 2 * r, true, true, true);
-        cstone::Box<T> boxB(2 * r, 4 * r, 0, 2 * r, 0, 2 * r, true, true, true);
-        cstone::Box<T> boxC(4 * r, 6 * r, 0, 2 * r, 0, 2 * r, true, true, true);
-        cstone::Box<T> boxD(6 * r, 8 * r, 0, 2 * r, 0, 2 * r, true, true, true);
+        auto           pbc = cstone::BoundaryType::periodic;
+        cstone::Box<T> globalBox(0, 8 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
+        cstone::Box<T> boxA(0, 2 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
+        cstone::Box<T> boxB(2 * r, 4 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
+        cstone::Box<T> boxC(4 * r, 6 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
+        cstone::Box<T> boxD(6 * r, 8 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, boxA, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);

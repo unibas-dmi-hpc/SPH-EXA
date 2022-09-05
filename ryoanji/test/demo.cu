@@ -26,6 +26,10 @@
 #include <chrono>
 #include <numeric>
 
+#ifdef __HIPCC__
+#include <hip/hip_runtime.h>
+#endif
+
 #include "nbody/dataset.hpp"
 #include "ryoanji/interface/treebuilder.cuh"
 #include "ryoanji/nbody/gpu_config.cuh"
@@ -150,7 +154,7 @@ int main(int argc, char** argv)
     fprintf(stdout, "--- Tree stats -------------------\n");
     fprintf(stdout, "Bodies               : %lu\n", numBodies);
     fprintf(stdout, "Cells                : %d\n", numSources);
-    fprintf(stdout, "Tree depth           : %d\n", 0);
+    fprintf(stdout, "Tree depth           : %d\n", highestLevel);
     fprintf(stdout, "--- Traversal stats --------------\n");
     fprintf(stdout, "P2P mean list length : %d (max %d)\n", int(interactions[0]), int(interactions[1]));
     fprintf(stdout, "M2P mean list length : %d (max %d)\n", int(interactions[2]), int(interactions[3]));

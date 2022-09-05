@@ -43,18 +43,23 @@ namespace cstone
 
 /*! @brief compute squared distance, taking PBC into account
  *
- * Note that if box.pbc{X,Y,Z} is false, the result is identical to distancesq below.
+ * Note that if pbc{X,Y,Z} is false, the result is identical to distancesq below.
  */
 template<class T>
 HOST_DEVICE_FUN constexpr T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
 {
+
+    bool pbcX = (box.boundaryX() == BoundaryType::periodic);
+    bool pbcY = (box.boundaryY() == BoundaryType::periodic);
+    bool pbcZ = (box.boundaryZ() == BoundaryType::periodic);
+
     T dx = x1 - x2;
     T dy = y1 - y2;
     T dz = z1 - z2;
     // this folds d into the periodic range [-l/2, l/2] for each dimension if enabled
-    dx -= box.pbcX() * box.lx() * std::rint(dx * box.ilx());
-    dy -= box.pbcY() * box.ly() * std::rint(dy * box.ily());
-    dz -= box.pbcZ() * box.lz() * std::rint(dz * box.ilz());
+    dx -= pbcX * box.lx() * std::rint(dx * box.ilx());
+    dy -= pbcY * box.ly() * std::rint(dy * box.ily());
+    dz -= pbcZ * box.lz() * std::rint(dz * box.ilz());
 
     return dx * dx + dy * dy + dz * dz;
 }
@@ -118,6 +123,10 @@ findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned level, const Box<T>& bbox,
     constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
     int cubeLength         = maxCoord >> level;
 
+    bool pbcX = (bbox.boundaryX() == BoundaryType::periodic);
+    bool pbcY = (bbox.boundaryY() == BoundaryType::periodic);
+    bool pbcZ = (bbox.boundaryZ() == BoundaryType::periodic);
+
     int mask = ~(cubeLength - 1);
     int ix   = stl::min(int((x - bbox.xmin()) * maxCoord * bbox.ilx()), maxCoord - 1) & mask;
     int iy   = stl::min(int((y - bbox.ymin()) * maxCoord * bbox.ily()), maxCoord - 1) & mask;
@@ -142,12 +151,12 @@ findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned level, const Box<T>& bbox,
     bool hyu       = ibox.ymax() == maxCoord;
     bool hzd       = ibox.zmin() == 0;
     bool hzu       = ibox.zmax() == maxCoord;
-    bool stepXdown = !hxd || (bbox.pbcX() && level > 1);
-    bool stepXup   = !hxu || (bbox.pbcX() && level > 1);
-    bool stepYdown = !hyd || (bbox.pbcY() && level > 1);
-    bool stepYup   = !hyu || (bbox.pbcY() && level > 1);
-    bool stepZdown = !hzd || (bbox.pbcZ() && level > 1);
-    bool stepZup   = !hzu || (bbox.pbcZ() && level > 1);
+    bool stepXdown = !hxd || (pbcX && level > 1);
+    bool stepXup   = !hxu || (pbcX && level > 1);
+    bool stepYdown = !hyd || (pbcY && level > 1);
+    bool stepYup   = !hyu || (pbcY && level > 1);
+    bool stepZdown = !hzd || (pbcZ && level > 1);
+    bool stepZup   = !hzu || (pbcZ && level > 1);
 
     int nBoxes  = 0;
     int iBoxPbc = 27;

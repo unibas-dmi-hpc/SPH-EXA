@@ -49,7 +49,7 @@ TEST(Divv_Curlv, JLoop)
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-    cstone::Box<T> box(0, 6, 0, 6, 0, 6, false, false, false);
+    cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
@@ -91,31 +91,9 @@ TEST(Divv_Curlv, JLoop)
     T curlv = -1;
 
     // compute gradient for for particle 0
-    divV_curlVJLoop(0,
-                    sincIndex,
-                    K,
-                    box,
-                    neighbors.data(),
-                    neighborsCount,
-                    x.data(),
-                    y.data(),
-                    z.data(),
-                    vx.data(),
-                    vy.data(),
-                    vz.data(),
-                    h.data(),
-                    c11.data(),
-                    c12.data(),
-                    c13.data(),
-                    c22.data(),
-                    c23.data(),
-                    c33.data(),
-                    wh.data(),
-                    whd.data(),
-                    kx.data(),
-                    xm.data(),
-                    &divv,
-                    &curlv);
+    divV_curlVJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(),
+                    vy.data(), vz.data(), h.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(),
+                    c33.data(), wh.data(), whd.data(), kx.data(), xm.data(), &divv, &curlv);
 
     EXPECT_NEAR(divv, 2.8368574507652129e-2, 1e-10);
     EXPECT_NEAR(curlv, 6.8649752398e-2, 1e-10);

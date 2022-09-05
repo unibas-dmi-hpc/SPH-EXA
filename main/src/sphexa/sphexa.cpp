@@ -42,10 +42,6 @@
 #define USE_MPI
 #endif
 
-#ifdef USE_HIP
-#include <hip/hip_runtime.h>
-#endif
-
 #include "cstone/domain/domain.hpp"
 #include "init/factory.hpp"
 #include "observables/factory.hpp"

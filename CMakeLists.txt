@@ -46,17 +46,12 @@ endif()
 
 check_language(HIP)
 if(CMAKE_HIP_COMPILER)
-    set(CMAKE_MODULE_PATH "$ENV{HIP_PATH}/cmake" ${CMAKE_MODULE_PATH})
-
-    find_package(HIP)
     enable_language(HIP)
-
+    find_package(hip)
+    set(CMAKE_HIP_STANDARD 17)
     set(CMAKE_HIP_FLAGS "-w \
                          -I$ENV{GCC_X86_64}/include/g++/x86_64-suse-linux \
-                         -I$ENV{GCC_X86_64}/include/g++ \
-                         -L$ENV{GCC_X86_64}/lib64 \
-                         -I$ENV{HIP_PATH}/include \
-    ")
+                         -I$ENV{GCC_X86_64}/include/g++")
 endif()
 
 check_language(CUDA)
