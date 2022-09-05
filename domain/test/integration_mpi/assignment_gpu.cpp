@@ -108,7 +108,8 @@ void randomGaussianAssignment(int rank, int numRanks)
     thrust::device_vector<T> d_z = z;
 
     GlobalAssignmentGpu<KeyType, T> assignmentGpu(rank, numRanks, bucketSize, box);
-    DeviceSfcSort<KeyType, LocalIndex> deviceSort;
+    thrust::device_vector<unsigned> sfcScratch;
+    DeviceSfcSortRef<LocalIndex, thrust::device_vector<unsigned>> deviceSort(sfcScratch);
 
     LocalIndex numAssignedGpu =
         assignmentGpu.assign(bufDesc, deviceSort, rawPtr(d_keys), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z));

@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/primitives_gpu.h"
 
 namespace cstone
@@ -144,7 +145,7 @@ public:
         numExtract_ = mapSize_;
 
         reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
-        sequenceGpu(ordering(), ordering() + mapSize_, 0);
+        sequenceGpu(ordering(), mapSize_, 0u);
         sortByKeyGpu(first, last, ordering());
     }
 
@@ -174,7 +175,8 @@ public:
     }
 
 private:
-    IndexType* ordering() { return reinterpret_cast<IndexType*>(buffer_.data()); }
+    IndexType* ordering() { return reinterpret_cast<IndexType*>(rawPtr(buffer_)); }
+    const IndexType* ordering() const { return reinterpret_cast<const IndexType*>(rawPtr(buffer_)); }
 
     std::size_t offset_{0};
     std::size_t numExtract_{0};
