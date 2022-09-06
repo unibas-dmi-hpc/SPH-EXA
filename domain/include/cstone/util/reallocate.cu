@@ -27,6 +27,7 @@
  *
  */
 
+#include <thrust/copy.h>
 #include <thrust/device_vector.h>
 
 //! @brief resizes a vector with a determined growth rate upon reallocation
@@ -38,7 +39,12 @@ void reallocateDevice(Vector& vector, size_t size, double growthRate)
     if (size > current_capacity)
     {
         size_t reserve_size = double(size) * growthRate;
-        vector.reserve(reserve_size);
+
+        Vector newBuffer;
+        newBuffer.reserve(reserve_size);
+        newBuffer.resize(size);
+        thrust::copy(vector.begin(), vector.end(), newBuffer.begin());
+        vector.swap(newBuffer);
     }
     vector.resize(size);
 }
@@ -54,28 +60,22 @@ template void reallocateDevice(thrust::device_vector<unsigned long long>&, size_
 template void reallocateDevice(thrust::device_vector<char>&, size_t, double);
 
 template<class Vector>
-void reallocateDeviceShrink(Vector& vector, size_t size, double growthRate)
+void reallocateDeviceShrink(Vector& vector, size_t size, double growthRate, double shrinkThresh)
 {
-    size_t current_capacity = vector.capacity();
-
-    if (size > current_capacity)
-    {
-        size_t reserve_size = double(size) * growthRate;
-        vector.reserve(reserve_size);
-    }
-    vector.resize(size);
-    if (double(vector.capacity()) / double(size) > growthRate * growthRate)
+    reallocateDevice(vector, size, growthRate);
+    if (double(vector.capacity()) / double(size) > shrinkThresh)
     {
         vector.shrink_to_fit();
     }
 }
 
-template void reallocateDeviceShrink(thrust::device_vector<double>&, size_t, double);
-template void reallocateDeviceShrink(thrust::device_vector<float>&, size_t, double);
-template void reallocateDeviceShrink(thrust::device_vector<int>&, size_t, double);
-template void reallocateDeviceShrink(thrust::device_vector<long>&, size_t, double);
-template void reallocateDeviceShrink(thrust::device_vector<long long>&, size_t, double);
-template void reallocateDeviceShrink(thrust::device_vector<unsigned>&, size_t, double);
-template void reallocateDeviceShrink(thrust::device_vector<unsigned long>&, size_t, double);
-template void reallocateDeviceShrink(thrust::device_vector<unsigned long long>&, size_t, double);
-template void reallocateDeviceShrink(thrust::device_vector<char>&, size_t, double);
+template void reallocateDeviceShrink(thrust::device_vector<double>&, size_t, double, double);
+template void reallocateDeviceShrink(thrust::device_vector<float>&, size_t, double, double);
+template void reallocateDeviceShrink(thrust::device_vector<int>&, size_t, double, double);
+template void reallocateDeviceShrink(thrust::device_vector<long>&, size_t, double, double);
+template void reallocateDeviceShrink(thrust::device_vector<long long>&, size_t, double, double);
+template void reallocateDeviceShrink(thrust::device_vector<unsigned>&, size_t, double, double);
+template void reallocateDeviceShrink(thrust::device_vector<unsigned long>&, size_t, double, double);
+template void reallocateDeviceShrink(thrust::device_vector<unsigned long long>&, size_t, double, double);
+template void reallocateDeviceShrink(thrust::device_vector<char>&, size_t, double, double);
+

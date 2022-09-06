@@ -35,7 +35,7 @@ template<class Vector>
 extern void reallocateDevice(Vector&, size_t, double);
 
 template<class Vector>
-extern void reallocateDeviceShrink(Vector&, size_t, double);
+extern void reallocateDeviceShrink(Vector&, size_t, double, double);
 
 //! @brief resizes a vector with a determined growth rate upon reallocation
 template<class Vector>
@@ -128,3 +128,4 @@ void lowMemReallocate(size_t size,
     for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, conserved);
     for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, scratch);
 }
+
