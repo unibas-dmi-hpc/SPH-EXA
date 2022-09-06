@@ -89,7 +89,8 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
     const int bytesPerElement = std::accumulate(elementSizes.begin(), elementSizes.end(), 0);
     constexpr auto indices    = makeIntegralTuple(std::make_index_sequence<numArrays>{});
 
-    const size_t oldSendSize = reallocateBytes(sendScratchBuffer, sendList.totalCount() * bytesPerElement);
+    const size_t totalSends  = sendList.sendCount(thisRank);
+    const size_t oldSendSize = reallocateBytes(sendScratchBuffer, totalSends * bytesPerElement);
     int numRanks = int(sendList.size());
 
     char* const sendBuffer = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));

@@ -152,6 +152,16 @@ public:
         return count;
     }
 
+    std::size_t sendCount(int myRank) const
+    {
+        size_t count = 0;
+        for (std::size_t i = 0; i < data_.size(); ++i)
+        {
+            if (i != myRank) { count += (*this)[i].totalCount(); }
+        }
+        return count;
+    }
+
     auto begin() { return data_.begin(); }
     auto end() { return data_.end(); }
 
