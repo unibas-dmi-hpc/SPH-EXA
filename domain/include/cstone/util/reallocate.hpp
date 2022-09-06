@@ -91,6 +91,18 @@ size_t reallocateBytes(Vector& vec, size_t numBytes)
     size_t originalSize          = vec.size();
 
     size_t currentSizeBytes = originalSize * elementSize;
+    if (currentSizeBytes < numBytes) { reallocate(vec, (numBytes + elementSize - 1) / elementSize, 1.01); }
+
+    return originalSize;
+}
+
+template<class Vector>
+size_t reallocateBytesDestructive(Vector& vec, size_t numBytes)
+{
+    constexpr size_t elementSize = sizeof(typename Vector::value_type);
+    size_t originalSize          = vec.size();
+
+    size_t currentSizeBytes = originalSize * elementSize;
     if (currentSizeBytes < numBytes) { reallocateDestructive(vec, (numBytes + elementSize - 1) / elementSize, 1.01); }
 
     return originalSize;
@@ -103,19 +115,13 @@ void lowMemReallocate(size_t size,
                       std::tuple<Vectors1&...> conserved,
                       std::tuple<Vectors2&...> scratch)
 {
-    size_t capacity = std::get<0>(conserved).capacity();
-
     // if the new size exceeds capacity, we first deallocate all scratch buffers to make space for the reallocations
-    if (size > capacity)
-    {
-        for_each_tuple(
-            [](auto& v)
-            {
-                using VectorType = std::decay_t<decltype(v)>;
-                VectorType().swap(v);
-            },
-            scratch);
-    }
+    for_each_tuple(
+        [size](auto& v)
+        {
+            if (size > v.capacity()) { std::decay_t<decltype(v)>{}.swap(v); }
+        },
+        scratch);
     for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, conserved);
     for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, scratch);
 }
