@@ -34,6 +34,9 @@
 template<class Vector>
 extern void reallocateDevice(Vector&, size_t, double);
 
+template<class Vector>
+extern void reallocateDeviceShrink(Vector&, size_t, double);
+
 //! @brief resizes a vector with a determined growth rate upon reallocation
 template<class Vector>
 void reallocateGeneric(Vector& vector, size_t size, double growthRate)
