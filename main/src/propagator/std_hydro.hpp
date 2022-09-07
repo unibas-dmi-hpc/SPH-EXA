@@ -170,7 +170,7 @@ public:
         timer.stop();
     }
 
-    void prepareOutput(ParticleDataType& d, size_t first, size_t last) override
+    void prepareOutput(ParticleDataType& d, size_t first, size_t last, const cstone::Box<T>& box) override
     {
         transferToHost(d, first, last, conservedFields());
         transferToHost(d, first, last, {"rho", "p", "c", "du", "ax", "ay", "az", "nc"});

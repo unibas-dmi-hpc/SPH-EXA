@@ -201,13 +201,29 @@ public:
     }
 
     //! @brief configure the dataset for output by calling EOS again to recover rho and p
-    void prepareOutput(ParticleDataType& d, size_t startIndex, size_t endIndex) override
+    void prepareOutput(ParticleDataType& d, size_t startIndex, size_t endIndex, const cstone::Box<T>& box) override
     {
         transferToHost(d, startIndex, endIndex, conservedFields());
         transferToHost(d, startIndex, endIndex, {"ax", "ay", "az", "du", "kx", "xm", "nc"});
         d.release("c11", "c12", "c13");
         d.acquire("rho", "p", "gradh");
         computeEOS_Impl(startIndex, endIndex, d);
+
+        if constexpr (cstone::HaveGpu<typename ParticleDataType::AcceleratorType>{})
+        {
+            const auto& outFields = d.outputFieldNames;
+            bool        outDiv    = std::find(outFields.begin(), outFields.end(), "divv") != outFields.end();
+            bool        outCurl   = std::find(outFields.begin(), outFields.end(), "curlv") != outFields.end();
+            if (outDiv || outCurl)
+            {
+                d.devData.release("ax", "ay");
+                d.devData.acquire("divv", "curlv");
+                computeIadDivvCurlv(startIndex, endIndex, ngmax_, d, box);
+                transferToHost(d, startIndex, endIndex, {"divv", "curlv"});
+                d.devData.release("divv", "curlv");
+                d.devData.acquire("ax", "ay");
+            }
+        }
     }
 
     //! @brief undo output configuration and restore compute configuration
@@ -219,4 +235,3 @@ public:
 };
 
 } // namespace sphexa
-
