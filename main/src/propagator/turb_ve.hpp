@@ -150,7 +150,6 @@ public:
         driveTurbulence(first, last, d, turbulenceData);
         timer.step("Turbulence Stirring");
 
-        transferToHost(d, first, last, {"ax", "ay", "az", "du"});
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d, ng0_);
