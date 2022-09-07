@@ -157,7 +157,7 @@ public:
         size_t count = 0;
         for (std::size_t i = 0; i < data_.size(); ++i)
         {
-            if (i != myRank) { count += (*this)[i].totalCount(); }
+            if (int(i) != myRank) { count += (*this)[i].totalCount(); }
         }
         return count;
     }

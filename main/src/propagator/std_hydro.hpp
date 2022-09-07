@@ -173,6 +173,7 @@ public:
     void prepareOutput(ParticleDataType& d, size_t first, size_t last) override
     {
         transferToHost(d, first, last, conservedFields());
+        transferToHost(d, first, last, {"rho", "p", "c", "du", "ax", "ay", "az", "nc"});
     }
 };
 

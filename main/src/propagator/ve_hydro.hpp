@@ -91,16 +91,16 @@ public:
 
     void activateFields(ParticleDataType& d) override
     {
-        //! @brief Fields accessed in domain sync are not part of extensible lists.
+        //! @brief Fields accessed in domain sync (x,y,z,h,m,keys) are not part of extensible lists.
         d.setConserved("x", "y", "z", "h", "m");
         d.setDependent("keys");
-
         std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
         std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
-        d.devData.setConserved("x", "y", "z", "h", "m", "vx", "vy", "vz", "alpha");
+        d.devData.setConserved("x", "y", "z", "h", "m");
+        std::apply([&d](auto... f) { d.devData.setConserved(f.value...); }, make_tuple(ConservedFields{}));
         d.devData.setDependent("prho", "c", "kx", "xm", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23",
-                               "c33", "keys");
+                               "c33", "keys", "nc");
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
@@ -128,13 +128,13 @@ public:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        std::fill(begin(d.m), begin(d.m) + first, d.m[first]);
-        std::fill(begin(d.m) + last, end(d.m), d.m[first]);
+        transferToHost(d, first, first + 1, {"m"});
+        fill(get<"m">(d), 0, first, d.m[first]);
+        fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
         findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.keys, d.neighbors, d.nc, domain.box());
         timer.step("FindNeighbors");
 
-        transferToDevice(d, 0, domain.nParticlesWithHalos(), {"x", "y", "z", "h", "m", "keys"});
         computeXMass(first, last, ngmax_, d, domain.box());
         timer.step("XMass");
         domain.exchangeHalos(std::tie(get<"xm">(d)), get<"ax">(d), get<"ay">(d));
@@ -142,12 +142,11 @@ public:
 
         d.release("ax");
         d.acquire("gradh");
-        d.devData.release("ax", "du");
-        d.devData.acquire("gradh", "u");
+        d.devData.release("ax");
+        d.devData.acquire("gradh");
         computeVeDefGradh(first, last, ngmax_, d, domain.box());
         timer.step("Normalization & Gradh");
 
-        transferToDevice(d, first, last, {"vx", "vy", "vz", "u", "alpha"});
         computeEOS(first, last, d);
         timer.step("EquationOfState");
 
@@ -156,17 +155,15 @@ public:
 
         d.release("gradh");
         d.acquire("ax");
-        d.devData.release("gradh", "ay", "u");
-        d.devData.acquire("divv", "curlv", "du");
+        d.devData.release("gradh", "ay");
+        d.devData.acquire("divv", "curlv");
         computeIadDivvCurlv(first, last, ngmax_, d, domain.box());
-        transferToHost(d, first, last, {"divv", "curlv"});
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"az">(d), get<"du">(d));
         timer.step("mpi::synchronizeHalos");
 
         computeAVswitches(first, last, ngmax_, d, domain.box());
-        transferToHost(d, first, last, {"alpha"});
         timer.step("AVswitches");
 
         domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"az">(d), get<"du">(d));
@@ -192,7 +189,6 @@ public:
 
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
-        transferToHost(d, first, last, {"ax", "ay", "az", "du"});
 
         computeTimestep(d);
         timer.step("Timestep");
@@ -207,9 +203,10 @@ public:
     //! @brief configure the dataset for output by calling EOS again to recover rho and p
     void prepareOutput(ParticleDataType& d, size_t startIndex, size_t endIndex) override
     {
+        transferToHost(d, startIndex, endIndex, conservedFields());
+        transferToHost(d, startIndex, endIndex, {"ax", "ay", "az", "du", "kx", "xm", "nc"});
         d.release("c11", "c12", "c13");
         d.acquire("rho", "p", "gradh");
-        transferToHost(d, startIndex, endIndex, {"kx", "xm"});
         computeEOS_Impl(startIndex, endIndex, d);
     }
 
@@ -222,3 +219,4 @@ public:
 };
 
 } // namespace sphexa
+

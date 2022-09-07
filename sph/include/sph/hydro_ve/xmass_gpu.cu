@@ -43,29 +43,28 @@ namespace cuda
 
 template<typename T, class KeyType>
 __global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<T> box, size_t first, size_t last,
-                         size_t numParticles, const KeyType* particleKeys, unsigned* neighborsCount, const T* x,
+                         size_t numParticles, const KeyType* particleKeys, unsigned* nc, const T* x,
                          const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, T* xm)
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned i   = tid + first;
+    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
+    cstone::LocalIndex i   = tid + first;
 
     if (i >= last) return;
 
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired size");
     cstone::LocalIndex neighbors[NGMAX];
-    unsigned           neighborsCount_;
+    unsigned           ncTrue;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_,
-                          numParticles, ngmax);
-    unsigned nc = stl::min(neighborsCount_, ngmax);
+    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &ncTrue, numParticles,
+                          ngmax);
 
-    xm[i] = sph::xmassJLoop(i, sincIndex, K, box, neighbors, nc, x, y, z, h, m, wh, whd);
-
-    neighborsCount[tid] = neighborsCount_;
+    unsigned ncCapped = stl::min(ncTrue, ngmax);
+    xm[i] = sph::xmassJLoop(i, sincIndex, K, box, neighbors, ncCapped, x, y, z, h, m, wh, whd);
+    nc[i] = ncTrue;
 }
 
 template<class Dataset>
@@ -78,35 +77,13 @@ void computeXMass(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d
     size_t sizeWithHalos     = d.x.size();
     size_t numLocalParticles = endIndex - startIndex;
 
-    size_t taskSize = sphexa::DeviceParticlesData<T, KeyType>::taskSize;
-    size_t numTasks = iceil(numLocalParticles, taskSize);
+    unsigned numThreads = 256;
+    unsigned numBlocks  = (numLocalParticles + numThreads - 1) / numThreads;
 
-    // number of CUDA streams to use
-    constexpr int NST = sphexa::DeviceParticlesData<T, Dataset>::NST;
-
-    for (int i = 0; i < numTasks; ++i)
-    {
-        int          sIdx   = i % NST;
-        cudaStream_t stream = d.devData.d_stream[sIdx].stream;
-
-        unsigned* d_neighborsCount_use = d.devData.d_stream[sIdx].d_neighborsCount;
-
-        size_t firstParticle       = startIndex + i * taskSize;
-        size_t lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
-        size_t numParticlesCompute = lastParticle - firstParticle;
-
-        unsigned numThreads = 256;
-        unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
-
-        xmassGpu<<<numBlocks, numThreads, 0, stream>>>(
-            d.sincIndex, d.K, ngmax, box, firstParticle, lastParticle, sizeWithHalos, rawPtr(d.devData.keys),
-            d_neighborsCount_use, rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
-            rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm));
-
-        checkGpuErrors(cudaMemcpyAsync(d.nc.data() + firstParticle, d_neighborsCount_use,
-                                       numParticlesCompute * sizeof(decltype(d.nc.front())),
-                                       cudaMemcpyDeviceToHost, stream));
-    }
+    xmassGpu<<<numBlocks, numThreads>>>(
+        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.keys),
+        rawPtr(d.devData.nc), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
+        rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm));
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
