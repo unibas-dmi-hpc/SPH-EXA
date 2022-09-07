@@ -67,17 +67,12 @@ HOST_DEVICE_FUN auto positionUpdate(T dt, T dt_m1, cstone::Vec3<T> X, cstone::Ve
     T deltaA = dt + T(0.5) * dt_m1;
     T deltaB = T(0.5) * (dt + dt_m1);
 
-    auto Val = (X - X_m1) * (T(1) / dt_m1);
+    auto Val = X_m1 * (T(1) / dt_m1);
+    auto V   = Val + A * deltaA;
+    auto dX  = dt * Val + A * deltaB * dt;
+    X        = cstone::putInBox(X + dX, box);
 
-    auto V = Val + A * deltaA;
-    X_m1   = X;
-    X += dt * Val + A * deltaB * dt;
-
-    auto Xpbc = cstone::putInBox(X, box);
-    X_m1 += Xpbc - X;
-    X = Xpbc;
-
-    return util::tuple<cstone::Vec3<T>, cstone::Vec3<T>, cstone::Vec3<T>>{X, V, X_m1};
+    return util::tuple<cstone::Vec3<T>, cstone::Vec3<T>, cstone::Vec3<T>>{X, V, dX};
 }
 
 template<class T, class Dataset>

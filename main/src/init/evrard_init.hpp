@@ -84,9 +84,9 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
         T concentration = c0 / radius;
         d.h[i]          = std::cbrt(3 / (4 * M_PI) * ng0 / concentration) * 0.5;
 
-        d.x_m1[i] = d.x[i] - d.vx[i] * firstTimeStep;
-        d.y_m1[i] = d.y[i] - d.vy[i] * firstTimeStep;
-        d.z_m1[i] = d.z[i] - d.vz[i] * firstTimeStep;
+        d.x_m1[i] = d.vx[i] * firstTimeStep;
+        d.y_m1[i] = d.vy[i] * firstTimeStep;
+        d.z_m1[i] = d.vz[i] * firstTimeStep;
     }
 }
 

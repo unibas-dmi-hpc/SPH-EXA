@@ -159,9 +159,9 @@ private:
 #pragma omp parallel for schedule(static)
             for (size_t i = 0; i < d.x.size(); ++i)
             {
-                d.x_m1[i] = d.x[i] - d.vx[i] * d.minDt;
-                d.y_m1[i] = d.y[i] - d.vy[i] * d.minDt;
-                d.z_m1[i] = d.z[i] - d.vz[i] * d.minDt;
+                d.x_m1[i] = d.vx[i] * d.minDt;
+                d.y_m1[i] = d.vy[i] * d.minDt;
+                d.z_m1[i] = d.vz[i] * d.minDt;
             }
         }
     }
