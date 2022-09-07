@@ -10,30 +10,31 @@
 namespace sph
 {
 
-template<typename T>
-HOST_DEVICE_FUN inline void
-momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
-                       const cstone::LocalIndex* neighbors, unsigned neighborsCount, const T* x, const T* y, const T* z,
-                       const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* ro, const T* p,
-                       const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
-                       const T* wh, const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
+template<class Tc, class Tm, class T, class Tm1>
+HOST_DEVICE_FUN inline void momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
+                                                   const cstone::LocalIndex* neighbors, unsigned neighborsCount,
+                                                   const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy,
+                                                   const T* vz, const T* h, const Tm* m, const T* rho, const T* p,
+                                                   const T* c, const T* c11, const T* c12, const T* c13, const T* c22,
+                                                   const T* c23, const T* c33, const T* wh, const T* whd, T* grad_P_x,
+                                                   T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
 {
     constexpr T gradh_i = 1.0;
     constexpr T gradh_j = 1.0;
 
-    T xi  = x[i];
-    T yi  = y[i];
-    T zi  = z[i];
-    T vxi = vx[i];
-    T vyi = vy[i];
-    T vzi = vz[i];
+    auto xi  = x[i];
+    auto yi  = y[i];
+    auto zi  = z[i];
+    auto vxi = vx[i];
+    auto vyi = vy[i];
+    auto vzi = vz[i];
 
-    T hi  = h[i];
-    T roi = ro[i];
-    T pri = p[i];
-    T ci  = c[i];
+    auto hi  = h[i];
+    auto roi = rho[i];
+    auto pri = p[i];
+    auto ci  = c[i];
 
-    T mi_roi = m[i] / ro[i];
+    auto mi_roi = m[i] / rho[i];
 
     T hiInv  = T(1) / hi;
     T hiInv3 = hiInv * hiInv * hiInv;
@@ -41,12 +42,12 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
     T maxvsignali = 0.0;
     T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0;
 
-    T c11i = c11[i];
-    T c12i = c12[i];
-    T c13i = c13[i];
-    T c22i = c22[i];
-    T c23i = c23[i];
-    T c33i = c33[i];
+    auto c11i = c11[i];
+    auto c12i = c12[i];
+    auto c13i = c13[i];
+    auto c22i = c22[i];
+    auto c23i = c23[i];
+    auto c33i = c33[i];
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
@@ -81,19 +82,19 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
         T termA2_i = c12i * rx + c22i * ry + c23i * rz;
         T termA3_i = c13i * rx + c23i * ry + c33i * rz;
 
-        T c11j = c11[j];
-        T c12j = c12[j];
-        T c13j = c13[j];
-        T c22j = c22[j];
-        T c23j = c23[j];
-        T c33j = c33[j];
+        auto c11j = c11[j];
+        auto c12j = c12[j];
+        auto c13j = c13[j];
+        auto c22j = c22[j];
+        auto c23j = c23[j];
+        auto c33j = c33[j];
 
         T termA1_j = c11j * rx + c12j * ry + c13j * rz;
         T termA2_j = c12j * rx + c22j * ry + c23j * rz;
         T termA3_j = c13j * rx + c23j * ry + c33j * rz;
 
-        T roj = ro[j];
-        T cj  = c[j];
+        auto roj = rho[j];
+        auto cj  = c[j];
 
         T           wij          = rv / dist;
         constexpr T av_alpha     = T(1);
@@ -103,8 +104,8 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
         T vijsignal = ci + cj - T(3) * wij;
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
-        T mj        = m[j];
-        T mj_roj_Wj = mj / roj * Wj;
+        auto mj        = m[j];
+        auto mj_roj_Wj = mj / roj * Wj;
 
         T mj_pro_i = mj * pri / (gradh_i * roi * roi);
 
@@ -127,7 +128,7 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
 
     // with the choice of calculating coordinate (r) and velocity (v_ij) differences as i - j,
     // we add the negative sign only here at the end instead of to termA123_ij in each iteration
-    du[i]       = -K * T(0.5) * energy;
+    du[i]       = -K * Tm1(0.5) * energy;
     grad_P_x[i] = K * momentum_x;
     grad_P_y[i] = K * momentum_y;
     grad_P_z[i] = K * momentum_z;

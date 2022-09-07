@@ -89,6 +89,7 @@ void computePositionsGpu(size_t first, size_t last, double dt, double dt_m1, Tc*
                                       Tm1* du, Tm1* du_m1, Thydro* h, const cstone::Box<Tc>& box)
 
 POS_GPU(double, double, double, double, double, double);
+POS_GPU(double, double, double, float, double, double);
 POS_GPU(double, double, float, float, double, float);
 POS_GPU(double, double, float, float, float, float);
 POS_GPU(double, float, float, float, double, float);

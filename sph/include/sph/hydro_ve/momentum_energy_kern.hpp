@@ -41,33 +41,33 @@
 namespace sph
 {
 
-template<typename T>
+template<class Tc, class Tm, class T, class Tm1>
 HOST_DEVICE_FUN inline void
 momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
-                       const cstone::LocalIndex* neighbors, unsigned neighborsCount, const T* x, const T* y, const T* z,
-                       const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* prho, const T* c,
-                       const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
+                       const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x, const Tc* y,
+                       const Tc* z, const T* vx, const T* vy, const T* vz, const T* h, const Tm* m, const T* prho,
+                       const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
                        const T Atmin, const T Atmax, const T ramp, const T* wh, const T* whd, const T* kx, const T* xm,
-                       const T* alpha, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
+                       const T* alpha, T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
 {
-    T xi  = x[i];
-    T yi  = y[i];
-    T zi  = z[i];
-    T vxi = vx[i];
-    T vyi = vy[i];
-    T vzi = vz[i];
+    auto xi  = x[i];
+    auto yi  = y[i];
+    auto zi  = z[i];
+    auto vxi = vx[i];
+    auto vyi = vy[i];
+    auto vzi = vz[i];
 
-    T hi  = h[i];
-    T mi  = m[i];
-    T ci  = c[i];
-    T kxi = kx[i];
+    auto hi  = h[i];
+    auto mi  = m[i];
+    auto ci  = c[i];
+    auto kxi = kx[i];
 
-    T alpha_i = alpha[i];
+    auto alpha_i = alpha[i];
 
-    T xmassi = xm[i];
-    T rhoi   = kxi * mi / xmassi;
-    T prhoi  = prho[i];
-    T voli   = xmassi / kxi;
+    auto xmassi = xm[i];
+    auto rhoi   = kxi * mi / xmassi;
+    auto prhoi  = prho[i];
+    auto voli   = xmassi / kxi;
 
     T mark_ramp = 0.0;
     T a_mom, b_mom, sigma_ij;
@@ -79,12 +79,12 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
     T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0;
     T a_visc_energy = 0.0;
 
-    T c11i = c11[i];
-    T c12i = c12[i];
-    T c13i = c13[i];
-    T c22i = c22[i];
-    T c23i = c23[i];
-    T c33i = c33[i];
+    auto c11i = c11[i];
+    auto c12i = c12[i];
+    auto c13i = c13[i];
+    auto c22i = c22[i];
+    auto c23i = c23[i];
+    auto c33i = c33[i];
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
@@ -119,22 +119,22 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
         T termA2_i = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
         T termA3_i = -(c13i * rx + c23i * ry + c33i * rz) * Wi;
 
-        T c11j = c11[j];
-        T c12j = c12[j];
-        T c13j = c13[j];
-        T c22j = c22[j];
-        T c23j = c23[j];
-        T c33j = c33[j];
+        auto c11j = c11[j];
+        auto c12j = c12[j];
+        auto c13j = c13[j];
+        auto c22j = c22[j];
+        auto c23j = c23[j];
+        auto c33j = c33[j];
 
         T termA1_j = -(c11j * rx + c12j * ry + c13j * rz) * Wj;
         T termA2_j = -(c12j * rx + c22j * ry + c23j * rz) * Wj;
         T termA3_j = -(c13j * rx + c23j * ry + c33j * rz) * Wj;
 
-        T mj     = m[j];
-        T cj     = c[j];
-        T kxj    = kx[j];
-        T xmassj = xm[j];
-        T rhoj   = kxj * mj / xmassj;
+        auto mj     = m[j];
+        auto cj     = c[j];
+        auto kxj    = kx[j];
+        auto xmassj = xm[j];
+        auto rhoj   = kxj * mj / xmassj;
 
         T alpha_j = alpha[j];
 
@@ -168,14 +168,14 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
             mark_ramp += sigma_ij;
         }
 
-        T volj       = xmassj / kxj;
-        T a_visc     = voli * mj / mi * viscosity_ij;
-        T b_visc     = volj * viscosity_jj;
-        T momentum_i = prhoi * a_mom; // + 0.5 * a_visc;
-        T momentum_j = prhoj * b_mom; // + 0.5 * b_visc;
-        T a_visc_x   = T(0.5) * (a_visc * termA1_i + b_visc * termA1_j);
-        T a_visc_y   = T(0.5) * (a_visc * termA2_i + b_visc * termA2_j);
-        T a_visc_z   = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
+        auto volj       = xmassj / kxj;
+        auto a_visc     = voli * mj / mi * viscosity_ij;
+        auto b_visc     = volj * viscosity_jj;
+        auto momentum_i = prhoi * a_mom; // + 0.5 * a_visc;
+        auto momentum_j = prhoj * b_mom; // + 0.5 * b_visc;
+        T    a_visc_x   = T(0.5) * (a_visc * termA1_i + b_visc * termA1_j);
+        T    a_visc_y   = T(0.5) * (a_visc * termA2_i + b_visc * termA2_j);
+        T    a_visc_z   = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
 
         momentum_x += momentum_i * termA1_i + momentum_j * termA1_j + a_visc_x;
         momentum_y += momentum_i * termA2_i + momentum_j * termA2_j + a_visc_y;

@@ -58,7 +58,7 @@ class ParticlesData : public FieldStates<ParticlesData<T, I, AccType>>
 {
 public:
     using RealType        = T;
-    using XM1Type         = T;
+    using XM1Type         = float;
     using KeyType         = I;
     using AcceleratorType = AccType;
 

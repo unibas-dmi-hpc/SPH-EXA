@@ -52,12 +52,13 @@ struct GradPConfig
 
 __device__ float minDt_device;
 
-template<class T, class KeyType>
+template<class Tc, class Tm, class T, class Tm1, class KeyType>
 __global__ void cudaGradP(T sincIndex, T K, T Kcour, unsigned ngmax, cstone::Box<T> box, size_t firstParticle,
-                          size_t lastParticle, size_t numParticles, const KeyType* particleKeys, const T* x, const T* y,
-                          const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* rho,
-                          const T* p, const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
-                          const T* c33, const T* wh, const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du)
+                          size_t lastParticle, size_t numParticles, const KeyType* particleKeys, const Tc* x,
+                          const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz, const T* h, const Tm* m,
+                          const T* rho, const T* p, const T* c, const T* c11, const T* c12, const T* c13, const T* c22,
+                          const T* c23, const T* c33, const T* wh, const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z,
+                          Tm1* du)
 {
     cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
     cstone::LocalIndex i   = tid + firstParticle;

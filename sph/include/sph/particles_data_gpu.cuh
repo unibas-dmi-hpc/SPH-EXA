@@ -54,7 +54,7 @@ class DeviceParticlesData : public FieldStates<DeviceParticlesData<T, KeyType>>
     template<class FType>
     using DevVector = thrust::device_vector<FType>;
 
-    using XM1Type = T;
+    using XM1Type = float;
 
 public:
     // number of CUDA streams to use
