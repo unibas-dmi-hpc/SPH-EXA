@@ -89,7 +89,7 @@ void computeAVswitches(size_t startIndex, size_t endIndex, unsigned ngmax, Datas
         rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh),
         rawPtr(d.devData.whd), rawPtr(d.devData.kx), rawPtr(d.devData.xm), rawPtr(d.devData.divv), d.minDt, d.alphamin,
         d.alphamax, d.decay_constant, rawPtr(d.devData.alpha));
-    checkGpuErrors(cudaGetLastError());
+    checkGpuErrors(cudaDeviceSynchronize());
 }
 
 template void computeAVswitches(size_t, size_t, unsigned, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

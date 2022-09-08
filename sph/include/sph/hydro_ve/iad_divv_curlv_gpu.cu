@@ -91,7 +91,7 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, unsigned ngmax, Dat
         rawPtr(d.devData.h), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx),
         rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
         rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.divv), rawPtr(d.devData.curlv));
-    checkGpuErrors(cudaGetLastError());
+    checkGpuErrors(cudaDeviceSynchronize());
 }
 
 template void computeIadDivvCurlv(size_t, size_t, unsigned, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
