@@ -143,3 +143,19 @@ TEST(DomainDecomposition, createSendList)
     sendListMinimal<unsigned>();
     sendListMinimal<uint64_t>();
 }
+
+TEST(DomainDecomposition, computeByteOffsets)
+{
+    util::array<size_t, 3> elementSizes{8, 4, 8};
+    size_t sendCount = 1001;
+    size_t alignment = 128;
+
+    auto offsets = computeByteOffsets(sendCount, elementSizes, alignment);
+
+    EXPECT_EQ(offsets[0], 0);
+    EXPECT_EQ(offsets[1], round_up(elementSizes[0] * sendCount, alignment));
+    EXPECT_EQ(offsets[2], offsets[1] + round_up(elementSizes[1] * sendCount, alignment));
+    EXPECT_EQ(offsets[3], offsets[2] + round_up(elementSizes[2] * sendCount, alignment));
+
+    EXPECT_EQ(offsets[3], 8064 + 4096 + 8064);
+}

@@ -334,4 +334,43 @@ SendList createSendList(const SpaceCurveAssignment& assignment,
     return ret;
 }
 
+template<size_t N>
+util::array<size_t, N + 1>
+computeByteOffsets(size_t count, const util::array<size_t, N>& elementSizes, size_t alignment)
+{
+    util::array<size_t, N + 1> byteOffsets;
+    std::copy(elementSizes.begin(), elementSizes.end(), byteOffsets.begin());
+    byteOffsets *= count;
+
+    //! each sub-buffer will be aligned on a @a alignment-byte aligned boundary
+    for (size_t i = 0; i < byteOffsets.size(); ++i)
+    {
+        byteOffsets[i] = round_up(byteOffsets[i], alignment);
+    }
+
+    std::exclusive_scan(byteOffsets.begin(), byteOffsets.end(), byteOffsets.begin(), size_t(0));
+
+    return byteOffsets;
+}
+
+template<size_t N>
+size_t computeTotalSendBytes(const SendList& sendList,
+                             const util::array<size_t, N>& elementSizes,
+                             int thisRank,
+                             size_t alignment)
+{
+    size_t totalSendBytes = 0;
+    for (int destinationRank = 0; destinationRank < int(sendList.size()); ++destinationRank)
+    {
+        size_t sendCount = sendList[destinationRank].totalCount();
+        if (destinationRank == thisRank || sendCount == 0) { continue; }
+
+        size_t particleBytes = computeByteOffsets(sendCount, elementSizes, alignment).back();
+        //! we add @a alignment bytes to the start of each message to provide space for the message length
+        totalSendBytes += alignment + particleBytes;
+    }
+
+    return totalSendBytes;
+}
+
 } // namespace cstone

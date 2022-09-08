@@ -42,6 +42,19 @@
 namespace cstone
 {
 
+//! @brief copy the value of @a count to the start the provided GPU-buffer and advance the buffer pointer by alignment
+void encodeSendCount(size_t count, char* sendPtr)
+{
+    checkGpuErrors(cudaMemcpy(sendPtr, &count, sizeof(size_t), cudaMemcpyHostToDevice));
+}
+
+//! @brief extract message length count from head of received GPU buffer
+char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
+{
+    checkGpuErrors(cudaMemcpy(count, recvPtr, sizeof(size_t), cudaMemcpyDeviceToHost));
+    return recvPtr + alignment;
+}
+
 /*! @brief exchange array elements with other ranks according to the specified ranges
  *
  * @tparam Arrays                  pointers to particles buffers
@@ -85,15 +98,13 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
 {
     constexpr int domainExchangeTag = static_cast<int>(P2pTags::domainExchange);
     constexpr int numArrays         = sizeof...(Arrays);
+    constexpr auto indices          = makeIntegralTuple(std::make_index_sequence<numArrays>{});
+    constexpr size_t alignment      = 128;
     constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
-    const int bytesPerElement = std::accumulate(elementSizes.begin(), elementSizes.end(), 0);
-    constexpr auto indices    = makeIntegralTuple(std::make_index_sequence<numArrays>{});
 
-    const size_t totalSends  = sendList.sendCount(thisRank);
-    const size_t oldSendSize = reallocateBytes(sendScratchBuffer, totalSends * bytesPerElement);
-    int numRanks = int(sendList.size());
-
-    char* const sendBuffer = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
+    size_t totalSendBytes    = computeTotalSendBytes(sendList, elementSizes, thisRank, alignment);
+    const size_t oldSendSize = reallocateBytes(sendScratchBuffer, totalSendBytes);
+    char* const sendBuffer   = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
 
     // Not used if GPU-direct is ON
     std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
@@ -101,32 +112,29 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
 
     std::array<char*, numArrays> sourceArrays{reinterpret_cast<char*>(arrays + particleStart)...};
     char* sendPtr = sendBuffer;
-    for (int destinationRank = 0; destinationRank < numRanks; ++destinationRank)
+    for (int destinationRank = 0; destinationRank < int(sendList.size()); ++destinationRank)
     {
         const auto& sends = sendList[destinationRank];
         size_t sendCount  = sends.totalCount();
         if (destinationRank == thisRank || sendCount == 0) { continue; }
 
-        util::array<size_t, numArrays> arrayByteOffsets = sendCount * elementSizes;
-        size_t totalBytes = std::accumulate(arrayByteOffsets.begin(), arrayByteOffsets.end(), size_t(0));
-        std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
-
-        auto gatherArray = [sendPtr, sendCount, ordering, &sourceArrays, &arrayByteOffsets,
-                            &elementSizes, rStart = sends.rangeStart(0)](auto arrayIndex)
+        encodeSendCount(sendCount, sendPtr);
+        auto byteOffsets = computeByteOffsets(sendCount, elementSizes, alignment);
+        auto gatherArray = [sendPtr, sendCount, ordering, &sourceArrays, &byteOffsets, &elementSizes,
+                            rStart = sends.rangeStart(0)](auto arrayIndex)
         {
-            size_t outputOffset = arrayByteOffsets[arrayIndex];
-            char* bufferPtr     = sendPtr + outputOffset;
-
-            using ElementType = util::array<float, elementSizes[arrayIndex] / sizeof(float)>;
-            static_assert(elementSizes[arrayIndex] % sizeof(float) == 0, "elementSize must be a multiple of float");
+            size_t outputOffset = byteOffsets[arrayIndex];
+            char* bufferPtr     = sendPtr + alignment + outputOffset;
+            using ElementType   = util::array<float, elementSizes[arrayIndex] / sizeof(float)>;
             gatherGpu(ordering + rStart, sendCount, reinterpret_cast<ElementType*>(sourceArrays[arrayIndex]),
                       reinterpret_cast<ElementType*>(bufferPtr));
         };
         for_each_tuple(gatherArray, indices);
         checkGpuErrors(cudaDeviceSynchronize());
 
-        mpiSendGpuDirect(sendPtr, totalBytes, destinationRank, domainExchangeTag, sendRequests, sendBuffers);
-        sendPtr += totalBytes;
+        mpiSendGpuDirect(sendPtr, alignment + byteOffsets.back(), destinationRank, domainExchangeTag, sendRequests,
+                         sendBuffers);
+        sendPtr += alignment + byteOffsets.back();
     }
 
     LocalIndex numParticlesPresent = sendList[thisRank].totalCount();
@@ -185,20 +193,18 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
         int receiveCountBytes;
         MPI_Get_count(&status, MPI_CHAR, &receiveCountBytes);
 
-        size_t receiveCount = receiveCountBytes / bytesPerElement;
-        assert(numParticlesPresent + receiveCount <= numParticlesAssigned);
-
-        util::array<size_t, numArrays> arrayByteOffsets = receiveCount * elementSizes;
-        std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
-
         reallocateBytes(receiveScratchBuffer, receiveCountBytes);
         char* receiveBuffer = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
-
         mpiRecvGpuDirect(receiveBuffer, receiveCountBytes, receiveRank, domainExchangeTag, &status);
 
+        size_t receiveCount;
+        receiveBuffer = decodeSendCount(receiveBuffer, &receiveCount, alignment);
+        assert(numParticlesPresent + receiveCount <= numParticlesAssigned);
+
+        auto byteOffsets = computeByteOffsets(receiveCount, elementSizes, alignment);
         for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
         {
-            auto source = receiveBuffer + arrayByteOffsets[arrayIndex];
+            char* source = receiveBuffer + byteOffsets[arrayIndex];
             checkGpuErrors(cudaMemcpy(destinationArrays[arrayIndex], source, receiveCount * elementSizes[arrayIndex],
                                       cudaMemcpyDeviceToDevice));
             destinationArrays[arrayIndex] += receiveCount * elementSizes[arrayIndex];
