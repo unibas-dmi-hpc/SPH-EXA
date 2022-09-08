@@ -47,16 +47,16 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Data
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
 
-    const T* h = d.h.data();
-    const T* m = d.m.data();
-    const T* x = d.x.data();
-    const T* y = d.y.data();
-    const T* z = d.z.data();
+    const auto* h = d.h.data();
+    const auto* m = d.m.data();
+    const auto* x = d.x.data();
+    const auto* y = d.y.data();
+    const auto* z = d.z.data();
 
-    const T* wh  = d.wh.data();
-    const T* whd = d.whd.data();
+    const auto* wh  = d.wh.data();
+    const auto* whd = d.whd.data();
 
-    T* rho = d.rho.data();
+    auto* rho = d.rho.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;

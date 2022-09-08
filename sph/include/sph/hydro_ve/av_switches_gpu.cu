@@ -41,9 +41,9 @@ namespace sph
 namespace cuda
 {
 
-template<typename T, class KeyType>
+template<class Tc, class T, class KeyType>
 __global__ void AVswitchesGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<T> box, size_t first, size_t last,
-                              size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
+                              size_t numParticles, const KeyType* particleKeys, const Tc* x, const Tc* y, const Tc* z,
                               const T* vx, const T* vy, const T* vz, const T* h, const T* c, const T* c11, const T* c12,
                               const T* c13, const T* c22, const T* c23, const T* c33, const T* wh, const T* whd,
                               const T* kx, const T* xm, const T* divv, T minDt, T alphamin, T alphamax,

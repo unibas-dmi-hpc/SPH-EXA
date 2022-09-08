@@ -42,22 +42,22 @@ namespace sph
 {
 
 //! @brief a particular choice of defining generalized volume elements
-template<class T>
-HOST_DEVICE_FUN inline T veDefinition(T mass, T rhoZero)
+template<class T, class Tm>
+HOST_DEVICE_FUN inline T veDefinition(Tm mass, T rhoZero)
 {
     return mass / rhoZero;
 }
 
-template<typename T>
-HOST_DEVICE_FUN inline T xmassJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
-                                    const cstone::LocalIndex* neighbors, unsigned neighborsCount, const T* x,
-                                    const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd)
+template<class Tc, class Tm, class T>
+HOST_DEVICE_FUN inline T xmassJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& box,
+                                    const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
+                                    const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd)
 {
-    T xi = x[i];
-    T yi = y[i];
-    T zi = z[i];
-    T hi = h[i];
-    T mi = m[i];
+    auto xi = x[i];
+    auto yi = y[i];
+    auto zi = z[i];
+    auto hi = h[i];
+    auto mi = m[i];
 
     T hInv  = 1.0 / hi;
     T h3Inv = hInv * hInv * hInv;

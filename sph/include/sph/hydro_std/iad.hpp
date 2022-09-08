@@ -44,28 +44,28 @@ void computeIADImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset&
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
 
-    const T* h   = d.h.data();
-    const T* m   = d.m.data();
-    const T* x   = d.x.data();
-    const T* y   = d.y.data();
-    const T* z   = d.z.data();
-    const T* rho = d.rho.data();
+    const auto* h   = d.h.data();
+    const auto* m   = d.m.data();
+    const auto* x   = d.x.data();
+    const auto* y   = d.y.data();
+    const auto* z   = d.z.data();
+    const auto* rho = d.rho.data();
 
-    T* c11 = d.c11.data();
-    T* c12 = d.c12.data();
-    T* c13 = d.c13.data();
-    T* c22 = d.c22.data();
-    T* c23 = d.c23.data();
-    T* c33 = d.c33.data();
+    auto* c11 = d.c11.data();
+    auto* c12 = d.c12.data();
+    auto* c13 = d.c13.data();
+    auto* c22 = d.c22.data();
+    auto* c23 = d.c23.data();
+    auto* c33 = d.c33.data();
 
-    const T* wh  = d.wh.data();
-    const T* whd = d.whd.data();
+    const auto* wh  = d.wh.data();
+    const auto* whd = d.whd.data();
 
     T K         = d.K;
     T sincIndex = d.sincIndex;
 
 #pragma omp parallel for schedule(static)
-    for (size_t i = startIndex; i < endIndex; ++i)
+    for (cstone::LocalIndex i = startIndex; i < endIndex; ++i)
     {
         size_t   ni = i - startIndex;
         unsigned nc = std::min(neighborsCount[i], ngmax);

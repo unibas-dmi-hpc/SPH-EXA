@@ -41,10 +41,10 @@ namespace sph
 namespace cuda
 {
 
-template<typename T, class KeyType>
-__global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<T> box, size_t first, size_t last,
-                         size_t numParticles, const KeyType* particleKeys, unsigned* nc, const T* x,
-                         const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, T* xm)
+template<class Tc, class Tm, class T, class KeyType>
+__global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc> box, size_t first, size_t last,
+                         size_t numParticles, const KeyType* particleKeys, unsigned* nc, const Tc* x, const Tc* y,
+                         const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd, T* xm)
 {
     cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
     cstone::LocalIndex i   = tid + first;

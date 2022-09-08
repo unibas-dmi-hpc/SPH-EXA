@@ -41,21 +41,21 @@
 namespace sph
 {
 
-template<typename T>
+template<class Tc, class T>
 HOST_DEVICE_FUN inline void IADJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
-                                     const cstone::LocalIndex* neighbors, unsigned neighborsCount, const T* x,
-                                     const T* y, const T* z, const T* h, const T* wh, const T* whd, const T* xm,
+                                     const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
+                                     const Tc* y, const Tc* z, const Tc* h, const T* wh, const T* whd, const T* xm,
                                      const T* kx, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
 {
     T tau11 = 0.0, tau12 = 0.0, tau13 = 0.0, tau22 = 0.0, tau23 = 0.0, tau33 = 0.0;
 
-    T xi = x[i];
-    T yi = y[i];
-    T zi = z[i];
+    auto xi = x[i];
+    auto yi = y[i];
+    auto zi = z[i];
 
-    T hi    = h[i];
-    T hiInv = T(1) / hi;
-    T norm  = K * hiInv * hiInv * hiInv;
+    auto hi    = h[i];
+    auto hiInv = T(1) / hi;
+    T    norm  = K * hiInv * hiInv * hiInv;
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {

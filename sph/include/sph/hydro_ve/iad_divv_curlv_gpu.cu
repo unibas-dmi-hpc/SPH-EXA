@@ -42,10 +42,10 @@ namespace sph
 namespace cuda
 {
 
-template<typename T, class KeyType>
-__global__ void iadDivvCurlvGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<T> box, size_t first, size_t last,
-                                size_t numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
-                                const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* wh,
+template<class Tc, class T, class KeyType>
+__global__ void iadDivvCurlvGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc> box, size_t first, size_t last,
+                                size_t numParticles, const KeyType* particleKeys, const Tc* x, const Tc* y, const Tc* z,
+                                const T* vx, const T* vy, const T* vz, const T* h, const T* wh,
                                 const T* whd, const T* xm, const T* kx, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33,
                                 T* divv, T* curlv)
 {
@@ -88,10 +88,9 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, unsigned ngmax, Dat
     iadDivvCurlvGpu<<<numBlocks, numThreads>>>(
         d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.keys), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
-        rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm),
-        rawPtr(d.devData.kx), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13),
-        rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.divv),
-        rawPtr(d.devData.curlv));
+        rawPtr(d.devData.h), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx),
+        rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
+        rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.divv), rawPtr(d.devData.curlv));
     checkGpuErrors(cudaGetLastError());
 }
 

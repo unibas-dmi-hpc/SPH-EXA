@@ -41,26 +41,26 @@
 namespace sph
 {
 
-template<typename T>
-HOST_DEVICE_FUN inline util::tuple<T, T> veDefGradhJLoop(cstone::LocalIndex i, T sincIndex, T K,
-                                                         const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
-                                                         unsigned neighborsCount, const T* x, const T* y, const T* z,
-                                                         const T* h, const T* m, const T* wh, const T* whd, const T* xm)
+template<class Tc, class Tm, class T>
+HOST_DEVICE_FUN inline util::tuple<T, T>
+veDefGradhJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
+                unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh,
+                const T* whd, const T* xm)
 {
-    T xi     = x[i];
-    T yi     = y[i];
-    T zi     = z[i];
-    T hi     = h[i];
-    T mi     = m[i];
-    T xmassi = xm[i];
+    auto xi     = x[i];
+    auto yi     = y[i];
+    auto zi     = z[i];
+    auto hi     = h[i];
+    auto mi     = m[i];
+    auto xmassi = xm[i];
 
-    T hInv  = 1.0 / hi;
-    T h3Inv = hInv * hInv * hInv;
+    auto hInv  = T(1) / hi;
+    auto h3Inv = hInv * hInv * hInv;
 
     // initialize with self-contribution
-    T kxi      = xmassi;
-    T whomegai = -T(3) * xmassi;
-    T wrho0i   = -T(3) * mi;
+    auto kxi      = xmassi;
+    auto whomegai = -T(3) * xmassi;
+    auto wrho0i   = -T(3) * mi;
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {

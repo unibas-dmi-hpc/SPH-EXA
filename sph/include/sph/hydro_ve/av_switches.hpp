@@ -43,27 +43,27 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, unsigned ngmax, D
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
 
-    const T* x  = d.x.data();
-    const T* y  = d.y.data();
-    const T* z  = d.z.data();
-    const T* h  = d.h.data();
-    const T* vx = d.vx.data();
-    const T* vy = d.vy.data();
-    const T* vz = d.vz.data();
-    const T* c  = d.c.data();
+    const auto* x  = d.x.data();
+    const auto* y  = d.y.data();
+    const auto* z  = d.z.data();
+    const auto* h  = d.h.data();
+    const auto* vx = d.vx.data();
+    const auto* vy = d.vy.data();
+    const auto* vz = d.vz.data();
+    const auto* c  = d.c.data();
 
-    const T* c11 = d.c11.data();
-    const T* c12 = d.c12.data();
-    const T* c13 = d.c13.data();
-    const T* c22 = d.c22.data();
-    const T* c23 = d.c23.data();
-    const T* c33 = d.c33.data();
+    const auto* c11 = d.c11.data();
+    const auto* c12 = d.c12.data();
+    const auto* c13 = d.c13.data();
+    const auto* c22 = d.c22.data();
+    const auto* c23 = d.c23.data();
+    const auto* c33 = d.c33.data();
 
-    const T* divv = d.divv.data();
-    const T* wh   = d.wh.data();
-    const T* whd  = d.whd.data();
-    const T* kx   = d.kx.data();
-    const T* xm   = d.xm.data();
+    const auto* divv = d.divv.data();
+    const auto* wh   = d.wh.data();
+    const auto* whd  = d.whd.data();
+    const auto* kx   = d.kx.data();
+    const auto* xm   = d.xm.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
@@ -72,7 +72,7 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, unsigned ngmax, D
     const T alphamax       = d.alphamax;
     const T decay_constant = d.decay_constant;
 
-    T* alpha = d.alpha.data();
+    auto* alpha = d.alpha.data();
 
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; ++i)

@@ -41,37 +41,37 @@
 namespace sph
 {
 
-template<typename T>
+template<class Tc, class T>
 HOST_DEVICE_FUN inline T
 AVswitchesJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
-                unsigned neighborsCount, const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz,
+                unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz,
                 const T* h, const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
                 const T* c33, const T* wh, const T* whd, const T* kx, const T* xm, const T* divv, const T dt,
                 const T alphamin, const T alphamax, const T decay_constant, T alpha_i)
 {
-    T xi  = x[i];
-    T yi  = y[i];
-    T zi  = z[i];
-    T vxi = vx[i];
-    T vyi = vy[i];
-    T vzi = vz[i];
+    auto xi  = x[i];
+    auto yi  = y[i];
+    auto zi  = z[i];
+    auto vxi = vx[i];
+    auto vyi = vy[i];
+    auto vzi = vz[i];
 
-    T hi = h[i];
-    T ci = c[i];
+    auto hi = h[i];
+    auto ci = c[i];
 
-    T c11i = c11[i];
-    T c12i = c12[i];
-    T c13i = c13[i];
-    T c22i = c22[i];
-    T c23i = c23[i];
-    T c33i = c33[i];
+    auto c11i = c11[i];
+    auto c12i = c12[i];
+    auto c13i = c13[i];
+    auto c22i = c22[i];
+    auto c23i = c23[i];
+    auto c33i = c33[i];
 
     T vijsignal_i = T(1.e-40) * ci;
 
-    T hiInv  = T(1) / hi;
-    T hiInv3 = hiInv * hiInv * hiInv;
+    auto hiInv  = T(1) / hi;
+    auto hiInv3 = hiInv * hiInv * hiInv;
 
-    T divv_i = divv[i];
+    auto divv_i = divv[i];
 
     T graddivv_x = 0.0;
     T graddivv_y = 0.0;

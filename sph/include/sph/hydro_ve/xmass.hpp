@@ -36,25 +36,25 @@
 
 namespace sph
 {
-template<typename T, class Dataset>
-void computeXMassImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
+template<typename Tc, class Dataset>
+void computeXMassImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<Tc>& box)
 {
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
 
-    const T* h = d.h.data();
-    const T* m = d.m.data();
-    const T* x = d.x.data();
-    const T* y = d.y.data();
-    const T* z = d.z.data();
+    const auto* h = d.h.data();
+    const auto* m = d.m.data();
+    const auto* x = d.x.data();
+    const auto* y = d.y.data();
+    const auto* z = d.z.data();
 
-    const T* wh  = d.wh.data();
-    const T* whd = d.whd.data();
+    const auto* wh  = d.wh.data();
+    const auto* whd = d.whd.data();
 
-    T* xm = d.xm.data();
+    auto* xm = d.xm.data();
 
-    const T K         = d.K;
-    const T sincIndex = d.sincIndex;
+    const Tc K         = d.K;
+    const Tc sincIndex = d.sincIndex;
 
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; i++)
@@ -69,8 +69,8 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Datase
     }
 }
 
-template<typename T, class Dataset>
-void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+template<typename Tc, class Dataset>
+void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<Tc>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

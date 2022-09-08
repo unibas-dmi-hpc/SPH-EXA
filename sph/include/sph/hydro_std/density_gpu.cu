@@ -43,10 +43,10 @@ namespace sph
 namespace cuda
 {
 
-template<class T, class KeyType>
+template<class Tc, class Tm, class T, class KeyType>
 __global__ void cudaDensity(T sincIndex, T K, unsigned ngmax, cstone::Box<T> box, size_t firstParticle,
                             size_t lastParticle, size_t numParticles, const KeyType* particleKeys, unsigned* nc,
-                            const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd,
+                            const Tc* x, const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd,
                             T* rho)
 {
     cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
