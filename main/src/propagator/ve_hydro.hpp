@@ -77,6 +77,10 @@ protected:
     using DependentFields = FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33",
                                       "xm", "kx", "divv", "curlv", "nc">;
 
+    //! @brief not all dependent CPU fields are simultaneously needed on the GPU
+    using DependentFieldsGpu =
+        FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "xm", "kx", "nc">;
+
 public:
     HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
@@ -99,9 +103,9 @@ public:
         std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
         d.devData.setConserved("x", "y", "z", "h", "m");
+        d.devData.setDependent("keys");
         std::apply([&d](auto... f) { d.devData.setConserved(f.value...); }, make_tuple(ConservedFields{}));
-        d.devData.setDependent("prho", "c", "kx", "xm", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23",
-                               "c33", "keys", "nc");
+        std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFieldsGpu{}));
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
@@ -109,12 +113,12 @@ public:
         if (d.g != 0.0)
         {
             domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                            get<ConservedFields>(d), get<DependentFields>(d));
+                            get<ConservedFields>(d), get<DependentFieldsGpu>(d));
         }
         else
         {
             domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d));
+                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFieldsGpu>(d));
         }
     }
 
