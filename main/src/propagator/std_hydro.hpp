@@ -56,12 +56,13 @@ class HydroProp final : public Propagator<DomainType, ParticleDataType>
 
     using T             = typename ParticleDataType::RealType;
     using KeyType       = typename ParticleDataType::KeyType;
-    using MultipoleType = ryoanji::CartesianQuadrupole<float>;
+    using Tmass         = typename ParticleDataType::Tmass;
+    using MultipoleType = ryoanji::CartesianQuadrupole<Tmass>;
 
     using Acc = typename ParticleDataType::AcceleratorType;
     using MHolder_t =
-        typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<MultipoleType,
-                                                                                                     KeyType, T, T, T>;
+        typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
+                                         MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
     MHolder_t mHolder_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations

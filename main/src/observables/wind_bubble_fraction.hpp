@@ -39,9 +39,9 @@
 namespace sphexa
 {
 //!@brief counts the number of particles that still belong to the cloud on each rank
-template<class T>
-size_t localSurvivors(size_t first, size_t last, const T* u, const T* kx, const T* xmass, const T* m, double rhoBubble,
-                      double uWind)
+template<class Tu, class T, class Tm>
+size_t localSurvivors(size_t first, size_t last, const Tu* u, const T* kx, const T* xmass, const Tm* m,
+                      double rhoBubble, double uWind)
 {
     size_t survivors = 0;
 

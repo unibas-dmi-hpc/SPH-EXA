@@ -78,7 +78,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
     cstone::Domain<KeyType, T, cstone::GpuTag> domain(thisRank, numRanks, bucketSize, bucketSizeLocal, theta, box);
 
-    MultipoleHolder<T, T, T, KeyType, MultipoleType> multipoleHolder;
+    MultipoleHolder<T, T, T, T, T, KeyType, MultipoleType> multipoleHolder;
 
     thrust::device_vector<KeyType> d_keys = particleKeys;
     thrust::device_vector<T>       d_x = x, d_y = y, d_z = z, d_h = h, d_m = m;

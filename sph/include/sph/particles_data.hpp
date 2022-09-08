@@ -53,13 +53,14 @@
 namespace sphexa
 {
 
-template<typename T, typename I, class AccType>
-class ParticlesData : public FieldStates<ParticlesData<T, I, AccType>>
+template<typename T, typename KeyType_, class AccType>
+class ParticlesData : public FieldStates<ParticlesData<T, KeyType_, AccType>>
 {
 public:
+    using KeyType         = KeyType_;
     using RealType        = T;
+    using Tmass           = float;
     using XM1Type         = float;
-    using KeyType         = I;
     using AcceleratorType = AccType;
 
     template<class ValueType>
@@ -103,7 +104,7 @@ public:
     FieldVector<T>        p;                            // Pressure
     FieldVector<T>        prho;                         // p / (kx * m^2 * gradh)
     FieldVector<T>        h;                            // Smoothing Length
-    FieldVector<T>        m;                            // Mass
+    FieldVector<Tmass>    m;                            // Mass
     FieldVector<T>        c;                            // Speed of sound
     FieldVector<T>        cv;                           // Specific heat
     FieldVector<T>        mue, mui;                     // mean molecular weight (electrons, ions)

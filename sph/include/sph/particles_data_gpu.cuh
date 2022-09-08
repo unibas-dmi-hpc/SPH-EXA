@@ -54,6 +54,7 @@ class DeviceParticlesData : public FieldStates<DeviceParticlesData<T, KeyType>>
     template<class FType>
     using DevVector = thrust::device_vector<FType>;
 
+    using Tmass   = float;
     using XM1Type = float;
 
 public:
@@ -84,7 +85,7 @@ public:
     DevVector<T>        p;                            // Pressure
     DevVector<T>        prho;                         // p / (kx * m^2 * gradh)
     DevVector<T>        h;                            // Smoothing Length
-    DevVector<T>        m;                            // Mass
+    DevVector<Tmass>    m;                            // Mass
     DevVector<T>        c;                            // Speed of sound
     DevVector<T>        cv;                           // Specific heat
     DevVector<T>        mue, mui;                     // mean molecular weight (electrons, ions)
