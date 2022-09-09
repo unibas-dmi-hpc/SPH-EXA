@@ -63,8 +63,8 @@ __global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc>
                           ngmax);
 
     unsigned ncCapped = stl::min(ncTrue, ngmax);
-    xm[i] = sph::xmassJLoop(i, sincIndex, K, box, neighbors, ncCapped, x, y, z, h, m, wh, whd);
-    nc[i] = ncTrue;
+    xm[i]             = sph::xmassJLoop(i, sincIndex, K, box, neighbors, ncCapped, x, y, z, h, m, wh, whd);
+    nc[i]             = ncTrue;
 }
 
 template<class Dataset>
@@ -81,9 +81,9 @@ void computeXMass(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d
     unsigned numBlocks  = (numLocalParticles + numThreads - 1) / numThreads;
 
     xmassGpu<<<numBlocks, numThreads>>>(
-        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.keys),
-        rawPtr(d.devData.nc), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
-        rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm));
+        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.keys), rawPtr(d.devData.nc),
+        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m),
+        rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm));
     checkGpuErrors(cudaDeviceSynchronize());
 }
 

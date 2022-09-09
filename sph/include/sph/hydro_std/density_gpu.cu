@@ -56,7 +56,7 @@ __global__ void cudaDensity(T sincIndex, T K, unsigned ngmax, cstone::Box<T> box
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired value");
     cstone::LocalIndex neighbors[NGMAX];
-    unsigned ncTrue;
+    unsigned           ncTrue;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));

@@ -66,10 +66,7 @@ public:
         return rawPtr(octreeGpuData_.leafToInternal) + octreeGpuData_.numInternalNodes;
     }
 
-    const TreeNodeIndex* internalToLeaf() const
-    {
-        return rawPtr(octreeGpuData_.internalToLeaf);
-    }
+    const TreeNodeIndex* internalToLeaf() const { return rawPtr(octreeGpuData_.internalToLeaf); }
 
     TreeNodeIndex numLeafNodes() const { return octreeGpuData_.numLeafNodes; }
 

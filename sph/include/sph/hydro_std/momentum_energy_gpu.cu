@@ -66,7 +66,7 @@ __global__ void cudaGradP(T sincIndex, T K, T Kcour, unsigned ngmax, cstone::Box
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired value");
     cstone::LocalIndex neighbors[NGMAX];
-    unsigned neighborsCount;
+    unsigned           neighborsCount;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));

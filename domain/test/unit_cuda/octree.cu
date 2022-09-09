@@ -114,7 +114,7 @@ TEST(OctreeGpu, rebalanceDecision)
 
 TEST(OctreeGpu, rebalanceTree)
 {
-    using KeyType = unsigned;
+    using KeyType                       = unsigned;
     thrust::device_vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(7).makeTree();
 
     // node {1} to be split, nodes {7,i} are to be fused

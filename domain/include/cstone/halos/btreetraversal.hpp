@@ -45,12 +45,12 @@ public:
     void add(int i)
     {
         list_[n_] = i;
-        n_ = (n_ < collisionMax-1) ? n_+1 : n_;
+        n_        = (n_ < collisionMax - 1) ? n_ + 1 : n_;
     }
 
     //! @brief access collision list as a range
     [[nodiscard]] const int* begin() const { return list_; }
-    [[nodiscard]] const int* end()   const { return list_ + n_; }
+    [[nodiscard]] const int* end() const { return list_ + n_; }
 
     //! @brief access collision list elements
     int operator[](int i) const
@@ -66,7 +66,7 @@ public:
      */
     [[nodiscard]] std::size_t size() const { return n_; };
 
-    [[nodiscard]] bool exhausted() const { return n_ == collisionMax-1; }
+    [[nodiscard]] bool exhausted() const { return n_ == collisionMax - 1; }
 
 private:
     static constexpr int collisionMax = 512;
@@ -75,8 +75,10 @@ private:
 };
 
 template<class KeyType>
-HOST_DEVICE_FUN inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNodeIndex idx,
-                                         const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
+HOST_DEVICE_FUN inline bool traverseNode(const BinaryNode<KeyType>* root,
+                                         TreeNodeIndex idx,
+                                         const IBox& collisionBox,
+                                         util::array<KeyType, 2> excludeRange)
 {
     return (!isLeafIndex(idx)) && !containedIn(root[idx].prefix, excludeRange[0], excludeRange[1]) &&
            overlap<KeyType>(
@@ -85,8 +87,8 @@ HOST_DEVICE_FUN inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNo
 }
 
 template<class KeyType>
-HOST_DEVICE_FUN inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
-                                        const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
+HOST_DEVICE_FUN inline bool
+leafOverlap(int leafIndex, const KeyType* leafNodes, const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
 {
     if (!isLeafIndex(leafIndex)) { return false; }
 
@@ -131,10 +133,12 @@ HOST_DEVICE_FUN inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
  * cost to check all 3 dimensions at each step should not be very high, we keep
  * the implementation general.
  */
-template <class KeyType, class Endpoint>
-HOST_DEVICE_FUN void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes,
+template<class KeyType, class Endpoint>
+HOST_DEVICE_FUN void findCollisions(const BinaryNode<KeyType>* root,
+                                    const KeyType* leafNodes,
                                     Endpoint&& reportCollision,
-                                    const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
+                                    const IBox& collisionBox,
+                                    util::array<KeyType, 2> excludeRange)
 {
     using Node = BinaryNode<KeyType>;
 
@@ -148,8 +152,8 @@ HOST_DEVICE_FUN void findCollisions(const BinaryNode<KeyType>* root, const KeyTy
     {
         TreeNodeIndex leftChild  = root[node].child[Node::left];
         TreeNodeIndex rightChild = root[node].child[Node::right];
-        bool traverseL = traverseNode(root, leftChild, collisionBox, excludeRange);
-        bool traverseR = traverseNode(root, rightChild, collisionBox, excludeRange);
+        bool traverseL           = traverseNode(root, leftChild, collisionBox, excludeRange);
+        bool traverseR           = traverseNode(root, rightChild, collisionBox, excludeRange);
 
         bool overlapLeafL = leafOverlap(leftChild, leafNodes, collisionBox, excludeRange);
         bool overlapLeafR = leafOverlap(rightChild, leafNodes, collisionBox, excludeRange);
@@ -157,10 +161,7 @@ HOST_DEVICE_FUN void findCollisions(const BinaryNode<KeyType>* root, const KeyTy
         if (overlapLeafL) { reportCollision(loadLeafIndex(leftChild)); }
         if (overlapLeafR) { reportCollision(loadLeafIndex(rightChild)); }
 
-        if (!traverseL and !traverseR)
-        {
-            node = stack[--stackPos];
-        }
+        if (!traverseL and !traverseR) { node = stack[--stackPos]; }
         else
         {
             if (traverseL && traverseR)
@@ -180,23 +181,27 @@ HOST_DEVICE_FUN void findCollisions(const BinaryNode<KeyType>* root, const KeyTy
 }
 
 //! @brief convenience overload for storing colliding indices
-template <class KeyType>
-void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, CollisionList& collisions,
-                    const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
+template<class KeyType>
+void findCollisions(const BinaryNode<KeyType>* root,
+                    const KeyType* leafNodes,
+                    CollisionList& collisions,
+                    const IBox& collisionBox,
+                    util::array<KeyType, 2> excludeRange)
 {
     auto storeCollisions = [&collisions](TreeNodeIndex i) { collisions.add(i); };
     findCollisions(root, leafNodes, storeCollisions, collisionBox, excludeRange);
 }
 
 //! @brief convenience overload for marking colliding node indices
-template <class KeyType>
-HOST_DEVICE_FUN inline
-void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, int* flags,
-                    const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
+template<class KeyType>
+HOST_DEVICE_FUN inline void findCollisions(const BinaryNode<KeyType>* root,
+                                           const KeyType* leafNodes,
+                                           int* flags,
+                                           const IBox& collisionBox,
+                                           util::array<KeyType, 2> excludeRange)
 {
     auto markCollisions = [flags](TreeNodeIndex i) { flags[i] = 1; };
     findCollisions(root, leafNodes, markCollisions, collisionBox, excludeRange);
 }
-
 
 } // namespace cstone

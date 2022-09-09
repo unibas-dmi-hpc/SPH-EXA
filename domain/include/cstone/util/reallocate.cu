@@ -63,10 +63,7 @@ template<class Vector>
 void reallocateDeviceShrink(Vector& vector, size_t size, double growthRate, double shrinkThresh)
 {
     reallocateDevice(vector, size, growthRate);
-    if (double(vector.capacity()) / double(size) > shrinkThresh)
-    {
-        vector.shrink_to_fit();
-    }
+    if (double(vector.capacity()) / double(size) > shrinkThresh) { vector.shrink_to_fit(); }
 }
 
 template void reallocateDeviceShrink(thrust::device_vector<double>&, size_t, double, double);
@@ -78,4 +75,3 @@ template void reallocateDeviceShrink(thrust::device_vector<unsigned>&, size_t, d
 template void reallocateDeviceShrink(thrust::device_vector<unsigned long>&, size_t, double, double);
 template void reallocateDeviceShrink(thrust::device_vector<unsigned long long>&, size_t, double, double);
 template void reallocateDeviceShrink(thrust::device_vector<char>&, size_t, double, double);
-

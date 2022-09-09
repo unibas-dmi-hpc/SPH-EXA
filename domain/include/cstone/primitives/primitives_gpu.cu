@@ -107,7 +107,6 @@ template size_t lowerBoundGpu(const uint64_t*, const uint64_t*, uint64_t);
 template size_t lowerBoundGpu(const int*, const int*, int);
 template size_t lowerBoundGpu(const int64_t*, const int64_t*, int64_t);
 
-
 template<class T, class IndexType>
 void lowerBoundGpu(const T* first, const T* last, const T* valueFirst, const T* valueLast, IndexType* result)
 {
