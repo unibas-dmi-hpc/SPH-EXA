@@ -145,7 +145,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticles(const SendList& sendList,
 
     std::array<char*, numArrays> destinationArrays{reinterpret_cast<char*>(arrays + receiveStart)...};
 
-    if (!fitHead && !fitTail && numIncoming > 0)
+    if (!fitHead && !fitTail && numIncoming > 0 && numParticlesPresent > 0)
     {
         std::vector<char> tempBuffer(numParticlesPresent * *std::max_element(elementSizes.begin(), elementSizes.end()));
 

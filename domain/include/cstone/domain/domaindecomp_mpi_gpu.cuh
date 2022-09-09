@@ -166,7 +166,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
     std::array<char*, numArrays> destinationArrays{reinterpret_cast<char*>(arrays + receiveStart)...};
     const size_t oldRecvSize = receiveScratchBuffer.size();
 
-    if (!fitHead && !fitTail && numIncoming > 0)
+    if (!fitHead && !fitTail && numIncoming > 0 && numParticlesPresent > 0)
     {
         std::size_t requiredBytes = numParticlesPresent * *std::max_element(elementSizes.begin(), elementSizes.end());
         reallocateBytes(receiveScratchBuffer, requiredBytes);
