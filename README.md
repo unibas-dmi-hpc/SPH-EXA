@@ -227,6 +227,7 @@ and a warp-aware tree-traversal inspired by the
 * Ruben Cabezon
 * Aurelien Cavelan
 * Florina Ciorba
+* Jean M. Favre
 * Michal Grabarczyk
 * Danilo Guerrera
 * David Imbert
@@ -251,4 +252,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
    * [SPH-EXA project 2](https://www.pasc-ch.org/projects/2021-2024/sph-exa2/) and [webpage](https://hpc.dmi.unibas.ch/en/research/pasc-sph-exa2/)
 * [Swiss National Supercomputing Center (CSCS)](https://www.cscs.ch/)
 * [Scientific Computing Center of the University of Basel (sciCORE)](https://scicore.unibas.ch/)
-* [Swiss participation in Square Kilometer Aray (SKA)](https://www.sbfi.admin.ch/sbfi/en/home/research-and-innovation/international-cooperation-r-and-i/international-research-organisations/skao.html)
+* [Swiss participation in Square Kilometer Array (SKA)](https://www.sbfi.admin.ch/sbfi/en/home/research-and-innovation/international-cooperation-r-and-i/international-research-organisations/skao.html)
