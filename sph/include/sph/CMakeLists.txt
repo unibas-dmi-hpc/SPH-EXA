@@ -2,6 +2,10 @@ add_subdirectory(hydro_std)
 add_subdirectory(hydro_turb)
 add_subdirectory(hydro_ve)
 
+if (CMAKE_HIP_COMPILER)
+    set_source_files_properties(positions_gpu.cu update_h_gpu.cu PROPERTIES LANGUAGE HIP)
+endif()
+
 if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     add_library(sph_gpu
             positions_gpu.cu
