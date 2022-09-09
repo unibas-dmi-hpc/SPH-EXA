@@ -41,6 +41,7 @@
 #endif
 #include "isim_init.hpp"
 #include "sedov_constants.hpp"
+#include "early_sync.hpp"
 #include "grid.hpp"
 
 namespace sphexa
@@ -101,17 +102,21 @@ public:
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide, Dataset& d) const override
     {
+        using KeyType        = typename Dataset::KeyType;
         using T              = typename Dataset::RealType;
         d.numParticlesGlobal = cubeSide * cubeSide * cubeSide;
 
         auto [first, last] = partitionRange(d.numParticlesGlobal, rank, numRanks);
         d.resize(last - first);
 
-        T r = constants_.at("r1");
+        T              r = constants_.at("r1");
+        cstone::Box<T> globalBox(-r, r, cstone::BoundaryType::periodic);
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
+        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
+        d.resize(d.x.size());
         initSedovFields(d, constants_);
 
-        return cstone::Box<T>(-r, r, cstone::BoundaryType::periodic);
+        return globalBox;
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }

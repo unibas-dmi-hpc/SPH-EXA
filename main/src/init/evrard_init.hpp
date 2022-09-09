@@ -36,6 +36,7 @@
 #include "cstone/sfc/box.hpp"
 
 #include "isim_init.hpp"
+#include "early_sync.hpp"
 #include "grid.hpp"
 
 namespace sphexa
@@ -131,31 +132,7 @@ public:
         d.numParticlesGlobal = d.x.size();
         MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
 
-        size_t                    bucketSize = std::max(64lu, d.numParticlesGlobal / (100 * numRanks));
-        cstone::BufferDescription bufDesc{0, cstone::LocalIndex(d.x.size()), cstone::LocalIndex(d.x.size())};
-
-        cstone::GlobalAssignment<KeyType, T> distributor(rank, numRanks, bucketSize, globalBox);
-
-        std::vector<unsigned>                                        orderScratch;
-        cstone::SfcSorter<cstone::LocalIndex, std::vector<unsigned>> reorderFunctor(orderScratch);
-
-        std::vector<T>       scratch1, scratch2;
-        std::vector<KeyType> particleKeys(d.x.size());
-        cstone::LocalIndex   newNParticlesAssigned =
-            distributor.assign(bufDesc, reorderFunctor, particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
-        size_t exchangeSize = std::max(d.x.size(), size_t(newNParticlesAssigned));
-        reallocate(exchangeSize, particleKeys, d.x, d.y, d.z);
-        auto [exchangeStart, keyView] = distributor.distribute(bufDesc, reorderFunctor, scratch1, scratch2,
-                                                               particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
-
-        scratch1.resize(d.x.size());
-        cstone::reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(d.x, d.y, d.z), std::tie(scratch1));
-        d.x.resize(keyView.size());
-        d.y.resize(keyView.size());
-        d.z.resize(keyView.size());
-        d.x.shrink_to_fit();
-        d.y.shrink_to_fit();
-        d.z.shrink_to_fit();
+        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
 
         d.resize(d.x.size());
         initEvrardFields(d, constants_);
