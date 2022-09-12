@@ -86,21 +86,11 @@ void reallocate(std::size_t size, Arrays&... arrays)
  * @param[inout] vec       an STL or thrust-like vector
  * @param[in]    numBytes  minimum buffer size in bytes of @a vec
  * @return                 number of elements (vec.size(), not bytes) of supplied argument vector
+ *
+ * Note: previous content is destroyed
  */
 template<class Vector>
 size_t reallocateBytes(Vector& vec, size_t numBytes)
-{
-    constexpr size_t elementSize = sizeof(typename Vector::value_type);
-    size_t originalSize          = vec.size();
-
-    size_t currentSizeBytes = originalSize * elementSize;
-    if (currentSizeBytes < numBytes) { reallocate(vec, (numBytes + elementSize - 1) / elementSize, 1.01); }
-
-    return originalSize;
-}
-
-template<class Vector>
-size_t reallocateBytesDestructive(Vector& vec, size_t numBytes)
 {
     constexpr size_t elementSize = sizeof(typename Vector::value_type);
     size_t originalSize          = vec.size();
@@ -128,3 +118,4 @@ void lowMemReallocate(size_t size,
     for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, conserved);
     for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, scratch);
 }
+

@@ -155,9 +155,25 @@ public:
 private:
     void resize(size_t numLeaves)
     {
-        size_t numNodes = numLeaves + (numLeaves - 1) / 7;
+        double growthRate = 1.01;
+        size_t numNodes   = numLeaves + (numLeaves - 1) / 7;
 
-        double growthRate = 1.05;
+        auto dealloc = [](auto& v)
+        {
+            v.clear();
+            v.shrink_to_fit();
+        };
+
+        if (numLeaves > leafToInternal_.capacity())
+        {
+            dealloc(leafToInternal_);
+            dealloc(internalToLeaf_);
+            dealloc(childOffsets_);
+            dealloc(layout_);
+            dealloc(centers_);
+            dealloc(multipoles_);
+        }
+
         reallocateGeneric(leafToInternal_, numLeaves, growthRate);
         reallocateGeneric(internalToLeaf_, numNodes, growthRate);
         reallocateGeneric(childOffsets_, numNodes, growthRate);
