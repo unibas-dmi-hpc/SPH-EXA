@@ -29,7 +29,7 @@ Exascale-ready, MPI+X, SPH code: SPH-EXA.
 
 # SPH-EXA
 
-SPH-EXA is a C++20 simulation code, parallelized with MPI, OpenMP, CUDA and HIP.
+SPH-EXA is a C++20 simulation code, parallelized with MPI, OpenMP, CUDA, and HIP.
 
 [Check our wiki for more details](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/wiki)
 
@@ -77,7 +77,7 @@ For CUDA (.cu), the minimum supported CUDA version is **CUDA 11.2** with a C++17
 
 Note that GCC 10.3.0 does not work as CUDA host compiler due to known compiler bugs.
 For ease of use, the recommended minimum version of CUDA is 11.4.1 which supports GCC 11, providing both the required
-C++20 support and bug-free CUDA host compilation. [NOTE: CUDA/11.3.1 seems to have solved the compatibility issues with GCC 10.3.0]
+C++20 support and bug-free CUDA host compilation. [**NOTE:** CUDA/11.3.1 seems to have solved the compatibility issues with GCC 10.3.0]
 
 #### Compilation
 
@@ -96,7 +96,6 @@ ml CUDA/11.3.1
 mkdir build
 cd build
 cmake <GIT_SOURCE_DIR>
-make -j
 ```
 CMake configuration on Piz Daint for clang:
 **Cray-clang 14** for CPU code (.cpp), **CUDA 11.6 + GCC 11.2.0** for GPU code (.cu):
