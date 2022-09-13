@@ -43,6 +43,7 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
+#include "init/wind_shock_init.hpp"
 #include "init/factory.hpp"
 #include "observables/factory.hpp"
 #include "propagator/factory.hpp"
