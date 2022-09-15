@@ -110,7 +110,7 @@ sph:pull:cuda:
 #{{{ sph:test:cuda:1:
 sph:build:cuda:1:
   needs: ['sph:pull:cuda']
-  extends: .dom
+  extends: .daint
   stage: SPHtest
   image: ${BUILD_CUDA}
   script:
@@ -137,7 +137,7 @@ sph:build:cuda:1:
 #{{{ sph:test:cuda:2:
 sph:build:cuda:2:
   needs: ['sph:pull:cuda']
-  extends: .dom
+  extends: .daint
   stage: SPHtest
   image: ${BUILD_CUDA}
   script:
@@ -160,7 +160,7 @@ sph:build:cuda:2:
 #{{{ sph:test:cuda:5:
 sph:build:cuda:5:
   needs: ['sph:pull:cuda']
-  extends: .dom
+  extends: .daint
   stage: SPHtest
   image: ${BUILD_CUDA}
   script:
@@ -186,7 +186,7 @@ sph:build:cuda:5:
 #{{{ sph:test:cuda:p100:
 sph:build:cuda:p100:
   needs: ['sph:pull:cuda']
-  extends: .dom
+  extends: .daint
   stage: SPHtest
   image: ${BUILD_CUDA}
   script:
@@ -209,7 +209,7 @@ sph:build:cuda:p100:
 #{{{ sph:test:cuda:sphexa:cpu:
 sph:build:cuda:sphexa:cpu:
   needs: ['sph:pull:cuda']
-  extends: .dom
+  extends: .daint
   stage: SPHtest
   image: ${BUILD_CUDA}
   script:
@@ -235,7 +235,7 @@ sph:build:cuda:sphexa:cpu:
 # TODO: MPICH_RDMA_ENABLED_CUDA=1 LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcuda.so
 sph:build:cuda:sphexa:gpu:
   needs: ['sph:pull:cuda']
-  extends: .dom
+  extends: .daint
   stage: SPHtest
   image: ${BUILD_CUDA}
   script:
