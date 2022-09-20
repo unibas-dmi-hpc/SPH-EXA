@@ -118,4 +118,3 @@ void lowMemReallocate(size_t size,
     for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, conserved);
     for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, scratch);
 }
-
