@@ -98,7 +98,7 @@ sph:pull:cuda:
   needs: ['sph:build:cuda']
   tags:
     - ${docker_jfrog_tag}
-  # extends: .dom
+  extends: .daint
   stage: SPHpull
   image: ${BUILD_CUDA}
   script:
