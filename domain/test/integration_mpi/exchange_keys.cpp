@@ -125,7 +125,6 @@ void unequalSurface(int myRank, int numRanks)
 
     std::vector<int> haloFlags(nNodes(treeLeaves));
     std::vector<int> peers;
-    int offset = 0;
 
     std::vector<TreeIndexPair> assignment(numRanks);
     assignment[0] = TreeIndexPair(0, nNodes(treeLeaves) - 1);
@@ -137,7 +136,8 @@ void unequalSurface(int myRank, int numRanks)
 
     if (myRank == 1)
     {
-        haloFlags = std::vector<int>{1, 1, 0, 1, 1, 1, 1, 1};
+        int offset = nNodes(treeLeaves) - 1;
+        haloFlags  = std::vector<int>{1, 1, 0, 1, 1, 1, 1, 1};
         peers.push_back(0);
         reference[0].addRange(offset, offset + 1);
         computeNodeLayout(counts, haloFlags, 2, 3, layout);
