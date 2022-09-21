@@ -203,8 +203,8 @@ public:
     // Min. Atwood number in ramp function in momentum equation (crossed/uncrossed selection)
     // Complete uncrossed option (Atmin>=1.d50, Atmax it doesn't matter).
     // Complete crossed (Atmin and Atmax negative)
-    constexpr static T Atmax = 0.1;
-    constexpr static T Atmin = 0.2;
+    constexpr static T Atmin = 0.1;
+    constexpr static T Atmax = 0.2;
     constexpr static T ramp  = 1.0 / (Atmax - Atmin);
 
     // AV switches floor and ceiling
