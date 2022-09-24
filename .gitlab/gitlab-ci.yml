@@ -15,7 +15,9 @@ variables:
   BASE_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:hip"
   BASE_SKIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:skip"
   BUILD_CUDA: "${CSCS_REGISTRY_PATH}/sph-exa_build:cuda"
-  BUILD_CUDA1: "${CSCS_REGISTRY_PATH}/sph-exa_build:1.0"
+  # jfrog.svc.cscs.ch/contbuild/testing/anfink/44692846847247 sph-exa_build:cuda
+  # jfrog.svc.cscs.ch/contbuild/testing/anfink/4264416954089684 :1.0
+  # BUILD_CUDA1: "${CSCS_REGISTRY_PATH}/sph-exa_build:1.0"
   BUILD_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_build:hip"
   DEPS_PATH: 'ftp://ftp.cscs.ch/out/jgp/hpc/containers'
   VERBOSE: 'YES'
@@ -104,17 +106,20 @@ sph:pull:cuda:
   image: ${BUILD_CUDA}
   script:
     - echo "Pulling image=${BUILD_CUDA}"
+    - echo "  CSCS_REGISTRY_PATH=${CSCS_REGISTRY_PATH}"
+    - echo "  PERSIST_IMAGE_NAME=${PERSIST_IMAGE_NAME}"
   variables:
     PULL_IMAGE: 'YES'
     CSCS_REGISTRY_LOGIN: 'YES'
+    PERSIST_IMAGE_NAME: "${BUILD_CUDA}"
 #}}}
 
- #{{{ sph:test:cuda:1:
+#{{{ sph:test:cuda:1:
 sph:build:cuda:1:
   needs: ['sph:pull:cuda']
   extends: .daint
   stage: SPHtest
-  image: ${BUILD_CUDA1}
+  image: ${BUILD_CUDA}
   script:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - ls -la /usr/local/games/
@@ -141,7 +146,7 @@ sph:build:cuda:2:
   needs: ['sph:pull:cuda']
   extends: .daint
   stage: SPHtest
-  image: ${BUILD_CUDA1}
+  image: ${BUILD_CUDA}
   script:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - /usr/local/sbin/integration_mpi/domain_2ranks
@@ -164,7 +169,7 @@ sph:build:cuda:2cn:
   needs: ['sph:pull:cuda']
   extends: .daint
   stage: SPHtest
-  image: ${BUILD_CUDA1}
+  image: ${BUILD_CUDA}
   script:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - /usr/local/sbin/integration_mpi/assignment_gpu
@@ -185,7 +190,7 @@ sph:build:cuda:5:
   needs: ['sph:pull:cuda']
   extends: .daint
   stage: SPHtest
-  image: ${BUILD_CUDA1}
+  image: ${BUILD_CUDA}
   script:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - /usr/local/sbin/integration_mpi/exchange_domain
@@ -211,7 +216,7 @@ sph:build:cuda:p100:
   needs: ['sph:pull:cuda']
   extends: .daint
   stage: SPHtest
-  image: ${BUILD_CUDA1}
+  image: ${BUILD_CUDA}
   script:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - /usr/local/sbin/performance/hilbert_perf_gpu
@@ -234,7 +239,7 @@ sph:build:cuda:sphexa:cpu:
   needs: ['sph:pull:cuda']
   extends: .daint
   stage: SPHtest
-  image: ${BUILD_CUDA1}
+  image: ${BUILD_CUDA}
   script:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.2/lib:$LD_LIBRARY_PATH
@@ -260,7 +265,7 @@ sph:build:cuda:sphexa:gpu:
   needs: ['sph:pull:cuda']
   extends: .daint
   stage: SPHtest
-  image: ${BUILD_CUDA1}
+  image: ${BUILD_CUDA}
   script:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.2/lib:$LD_LIBRARY_PATH
