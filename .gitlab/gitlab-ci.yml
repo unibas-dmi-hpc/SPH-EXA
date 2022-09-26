@@ -5,7 +5,7 @@ include:
 stages:
   - SPHbase     # no srun (tags=docker_jfrog)
   - SPHbuild    # no srun (tags=docker_jfrog)
-  - SPHpull     # no srun (tags=docker_jfrog)
+  - SPHpull     # on daint
   - SPHtest     # on daint
 
 #{{{ variables
@@ -99,8 +99,8 @@ sph:build:hip:
 #{{{ sph:pull:cuda:
 sph:pull:cuda:
   needs: ['sph:build:cuda']
-  tags:
-    - ${docker_jfrog_tag}
+  # tags:
+  #   - ${docker_jfrog_tag}
   extends: .daint
   stage: SPHpull
   image: ${BUILD_CUDA}
