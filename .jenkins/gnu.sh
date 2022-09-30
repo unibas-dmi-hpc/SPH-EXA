@@ -23,6 +23,7 @@ module list -t
 # export PATH=/project/c32/src/cmake-3.24.2-linux-x86_64/bin:$PATH
 # CMAKE=/apps/daint/UES/jenkins/7.0.UP03/21.09/daint-gpu/software/CMake/3.22.1/bin/cmake
 # CMAKE="echo #"
+CMAKE=cmake
 CC --version ;echo
 nvcc --version ; echo
 $CMAKE --version ;echo
