@@ -22,8 +22,7 @@ module list -t
 # module unload cray-libsci_acc
 # export PATH=/project/c32/src/cmake-3.24.2-linux-x86_64/bin:$PATH
 # CMAKE=/apps/daint/UES/jenkins/7.0.UP03/21.09/daint-gpu/software/CMake/3.22.1/bin/cmake
-CMAKE="echo #"
-
+# CMAKE="echo #"
 CC --version ;echo
 nvcc --version ; echo
 $CMAKE --version ;echo
@@ -77,8 +76,7 @@ $CMAKE --install build |& tee -a "${STAGE_NAME}.out"
 #}}}
 
 #{{{ run
-tar xf /scratch/snx3000/piccinal/jenkins.gnu/local.tar
-# local/bin/
+# tar xf /scratch/snx3000/piccinal/jenkins.gnu/local.tar # local/bin/
 
 #{{{ 1 compute node jobs:
 RFM_TRAP_JOB_ERRORS=1 reframe -r \
@@ -92,7 +90,7 @@ RFM_TRAP_JOB_ERRORS=1 reframe -r \
 -S image=$INSTALLDIR
 #}}}
 
-#{{{ 2 compute node jobs:
+#{{{ 2 compute node jobs: cscsci partition limited to 1cn jobs -> use -pdebug
 RFM_TRAP_JOB_ERRORS=1 reframe -r \
 --keep-stage-files \
 -c $WORKSPACE/.jenkins/reframe_ci.py \
@@ -102,7 +100,4 @@ RFM_TRAP_JOB_ERRORS=1 reframe -r \
 -S image=$INSTALLDIR
 #}}}
 
-# -J account=usup \
-# -n ci_unittests.*peers_perf \
-# -S image=/scratch/snx3000/piccinal/jenkins.gnu/local \
 #}}}
