@@ -66,10 +66,10 @@ namespace ryoanji
  *
  * Note: acceleration output is added to destination
  */
-template<class KeyType, class MType, class T1, class T2>
+template<class KeyType, class MType, class T1, class T2, class Tm>
 void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& octree,
                          const cstone::SourceCenterType<T1>* centers, MType* multipoles, const LocalIndex* layout,
-                         const T1* x, const T1* y, const T1* z, const T2* h, const T2* m, float G, T1* ax, T1* ay,
+                         const T1* x, const T1* y, const T1* z, const T2* h, const Tm* m, float G, T1* ax, T1* ay,
                          T1* az, T1* ugrav)
 {
     LocalIndex firstTarget = layout[groupIdx];
@@ -94,9 +94,8 @@ void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& 
      * the traversal routine to keep going. If the MAC passed, the multipole moments are applied
      * to the particles in the target box and traversal is stopped.
      */
-    auto descendOrM2P =
-        [firstTarget, lastTarget, centers, multipoles, x, y, z, G, ax, ay, az, ugrav, &targetCenter, &targetSize](
-            TreeNodeIndex idx)
+    auto descendOrM2P = [firstTarget, lastTarget, centers, multipoles, x, y, z, G, ax, ay, az, ugrav, &targetCenter,
+                         &targetSize](TreeNodeIndex idx)
     {
         const auto& com = centers[idx];
         const auto& p   = multipoles[idx];
@@ -144,17 +143,10 @@ void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& 
             // source node != target node
             for (LocalIndex t = 0; t < numTargets; ++t)
             {
-                LocalIndex offset        = t + firstTarget;
-                auto [ax_, ay_, az_, u_] = particle2Particle(x[offset],
-                                                             y[offset],
-                                                             z[offset],
-                                                             h[offset],
-                                                             x + firstSource,
-                                                             y + firstSource,
-                                                             z + firstSource,
-                                                             h + firstSource,
-                                                             m + firstSource,
-                                                             numSources);
+                LocalIndex offset = t + firstTarget;
+                auto [ax_, ay_, az_, u_] =
+                    particle2Particle(x[offset], y[offset], z[offset], h[offset], x + firstSource, y + firstSource,
+                                      z + firstSource, h + firstSource, m + firstSource, numSources);
                 *(ax + t) += G * ax_;
                 *(ay + t) += G * ay_;
                 *(az + t) += G * az_;
@@ -169,28 +161,13 @@ void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& 
             {
                 LocalIndex offset = t + firstTarget;
                 // 2 splits: [firstSource:t] and [t+1:lastSource]
-                auto [ax_, ay_, az_, u_] = particle2Particle(x[offset],
-                                                             y[offset],
-                                                             z[offset],
-                                                             h[offset],
-                                                             x + firstSource,
-                                                             y + firstSource,
-                                                             z + firstSource,
-                                                             h + firstSource,
-                                                             m + firstSource,
-                                                             offset - firstSource);
+                auto [ax_, ay_, az_, u_] =
+                    particle2Particle(x[offset], y[offset], z[offset], h[offset], x + firstSource, y + firstSource,
+                                      z + firstSource, h + firstSource, m + firstSource, offset - firstSource);
 
                 LocalIndex tp1               = offset + 1;
-                auto [ax2_, ay2_, az2_, u2_] = particle2Particle(x[offset],
-                                                                 y[offset],
-                                                                 z[offset],
-                                                                 h[offset],
-                                                                 x + tp1,
-                                                                 y + tp1,
-                                                                 z + tp1,
-                                                                 h + tp1,
-                                                                 m + tp1,
-                                                                 lastSource - tp1);
+                auto [ax2_, ay2_, az2_, u2_] = particle2Particle(x[offset], y[offset], z[offset], h[offset], x + tp1,
+                                                                 y + tp1, z + tp1, h + tp1, m + tp1, lastSource - tp1);
                 *(ax + t) += G * (ax_ + ax2_);
                 *(ay + t) += G * (ay_ + ay2_);
                 *(az + t) += G * (az_ + az2_);
@@ -203,31 +180,18 @@ void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& 
 }
 
 //! @brief repeats computeGravityGroup for all leaf node indices specified
-template<class KeyType, class MType, class T1, class T2>
+template<class KeyType, class MType, class T1, class T2, class Tm>
 void computeGravity(const cstone::Octree<KeyType>& octree, const cstone::SourceCenterType<T1>* centers,
                     MType* multipoles, const LocalIndex* layout, TreeNodeIndex firstLeafIndex,
-                    TreeNodeIndex lastLeafIndex, const T1* x, const T1* y, const T1* z, const T2* h, const T2* m,
+                    TreeNodeIndex lastLeafIndex, const T1* x, const T1* y, const T1* z, const T2* h, const Tm* m,
                     float G, T1* ax, T1* ay, T1* az, T1* ugrav)
 {
 #pragma omp parallel for
     for (TreeNodeIndex leafIdx = firstLeafIndex; leafIdx < lastLeafIndex; ++leafIdx)
     {
         LocalIndex firstTarget = layout[leafIdx];
-        computeGravityGroup(leafIdx,
-                            octree,
-                            centers,
-                            multipoles,
-                            layout,
-                            x,
-                            y,
-                            z,
-                            h,
-                            m,
-                            G,
-                            ax + firstTarget,
-                            ay + firstTarget,
-                            az + firstTarget,
-                            ugrav + firstTarget);
+        computeGravityGroup(leafIdx, octree, centers, multipoles, layout, x, y, z, h, m, G, ax + firstTarget,
+                            ay + firstTarget, az + firstTarget, ugrav + firstTarget);
     }
 }
 
@@ -256,10 +220,10 @@ void computeGravity(const cstone::Octree<KeyType>& octree, const cstone::SourceC
  * @param[inout] az              location to add z-acceleration to
  * @return                       total gravitational energy
  */
-template<class KeyType, class MType, class T1, class T2>
+template<class KeyType, class MType, class T1, class T2, class Tm>
 T2 computeGravity(const cstone::Octree<KeyType>& octree, const cstone::SourceCenterType<T1>* centers, MType* multipoles,
                   const LocalIndex* layout, TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex, const T1* x,
-                  const T1* y, const T1* z, const T2* h, const T2* m, float G, T1* ax, T1* ay, T1* az)
+                  const T1* y, const T1* z, const T2* h, const Tm* m, float G, T1* ax, T1* ay, T1* az)
 {
     T1 egravTot = 0.0;
 
@@ -283,21 +247,8 @@ T2 computeGravity(const cstone::Octree<KeyType>& octree, const cstone::SourceCen
             LocalIndex numTargets  = layout[leafIdx + 1] - firstTarget;
 
             std::fill(ugravThread, ugravThread + maxNodeCount, 0);
-            computeGravityGroup(leafIdx,
-                                octree,
-                                centers,
-                                multipoles,
-                                layout,
-                                x,
-                                y,
-                                z,
-                                h,
-                                m,
-                                G,
-                                ax + firstTarget,
-                                ay + firstTarget,
-                                az + firstTarget,
-                                ugravThread);
+            computeGravityGroup(leafIdx, octree, centers, multipoles, layout, x, y, z, h, m, G, ax + firstTarget,
+                                ay + firstTarget, az + firstTarget, ugravThread);
 
             for (LocalIndex i = 0; i < numTargets; ++i)
             {
@@ -313,8 +264,8 @@ T2 computeGravity(const cstone::Octree<KeyType>& octree, const cstone::SourceCen
 }
 
 //! @brief compute direct gravity sum for all particles [0:numParticles]
-template<class T1, class T2>
-void directSum(const T1* x, const T1* y, const T1* z, const T2* h, const T2* m, LocalIndex numParticles, float G,
+template<class T1, class T2, class Tm>
+void directSum(const T1* x, const T1* y, const T1* z, const T2* h, const Tm* m, LocalIndex numParticles, float G,
                T1* ax, T1* ay, T1* az, T1* ugrav)
 {
 #pragma omp parallel for schedule(static)

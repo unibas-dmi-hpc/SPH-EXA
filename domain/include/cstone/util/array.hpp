@@ -43,14 +43,8 @@ template<class T>
 constexpr int determineAlignment(int n)
 {
     if (sizeof(T) * n % 16 == 0) { return 16; }
-    else if (sizeof(T) * n % 8 == 0)
-    {
-        return 8;
-    }
-    else
-    {
-        return alignof(T);
-    }
+    else if (sizeof(T) * n % 8 == 0) { return 8; }
+    else { return alignof(T); }
 }
 
 /*! \brief std::array-like compile-time size array
@@ -220,15 +214,15 @@ HOST_DEVICE_FUN constexpr array<T, N> operator-(const array<T, N>& a, const arra
     return ret -= b;
 }
 
-template<class T, std::size_t N>
-HOST_DEVICE_FUN constexpr array<T, N> operator*(const array<T, N>& a, const T& b)
+template<class S, class T, std::size_t N>
+HOST_DEVICE_FUN constexpr array<T, N> operator*(const array<T, N>& a, const S& b)
 {
     auto ret = a;
     return ret *= b;
 }
 
-template<class T, std::size_t N>
-HOST_DEVICE_FUN constexpr array<T, N> operator*(const T& a, const array<T, N>& b)
+template<class S, class T, std::size_t N>
+HOST_DEVICE_FUN constexpr array<T, N> operator*(const S& a, const array<T, N>& b)
 {
     auto ret = b;
     return ret *= a;
@@ -386,7 +380,7 @@ HOST_DEVICE_FUN constexpr T max(const array<T, N>& a)
 template<class T>
 HOST_DEVICE_FUN constexpr array<T, 3> cross(const array<T, 3>& a, const array<T, 3>& b)
 {
-    return { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] };
+    return {a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]};
 }
 
 template<class T>

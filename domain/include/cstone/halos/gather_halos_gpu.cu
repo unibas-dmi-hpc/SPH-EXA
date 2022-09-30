@@ -33,6 +33,7 @@
 #include "cstone/primitives/stl.hpp"
 #include "cstone/util/array.hpp"
 #include "cstone/util/util.hpp"
+#include "gather_halos_gpu.h"
 
 namespace cstone
 {

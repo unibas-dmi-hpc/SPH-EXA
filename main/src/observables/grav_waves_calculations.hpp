@@ -84,24 +84,23 @@ void computeHtt(std::array<T, 6> quadpoleMomentum, T theta, T phi, T* httplus, T
 }
 
 //!@brief calculates the second derivative of the quadrupole momentum
-template<class T>
-T d2QuadpoleMomentum(size_t begin, size_t end, int dim1, int dim2, const T* x, const T* y, const T* z, const T* vx,
-                     const T* vy, const T* vz, const T* ax, const T* ay, const T* az, const T* m)
+template<class Tc, class Tv, class Ta, class Tm>
+Tc d2QuadpoleMomentum(size_t begin, size_t end, int dim1, int dim2, const Tc* x, const Tc* y, const Tc* z, const Tv* vx,
+                      const Tv* vy, const Tv* vz, const Ta* ax, const Ta* ay, const Ta* az, const Tm* m)
 {
-    T out = 0.0;
+    Tc out = 0.0;
 
-    std::array<const T*, 3> coords = {x, y, z};
-    std::array<const T*, 3> vel    = {vx, vy, vz};
-    std::array<const T*, 3> acc    = {ax, ay, az};
+    std::array<const Tc*, 3> coords = {x, y, z};
+    std::array<const Tv*, 3> vel    = {vx, vy, vz};
+    std::array<const Ta*, 3> acc    = {ax, ay, az};
 
     if (dim1 == dim2)
     {
-
 #pragma omp parallel for reduction(+ : out)
         for (size_t i = begin; i < end; i++)
         {
-            T scalv2        = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
-            T coordDotAccel = x[i] * ax[i] + y[i] * ay[i] + z[i] * az[i];
+            Tv scalv2        = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
+            Tc coordDotAccel = x[i] * ax[i] + y[i] * ay[i] + z[i] * az[i];
 
             out +=
                 (3.0 * (vel[dim1][i] * vel[dim1][i] + coords[dim1][i] * acc[dim1][i]) - scalv2 - coordDotAccel) * m[i];

@@ -38,63 +38,62 @@
 #include <cassert>
 #include <cmath>
 
-#include "box.hpp"
 #include "cstone/primitives/mpi_wrappers.hpp"
+#include "box.hpp"
 
 namespace cstone
 {
 
 //! @brief compute minimum and maximum of an array range with an OpenMP reduction
-template<class Iterator>
-auto localMinMax(Iterator start, Iterator end)
+template<class T>
+struct MinMax
 {
-    assert(end >= start);
-    using T = std::decay_t<decltype(*start)>;
+    std::tuple<T, T> operator()(const T* start, const T* end)
+    {
+        assert(end >= start);
 
-    T minimum = INFINITY;
-    T maximum = -INFINITY;
+        T minimum = INFINITY;
+        T maximum = -INFINITY;
 
 #pragma omp parallel for reduction(min : minimum) reduction(max : maximum)
-    for (size_t pi = 0; pi < std::size_t(end - start); pi++)
-    {
-        T value = start[pi];
-        minimum = std::min(minimum, value);
-        maximum = std::max(maximum, value);
-    }
+        for (size_t pi = 0; pi < std::size_t(end - start); pi++)
+        {
+            T value = start[pi];
+            minimum = std::min(minimum, value);
+            maximum = std::max(maximum, value);
+        }
 
-    return std::make_tuple(minimum, maximum);
-}
+        return std::make_tuple(minimum, maximum);
+    }
+};
 
 /*! @brief compute global bounding box for local x,y,z arrays
  *
- * @tparam Iterator      coordinate array iterator, providing random access
- * @param  xB            x coordinate array start
- * @param  xE            x coordinate array end
- * @param  yB            y coordinate array start
- * @param  zB            z coordinate array start
- * @param  previousBox   previous coordinate bounding box, default non-pbc box
- *                       with limits ignored
- * @return               the new bounding box
+ * @tparam     T             float or double
+ * @param[in]  x            x coordinate array start
+ * @param[in]  y            y coordinate array start
+ * @param[in]  z            z coordinate array start
+ * @param[in]  numElements  length of @a x,y,z arrays
+ * @param[in]  previousBox  previous coordinate bounding box, default open-boundary box with limits ignored
+ * @return                  the new bounding box
  *
  * For each periodic dimension, limits are fixed and will not be modified.
  * For non-periodic dimensions, limits are determined by global min/max.
  */
-template<class Iterator, class T = std::decay_t<decltype(*std::declval<Iterator>)>>
-auto makeGlobalBox(Iterator xB, Iterator xE, Iterator yB, Iterator zB, const Box<T>& previousBox = Box<T>(0, 1))
+template<class T, class Op = MinMax<T>>
+auto makeGlobalBox(const T* x, const T* y, const T* z, size_t numElements, const Box<T>& previousBox = Box<T>(0, 1))
 {
-    std::size_t nElements = xE - xB;
-
     bool pbcX = (previousBox.boundaryX() == BoundaryType::periodic);
     bool pbcY = (previousBox.boundaryY() == BoundaryType::periodic);
     bool pbcZ = (previousBox.boundaryZ() == BoundaryType::periodic);
 
     std::array<T, 6> extrema;
     std::tie(extrema[0], extrema[1]) =
-        pbcX ? std::make_tuple(previousBox.xmin(), previousBox.xmax()) : localMinMax(xB, xB + nElements);
+        pbcX ? std::make_tuple(previousBox.xmin(), previousBox.xmax()) : Op{}(x, x + numElements);
     std::tie(extrema[2], extrema[3]) =
-        pbcY ? std::make_tuple(previousBox.ymin(), previousBox.ymax()) : localMinMax(yB, yB + nElements);
+        pbcY ? std::make_tuple(previousBox.ymin(), previousBox.ymax()) : Op{}(y, y + numElements);
     std::tie(extrema[4], extrema[5]) =
-        pbcZ ? std::make_tuple(previousBox.zmin(), previousBox.zmax()) : localMinMax(zB, zB + nElements);
+        pbcZ ? std::make_tuple(previousBox.zmin(), previousBox.zmax()) : Op{}(z, z + numElements);
 
     if (!pbcX || !pbcY || !pbcZ)
     {

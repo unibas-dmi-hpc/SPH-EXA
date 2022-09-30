@@ -41,35 +41,37 @@
 namespace sph
 {
 
-template<typename T>
+template<class Tc, class Tm, class T>
 HOST_DEVICE_FUN inline util::tuple<T, T>
-veDefGradhJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
-                const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, const T* xm)
+veDefGradhJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
+                unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh,
+                const T* whd, const T* xm)
 {
-    T xi     = x[i];
-    T yi     = y[i];
-    T zi     = z[i];
-    T hi     = h[i];
-    T mi     = m[i];
-    T xmassi = xm[i];
+    auto xi     = x[i];
+    auto yi     = y[i];
+    auto zi     = z[i];
+    auto hi     = h[i];
+    auto mi     = m[i];
+    auto xmassi = xm[i];
 
-    T hInv  = 1.0 / hi;
-    T h3Inv = hInv * hInv * hInv;
+    auto hInv  = T(1) / hi;
+    auto h3Inv = hInv * hInv * hInv;
 
     // initialize with self-contribution
-    T kxi      = xmassi;
-    T whomegai = -T(3) * xmassi;
-    T wrho0i   = -T(3) * mi;
+    auto kxi      = xmassi;
+    auto whomegai = -T(3) * xmassi;
+    auto wrho0i   = -T(3) * mi;
 
-    for (int pj = 0; pj < neighborsCount; ++pj)
+    for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
-        int j      = neighbors[pj];
-        T   dist   = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
-        T   vloc   = dist * hInv;
-        T   w      = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
-        T   dw     = wharmonic_derivative(vloc, w) * sincIndex;
-        T   dterh  = -(T(3) * w + vloc * dw);
-        T   xmassj = xm[j];
+        cstone::LocalIndex j = neighbors[pj];
+
+        T dist   = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
+        T vloc   = dist * hInv;
+        T w      = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
+        T dw     = wharmonic_derivative(vloc, w) * sincIndex;
+        T dterh  = -(T(3) * w + vloc * dw);
+        T xmassj = xm[j];
 
         kxi += w * xmassj;
         whomegai += dterh * xmassj;

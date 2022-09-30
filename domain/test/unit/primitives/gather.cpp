@@ -56,7 +56,8 @@ void CpuGatherTest()
 {
     std::vector<KeyType> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
 
-    CpuGather<KeyType, IndexType> cpuGather;
+    std::vector<unsigned> scratch;
+    SfcSorter<IndexType, std::vector<unsigned>> cpuGather(scratch);
     cpuGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
     {

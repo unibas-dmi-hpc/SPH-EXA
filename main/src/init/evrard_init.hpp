@@ -36,6 +36,7 @@
 #include "cstone/sfc/box.hpp"
 
 #include "isim_init.hpp"
+#include "early_sync.hpp"
 #include "grid.hpp"
 
 namespace sphexa
@@ -72,21 +73,30 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        T radius0 = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
-
-        // multiply coordinates by sqrt(r) to generate a density profile ~ 1/r
-        T contraction = std::sqrt(radius0);
-        d.x[i] *= contraction;
-        d.y[i] *= contraction;
-        d.z[i] *= contraction;
-        T radius = radius0 * contraction;
+        T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
 
         T concentration = c0 / radius;
         d.h[i]          = std::cbrt(3 / (4 * M_PI) * ng0 / concentration) * 0.5;
 
-        d.x_m1[i] = d.x[i] - d.vx[i] * firstTimeStep;
-        d.y_m1[i] = d.y[i] - d.vy[i] * firstTimeStep;
-        d.z_m1[i] = d.z[i] - d.vz[i] * firstTimeStep;
+        d.x_m1[i] = d.vx[i] * firstTimeStep;
+        d.y_m1[i] = d.vy[i] * firstTimeStep;
+        d.z_m1[i] = d.vz[i] * firstTimeStep;
+    }
+}
+
+template<class Vector>
+void contractRhoProfile(Vector& x, Vector& y, Vector& z)
+{
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < x.size(); i++)
+    {
+        auto radius0 = std::sqrt(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]);
+
+        // multiply coordinates by sqrt(r) to generate a density profile ~ 1/r
+        auto contraction = std::sqrt(radius0);
+        x[i] *= contraction;
+        y[i] *= contraction;
+        z[i] *= contraction;
     }
 }
 
@@ -131,28 +141,9 @@ public:
         d.numParticlesGlobal = d.x.size();
         MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
 
-        size_t                    bucketSize = std::max(64lu, d.numParticlesGlobal / (100 * numRanks));
-        cstone::BufferDescription bufDesc{0, cstone::LocalIndex(d.x.size()), cstone::LocalIndex(d.x.size())};
-
-        cstone::GlobalAssignment<KeyType, T> distributor(rank, numRanks, bucketSize, globalBox);
-        cstone::ReorderFunctor_t<cstone::CpuTag, KeyType, cstone::LocalIndex> reorderFunctor;
-
-        std::vector<KeyType> particleKeys(d.x.size());
-        cstone::LocalIndex   newNParticlesAssigned =
-            distributor.assign(bufDesc, reorderFunctor, particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
-        size_t exchangeSize = std::max(d.x.size(), size_t(newNParticlesAssigned));
-        cstone::reallocate(exchangeSize, particleKeys, d.x, d.y, d.z);
-        auto [exchangeStart, keyView] =
-            distributor.distribute(bufDesc, reorderFunctor, particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
-
-        std::vector tmp = d.x;
-        cstone::reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(d.x, d.y, d.z), std::tie(tmp));
-        d.x.resize(keyView.size());
-        d.y.resize(keyView.size());
-        d.z.resize(keyView.size());
-        d.x.shrink_to_fit();
-        d.y.shrink_to_fit();
-        d.z.shrink_to_fit();
+        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
+        contractRhoProfile(d.x, d.y, d.z);
+        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
 
         d.resize(d.x.size());
         initEvrardFields(d, constants_);

@@ -69,8 +69,8 @@ void findHalos(const KeyType* leaves,
     KeyType lowestCode  = leaves[firstNode];
     KeyType highestCode = leaves[lastNode];
 
-    // loop over all the nodes in range
-    #pragma omp parallel for
+// loop over all the nodes in range
+#pragma omp parallel for
     for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
     {
         RadiusType radius = interactionRadii[nodeIdx];

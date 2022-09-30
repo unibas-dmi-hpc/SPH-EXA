@@ -294,12 +294,12 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys,
                                  const T* y,
                                  const T* z,
                                  T radiusSq,
-                                 int* neighbors,
-                                 int* neighborsCount,
-                                 int ngmax,
+                                 LocalIndex* neighbors,
+                                 unsigned* neighborsCount,
+                                 unsigned ngmax,
                                  F&& distance)
 {
-    int numNeighbors = *neighborsCount;
+    unsigned numNeighbors = *neighborsCount;
     for (int ibox = firstBox; ibox < lastBox; ++ibox)
     {
         KeyType searchBox = searchKeys[ibox];
@@ -315,7 +315,7 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys,
 
             if (distance(x[j], y[j], z[j]) < radiusSq)
             {
-                if (numNeighbors < ngmax) { neighbors[numNeighbors] = int(j); }
+                if (numNeighbors < ngmax) { neighbors[numNeighbors] = j; }
                 numNeighbors++;
             }
         }
@@ -355,10 +355,10 @@ HOST_DEVICE_FUN void findNeighbors(LocalIndex id,
                                    const T* h,
                                    const Box<T>& box,
                                    const KeyType* particleKeys,
-                                   int* neighbors,
-                                   int* neighborsCount,
+                                   LocalIndex* neighbors,
+                                   unsigned* neighborsCount,
                                    LocalIndex numParticleKeys,
-                                   int ngmax)
+                                   unsigned ngmax)
 {
     // SPH convention is search radius = 2 * h
     T radius   = 2 * h[id];
@@ -378,7 +378,7 @@ HOST_DEVICE_FUN void findNeighbors(LocalIndex id,
     int nBoxes  = boxCodeIndices[0];
     int iBoxPbc = boxCodeIndices[1];
 
-    int numNeighbors = 0;
+    unsigned numNeighbors = 0;
 
     // search non-PBC boxes
     searchBoxes(neighborCodes, 0, nBoxes, level, particleKeys, numParticleKeys, id, x, y, z, radiusSq, neighbors,
@@ -403,8 +403,8 @@ void findNeighbors(const T* x,
                    LocalIndex numParticles,
                    const Box<T>& box,
                    const KeyType* particleKeys,
-                   int* neighbors,
-                   int* neighborsCount,
+                   LocalIndex* neighbors,
+                   unsigned* neighborsCount,
                    int ngmax)
 {
     LocalIndex numWork = lastId - firstId;

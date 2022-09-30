@@ -39,7 +39,7 @@
 namespace ryoanji
 {
 
-template<class Tc, class Tm, class Tf, class KeyType, class MType>
+template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
 class MultipoleHolder
 {
 public:
@@ -48,11 +48,11 @@ public:
     ~MultipoleHolder();
 
     void upsweep(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalOctree,
-                 const cstone::FocusedOctree<KeyType, Tf>& focusTree, const cstone::LocalIndex* layout,
+                 const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles);
 
     float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
-                  const Tm* h, Tc G, Tc* ax, Tc* ay, Tc* az);
+                  const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az);
 
     const MType* deviceMultipoles() const;
 
@@ -60,10 +60,5 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 };
-
-// extern template class MultipoleHolder<double, double, double, SphericalMultipole<double, 4>>;
-// extern template class MultipoleHolder<double, float, double, SphericalMultipole<double, 4>>;
-// extern template class MultipoleHolder<double, float, double, SphericalMultipole<float, 4>>;
-// extern template class MultipoleHolder<float, float, float, SphericalMultipole<float, 4>>;
 
 } // namespace ryoanji

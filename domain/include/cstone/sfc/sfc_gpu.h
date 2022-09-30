@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,28 +23,19 @@
  */
 
 /*! @file
- * @brief Thrust device vector instantiations
+ * @brief  SFC encoding/decoding in 32- and 64-bit on the GPU
  *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <thrust/device_vector.h>
+#pragma once
 
-//! @brief resizes a vector with a determined growth rate upon reallocation
-template<class Vector>
-void reallocateDevice(Vector& vector, size_t size, double growthRate)
+#include "cstone/sfc/sfc.hpp"
+
+namespace cstone
 {
-    size_t current_capacity = vector.capacity();
 
-    if (size > current_capacity)
-    {
-        size_t reserve_size = double(size) * growthRate;
-        vector.reserve(reserve_size);
-    }
-    vector.resize(size);
-}
+template<class KeyType, class T>
+extern void computeSfcKeysGpu(const T* x, const T* y, const T* z, KeyType* keys, size_t numKeys, const Box<T>& box);
 
-template void reallocateDevice(thrust::device_vector<double>&, size_t, double);
-template void reallocateDevice(thrust::device_vector<float>&, size_t, double);
-template void reallocateDevice(thrust::device_vector<int>&, size_t, double);
-template void reallocateDevice(thrust::device_vector<unsigned>&, size_t, double);
-template void reallocateDevice(thrust::device_vector<char>&, size_t, double);
+} // namespace cstone

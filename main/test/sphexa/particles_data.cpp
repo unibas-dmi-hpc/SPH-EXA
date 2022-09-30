@@ -228,5 +228,7 @@ TEST(ParticlesData, getFieldList)
     EXPECT_EQ(std::get<2>(acc2)[0], 2);
 
     constexpr auto tup = make_tuple(Fields{});
-    EXPECT_EQ(d.x.data(), std::get<0>(get<std::get<0>(tup)>(d)).data());
+    EXPECT_EQ(d.x.data(), get<std::get<0>(tup)>(d).data());
+    auto& xRef = get<"x">(d);
+    EXPECT_EQ(d.x.data(), xRef.data());
 }

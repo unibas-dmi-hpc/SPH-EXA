@@ -43,7 +43,7 @@ namespace cstone
 {
 
 #if defined(__CUDACC__) || defined(__HIPCC__)
-__device__ static unsigned mortonToHilbertDevice[8] = { 0, 1, 3, 2, 7, 6, 4, 5 };
+__device__ static unsigned mortonToHilbertDevice[8] = {0, 1, 3, 2, 7, 6, 4, 5};
 #endif
 
 /*! @brief compute the Hilbert key for a 3D point of integer coordinates
@@ -53,16 +53,16 @@ __device__ static unsigned mortonToHilbertDevice[8] = { 0, 1, 3, 2, 7, 6, 4, 5 }
  * @return               the Hilbert key
  */
 template<class KeyType>
-constexpr HOST_DEVICE_FUN inline
-std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, unsigned py, unsigned pz) noexcept
+constexpr HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType>
+iHilbert(unsigned px, unsigned py, unsigned pz) noexcept
 {
     assert(px < (1u << maxTreeLevel<KeyType>{}));
     assert(py < (1u << maxTreeLevel<KeyType>{}));
     assert(pz < (1u << maxTreeLevel<KeyType>{}));
 
-    #if !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__)
-    constexpr unsigned mortonToHilbert[8] = { 0, 1, 3, 2, 7, 6, 4, 5 };
-    #endif
+#if !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__)
+    constexpr unsigned mortonToHilbert[8] = {0, 1, 3, 2, 7, 6, 4, 5};
+#endif
 
     KeyType key = 0;
 
@@ -74,31 +74,31 @@ std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, uns
 
         // append 3 bits to the key
         unsigned octant = (xi << 2) | (yi << 1) | zi;
-        #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
         key = (key << 3) + mortonToHilbertDevice[octant];
-        #else
+#else
         key = (key << 3) + mortonToHilbert[octant];
-        #endif
+#endif
 
         // turn px, py and pz
-        px ^= -( xi & ((!yi) |   zi));
-        py ^= -((xi & (  yi  |   zi)) | (yi & (!zi)));
-        pz ^= -((xi &  (!yi) & (!zi)) | (yi & (!zi)));
+        px ^= -(xi & ((!yi) | zi));
+        py ^= -((xi & (yi | zi)) | (yi & (!zi)));
+        pz ^= -((xi & (!yi) & (!zi)) | (yi & (!zi)));
 
         if (zi)
         {
             // cyclic rotation
             unsigned pt = px;
-            px = py;
-            py = pz;
-            pz = pt;
+            px          = py;
+            py          = pz;
+            pz          = pt;
         }
         else if (!yi)
         {
             // swap x and z
             unsigned pt = px;
-            px = pz;
-            pz = pt;
+            px          = pz;
+            pz          = pt;
         }
     }
 
@@ -107,49 +107,48 @@ std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, uns
 
 //! @brief inverse function of iHilbert
 template<class KeyType>
-HOST_DEVICE_FUN inline
-util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key) noexcept
+HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key) noexcept
 {
-   unsigned px = 0;
-   unsigned py = 0;
-   unsigned pz = 0;
+    unsigned px = 0;
+    unsigned py = 0;
+    unsigned pz = 0;
 
-   for (unsigned level = 0; level < maxTreeLevel<KeyType>{}; ++level)
-   {
-       unsigned octant = (key >> (3 * level)) & 7u;
-       const unsigned xi = octant >> 2u;
-       const unsigned yi = (octant >> 1u) & 1u;
-       const unsigned zi = octant & 1u;
+    for (unsigned level = 0; level < maxTreeLevel<KeyType>{}; ++level)
+    {
+        unsigned octant   = (key >> (3 * level)) & 7u;
+        const unsigned xi = octant >> 2u;
+        const unsigned yi = (octant >> 1u) & 1u;
+        const unsigned zi = octant & 1u;
 
-       if (yi ^ zi)
-       {
-       	   // cyclic rotation
-           unsigned pt = px;
-           px = pz;
-           pz = py;
-           py = pt;
-       }
-       else if ((!xi & !yi & !zi) || (xi & yi &zi) )
-       {
-           // swap x and z
-           unsigned pt = px;
-           px = pz;
-           pz = pt;
-       }
+        if (yi ^ zi)
+        {
+            // cyclic rotation
+            unsigned pt = px;
+            px          = pz;
+            pz          = py;
+            py          = pt;
+        }
+        else if ((!xi & !yi & !zi) || (xi & yi & zi))
+        {
+            // swap x and z
+            unsigned pt = px;
+            px          = pz;
+            pz          = pt;
+        }
 
-       // turn px, py and pz
-       unsigned mask = (1 << level) - 1;
-       px ^= mask & (-( xi & (  yi   |    zi )));
-       py ^= mask & (-((xi & ((!yi)  |  (!zi)))   | ((!xi) & yi & zi)));
-       pz ^= mask & (-((xi &  (!yi)  &  (!zi) )   | (        yi & zi)));
+        // turn px, py and pz
+        unsigned mask = (1 << level) - 1;
+        px ^= mask & (-(xi & (yi | zi)));
+        py ^= mask & (-((xi & ((!yi) | (!zi))) | ((!xi) & yi & zi)));
+        pz ^= mask & (-((xi & (!yi) & (!zi)) | (yi & zi)));
 
-       // append 1 bit to the positions
-       px |= ( xi       << level);
-       py |= ((xi ^ yi) << level);
-       pz |= ((yi ^ zi) << level);
-   }
+        // append 1 bit to the positions
+        px |= (xi << level);
+        py |= ((xi ^ yi) << level);
+        pz |= ((yi ^ zi) << level);
+    }
 
-   return { px, py, pz };
+    return {px, py, pz};
 }
 
 /*! @brief compute the 3D integer coordinate box that contains the key range
@@ -164,8 +163,8 @@ HOST_DEVICE_FUN IBox hilbertIBox(KeyType keyStart, unsigned level) noexcept
 {
     assert(level <= maxTreeLevel<KeyType>{});
     constexpr unsigned maxCoord = 1u << maxTreeLevel<KeyType>{};
-    unsigned cubeLength = maxCoord >> level;
-    unsigned mask = ~(cubeLength - 1);
+    unsigned cubeLength         = maxCoord >> level;
+    unsigned mask               = ~(cubeLength - 1);
 
     auto [ix, iy, iz] = decodeHilbert(keyStart);
 

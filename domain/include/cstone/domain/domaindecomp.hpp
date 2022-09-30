@@ -40,7 +40,7 @@
 
 #include "cstone/primitives/gather.hpp"
 #include "cstone/tree/octree.hpp"
-#include "cstone/util/index_ranges.hpp"
+#include "index_ranges.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
@@ -315,50 +315,62 @@ SendList createSendList(const SpaceCurveAssignment& assignment,
                         gsl::span<const KeyType> particleKeys)
 {
     using IndexType = SendManifest::IndexType;
-    int nRanks      = assignment.numRanks();
+    int numRanks    = assignment.numRanks();
 
-    SendList ret(nRanks);
+    SendList ret(numRanks);
 
-    for (int rank = 0; rank < nRanks; ++rank)
+    std::vector<IndexType> particleLocations(numRanks + 1, particleKeys.size());
+    for (int rank = 0; rank < numRanks; ++rank)
     {
-        SendManifest& manifest = ret[rank];
-
         KeyType rangeStart = treeLeaves[assignment.firstNodeIdx(rank)];
-        KeyType rangeEnd   = treeLeaves[assignment.lastNodeIdx(rank)];
-
-        auto lit                     = std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart);
-        IndexType lowerParticleIndex = std::distance(particleKeys.begin(), lit);
-
-        auto uit = std::lower_bound(particleKeys.begin() + lowerParticleIndex, particleKeys.end(), rangeEnd);
-        IndexType upperParticleIndex = std::distance(particleKeys.begin(), uit);
-
-        manifest.addRange(lowerParticleIndex, upperParticleIndex);
+        particleLocations[rank] =
+            std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart) - particleKeys.begin();
+    }
+    for (int rank = 0; rank < numRanks; ++rank)
+    {
+        ret[rank].addRange(particleLocations[rank], particleLocations[rank + 1]);
     }
 
     return ret;
 }
 
-/*! @brief extract elements from the source array through the ordering
- *
- * @param manifest        contains the index ranges of @p source to put into the send buffer
- * @param source          e.g. x,y,z,h arrays
- * @param ordering        the space curve ordering to handle unsorted source arrays
- * @param dest            write buffer for extracted elements
- * @param bytesPerElement size of each element of source and dest in bytes
- */
-template<class IndexType>
-void extractRange(
-    const SendManifest& manifest, const char* source, const IndexType* ordering, char* dest, size_t bytesPerElement)
+template<size_t N>
+util::array<size_t, N + 1>
+computeByteOffsets(size_t count, const util::array<size_t, N>& elementSizes, size_t alignment)
 {
-    size_t byteCounter = 0;
-    for (std::size_t rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
+    util::array<size_t, N + 1> byteOffsets;
+    std::copy(elementSizes.begin(), elementSizes.end(), byteOffsets.begin());
+    byteOffsets *= count;
+
+    //! each sub-buffer will be aligned on a @a alignment-byte aligned boundary
+    for (size_t i = 0; i < byteOffsets.size(); ++i)
     {
-        for (IndexType i = manifest.rangeStart(rangeIndex); i < IndexType(manifest.rangeEnd(rangeIndex)); ++i)
-        {
-            memcpy(dest + byteCounter, source + ordering[i] * bytesPerElement, bytesPerElement);
-            byteCounter += bytesPerElement;
-        }
+        byteOffsets[i] = round_up(byteOffsets[i], alignment);
     }
+
+    std::exclusive_scan(byteOffsets.begin(), byteOffsets.end(), byteOffsets.begin(), size_t(0));
+
+    return byteOffsets;
+}
+
+template<size_t N>
+size_t computeTotalSendBytes(const SendList& sendList,
+                             const util::array<size_t, N>& elementSizes,
+                             int thisRank,
+                             size_t alignment)
+{
+    size_t totalSendBytes = 0;
+    for (int destinationRank = 0; destinationRank < int(sendList.size()); ++destinationRank)
+    {
+        size_t sendCount = sendList[destinationRank].totalCount();
+        if (destinationRank == thisRank || sendCount == 0) { continue; }
+
+        size_t particleBytes = computeByteOffsets(sendCount, elementSizes, alignment).back();
+        //! we add @a alignment bytes to the start of each message to provide space for the message length
+        totalSendBytes += alignment + particleBytes;
+    }
+
+    return totalSendBytes;
 }
 
 } // namespace cstone

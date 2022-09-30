@@ -42,21 +42,21 @@
 namespace sph
 {
 template<class T, class Dataset>
-void computeDensityImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeDensityImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    const int* neighbors      = d.neighbors.data();
-    const int* neighborsCount = d.neighborsCount.data();
+    const cstone::LocalIndex* neighbors      = d.neighbors.data();
+    const unsigned*           neighborsCount = d.nc.data();
 
-    const T* h = d.h.data();
-    const T* m = d.m.data();
-    const T* x = d.x.data();
-    const T* y = d.y.data();
-    const T* z = d.z.data();
+    const auto* h = d.h.data();
+    const auto* m = d.m.data();
+    const auto* x = d.x.data();
+    const auto* y = d.y.data();
+    const auto* z = d.z.data();
 
-    const T* wh  = d.wh.data();
-    const T* whd = d.whd.data();
+    const auto* wh  = d.wh.data();
+    const auto* whd = d.whd.data();
 
-    T* rho = d.rho.data();
+    auto* rho = d.rho.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
@@ -71,8 +71,8 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& 
 
         size_t ni = i - startIndex;
 
-        int nc = std::min(neighborsCount[i], ngmax);
-        rho[i] = densityJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd);
+        unsigned nc = std::min(neighborsCount[i], ngmax);
+        rho[i]      = densityJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd);
 
 #ifndef NDEBUG
         if (std::isnan(rho[i]))
@@ -82,7 +82,7 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& 
 }
 
 template<class T, class Dataset>
-void computeDensity(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeDensity(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

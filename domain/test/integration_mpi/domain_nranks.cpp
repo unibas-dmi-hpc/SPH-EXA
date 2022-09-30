@@ -108,8 +108,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     std::vector<T> h{hGlobal.begin() + firstExtract, hGlobal.begin() + lastExtract};
 
     std::vector<KeyType> keys(x.size());
-    std::vector<T> scratch;
-    domain.sync(keys, x, y, z, h, std::tuple{}, std::tie(scratch));
+    std::vector<T> s1, s2, s3;
+    domain.sync(keys, x, y, z, h, std::tuple{}, std::tie(s1, s2, s3));
 
     LocalIndex localCount    = domain.endIndex() - domain.startIndex();
     LocalIndex localCountSum = localCount;
@@ -127,8 +127,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     EXPECT_TRUE(std::is_sorted(begin(keysRef), end(keysRef)));
 
     int ngmax = 300;
-    std::vector<int> neighbors(localCount * ngmax);
-    std::vector<int> neighborsCount(localCount);
+    std::vector<cstone::LocalIndex> neighbors(localCount * ngmax);
+    std::vector<unsigned> neighborsCount(localCount);
     findNeighbors(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(), box,
                   sfcKindPointer(keysRef.data()), neighbors.data(), neighborsCount.data(), ngmax);
 
@@ -143,14 +143,20 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         std::vector<LocalIndex> ordering(numParticles);
         std::iota(begin(ordering), end(ordering), LocalIndex(0));
         sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
-        reorderInPlace(ordering, xGlobal.data());
-        reorderInPlace(ordering, yGlobal.data());
-        reorderInPlace(ordering, zGlobal.data());
-        reorderInPlace(ordering, hGlobal.data());
+
+        std::vector<T> temp(xGlobal.size());
+        gather<LocalIndex>(ordering, xGlobal.data(), temp.data());
+        swap(temp, xGlobal);
+        gather<LocalIndex>(ordering, yGlobal.data(), temp.data());
+        swap(temp, yGlobal);
+        gather<LocalIndex>(ordering, zGlobal.data(), temp.data());
+        swap(temp, zGlobal);
+        gather<LocalIndex>(ordering, hGlobal.data(), temp.data());
+        swap(temp, hGlobal);
 
         // calculate reference neighbor sum from the full arrays
-        std::vector<int> neighborsRef(numParticles * ngmax);
-        std::vector<int> neighborsCountRef(numParticles);
+        std::vector<cstone::LocalIndex> neighborsRef(numParticles * ngmax);
+        std::vector<unsigned> neighborsCountRef(numParticles);
         findNeighbors(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), 0, numParticles, numParticles,
                       box, sfcKindPointer(codesGlobal.data()), neighborsRef.data(), neighborsCountRef.data(), ngmax);
 
@@ -244,8 +250,8 @@ TEST(FocusDomain, assignmentShift)
 
     std::vector<KeyType> particleKeys(x.size());
 
-    std::vector<Real> scratchSpace;
-    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(scratchSpace));
+    std::vector<Real> s1, s2, s3;
+    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(s1, s2, s3));
 
     if (rank == 2)
     {
@@ -255,7 +261,7 @@ TEST(FocusDomain, assignmentShift)
         }
     }
 
-    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(scratchSpace));
+    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(s1, s2, s3));
 
     std::vector<Real> property(domain.nParticlesWithHalos(), -1);
     for (LocalIndex i = domain.startIndex(); i < domain.endIndex(); ++i)
@@ -263,7 +269,7 @@ TEST(FocusDomain, assignmentShift)
         property[i] = rank;
     }
 
-    domain.exchangeHalos(std::tie(property));
+    domain.exchangeHalos(std::tie(property), s1, s2);
 
     EXPECT_TRUE(std::count(property.begin(), property.end(), -1) == 0);
     EXPECT_TRUE(std::count(property.begin(), property.end(), rank) == domain.nParticles());

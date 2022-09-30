@@ -30,13 +30,10 @@
  */
 
 #include <algorithm>
-#include <numeric>
 
 #include "gtest/gtest.h"
 
 #include "cstone/domain/domaindecomp.hpp"
-#include "cstone/tree/octree.hpp"
-#include "coord_samples/random.hpp"
 
 using namespace cstone;
 
@@ -119,7 +116,7 @@ TEST(DomainDecomposition, AssignmentFindRank)
  * valid for the SFC key array.
  */
 template<class KeyType>
-void createSendList()
+static void sendListMinimal()
 {
     std::vector<KeyType> tree{0, 2, 6, 8, 10};
     std::vector<KeyType> codes{0, 0, 1, 3, 4, 5, 6, 6, 9};
@@ -143,41 +140,22 @@ void createSendList()
 
 TEST(DomainDecomposition, createSendList)
 {
-    createSendList<unsigned>();
-    createSendList<uint64_t>();
+    sendListMinimal<unsigned>();
+    sendListMinimal<uint64_t>();
 }
 
-template<class KeyType>
-void extractRange()
+TEST(DomainDecomposition, computeByteOffsets)
 {
-    int bufferSize = 64;
-    // the source array from which to extract the buffer
-    std::vector<double> x(bufferSize);
-    std::iota(begin(x), end(x), 0);
+    util::array<size_t, 3> elementSizes{8, 4, 8};
+    size_t sendCount = 1001;
+    size_t alignment = 128;
 
-    SendManifest manifest;
-    manifest.addRange(0, 8);
-    manifest.addRange(40, 42);
-    manifest.addRange(50, 50);
+    auto offsets = computeByteOffsets(sendCount, elementSizes, alignment);
 
-    std::vector<int> ordering(bufferSize);
-    std::iota(begin(ordering), end(ordering), 0);
+    EXPECT_EQ(offsets[0], 0);
+    EXPECT_EQ(offsets[1], round_up(elementSizes[0] * sendCount, alignment));
+    EXPECT_EQ(offsets[2], offsets[1] + round_up(elementSizes[1] * sendCount, alignment));
+    EXPECT_EQ(offsets[3], offsets[2] + round_up(elementSizes[2] * sendCount, alignment));
 
-    // non-default ordering will make x appear sorted despite two elements being swapped
-    std::swap(x[0], x[1]);
-    std::swap(ordering[0], ordering[1]);
-
-    std::vector<double> output(manifest.totalCount());
-    extractRange(manifest, reinterpret_cast<char*>(x.data()), ordering.data(), reinterpret_cast<char*>(output.data()),
-                 sizeof(double));
-
-    // note sorted reference
-    std::vector<double> ref{0, 1, 2, 3, 4, 5, 6, 7, 40, 41};
-    EXPECT_EQ(output, ref);
-}
-
-TEST(DomainDecomposition, extractRange)
-{
-    extractRange<unsigned>();
-    extractRange<uint64_t>();
+    EXPECT_EQ(offsets[3], 8064 + 4096 + 8064);
 }

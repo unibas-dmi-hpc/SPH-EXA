@@ -127,10 +127,12 @@ sph:build:cuda:1:
     - /usr/local/sbin/performance/scan_perf
     - /usr/local/sbin/coord_samples/coordinate_test
     - /usr/local/sbin/hydro/kernel_tests_ve
+    - /usr/local/sbin/hydro/turbulence_tests  
     - /usr/local/sbin/hydro/kernel_tests_std
     - /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests
     - /usr/local/sbin/unit/component_units
     - /usr/local/sbin/unit/component_units_omp
+    - /usr/local/sbin/performance/peers_perf
   variables:
     USE_MPI: 'NO'
     SLURM_CONSTRAINT: 'gpu'
@@ -154,6 +156,7 @@ sph:build:cuda:2:
     - /usr/local/sbin/integration_mpi/exchange_halos
     - /usr/local/sbin/integration_mpi/focus_transfer
     - /usr/local/sbin/integration_mpi/globaloctree
+    # - /usr/local/sbin/integration_mpi/exchange_halos_gpu # needs 2 gpus
   variables:
     USE_MPI: 'YES'
     SLURM_CONSTRAINT: 'gpu'
@@ -220,11 +223,14 @@ sph:build:cuda:p100:
   script:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - /usr/local/sbin/performance/hilbert_perf_gpu
-    - /usr/local/sbin/performance/cudaNeighborsTest
+    # - /usr/local/sbin/performance/cudaNeighborsTest
     # - /usr/local/sbin/performance/neighbors_test_gpu
+    # - /usr/local/sbin/performance/exchange_halos_gpu # moved to integration_mpi
     - /usr/local/sbin/performance/octree_perf_gpu
     - /usr/local/sbin/unit_cuda/component_units_cuda
     - /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests
+    - /usr/local/sbin/ryoanji/global_upsweep_gpu
+    - /usr/local/sbin/ryoanji/ryoanji_demo/ryoanji_demo 
   variables:
     USE_MPI: 'NO'
     SLURM_CONSTRAINT: 'gpu'

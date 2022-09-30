@@ -24,23 +24,30 @@
  */
 
 /*! @file
- * @brief CPU/GPU reorder functor
+ * @brief  Utility for GPU-direct halo particle exchange
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include "cstone/tree/accel_switch.hpp"
-#include "cstone/primitives/gather.hpp"
-#include "cstone/cuda/gather.cuh"
-
 namespace cstone
 {
 
-//! @brief returns reorder functor type to be used, depending on the accelerator
-template<class Accelerator, class KeyType, class IndexType>
-using ReorderFunctor_t =
-    typename AccelSwitchType<Accelerator, CpuGather, DeviceGather>::template type<KeyType, IndexType>;
+template<class T, class IndexType>
+extern void gatherRanges(const IndexType* rangeScan,
+                         const IndexType* rangeOffsets,
+                         int numRanges,
+                         const T* src,
+                         T* buffer,
+                         size_t bufferSize);
+
+template<class T, class IndexType>
+extern void scatterRanges(const IndexType* rangeScan,
+                          const IndexType* rangeOffsets,
+                          int numRanges,
+                          T* dest,
+                          const T* buffer,
+                          size_t bufferSize);
 
 } // namespace cstone

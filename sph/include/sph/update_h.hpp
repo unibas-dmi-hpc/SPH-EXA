@@ -1,30 +1,39 @@
 #pragma once
 
-#include <vector>
+#include <cmath>
+
+#include "cstone/cuda/cuda_utils.hpp"
+#include "sph/sph_gpu.hpp"
 
 namespace sph
 {
 
-template<class Dataset>
-void updateSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d, size_t ng0)
+template<class T>
+void updateSmoothingLengthCpu(size_t startIndex, size_t endIndex, unsigned ng0, const unsigned* nc, T* h)
 {
-    using T     = typename Dataset::RealType;
-    const T c0  = 7.0;
-    const T exp = 1.0 / 3.0;
-
-    const int* neighborsCount = d.neighborsCount.data();
-    T*         h              = d.h.data();
+    // Note: these constants are duplicated in the GPU version, so don't forget to change them there as well
+    constexpr double c0  = 7.0;
+    constexpr double exp = 1.0 / 3.0;
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        int nn = neighborsCount[i];
-        h[i]   = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp);
+        h[i] = h[i] * 0.5 * std::pow((1.0 + c0 * ng0 / nc[i]), exp);
 
 #ifndef NDEBUG
-        if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%lu) ngi %d h %f\n", i, nn, h[i]);
+        if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%lu) ngi %d h %f\n", i, nc[i], h[i]);
 #endif
     }
+}
+
+template<class Dataset>
+void updateSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d, unsigned ng0)
+{
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        updateSmoothingLengthGpu(startIndex, endIndex, ng0, rawPtr(d.devData.nc), rawPtr(d.devData.h));
+    }
+    else { updateSmoothingLengthCpu(startIndex, endIndex, ng0, rawPtr(d.nc), rawPtr(d.h)); }
 }
 
 } // namespace sph

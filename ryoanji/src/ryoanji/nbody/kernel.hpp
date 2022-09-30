@@ -456,15 +456,15 @@ struct Kernels<0, 0, 0>
  * @param[out] Mout     output multipole to add contributions to
  *
  */
-template<class T, class MType>
+template<class T, class Tm, class MType>
 HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& Xout, const T* x, const T* y, const T* z,
-                                       const T* m, MType& Mout)
+                                       const Tm* m, MType& Mout)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
     for (int i = begin; i < end; i++)
     {
-        Vec4<T> body = {x[i], y[i], z[i], m[i]};
+        Vec4<T> body = {x[i], y[i], z[i], T(m[i])};
         Vec3<T> dX   = makeVec3(Xout - body);
         MType   M;
         M[0] = body[3];
@@ -509,15 +509,15 @@ HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, 
  * @param h_j
  * @return        input acceleration plus contribution from this call
  */
-template<class Ta, class Tc, class Tm>
-HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<Tc>& pos_i, const Vec3<Tc>& pos_j, Tm m_j, Tm h_i,
-                                           Tm h_j)
+template<class Ta, class Tc, class Th, class Tm>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<Tc>& pos_i, const Vec3<Tc>& pos_j, Tm m_j, Th h_i,
+                                           Th h_j)
 {
     Vec3<Tc> dX = pos_j - pos_i;
     Tc       R2 = norm2(dX);
 
-    Tc h_ij  = h_i + h_j;
-    Tc h_ij2 = h_ij * h_ij;
+    Th h_ij  = h_i + h_j;
+    Th h_ij2 = h_ij * h_ij;
     Tc R2eff = (R2 < h_ij2) ? h_ij2 : R2;
 
     Tc invR   = inverseSquareRoot(R2eff);

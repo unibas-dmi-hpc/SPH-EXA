@@ -41,10 +41,13 @@
 #include "cstone/tree/definitions.h"
 #include "cstone/util/gsl-lite.hpp"
 
+namespace cstone
+{
+
 template<class Integer>
 std::vector<Integer> makeRandomUniformKeys(size_t numKeys, int seed = 42)
 {
-    Integer maxCoord = cstone::nodeRange<Integer>(0) - 1;
+    Integer maxCoord = nodeRange<Integer>(0) - 1;
     std::mt19937 gen(seed);
     std::uniform_int_distribution<Integer> distribution(0, maxCoord);
 
@@ -59,7 +62,7 @@ std::vector<Integer> makeRandomUniformKeys(size_t numKeys, int seed = 42)
 template<class Integer>
 std::vector<Integer> makeRandomGaussianKeys(size_t numKeys, int seed = 42)
 {
-    Integer maxCoord = cstone::nodeRange<Integer>(0) - 1;
+    Integer maxCoord = nodeRange<Integer>(0) - 1;
     std::mt19937 gen(seed);
     std::normal_distribution<double> distribution(double(maxCoord) / 2, double(maxCoord) / 5);
 
@@ -88,7 +91,7 @@ public:
     using KeyType = KeyType_;
     using Integer = typename KeyType::ValueType;
 
-    RandomCoordinates(size_t n, cstone::Box<T> box, int seed = 42)
+    RandomCoordinates(size_t n, Box<T> box, int seed = 42)
         : box_(std::move(box))
         , x_(n)
         , y_(n)
@@ -110,15 +113,19 @@ public:
         std::generate(begin(z_), end(z_), randZ);
 
         auto keyData = (KeyType*)(codes_.data());
-        cstone::computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
+        computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
 
-        std::vector<cstone::LocalIndex> sfcOrder(n);
-        std::iota(begin(sfcOrder), end(sfcOrder), cstone::LocalIndex(0));
-        cstone::sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
+        std::vector<LocalIndex> sfcOrder(n);
+        std::iota(begin(sfcOrder), end(sfcOrder), LocalIndex(0));
+        sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
 
-        cstone::reorderInPlace(sfcOrder, x_.data());
-        cstone::reorderInPlace(sfcOrder, y_.data());
-        cstone::reorderInPlace(sfcOrder, z_.data());
+        std::vector<T> temp(x_.size());
+        gather<LocalIndex>(sfcOrder, x_.data(), temp.data());
+        swap(x_, temp);
+        gather<LocalIndex>(sfcOrder, y_.data(), temp.data());
+        swap(y_, temp);
+        gather<LocalIndex>(sfcOrder, z_.data(), temp.data());
+        swap(z_, temp);
     }
 
     const std::vector<T>& x() const { return x_; }
@@ -127,7 +134,7 @@ public:
     const std::vector<Integer>& particleKeys() const { return codes_; }
 
 private:
-    cstone::Box<T> box_;
+    Box<T> box_;
     std::vector<T> x_, y_, z_;
     std::vector<Integer> codes_;
 };
@@ -139,7 +146,7 @@ public:
     using KeyType = KeyType_;
     using Integer = typename KeyType::ValueType;
 
-    RandomGaussianCoordinates(unsigned n, cstone::Box<T> box, int seed = 42)
+    RandomGaussianCoordinates(unsigned n, Box<T> box, int seed = 42)
         : box_(std::move(box))
         , x_(n)
         , y_(n)
@@ -167,15 +174,19 @@ public:
         std::generate(begin(z_), end(z_), randZ);
 
         auto keyData = (KeyType*)(codes_.data());
-        cstone::computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
+        computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
 
-        std::vector<cstone::LocalIndex> sfcOrder(n);
-        std::iota(begin(sfcOrder), end(sfcOrder), cstone::LocalIndex(0));
-        cstone::sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
+        std::vector<LocalIndex> sfcOrder(n);
+        std::iota(begin(sfcOrder), end(sfcOrder), LocalIndex(0));
+        sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
 
-        cstone::reorderInPlace(sfcOrder, x_.data());
-        cstone::reorderInPlace(sfcOrder, y_.data());
-        cstone::reorderInPlace(sfcOrder, z_.data());
+        std::vector<T> temp(x_.size());
+        gather<LocalIndex>(sfcOrder, x_.data(), temp.data());
+        swap(x_, temp);
+        gather<LocalIndex>(sfcOrder, y_.data(), temp.data());
+        swap(y_, temp);
+        gather<LocalIndex>(sfcOrder, z_.data(), temp.data());
+        swap(z_, temp);
     }
 
     const std::vector<T>& x() const { return x_; }
@@ -184,21 +195,21 @@ public:
     const std::vector<Integer>& particleKeys() const { return codes_; }
 
 private:
-    cstone::Box<T> box_;
+    Box<T> box_;
     std::vector<T> x_, y_, z_;
     std::vector<Integer> codes_;
 };
 
 //! @brief can be used to calculate reasonable smoothing lengths for each particle
 template<class KeyType, class Tc, class Th>
-void adjustSmoothingLength(cstone::LocalIndex numParticles,
-                           int ng0,
-                           int ngmax,
+void adjustSmoothingLength(LocalIndex numParticles,
+                           unsigned ng0,
+                           unsigned ngmax,
                            const std::vector<Tc>& xGlob,
                            const std::vector<Tc>& yGlob,
                            const std::vector<Tc>& zGlob,
                            std::vector<Th>& hGlob,
-                           const cstone::Box<Tc>& box)
+                           const Box<Tc>& box)
 {
     std::vector<KeyType> codesGlobal(numParticles);
 
@@ -207,41 +218,48 @@ void adjustSmoothingLength(cstone::LocalIndex numParticles,
     std::vector<Tc> z = zGlob;
     std::vector<Tc> h = hGlob;
 
-    cstone::computeSfcKeys(x.data(), y.data(), z.data(), cstone::sfcKindPointer(codesGlobal.data()), numParticles, box);
-    std::vector<cstone::LocalIndex> ordering(numParticles);
-    std::iota(ordering.begin(), ordering.end(), cstone::LocalIndex(0));
-    cstone::sort_by_key(codesGlobal.begin(), codesGlobal.end(), ordering.begin());
-    cstone::reorderInPlace(ordering, x.data());
-    cstone::reorderInPlace(ordering, y.data());
-    cstone::reorderInPlace(ordering, z.data());
-    cstone::reorderInPlace(ordering, h.data());
+    computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(codesGlobal.data()), numParticles, box);
+    std::vector<LocalIndex> ordering(numParticles);
+    std::iota(ordering.begin(), ordering.end(), LocalIndex(0));
+    sort_by_key(codesGlobal.begin(), codesGlobal.end(), ordering.begin());
 
-    std::vector<cstone::LocalIndex> inverseOrdering(numParticles);
+    std::vector<Tc> temp(x.size());
+    gather<LocalIndex>(ordering, x.data(), temp.data());
+    swap(temp, x);
+    gather<LocalIndex>(ordering, y.data(), temp.data());
+    swap(temp, y);
+    gather<LocalIndex>(ordering, z.data(), temp.data());
+    swap(temp, z);
+    gather<LocalIndex>(ordering, h.data(), temp.data());
+    swap(temp, h);
+
+    std::vector<LocalIndex> inverseOrdering(numParticles);
     std::iota(inverseOrdering.begin(), inverseOrdering.end(), 0);
-    std::vector<cstone::LocalIndex> orderCpy = ordering;
-    cstone::sort_by_key(orderCpy.begin(), orderCpy.end(), inverseOrdering.begin());
+    std::vector<LocalIndex> orderCpy = ordering;
+    sort_by_key(orderCpy.begin(), orderCpy.end(), inverseOrdering.begin());
 
-    std::vector<int> neighbors(numParticles * ngmax);
-    std::vector<int> neighborCounts(numParticles);
+    std::vector<cstone::LocalIndex> neighbors(numParticles * ngmax);
+    std::vector<unsigned> neighborCounts(numParticles);
 
     // adjust h[i] such that each particle has between ng0/2 and ngmax neighbors
-    for (cstone::LocalIndex i = 0; i < numParticles; ++i)
+    for (LocalIndex i = 0; i < numParticles; ++i)
     {
         int iteration = 0;
         do
         {
-            cstone::findNeighbors(i, x.data(), y.data(), z.data(), h.data(), box,
-                                  cstone::sfcKindPointer(codesGlobal.data()), neighbors.data() + i * ngmax,
-                                  neighborCounts.data() + i, numParticles, ngmax);
+            findNeighbors(i, x.data(), y.data(), z.data(), h.data(), box, sfcKindPointer(codesGlobal.data()),
+                          neighbors.data() + i * ngmax, neighborCounts.data() + i, numParticles, ngmax);
 
             const Tc c0 = 7.0;
-            int nn      = std::max(neighborCounts[i], 1);
+            unsigned nn = std::max(neighborCounts[i], 1u);
             h[i]        = h[i] * 0.5 * pow(1.0 + (c0 * ng0) / nn, 1.0 / 3.0);
-        } while ((neighborCounts[i] < ng0 / 4 || neighborCounts[i] >= ngmax) && iteration++ < 10);
+        } while ((neighborCounts[i] < ng0 / 4u || neighborCounts[i] >= ngmax) && iteration++ < 10);
     }
 
-    for (cstone::LocalIndex i = 0; i < numParticles; ++i)
+    for (LocalIndex i = 0; i < numParticles; ++i)
     {
         hGlob[i] = h[inverseOrdering[i]];
     }
 }
+
+} // namespace cstone

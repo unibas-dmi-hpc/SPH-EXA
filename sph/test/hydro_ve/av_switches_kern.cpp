@@ -57,8 +57,8 @@ TEST(AVswitches, JLoop)
     cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
 
     // particle 0 has 4 neighbors
-    std::vector<int> neighbors{1, 2, 3, 4};
-    int              neighborsCount = 4, i;
+    std::vector<cstone::LocalIndex> neighbors{1, 2, 3, 4};
+    unsigned                        neighborsCount = 4, i;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};

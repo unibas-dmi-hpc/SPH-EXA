@@ -55,7 +55,7 @@ namespace cstone
  *
  * Integer conversion happens with truncation as required for SFC code calculations
  */
-template <class KeyType, class T>
+template<class KeyType, class T>
 HOST_DEVICE_FUN inline unsigned toNBitInt(T x)
 {
     // spatial resolution in bits per dimension
@@ -78,7 +78,7 @@ HOST_DEVICE_FUN inline unsigned toNBitInt(T x)
  * Integer conversion happens with ceil() as required for converting halo radii to integers
  * where we must round up to the smallest integer not less than x*2^(10 or 21)
  */
-template <class KeyType, class T>
+template<class KeyType, class T>
 HOST_DEVICE_FUN constexpr unsigned toNBitIntCeil(T x)
 {
     // spatial resolution in bits per dimension
@@ -107,10 +107,10 @@ HOST_DEVICE_FUN constexpr unsigned toNBitIntCeil(T x)
  *  i.e. @p length plus the number of zeros added adds up to 30 for 32-bit integers
  *  or 63 for 64-bit integers, because these are the numbers of usable bits in SFC codes.
  */
-template <class KeyType>
+template<class KeyType>
 constexpr KeyType pad(KeyType prefix, int length)
 {
-    return prefix << (3*maxTreeLevel<KeyType>{} - length);
+    return prefix << (3 * maxTreeLevel<KeyType>{} - length);
 }
 
 /*! @brief compute the maximum range of an octree node at a given subdivision level
@@ -126,7 +126,7 @@ constexpr KeyType pad(KeyType prefix, int length)
 template<class KeyType>
 HOST_DEVICE_FUN constexpr KeyType nodeRange(unsigned treeLevel)
 {
-    assert (treeLevel <= maxTreeLevel<KeyType>{});
+    assert(treeLevel <= maxTreeLevel<KeyType>{});
     unsigned shifts = maxTreeLevel<KeyType>{} - treeLevel;
 
     return KeyType(1ul << (3u * shifts));
@@ -147,7 +147,7 @@ template<class KeyType>
 HOST_DEVICE_FUN constexpr bool isPowerOf8(KeyType n)
 {
     unsigned lz = countLeadingZeros(n - 1) - unusedBits<KeyType>{};
-    return lz % 3 == 0 && !(n & (n-1));
+    return lz % 3 == 0 && !(n & (n - 1));
 }
 
 /*! @brief calculate common prefix (cpr) of two SFC keys
@@ -174,7 +174,7 @@ HOST_DEVICE_FUN constexpr int commonPrefix(KeyType key1, KeyType key2)
 template<class KeyType>
 HOST_DEVICE_FUN constexpr unsigned treeLevel(KeyType codeRange)
 {
-    assert( isPowerOf8(codeRange) );
+    assert(isPowerOf8(codeRange));
     return (countLeadingZeros(codeRange - 1) - unusedBits<KeyType>{}) / 3;
 }
 
@@ -190,8 +190,8 @@ HOST_DEVICE_FUN constexpr unsigned treeLevel(KeyType codeRange)
 template<class KeyType>
 HOST_DEVICE_FUN constexpr KeyType encodePlaceholderBit(KeyType code, int prefixLength)
 {
-    int nShifts = 3*maxTreeLevel<KeyType>{} - prefixLength;
-    KeyType ret = code >> nShifts;
+    int nShifts             = 3 * maxTreeLevel<KeyType>{} - prefixLength;
+    KeyType ret             = code >> nShifts;
     KeyType placeHolderMask = KeyType(1) << prefixLength;
 
     return placeHolderMask | ret;
@@ -201,7 +201,7 @@ HOST_DEVICE_FUN constexpr KeyType encodePlaceholderBit(KeyType code, int prefixL
 template<class KeyType>
 HOST_DEVICE_FUN constexpr unsigned decodePrefixLength(KeyType code)
 {
-    return 8*sizeof(KeyType) - 1 - countLeadingZeros(code);
+    return 8 * sizeof(KeyType) - 1 - countLeadingZeros(code);
 }
 
 /*! @brief decode an SFC key in Warren-Salmon placeholder bit format
@@ -215,11 +215,11 @@ HOST_DEVICE_FUN constexpr unsigned decodePrefixLength(KeyType code)
 template<class KeyType>
 HOST_DEVICE_FUN constexpr KeyType decodePlaceholderBit(KeyType code)
 {
-    int prefixLength  = decodePrefixLength(code);
+    int prefixLength        = decodePrefixLength(code);
     KeyType placeHolderMask = KeyType(1) << prefixLength;
-    KeyType ret = code ^ placeHolderMask;
+    KeyType ret             = code ^ placeHolderMask;
 
-    return ret << (3*maxTreeLevel<KeyType>{} - prefixLength);
+    return ret << (3 * maxTreeLevel<KeyType>{} - prefixLength);
 }
 
 /*! @brief extract the n-th octal digit from an SFC key, starting from the most significant
@@ -271,7 +271,7 @@ template<class KeyType>
 HOST_DEVICE_FUN util::tuple<KeyType, KeyType> smallestCommonBox(KeyType firstKey, KeyType secondKey)
 {
     unsigned commonLevel = commonPrefix(firstKey, secondKey) / 3;
-    KeyType  nodeStart   = enclosingBoxCode(firstKey, commonLevel);
+    KeyType nodeStart    = enclosingBoxCode(firstKey, commonLevel);
 
     return {nodeStart, nodeStart + nodeRange<KeyType>(commonLevel)};
 }
@@ -281,7 +281,7 @@ template<class KeyType>
 HOST_DEVICE_FUN constexpr KeyType zeroLowBits(KeyType code, unsigned nBits)
 {
     unsigned nLowerBits = 3 * maxTreeLevel<KeyType>{} - nBits;
-    KeyType mask = (KeyType(1) << nLowerBits) - 1;
+    KeyType mask        = (KeyType(1) << nLowerBits) - 1;
 
     return code & ~mask;
 }
@@ -297,8 +297,10 @@ HOST_DEVICE_FUN constexpr KeyType zeroLowBits(KeyType code, unsigned nBits)
 template<class KeyType>
 constexpr int lastNzPlace(KeyType x)
 {
-    if (x) return maxTreeLevel<KeyType>{} - __builtin_ctzl(x)/3;
-    else   return maxTreeLevel<KeyType>{} - 0;
+    if (x)
+        return maxTreeLevel<KeyType>{} - __builtin_ctzl(x) / 3;
+    else
+        return maxTreeLevel<KeyType>{} - 0;
 }
 
 /*! @brief return the power of 8 for the octal place at position @p pos
@@ -375,7 +377,8 @@ spanSfcRange(KeyType a, KeyType b, [[maybe_unused]] Store output)
     return numValues;
 }
 
-//! @brief overload to skip storage and just compute number of values, see spanSfcRange(KeyType a, KeyType b, KeyType* output) above
+//! @brief overload to skip storage and just compute number of values, see spanSfcRange(KeyType a, KeyType b, KeyType*
+//! output) above
 template<class KeyType>
 int spanSfcRange(KeyType a, KeyType b)
 {

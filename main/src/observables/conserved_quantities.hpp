@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
+ *               2022 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +39,7 @@
 #include "mpi.h"
 
 #include "cstone/util/array.hpp"
+#include "conserved_gpu.h"
 
 namespace sphexa
 {
@@ -48,14 +49,14 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 {
     using T = typename Dataset::RealType;
 
-    const T* x  = d.x.data();
-    const T* y  = d.y.data();
-    const T* z  = d.z.data();
-    const T* vx = d.vx.data();
-    const T* vy = d.vy.data();
-    const T* vz = d.vz.data();
-    const T* m  = d.m.data();
-    const T* u  = d.u.data();
+    const auto* x  = d.x.data();
+    const auto* y  = d.y.data();
+    const auto* z  = d.z.data();
+    const auto* vx = d.vx.data();
+    const auto* vy = d.vy.data();
+    const auto* vz = d.vz.data();
+    const auto* m  = d.m.data();
+    const auto* u  = d.u.data();
 
     T eKin = 0.0;
     T eInt = 0.0;
@@ -92,10 +93,31 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 template<class Dataset>
 void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    using T                           = typename Dataset::RealType;
-    auto [eKin, eInt, linmom, angmom] = localConservedQuantities(startIndex, endIndex, d);
+    using T = typename Dataset::RealType;
 
-    util::array<T, 9> quantities, globalQuantities;
+    T               eKin, eInt;
+    cstone::Vec3<T> linmom, angmom;
+    size_t          ncsum = 0;
+
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        ncsum = cstone::reduceGpu(rawPtr(d.devData.nc) + startIndex, endIndex - startIndex, size_t(0));
+        std::tie(eKin, eInt, linmom, angmom) = conservedQuantitiesGpu(
+            rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
+            rawPtr(d.devData.vz), rawPtr(d.devData.u), rawPtr(d.devData.m), startIndex, endIndex);
+    }
+    else
+    {
+#pragma omp parallel for reduction(+ : ncsum)
+        for (size_t i = startIndex; i < endIndex; i++)
+        {
+            ncsum += d.nc[i];
+        }
+
+        std::tie(eKin, eInt, linmom, angmom) = localConservedQuantities(startIndex, endIndex, d);
+    }
+
+    util::array<T, 10> quantities, globalQuantities;
     std::fill(globalQuantities.begin(), globalQuantities.end(), T(0));
 
     quantities[0] = eKin;
@@ -107,6 +129,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     quantities[6] = angmom[0];
     quantities[7] = angmom[1];
     quantities[8] = angmom[2];
+    quantities[9] = T(ncsum);
 
     int rootRank = 0;
     MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<T>{}, MPI_SUM, rootRank, d.comm);
@@ -118,24 +141,9 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 
     util::array<T, 3> globalLinmom{globalQuantities[3], globalQuantities[4], globalQuantities[5]};
     util::array<T, 3> globalAngmom{globalQuantities[6], globalQuantities[7], globalQuantities[8]};
-    d.linmom = std::sqrt(norm2(globalLinmom));
-    d.angmom = std::sqrt(norm2(globalAngmom));
-}
-
-size_t neighborsSum(size_t startIndex, size_t endIndex, gsl::span<const int> neighborsCount)
-{
-    size_t sum = 0;
-#pragma omp parallel for reduction(+ : sum)
-    for (size_t i = startIndex; i < endIndex; i++)
-    {
-        sum += neighborsCount[i];
-    }
-
-    int    rootRank  = 0;
-    size_t globalSum = 0;
-    MPI_Reduce(&sum, &globalSum, 1, MpiType<size_t>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
-
-    return globalSum;
+    d.linmom         = std::sqrt(norm2(globalLinmom));
+    d.angmom         = std::sqrt(norm2(globalAngmom));
+    d.totalNeighbors = size_t(globalQuantities[9]);
 }
 
 } // namespace sphexa

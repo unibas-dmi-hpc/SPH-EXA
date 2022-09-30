@@ -51,7 +51,7 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
     cstone::Box<T> box{-1, 1};
 
     // common pool of coordinates, identical on all ranks
-    RandomGaussianCoordinates<T, cstone::SfcKind<KeyType>> coords(numRanks * numParticles, box);
+    cstone::RandomGaussianCoordinates<T, cstone::SfcKind<KeyType>> coords(numRanks * numParticles, box);
 
     std::vector<T> globalH(numRanks * numParticles, 0.1);
     adjustSmoothingLength<KeyType>(globalH.size(), 5, 10, coords.x(), coords.y(), coords.z(), globalH, box);
@@ -73,8 +73,8 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
 
     cstone::Domain<KeyType, T> domain(thisRank, numRanks, bucketSize, bucketSizeLocal, theta, box);
 
-    std::vector<T> scratchSpace;
-    domain.syncGrav(particleKeys, x, y, z, h, m, std::tuple{}, std::tie(scratchSpace));
+    std::vector<T> s1, s2, s3;
+    domain.syncGrav(particleKeys, x, y, z, h, m, std::tuple{}, std::tie(s1, s2, s3));
 
     //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
     const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();

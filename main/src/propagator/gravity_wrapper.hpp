@@ -39,7 +39,7 @@
 namespace sphexa
 {
 
-template<class MType, class KeyType, class, class, class>
+template<class MType, class KeyType, class, class, class, class, class>
 class MultipoleHolderCpu
 {
 public:
@@ -80,7 +80,7 @@ private:
     std::vector<MType> multipoles_;
 };
 
-template<class MType, class KeyType, class Tc, class Tm, class Tf>
+template<class MType, class KeyType, class Tc, class Th, class Tm, class Ta, class Tf>
 class MultipoleHolderGpu
 {
 public:
@@ -111,8 +111,8 @@ public:
     const MType* multipoles() const { return multipoles_.data(); }
 
 private:
-    ryoanji::MultipoleHolder<Tc, Tm, Tf, KeyType, MType> mHolder_;
-    std::vector<MType>                                   multipoles_;
+    ryoanji::MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType> mHolder_;
+    std::vector<MType>                                           multipoles_;
 };
 
 } // namespace sphexa

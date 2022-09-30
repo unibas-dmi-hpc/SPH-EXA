@@ -210,8 +210,8 @@ void buildInternalOctreeCpu(const KeyType* cstoneTree,
     linkTreeCpu(prefixes, numInternalNodes, leafToInternal, levelRange, childOffsets, parents);
 }
 
-template<class K>
-class FocusedOctreeCore;
+template<class KeyType>
+struct CombinedUpdate;
 
 template<class KeyType>
 class Octree
@@ -375,7 +375,7 @@ public:
     }
 
 private:
-    friend class FocusedOctreeCore<KeyType>;
+    friend struct CombinedUpdate<KeyType>;
 
     void resize(TreeNodeIndex numCsLeafNodes)
     {

@@ -180,17 +180,42 @@ private:
     BoundaryType boundaries[3];
 };
 
-//! @brief Fold X into periodic boundaries,
+//! @brief Compute the shortest periodic distance dX = A - B between two points,
 template<class T>
-HOST_DEVICE_FUN inline Vec3<T> applyPbc(Vec3<T> X, const Box<T>& box)
+HOST_DEVICE_FUN inline Vec3<T> applyPbc(Vec3<T> dX, const Box<T>& box)
 {
     bool pbcX = (box.boundaryX() == BoundaryType::periodic);
     bool pbcY = (box.boundaryY() == BoundaryType::periodic);
     bool pbcZ = (box.boundaryZ() == BoundaryType::periodic);
 
-    X[0] -= pbcX * box.lx() * std::rint(X[0] * box.ilx());
-    X[1] -= pbcY * box.ly() * std::rint(X[1] * box.ily());
-    X[2] -= pbcZ * box.lz() * std::rint(X[2] * box.ilz());
+    dX[0] -= pbcX * box.lx() * std::rint(dX[0] * box.ilx());
+    dX[1] -= pbcY * box.ly() * std::rint(dX[1] * box.ily());
+    dX[2] -= pbcZ * box.lz() * std::rint(dX[2] * box.ilz());
+
+    return dX;
+}
+
+//! @brief Fold X into a periodic image that lies inside @a box
+template<class T>
+HOST_DEVICE_FUN inline Vec3<T> putInBox(Vec3<T> X, const Box<T>& box)
+{
+    bool pbcX = (box.boundaryX() == BoundaryType::periodic);
+    bool pbcY = (box.boundaryY() == BoundaryType::periodic);
+    bool pbcZ = (box.boundaryZ() == BoundaryType::periodic);
+
+    // Further testing needed before this can be enabled
+    // X[0] -= pbcX * box.lx() * std::trunc(X[0] * box.ilx());
+    // X[1] -= pbcY * box.ly() * std::trunc(X[1] * box.ily());
+    // X[2] -= pbcZ * box.lz() * std::trunc(X[2] * box.ilz());
+
+    if (pbcX && X[0] > box.xmax()) { X[0] -= box.lx(); }
+    else if (pbcX && X[0] < box.xmin()) { X[0] += box.lx(); }
+
+    if (pbcY && X[1] > box.ymax()) { X[1] -= box.ly(); }
+    else if (pbcY && X[1] < box.ymin()) { X[1] += box.ly(); }
+
+    if (pbcZ && X[2] > box.zmax()) { X[2] -= box.lz(); }
+    else if (pbcZ && X[2] < box.zmin()) { X[2] += box.lz(); }
 
     return X;
 }
@@ -219,14 +244,14 @@ HOST_DEVICE_FUN inline void applyPBC(const cstone::Box<T>& box, T r, T& xx, T& y
         zz += box.lz();
 }
 
-template<class T>
-HOST_DEVICE_FUN inline T distancePBC(const cstone::Box<T>& box, T hi, T x1, T y1, T z1, T x2, T y2, T z2)
+template<class Tc, class T>
+HOST_DEVICE_FUN inline T distancePBC(const cstone::Box<Tc>& box, T hi, Tc x1, Tc y1, Tc z1, Tc x2, Tc y2, Tc z2)
 {
-    T xx = x1 - x2;
-    T yy = y1 - y2;
-    T zz = z1 - z2;
+    Tc xx = x1 - x2;
+    Tc yy = y1 - y2;
+    Tc zz = z1 - z2;
 
-    applyPBC<T>(box, 2.0 * hi, xx, yy, zz);
+    applyPBC<Tc>(box, 2.0 * hi, xx, yy, zz);
 
     return std::sqrt(xx * xx + yy * yy + zz * zz);
 }

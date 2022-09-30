@@ -27,6 +27,7 @@
 
 #ifdef USE_CUDA
 #include "cuda_utils.cuh"
+#include "cuda_stubs.h"
 #else
 #include "cuda_stubs.h"
 #endif

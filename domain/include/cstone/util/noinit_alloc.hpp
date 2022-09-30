@@ -48,13 +48,13 @@ namespace util
  * to NUMA placement. By default, only one thread initializes the values of a std::vector,
  * making it impossible to achieve optimal NUMA placement.
  */
-template <typename T, typename Alloc = std::allocator<T>>
+template<typename T, typename Alloc = std::allocator<T>>
 class DefaultInitAdaptor : public Alloc
 {
     using AllocType = std::allocator_traits<Alloc>;
-public:
 
-    template <typename U>
+public:
+    template<typename U>
     struct rebind
     {
         using other = DefaultInitAdaptor<U, typename AllocType::template rebind_alloc<U>>;
@@ -63,11 +63,11 @@ public:
     using Alloc::Alloc;
 
     //! @brief construct with no arguments given, e.g. std::vector<T, [ThisClass]> vec(10);
-    template <typename U>
+    template<typename U>
     void construct(U* ptr) noexcept(std::is_nothrow_default_constructible<U>::value)
     {
         // default initialization here, instead of U(), prevents zeroing
-        ::new(static_cast<void*>(ptr)) U;
+        ::new (static_cast<void*>(ptr)) U;
     }
 
     /*! @brief construct with arguments given, e.g. std::vector<T, [ThisClass]> vec(10, 0);
@@ -75,7 +75,7 @@ public:
      * If the init value is explicitly specified, it will be forwarded to the underlying allocator.
      * In this case, element initialization takes places as normal.
      */
-    template <typename U, typename...Args>
+    template<typename U, typename... Args>
     void construct(U* ptr, Args&&... args)
     {
         AllocType::construct(static_cast<Alloc&>(*this), ptr, std::forward<Args>(args)...);

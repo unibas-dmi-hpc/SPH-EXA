@@ -77,3 +77,34 @@ TEST(Utils, AlignedNoInitAlloc)
     // std::copy(v.begin(), v.end(), std::ostream_iterator<double>(std::cout, " "));
     // std::cout << " address: " << v.data() << std::endl;
 }
+
+TEST(Utils, round_up)
+{
+    EXPECT_EQ(round_up(127, 128), 128);
+    EXPECT_EQ(round_up(128, 128), 128);
+    EXPECT_EQ(round_up(129, 128), 256);
+    EXPECT_EQ(round_up(257, 128), 384);
+
+    EXPECT_EQ(round_up(127lu, 128lu), 128lu);
+    EXPECT_EQ(round_up(128lu, 128lu), 128lu);
+    EXPECT_EQ(round_up(129lu, 128lu), 256lu);
+}
+
+TEST(Utils, discardLastElement)
+{
+    {
+        auto tup   = std::make_tuple(1, 2, 3);
+        auto probe = discardLastElement(tup);
+        auto ref   = std::make_tuple(1, 2);
+        EXPECT_EQ(probe, ref);
+    }
+    {
+        // test that lvalue reference elements are passed on as lvalue references
+        std::vector<int> v1(10), v2(10);
+
+        auto tup   = std::tie(v1, v2);
+        auto probe = discardLastElement(tup);
+        EXPECT_EQ(probe, std::tie(v1));
+        EXPECT_EQ(std::get<0>(tup).data(), v1.data());
+    }
+}

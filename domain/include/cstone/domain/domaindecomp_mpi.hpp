@@ -78,6 +78,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticles(const SendList& sendList,
     constexpr int domainExchangeTag = static_cast<int>(P2pTags::domainExchange);
     constexpr int numArrays         = sizeof...(Arrays);
     constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
+    constexpr auto indices = makeIntegralTuple(std::make_index_sequence<numArrays>{});
 
     int numRanks = int(sendList.size());
 
@@ -89,7 +90,8 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticles(const SendList& sendList,
     std::array<char*, numArrays> sourceArrays{reinterpret_cast<char*>(arrays + particleStart)...};
     for (int destinationRank = 0; destinationRank < numRanks; ++destinationRank)
     {
-        size_t sendCount = sendList[destinationRank].totalCount();
+        const auto& sends = sendList[destinationRank];
+        size_t sendCount  = sends.totalCount();
         if (destinationRank == thisRank || sendCount == 0) { continue; }
 
         util::array<size_t, numArrays> arrayByteOffsets = sendCount * elementSizes;
@@ -97,11 +99,20 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticles(const SendList& sendList,
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
 
         std::vector<char> sendBuffer(totalBytes);
-        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
+
+        auto gatherArray = [sendPtr = sendBuffer.data(), sendCount, ordering, &sourceArrays, &arrayByteOffsets,
+                            &elementSizes, rStart = sends.rangeStart(0)](auto arrayIndex)
         {
-            extractRange(sendList[destinationRank], sourceArrays[arrayIndex], ordering,
-                         sendBuffer.data() + arrayByteOffsets[arrayIndex], elementSizes[arrayIndex]);
-        }
+            size_t outputOffset = arrayByteOffsets[arrayIndex];
+            char* bufferPtr     = sendPtr + outputOffset;
+
+            using ElementType = util::array<float, elementSizes[arrayIndex] / sizeof(float)>;
+            static_assert(elementSizes[arrayIndex] % sizeof(float) == 0, "elementSize must be a multiple of float");
+            gather<LocalIndex>({ordering + rStart, sendCount}, reinterpret_cast<ElementType*>(sourceArrays[arrayIndex]),
+                               reinterpret_cast<ElementType*>(bufferPtr));
+        };
+        for_each_tuple(gatherArray, indices);
+
         mpiSendAsync(sendBuffer.data(), sendBuffer.size(), destinationRank, domainExchangeTag, sendRequests);
         sendBuffers.push_back(std::move(sendBuffer));
     }
@@ -134,18 +145,20 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticles(const SendList& sendList,
 
     std::array<char*, numArrays> destinationArrays{reinterpret_cast<char*>(arrays + receiveStart)...};
 
-    if (!fitHead && !fitTail && numIncoming > 0)
+    if (!fitHead && !fitTail && numIncoming > 0 && numParticlesPresent > 0)
     {
         std::vector<char> tempBuffer(numParticlesPresent * *std::max_element(elementSizes.begin(), elementSizes.end()));
-        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
+
+        auto gatherArray = [bufferPtr = tempBuffer.data(), ordering, &sourceArrays, &destinationArrays, &elementSizes,
+                            rStart = sendList[thisRank].rangeStart(0), count = numParticlesPresent](auto index)
         {
-            // make space by compacting already present particles
-            extractRange(sendList[thisRank], sourceArrays[arrayIndex], ordering, tempBuffer.data(),
-                         elementSizes[arrayIndex]);
-            std::copy(tempBuffer.data(), tempBuffer.data() + numParticlesPresent * elementSizes[arrayIndex],
-                      destinationArrays[arrayIndex]);
-            destinationArrays[arrayIndex] += numParticlesPresent * elementSizes[arrayIndex];
-        }
+            using ElementType = util::array<float, elementSizes[index] / sizeof(float)>;
+            gather<LocalIndex>({ordering + rStart, count}, reinterpret_cast<ElementType*>(sourceArrays[index]),
+                               reinterpret_cast<ElementType*>(bufferPtr));
+            std::copy(bufferPtr, bufferPtr + count * elementSizes[index], destinationArrays[index]);
+            destinationArrays[index] += count * elementSizes[index];
+        };
+        for_each_tuple(gatherArray, indices);
     }
 
     size_t bytesPerParticle = std::accumulate(elementSizes.begin(), elementSizes.end(), size_t(0));

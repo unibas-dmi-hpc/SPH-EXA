@@ -34,10 +34,10 @@
 #include "cstone/domain/domaindecomp_mpi.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/tree/octree_internal.hpp"
-#include "cstone/tree/octree_mpi.hpp"
-
+#include "cstone/tree/update_mpi.hpp"
 #include "cstone/sfc/box_mpi.hpp"
 #include "cstone/sfc/sfc.hpp"
+#include "cstone/util/reallocate.hpp"
 
 namespace cstone
 {
@@ -70,7 +70,7 @@ public:
      *
      * @param[in]  bufDesc         Buffer description with range of assigned particles
      * @param[in]  reorderFunctor  records the SFC order of the owned input coordinates
-     * @param[out] particleKeys    will contain sorted particle SFC keys in the range [particleStart:particleEnd]
+     * @param[out] particleKeys    will contain sorted particle SFC keys in the range [bufDesc.start:bufDesc.end]
      * @param[in]  x               x coordinates
      * @param[in]  y               y coordinates
      * @param[in]  z               z coordinates
@@ -82,10 +82,10 @@ public:
     LocalIndex assign(
         BufferDescription bufDesc, Reorderer& reorderFunctor, KeyType* particleKeys, const T* x, const T* y, const T* z)
     {
-        box_ = makeGlobalBox(x + bufDesc.start, x + bufDesc.end, y + bufDesc.start, z + bufDesc.start, box_);
-
         // number of locally assigned particles to consider for global tree building
         LocalIndex numParticles = bufDesc.end - bufDesc.start;
+
+        box_ = makeGlobalBox(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start, numParticles, box_);
 
         gsl::span<KeyType> keyView(particleKeys + bufDesc.start, numParticles);
 
@@ -125,9 +125,7 @@ public:
      * @param[in]    bufDesc            Buffer description with range of assigned particles and total buffer size
      * @param[inout] reorderFunctor     contains the ordering that accesses the range [particleStart:particleEnd]
      *                                  in SFC order
-     * @param[out]   sfcOrder           If using the CPU reorderer, this is a duplicate copy. Otherwise provides
-     *                                  the host space to download the ordering from the device.
-     * @param[in]    keys               Sorted particle keys in [particleStart:particleEnd]
+     * @param[in]    keys               particle SFC keys, sorted in [bufDesc.start:bufDesc.end]
      * @param[inout] x                  particle x-coordinates
      * @param[inout] y                  particle y-coordinates
      * @param[inout] z                  particle z-coordinates
@@ -141,9 +139,11 @@ public:
      * where to put the assigned particles inside the buffer, such that we can reorder directly to the final
      * location. This saves us from having to move around data inside the buffers for a second time.
      */
-    template<class Reorderer, class... Arrays>
+    template<class Reorderer, class Vector, class... Arrays>
     auto distribute(BufferDescription bufDesc,
                     Reorderer& reorderFunctor,
+                    Vector& /*scratch1*/,
+                    Vector& /*scratch2*/,
                     KeyType* keys,
                     T* x,
                     T* y,
@@ -153,9 +153,6 @@ public:
         LocalIndex numParticles          = bufDesc.end - bufDesc.start;
         LocalIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
-        reallocate(numParticles, sfcOrder_);
-        reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
-
         gsl::span<KeyType> keyView(keys + bufDesc.start, numParticles);
         SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_.treeLeaves(), keyView);
 
@@ -163,7 +160,7 @@ public:
         // Leftover particles from the previous step can also be contained in the range.
         auto [newStart, newEnd] =
             exchangeParticles(domainExchangeSends, myRank_, bufDesc.start, bufDesc.end, bufDesc.size,
-                              newNParticlesAssigned, sfcOrder_.data(), x, y, z, particleProperties...);
+                              newNParticlesAssigned, reorderFunctor.getReorderMap(), x, y, z, particleProperties...);
 
         LocalIndex envelopeSize = newEnd - newStart;
         keyView                 = gsl::span<KeyType>(keys + newStart, envelopeSize);
@@ -201,9 +198,6 @@ private:
     Box<T> box_;
 
     SpaceCurveAssignment assignment_;
-
-    //! @brief storage for downloading the sfc ordering from the GPU
-    mutable std::vector<LocalIndex> sfcOrder_;
 
     //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;

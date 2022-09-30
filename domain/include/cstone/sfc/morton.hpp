@@ -66,9 +66,9 @@ HOST_DEVICE_FUN
 constexpr unsigned compactBits(unsigned v)
 {
     v &= 0x09249249u;
-    v = (v ^ (v >>  2u)) & 0x030c30c3u;
-    v = (v ^ (v >>  4u)) & 0x0300f00fu;
-    v = (v ^ (v >>  8u)) & 0xff0000ffu;
+    v = (v ^ (v >> 2u)) & 0x030c30c3u;
+    v = (v ^ (v >> 4u)) & 0x0300f00fu;
+    v = (v ^ (v >> 8u)) & 0xff0000ffu;
     v = (v ^ (v >> 16u)) & 0x000003ffu;
     return v;
 }
@@ -78,11 +78,11 @@ HOST_DEVICE_FUN
 constexpr uint64_t expandBits(uint64_t v)
 {
     uint64_t x = v & 0x1fffffu; // discard bits higher 21
-    x = (x | x << 32u) & 0x001f00000000fffflu;
-    x = (x | x << 16u) & 0x001f0000ff0000fflu;
-    x = (x | x << 8u)  & 0x100f00f00f00f00flu;
-    x = (x | x << 4u)  & 0x10c30c30c30c30c3lu;
-    x = (x | x << 2u)  & 0x1249249249249249lu;
+    x          = (x | x << 32u) & 0x001f00000000fffflu;
+    x          = (x | x << 16u) & 0x001f0000ff0000fflu;
+    x          = (x | x << 8u) & 0x100f00f00f00f00flu;
+    x          = (x | x << 4u) & 0x10c30c30c30c30c3lu;
+    x          = (x | x << 2u) & 0x1249249249249249lu;
     return x;
 }
 
@@ -93,9 +93,9 @@ HOST_DEVICE_FUN
 constexpr uint64_t compactBits(uint64_t v)
 {
     v &= 0x1249249249249249lu;
-    v = (v ^ (v >>  2u)) & 0x10c30c30c30c30c3lu;
-    v = (v ^ (v >>  4u)) & 0x100f00f00f00f00flu;
-    v = (v ^ (v >>  8u)) & 0x001f0000ff0000fflu;
+    v = (v ^ (v >> 2u)) & 0x10c30c30c30c30c3lu;
+    v = (v ^ (v >> 4u)) & 0x100f00f00f00f00flu;
+    v = (v ^ (v >> 8u)) & 0x001f0000ff0000fflu;
     v = (v ^ (v >> 16u)) & 0x001f00000000fffflu;
     v = (v ^ (v >> 32u)) & 0x00000000001ffffflu;
     return v;
@@ -108,7 +108,7 @@ constexpr uint64_t compactBits(uint64_t v)
  * @tparam    KeyType  32- or 64 bit unsigned integer
  * @param[in] ix,iy,iz input coordinates in [0:2^maxTreeLevel<KeyType>{}]
  */
-template <class KeyType>
+template<class KeyType>
 constexpr HOST_DEVICE_FUN std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType>
 iMorton(unsigned ix, unsigned iy, unsigned iz) noexcept
 {
@@ -164,7 +164,7 @@ constexpr HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, u
 template<class KeyType>
 HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned, unsigned> decodeMorton(KeyType code) noexcept
 {
-    return { idecodeMortonX(code), idecodeMortonY(code), idecodeMortonZ(code) };
+    return {idecodeMortonX(code), idecodeMortonY(code), idecodeMortonZ(code)};
 }
 
 /*! @brief compute the 3D integer coordinate box that contains the key range
@@ -179,7 +179,7 @@ HOST_DEVICE_FUN IBox mortonIBox(KeyType keyStart, unsigned level) noexcept
 {
     assert(level <= maxTreeLevel<KeyType>{});
     unsigned cubeLength = (1u << (maxTreeLevel<KeyType>{} - level));
-    auto [ix, iy, iz] = decodeMorton(keyStart);
+    auto [ix, iy, iz]   = decodeMorton(keyStart);
     return IBox(ix, ix + cubeLength, iy, iy + cubeLength, iz, iz + cubeLength);
 }
 
