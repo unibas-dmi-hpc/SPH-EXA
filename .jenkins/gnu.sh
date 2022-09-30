@@ -18,6 +18,8 @@ module load cdt/22.05
 module load nvhpc-nompi/22.2
 module load cray-hdf5-parallel/1.12.1.3
 module load reframe-cscs-tests
+module load daint-gpu
+module load CMake
 module list -t
 # module unload cray-libsci_acc
 # export PATH=/project/c32/src/cmake-3.24.2-linux-x86_64/bin:$PATH
