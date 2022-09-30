@@ -73,14 +73,7 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        T radius0 = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
-
-        // multiply coordinates by sqrt(r) to generate a density profile ~ 1/r
-        T contraction = std::sqrt(radius0);
-        d.x[i] *= contraction;
-        d.y[i] *= contraction;
-        d.z[i] *= contraction;
-        T radius = radius0 * contraction;
+        T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
 
         T concentration = c0 / radius;
         d.h[i]          = std::cbrt(3 / (4 * M_PI) * ng0 / concentration) * 0.5;
@@ -88,6 +81,22 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
         d.x_m1[i] = d.vx[i] * firstTimeStep;
         d.y_m1[i] = d.vy[i] * firstTimeStep;
         d.z_m1[i] = d.vz[i] * firstTimeStep;
+    }
+}
+
+template<class Vector>
+void contractRhoProfile(Vector& x, Vector& y, Vector& z)
+{
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < x.size(); i++)
+    {
+        auto radius0 = std::sqrt(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]);
+
+        // multiply coordinates by sqrt(r) to generate a density profile ~ 1/r
+        auto contraction = std::sqrt(radius0);
+        x[i] *= contraction;
+        y[i] *= contraction;
+        z[i] *= contraction;
     }
 }
 
@@ -132,6 +141,8 @@ public:
         d.numParticlesGlobal = d.x.size();
         MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
 
+        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
+        contractRhoProfile(d.x, d.y, d.z);
         syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
 
         d.resize(d.x.size());
