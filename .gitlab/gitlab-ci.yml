@@ -5,7 +5,7 @@ include:
 stages:
   - SPHbase     # no srun (tags=docker_jfrog)
   - SPHbuild    # no srun (tags=docker_jfrog)
-  - SPHpull     # no srun (tags=docker_jfrog)
+  - SPHpull     # on daint
   - SPHtest     # on daint
 
 #{{{ variables
@@ -15,6 +15,9 @@ variables:
   BASE_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:hip"
   BASE_SKIP: "${CSCS_REGISTRY_PATH}/sph-exa_base:skip"
   BUILD_CUDA: "${CSCS_REGISTRY_PATH}/sph-exa_build:cuda"
+  # jfrog.svc.cscs.ch/contbuild/testing/anfink/44692846847247 sph-exa_build:cuda
+  # jfrog.svc.cscs.ch/contbuild/testing/anfink/4264416954089684 :1.0
+  # BUILD_CUDA1: "${CSCS_REGISTRY_PATH}/sph-exa_build:1.0"
   BUILD_HIP: "${CSCS_REGISTRY_PATH}/sph-exa_build:hip"
   DEPS_PATH: 'ftp://ftp.cscs.ch/out/jgp/hpc/containers'
   VERBOSE: 'YES'
@@ -96,17 +99,21 @@ sph:build:hip:
 #{{{ sph:pull:cuda:
 sph:pull:cuda:
   needs: ['sph:build:cuda']
-  tags:
-    - ${docker_jfrog_tag}
+  # tags:
+  #   - ${docker_jfrog_tag}
   extends: .daint
   stage: SPHpull
   image: ${BUILD_CUDA}
   script:
     - echo "Pulling image=${BUILD_CUDA}"
+    - echo "  CSCS_REGISTRY_PATH=${CSCS_REGISTRY_PATH}"
+    - echo "  PERSIST_IMAGE_NAME=${PERSIST_IMAGE_NAME}"
   variables:
     PULL_IMAGE: 'YES'
     CSCS_REGISTRY_LOGIN: 'YES'
+    PERSIST_IMAGE_NAME: "${BUILD_CUDA}"
 #}}}
+
 #{{{ sph:test:cuda:1:
 sph:build:cuda:1:
   needs: ['sph:pull:cuda']
@@ -157,6 +164,27 @@ sph:build:cuda:2:
     # SLURM_PARTITION
     # SLURM_TIMELIMIT    
 #}}}
+#{{{ sph:test:cuda:2cn:
+# sph:build:cuda:2cn:
+#   needs: ['sph:pull:cuda']
+#   extends: .daint
+#   stage: SPHtest
+#   image: ${BUILD_CUDA}
+#   script:
+#     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
+#     - /usr/local/sbin/integration_mpi/assignment_gpu
+#     - /usr/local/sbin/integration_mpi/domain_gpu
+#     - /usr/local/sbin/integration_mpi/exchange_domain_gpu
+#   variables:
+#     USE_MPI: 'YES'
+#     SLURM_CONSTRAINT: 'gpu'
+#     SLURM_JOB_NUM_NODES: 2
+#     SLURM_NTASKS: 2
+#     PULL_IMAGE: 'NO'
+#     CSCS_REGISTRY_LOGIN: 'YES'
+#     SLURM_PARTITION: 'debug'
+#     # SLURM_TIMELIMIT
+#}}}
 #{{{ sph:test:cuda:5:
 sph:build:cuda:5:
   needs: ['sph:pull:cuda']
@@ -193,6 +221,7 @@ sph:build:cuda:p100:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - /usr/local/sbin/performance/hilbert_perf_gpu
     - /usr/local/sbin/performance/cudaNeighborsTest
+    # - /usr/local/sbin/performance/neighbors_test_gpu
     - /usr/local/sbin/performance/octree_perf_gpu
     - /usr/local/sbin/unit_cuda/component_units_cuda
     - /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests
