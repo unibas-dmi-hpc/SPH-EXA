@@ -54,7 +54,8 @@ INSTALLDIR=$RUNDIR/local
 # sed -i "s@GIT_TAG@#GIT_TAG @"                 ./ryoanji/cmake/setup_GTest.cmake
 
 # can be run manually with: 
-# BUILD_TAG=jenkins WORKSPACE=SPH-EXA.git STAGE_NAME=0 ./gnu.sh
+# BUILD_TAG=jenkins WORKSPACE=SPH-EXA.git STAGE_NAME=log ./gnu.sh
+rm -fr build
 $CMAKE \
 -S "${WORKSPACE}" \
 -B build \
