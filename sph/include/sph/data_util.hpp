@@ -33,7 +33,6 @@
 #include <variant>
 
 #include "cstone/util/traits.hpp"
-#include "particles_data_stubs.hpp"
 
 namespace sphexa
 {
@@ -58,15 +57,6 @@ auto getOutputArrays(Dataset& dataset)
         std::visit([&outputFields](auto& arg) { outputFields.push_back(arg->data()); }, fieldPointers[i]);
     }
     return outputFields;
-}
-
-//! @brief resizes the neighbors list, only used in the CPU version
-template<class Dataset>
-void resizeNeighbors(Dataset& d, size_t size)
-{
-    double growthRate = 1.05;
-    //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
-    reallocate(d.neighbors, cstone::HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
 }
 
 //! @brief compile-time index look-up of a string literal in a list of strings

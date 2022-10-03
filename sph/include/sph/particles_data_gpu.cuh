@@ -37,6 +37,7 @@
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/primitives_gpu.h"
+#include "cstone/tree/accel_switch.hpp"
 #include "cstone/util/reallocate.hpp"
 
 #include "data_util.hpp"

@@ -33,7 +33,6 @@
 
 #include "cstone/util/traits.hpp"
 #include "cstone/util/util.hpp"
-#include "data_util.hpp"
 
 namespace sphexa
 {

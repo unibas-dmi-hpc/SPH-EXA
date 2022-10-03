@@ -35,6 +35,7 @@
 #include <variant>
 
 #include "cstone/cuda/cuda_utils.hpp"
+#include "cstone/tree/accel_switch.hpp"
 #include "cstone/tree/definitions.h"
 #include "cstone/util/reallocate.hpp"
 
@@ -218,6 +219,15 @@ public:
 
 template<typename T, typename I, class Acc>
 const T ParticlesData<T, I, Acc>::K = ::sph::compute_3d_k(sincIndex);
+
+//! @brief resizes the neighbors list, only used in the CPU version
+template<class Dataset>
+void resizeNeighbors(Dataset& d, size_t size)
+{
+    double growthRate = 1.05;
+    //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
+    reallocate(d.neighbors, cstone::HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
+}
 
 template<class Dataset, std::enable_if_t<not cstone::HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
 void transferToDevice(Dataset&, size_t, size_t, const std::vector<std::string>&)
