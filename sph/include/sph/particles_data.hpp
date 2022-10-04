@@ -42,8 +42,8 @@
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
 
-#include "data_util.hpp"
-#include "field_states.hpp"
+#include "cstone/fields/data_util.hpp"
+#include "cstone/fields/field_states.hpp"
 #include "particles_data_stubs.hpp"
 
 #if defined(USE_CUDA)

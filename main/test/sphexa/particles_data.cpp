@@ -33,8 +33,8 @@
 
 #include "gtest/gtest.h"
 
+#include "cstone/fields/particles_get.hpp"
 #include "sph/particles_data.hpp"
-#include "sph/particles_get.hpp"
 
 using namespace sphexa;
 

@@ -31,6 +31,8 @@
 
 #pragma once
 
+#include "cstone/fields/data_util.hpp"
+#include "cstone/tree/accel_switch.hpp"
 #include "cstone/util/traits.hpp"
 #include "cstone/util/util.hpp"
 

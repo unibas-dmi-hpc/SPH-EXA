@@ -40,8 +40,8 @@
 #include "cstone/tree/accel_switch.hpp"
 #include "cstone/util/reallocate.hpp"
 
-#include "data_util.hpp"
-#include "field_states.hpp"
+#include "cstone/fields/data_util.hpp"
+#include "cstone/fields/field_states.hpp"
 #include "tables.hpp"
 
 namespace sphexa
