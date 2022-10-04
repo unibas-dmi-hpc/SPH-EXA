@@ -34,7 +34,7 @@
 
 #include "cstone/util/traits.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 //! @brief extract a vector of pointers to particle fields for file output
@@ -89,4 +89,4 @@ std::vector<int> fieldStringsToInt(const std::vector<std::string>& subsetNames, 
     return subsetIndices;
 }
 
-} // namespace sphexa
+} // namespace cstone

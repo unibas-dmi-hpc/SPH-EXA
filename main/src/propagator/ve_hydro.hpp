@@ -45,6 +45,7 @@ namespace sphexa
 {
 
 using namespace sph;
+using cstone::FieldList;
 
 template<class DomainType, class ParticleDataType>
 class HydroVeProp : public Propagator<DomainType, ParticleDataType>

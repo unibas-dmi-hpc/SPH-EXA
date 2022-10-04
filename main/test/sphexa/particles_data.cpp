@@ -182,7 +182,7 @@ TEST(ParticlesData, getFieldList)
     d.resize(1);
     d.rho[0] = 1;
 
-    using Fields = FieldList<"x", "y", "rho">;
+    using Fields = cstone::FieldList<"x", "y", "rho">;
 
     auto acc = get<Fields>(d);
 

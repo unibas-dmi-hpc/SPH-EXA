@@ -170,7 +170,7 @@ public:
     void setOutputFields(const std::vector<std::string>& outFields)
     {
         outputFieldNames   = outFields;
-        outputFieldIndices = fieldStringsToInt(outFields, fieldNames);
+        outputFieldIndices = cstone::fieldStringsToInt(outFields, fieldNames);
     }
 
     void resize(size_t size)
