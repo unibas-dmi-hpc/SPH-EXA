@@ -48,7 +48,7 @@ namespace sphexa
 {
 
 template<typename T, class KeyType>
-class DeviceParticlesData : public FieldStates<DeviceParticlesData<T, KeyType>>
+class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData<T, KeyType>>
 {
     size_t allocatedTaskSize = 0;
 

@@ -55,7 +55,7 @@ namespace sphexa
 {
 
 template<typename T, typename KeyType_, class AccType>
-class ParticlesData : public FieldStates<ParticlesData<T, KeyType_, AccType>>
+class ParticlesData : public cstone::FieldStates<ParticlesData<T, KeyType_, AccType>>
 {
 public:
     using KeyType         = KeyType_;

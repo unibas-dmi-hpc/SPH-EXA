@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Contains the object holding all particle data
+ * @brief Extension for particle field containers. Provides acquire/release semantics.
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -35,7 +35,7 @@
 #include <vector>
 #include <variant>
 
-namespace sphexa
+namespace cstone
 {
 
 /*! @brief Helper class to keep track of field states
@@ -197,4 +197,4 @@ private:
     std::vector<State> fieldStates_;
 };
 
-} // namespace sphexa
+} // namespace cstone
