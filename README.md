@@ -29,7 +29,7 @@ Exascale-ready, MPI+X, SPH code: SPH-EXA.
 
 # SPH-EXA
 
-SPH-EXA is a C++20 simulation code, parallelized with MPI, OpenMP, CUDA, and HIP.
+SPH-EXA is a C++20 simulation code for hydrodynamics simulations (with gravity and other physics), parallelized with MPI, OpenMP, CUDA, and HIP.
 
 [Check our wiki for more details](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/wiki)
 
