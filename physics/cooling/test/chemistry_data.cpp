@@ -27,6 +27,7 @@
  *
  */
 
+#include <iostream>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -39,4 +40,7 @@ TEST(ChemistryData, test1a)
 {
     using T = double;
     ChemistryData<T> data;
+
+    for (size_t i = 0; i < data.fieldNames.size(); ++i)
+        std::cout << data.fieldNames[i] << std::endl;
 }

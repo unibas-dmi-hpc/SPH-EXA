@@ -130,9 +130,19 @@ constexpr HOST_DEVICE_FUN StrongType<T, Phantom> operator-(const StrongType<T, P
 template<size_t N>
 struct StructuralString
 {
-    constexpr StructuralString(const char (&str)[N]) { std::copy_n(str, N, value); }
+    constexpr StructuralString(const char (&str)[N]) noexcept { std::copy_n(str, N, value); }
+
     char value[N];
 };
+
+template<size_t N1, size_t N2>
+constexpr StructuralString<N1 + N2 - 1> operator+(const StructuralString<N1>& a, const StructuralString<N2>& b)
+{
+    char value[N1 + N2 - 1];
+    std::copy_n(a.value, N1 - 1, value);
+    std::copy_n(b.value, N2, value + N1 - 1);
+    return StructuralString(value);
+}
 
 //! @brief Utility to call function with each element in tuple_
 template<class F, class... Ts>
