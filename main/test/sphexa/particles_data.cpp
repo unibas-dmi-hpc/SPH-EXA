@@ -64,10 +64,10 @@ TEST(ParticlesData, releaseAcquire)
     size_t size = 10;
     d.resize(size);
 
-    d.release("du");
+    d.release("ax");
     d.acquire("c");
 
-    EXPECT_EQ(d.du.size(), 0);
+    EXPECT_EQ(d.ax.size(), 0);
     EXPECT_EQ(d.c.size(), size);
 }
 
@@ -96,20 +96,20 @@ TEST(ParticlesData, releaseAcquireMultiple)
 {
     ParticlesData<double, unsigned, cstone::CpuTag> d;
 
-    d.setDependent("du", "ax", "p");
+    d.setDependent("ax", "ay", "p");
 
     size_t size = 10;
     d.resize(size);
 
-    EXPECT_EQ(d.du.size(), size);
     EXPECT_EQ(d.ax.size(), size);
+    EXPECT_EQ(d.ay.size(), size);
     EXPECT_EQ(d.p.size(), size);
 
-    d.release("du", "ax", "p");
+    d.release("ax", "ay", "p");
     d.acquire("c11", "c12", "c13");
 
-    EXPECT_EQ(d.du.size(), 0);
     EXPECT_EQ(d.ax.size(), 0);
+    EXPECT_EQ(d.ay.size(), 0);
     EXPECT_EQ(d.p.size(), 0);
     EXPECT_EQ(d.c11.size(), size);
     EXPECT_EQ(d.c12.size(), size);

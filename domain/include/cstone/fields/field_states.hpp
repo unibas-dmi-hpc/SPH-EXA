@@ -182,6 +182,8 @@ private:
                                  ". No suitable field available");
     }
 
+    void setState(size_t idx, State state) { fieldStates_[idx] = state; }
+
     void setState(const std::string& field, State state)
     {
         size_t idx =
@@ -190,7 +192,7 @@ private:
         {
             throw std::runtime_error("Cannot set state of " + field + ": unknown field\n");
         }
-        fieldStates_[idx] = state;
+        setState(idx, state);
     }
 
     //! @brief current state of each field

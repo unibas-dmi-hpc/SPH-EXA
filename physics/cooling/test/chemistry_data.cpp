@@ -25,6 +25,8 @@
 /*! @file
  * @brief Radiative cooling tests with GRACKLE
  *
+ * @author Noah Kubli <noah.kubli@uzh.ch>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include <iostream>
@@ -35,12 +37,25 @@
 #include "chemistry_data.hpp"
 
 using namespace cooling;
+using cstone::get;
 
 TEST(ChemistryData, test1a)
 {
     using T = double;
     ChemistryData<T> data;
 
-    for (size_t i = 0; i < data.fieldNames.size(); ++i)
-        std::cout << data.fieldNames[i] << std::endl;
+    // activate some of the fields at runtime, affects next resize
+    data.setConserved(0, 1, 9);
+
+    size_t dataSize = 10;
+    data.resize(dataSize);
+
+    EXPECT_EQ(data.fields[0].size(), dataSize);
+    EXPECT_EQ(data.fields[1].size(), dataSize);
+    EXPECT_EQ(data.fields[9].size(), dataSize);
+
+    EXPECT_EQ(data.fields[2].size(), 0);
+
+    // fields can also be accessed based on names
+    EXPECT_EQ(get<"Y0">(data).data(), data.fields[0].data());
 }
