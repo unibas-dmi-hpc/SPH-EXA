@@ -70,7 +70,7 @@ void Execute(DataType& d, long startIndex, long endIndex)
 
     std::vector<int> conn(endIndex - startIndex);
     std::iota(conn.begin(), conn.end(), 0);
-    mesh["topologies/mesh/elements/connectivity"].set(conn);
+    mesh["topologies/mesh/elements/connectivity"].set_external(conn);
 
     // Finally, add particle properties
     auto fields = mesh["fields"];
