@@ -32,26 +32,12 @@ if (NOT CMAKE_CUDA_COMPILER)
     if(CMAKE_CUDA_COMPILER)
         enable_language(CUDA)
         find_package(CUDAToolkit)
-        set(CMAKE_CUDA_ARCHITECTURES OFF)
+        set(CMAKE_CUDA_STANDARD 17)
     endif()
-endif()
-
-
-if (CMAKE_CUDA_COMPILER)
-    set(CMAKE_CUDA_STANDARD 17)
-    # use default nvcc cuda architectures
-    set(CMAKE_CUDA_ARCHITECTURES OFF)
-
-#     if(OpenMP_FOUND)
-#         # workaround for openmp+cuda objects
-#         #set(CMAKE_CUDA_FLAGS "-Xcompiler ${OpenMP_CXX_FLAGS} ${CMAKE_CUDA_FLAGS}")
-#     endif()
-
-else()
-    message(STATUS "No CUDA support")
 endif()
 
 add_subdirectory(include)
 if (BUILD_TESTING)
     add_subdirectory(test)
 endif()
+
