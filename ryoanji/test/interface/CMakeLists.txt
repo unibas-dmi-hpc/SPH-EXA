@@ -13,7 +13,7 @@ if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     add_executable(${testname} global_upsweep_gpu.cpp)
     target_include_directories(${testname} PRIVATE ${RYOANJI_TEST_INCLUDE_DIRS})
 
-    target_link_libraries(${testname} PRIVATE ryoanji)
+    target_link_libraries(${testname} PRIVATE cstone_gpu ryoanji)
 
     if (CMAKE_HIP_COMPILER)
         target_link_libraries(${testname} PRIVATE hip::host)

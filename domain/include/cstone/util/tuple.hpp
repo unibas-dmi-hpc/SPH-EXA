@@ -33,14 +33,13 @@
 
 #include <tuple>
 
-#if defined(__CUDACC__ ) || defined(__HIPCC__)
+#if defined(__CUDACC__) || defined(__HIPCC__)
 #include <thrust/tuple.h>
 #endif
 
 #include "cstone/cuda/annotation.hpp"
 
-
-#if defined(__CUDACC__ ) || defined(__HIPCC__)
+#if defined(__CUDACC__) || defined(__HIPCC__)
 
 namespace util
 {
@@ -69,7 +68,7 @@ namespace std
 template<size_t N, class... Ts>
 struct tuple_element<N, thrust::tuple<Ts...>>
 {
-     typedef typename thrust::tuple_element<N, thrust::tuple<Ts...>>::type type;
+    typedef typename thrust::tuple_element<N, thrust::tuple<Ts...>>::type type;
 };
 
 template<class... Ts>

@@ -39,37 +39,38 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
+                                  const cstone::Box<T>& box)
 {
-    const int* neighbors      = d.neighbors.data();
-    const int* neighborsCount = d.neighborsCount.data();
+    const cstone::LocalIndex* neighbors      = d.neighbors.data();
+    const unsigned*           neighborsCount = d.nc.data();
 
-    const T* h   = d.h.data();
-    const T* m   = d.m.data();
-    const T* x   = d.x.data();
-    const T* y   = d.y.data();
-    const T* z   = d.z.data();
-    const T* vx  = d.vx.data();
-    const T* vy  = d.vy.data();
-    const T* vz  = d.vz.data();
-    const T* rho = d.rho.data();
-    const T* c   = d.c.data();
-    const T* p   = d.p.data();
+    const auto* h   = d.h.data();
+    const auto* m   = d.m.data();
+    const auto* x   = d.x.data();
+    const auto* y   = d.y.data();
+    const auto* z   = d.z.data();
+    const auto* vx  = d.vx.data();
+    const auto* vy  = d.vy.data();
+    const auto* vz  = d.vz.data();
+    const auto* rho = d.rho.data();
+    const auto* c   = d.c.data();
+    const auto* p   = d.p.data();
 
-    const T* c11 = d.c11.data();
-    const T* c12 = d.c12.data();
-    const T* c13 = d.c13.data();
-    const T* c22 = d.c22.data();
-    const T* c23 = d.c23.data();
-    const T* c33 = d.c33.data();
+    const auto* c11 = d.c11.data();
+    const auto* c12 = d.c12.data();
+    const auto* c13 = d.c13.data();
+    const auto* c22 = d.c22.data();
+    const auto* c23 = d.c23.data();
+    const auto* c33 = d.c33.data();
 
-    T* du       = d.du.data();
-    T* grad_P_x = d.ax.data();
-    T* grad_P_y = d.ay.data();
-    T* grad_P_z = d.az.data();
+    auto* du       = d.du.data();
+    auto* grad_P_x = d.ax.data();
+    auto* grad_P_y = d.ay.data();
+    auto* grad_P_z = d.az.data();
 
-    const T* wh  = d.wh.data();
-    const T* whd = d.whd.data();
+    const auto* wh  = d.wh.data();
+    const auto* whd = d.whd.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
@@ -83,7 +84,7 @@ void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, int ngmax,
 
         T maxvsignal = 0;
 
-        int nc = std::min(neighborsCount[i], ngmax);
+        unsigned nc = std::min(neighborsCount[i], ngmax);
         momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, m, rho, p, c,
                                c11, c12, c13, c22, c23, c33, wh, whd, grad_P_x, grad_P_y, grad_P_z, du, &maxvsignal);
 
@@ -95,7 +96,7 @@ void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, int ngmax,
 }
 
 template<class T, class Dataset>
-void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

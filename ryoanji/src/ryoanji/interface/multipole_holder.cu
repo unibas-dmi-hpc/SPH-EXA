@@ -31,6 +31,7 @@
 
 #include <thrust/device_vector.h>
 
+#include "cstone/util/reallocate.hpp"
 #include "multipole_holder.cuh"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
 #include "ryoanji/nbody/gpu_config.cuh"
@@ -47,14 +48,14 @@ void memcpy(T* dest, const T* src, size_t n, cudaMemcpyKind kind)
     cudaMemcpy(dest, src, sizeof(T) * n, kind);
 }
 
-template<class Tc, class Tm, class Tf, class KeyType, class MType>
-class MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::Impl
+template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
+class MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::Impl
 {
 public:
     Impl() {}
 
     void upsweep(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalOctree,
-                 const cstone::FocusedOctree<KeyType, Tf>& focusTree, const cstone::LocalIndex* layout,
+                 const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles)
     {
         constexpr int                  numThreads = UpsweepConfig::numThreads;
@@ -123,7 +124,7 @@ public:
     }
 
     float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
-                  const Tm* h, Tc G, Tc* ax, Tc* ay, Tc* az)
+                  const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az)
     {
         resetTraversalCounters<<<1, 1>>>();
 
@@ -138,7 +139,7 @@ public:
 
         LocalIndex poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
-        reallocate(globalPool_, poolSize, 1.05);
+        reallocateGeneric(globalPool_, poolSize, 1.05);
         traverse<<<numBlocks, TravConfig::numThreads>>>(
             firstBody, lastBody, {1, 9}, x, y, z, m, h, rawPtr(childOffsets_.data()), rawPtr(internalToLeaf_.data()),
             rawPtr(layout_.data()), rawPtr(centers_.data()), rawPtr(multipoles_.data()), G, (int*)(nullptr), ax, ay, az,
@@ -154,17 +155,33 @@ public:
 private:
     void resize(size_t numLeaves)
     {
-        size_t numNodes = numLeaves + (numLeaves - 1) / 7;
+        double growthRate = 1.01;
+        size_t numNodes   = numLeaves + (numLeaves - 1) / 7;
 
-        double growthRate = 1.05;
-        reallocate(leafToInternal_, numLeaves, growthRate);
-        reallocate(internalToLeaf_, numNodes, growthRate);
-        reallocate(childOffsets_, numNodes, growthRate);
+        auto dealloc = [](auto& v)
+        {
+            v.clear();
+            v.shrink_to_fit();
+        };
 
-        reallocate(layout_, numLeaves + 1, growthRate);
+        if (numLeaves > leafToInternal_.capacity())
+        {
+            dealloc(leafToInternal_);
+            dealloc(internalToLeaf_);
+            dealloc(childOffsets_);
+            dealloc(layout_);
+            dealloc(centers_);
+            dealloc(multipoles_);
+        }
 
-        reallocate(centers_, numNodes, growthRate);
-        reallocate(multipoles_, numNodes, growthRate);
+        reallocateGeneric(leafToInternal_, numLeaves, growthRate);
+        reallocateGeneric(internalToLeaf_, numNodes, growthRate);
+        reallocateGeneric(childOffsets_, numNodes, growthRate);
+
+        reallocateGeneric(layout_, numLeaves + 1, growthRate);
+
+        reallocateGeneric(centers_, numNodes, growthRate);
+        reallocateGeneric(multipoles_, numNodes, growthRate);
     }
 
     thrust::device_vector<TreeNodeIndex> leafToInternal_;
@@ -179,54 +196,49 @@ private:
     thrust::device_vector<int> globalPool_;
 };
 
-template<class Tc, class Tm, class Tf, class KeyType, class MType>
-MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::MultipoleHolder()
+template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
+MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::MultipoleHolder()
     : impl_(new Impl())
 {
 }
 
-template<class Tc, class Tm, class Tf, class KeyType, class MType>
-MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::~MultipoleHolder() = default;
+template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
+MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::~MultipoleHolder() = default;
 
-template<class Tc, class Tm, class Tf, class KeyType, class MType>
-void MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::upsweep(const Tc* x, const Tc* y, const Tc* z, const Tm* m,
-                                                          const cstone::Octree<KeyType>&            globalTree,
-                                                          const cstone::FocusedOctree<KeyType, Tf>& focusTree,
-                                                          const LocalIndex* layout, MType* multipoles)
+template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
+void MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::upsweep(
+    const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalTree,
+    const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const LocalIndex* layout, MType* multipoles)
 {
     impl_->upsweep(x, y, z, m, globalTree, focusTree, layout, multipoles);
 }
 
-template<class Tc, class Tm, class Tf, class KeyType, class MType>
-float MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x,
-                                                           const Tc* y, const Tc* z, const Tm* m, const Tm* h, Tc G,
-                                                           Tc* ax, Tc* ay, Tc* az)
+template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
+float MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::compute(LocalIndex firstBody, LocalIndex lastBody,
+                                                                   const Tc* x, const Tc* y, const Tc* z, const Tm* m,
+                                                                   const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az)
 {
     return impl_->compute(firstBody, lastBody, x, y, z, m, h, G, ax, ay, az);
 }
 
-template<class Tc, class Tm, class Tf, class KeyType, class MType>
-const MType* MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::deviceMultipoles() const
+template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
+const MType* MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::deviceMultipoles() const
 {
     return impl_->deviceMultipoles();
 }
 
-template class MultipoleHolder<double, double, double, uint64_t, SphericalMultipole<double, 4>>;
-template class MultipoleHolder<double, double, double, uint64_t, SphericalMultipole<float, 4>>;
-template class MultipoleHolder<double, float, double, uint64_t, SphericalMultipole<float, 4>>;
-template class MultipoleHolder<float, float, float, uint64_t, SphericalMultipole<float, 4>>;
-template class MultipoleHolder<double, double, double, uint32_t, SphericalMultipole<double, 4>>;
-template class MultipoleHolder<double, float, double, uint32_t, SphericalMultipole<double, 4>>;
-template class MultipoleHolder<double, float, double, uint32_t, SphericalMultipole<float, 4>>;
-template class MultipoleHolder<float, float, float, uint32_t, SphericalMultipole<float, 4>>;
+#define MHOLDER_SPH(Tc, Th, Tm, Ta, Tf, KeyType, MVal)                                                                 \
+    template class MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, SphericalMultipole<MVal, 4>>
 
-template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<double>>;
-template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<float>>;
-template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<float>>;
-template class MultipoleHolder<float, float, float, uint64_t, CartesianQuadrupole<float>>;
-template class MultipoleHolder<double, double, double, uint32_t, CartesianQuadrupole<double>>;
-template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<double>>;
-template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<float>>;
-template class MultipoleHolder<float, float, float, uint32_t, CartesianQuadrupole<float>>;
+MHOLDER_SPH(double, double, double, double, double, uint64_t, double);
+MHOLDER_SPH(double, double, float, double, double, uint64_t, float);
+MHOLDER_SPH(float, float, float, float, float, uint64_t, float);
+
+#define MHOLDER_CART(Tc, Th, Tm, Ta, Tf, KeyType, MVal)                                                                \
+    template class MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, CartesianQuadrupole<MVal>>
+
+MHOLDER_CART(double, double, double, double, double, uint64_t, double);
+MHOLDER_CART(double, double, float, double, double, uint64_t, float);
+MHOLDER_CART(float, float, float, float, float, uint64_t, float);
 
 } // namespace ryoanji

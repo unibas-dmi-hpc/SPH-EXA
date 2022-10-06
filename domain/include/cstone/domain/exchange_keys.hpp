@@ -43,12 +43,10 @@ namespace cstone
  * @param treeLeaves    cornerstone octree leaves, length N+1
  * @param haloFlags     0 or 1 for each node in @p leaves, length N
  *                      nodes marked with 1 are halos of the executing rank
- * @param particleKeys  sorted SFC keys of locally assigned particles
- * @param offset        the start position of the locally assigned particles that they will
- *                      have in the particles buffers after halo exchange
  * @param assignment    assignment of @p treeLeaves to ranks, only ranks listed in @p peerRanks
  *                      are accessed
  * @param peerRanks     list of peer rank IDs
+ * @param layout        particle location (index in buffers) of each node in @a treeLeaves
  * @return              a SendList, containing ranges of local particle indices to send out
  *                      to each peer rank in subsequent halo particle exchanges.
  *
@@ -64,10 +62,9 @@ namespace cstone
 template<class KeyType>
 SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
                              gsl::span<const int> haloFlags,
-                             gsl::span<const KeyType> particleKeys,
-                             LocalIndex offset,
                              gsl::span<const TreeIndexPair> assignment,
-                             gsl::span<const int> peerRanks)
+                             gsl::span<const int> peerRanks,
+                             gsl::span<const LocalIndex> layout)
 {
     std::vector<std::vector<KeyType>> sendBuffers;
     sendBuffers.reserve(peerRanks.size());
@@ -102,10 +99,8 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
             KeyType lowerKey = receiveBuffer[i];
             KeyType upperKey = receiveBuffer[i + 1];
 
-            LocalIndex lowerIdx =
-                stl::lower_bound(particleKeys.begin(), particleKeys.end(), lowerKey) - particleKeys.begin() + offset;
-            LocalIndex upperIdx =
-                stl::lower_bound(particleKeys.begin(), particleKeys.end(), upperKey) - particleKeys.begin() + offset;
+            LocalIndex lowerIdx = layout[findNodeAbove(treeLeaves, lowerKey)];
+            LocalIndex upperIdx = layout[findNodeAbove(treeLeaves, upperKey)];
 
             ret[receiveRank].addRange(lowerIdx, upperIdx);
         }

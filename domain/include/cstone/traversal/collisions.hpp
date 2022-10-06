@@ -81,7 +81,7 @@ void findHalos(const TreeType<KeyType>& octree,
 
     auto markCollisions = [flags = collisionFlags](TreeNodeIndex i) { flags[i] = 1; };
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
     {
         RadiusType radius = interactionRadii[nodeIdx];

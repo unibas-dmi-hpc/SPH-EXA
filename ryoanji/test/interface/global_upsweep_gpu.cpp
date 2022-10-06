@@ -33,6 +33,7 @@
 
 #include <thrust/device_vector.h>
 
+#define USE_CUDA
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/domain/domain.hpp"
 #include "cstone/findneighbors.hpp"
@@ -55,7 +56,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     cstone::Box<T> box{-1, 1};
 
     // common pool of coordinates, identical on all ranks
-    RandomGaussianCoordinates<T, cstone::SfcKind<KeyType>> coords(numRanks * numParticles, box);
+    cstone::RandomGaussianCoordinates<T, cstone::SfcKind<KeyType>> coords(numRanks * numParticles, box);
 
     std::vector<T> globalH(numRanks * numParticles, 0.1);
     adjustSmoothingLength<KeyType>(globalH.size(), 5, 10, coords.x(), coords.y(), coords.z(), globalH, box);
@@ -75,16 +76,17 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
     std::vector<KeyType> particleKeys(x.size());
 
-    cstone::Domain<KeyType, T> domain(thisRank, numRanks, bucketSize, bucketSizeLocal, theta, box);
+    cstone::Domain<KeyType, T, cstone::GpuTag> domain(thisRank, numRanks, bucketSize, bucketSizeLocal, theta, box);
 
-    std::vector<T> scratchSpace;
-    domain.syncGrav(particleKeys, x, y, z, h, m, std::tuple{}, std::tie(scratchSpace));
+    MultipoleHolder<T, T, T, T, T, KeyType, MultipoleType> multipoleHolder;
 
-    MultipoleHolder<T, T, T, KeyType, MultipoleType> multipoleHolder;
-    thrust::device_vector<T>                         d_x = x, d_y = y, d_z = z, d_m = m;
+    thrust::device_vector<KeyType> d_keys = particleKeys;
+    thrust::device_vector<T>       d_x = x, d_y = y, d_z = z, d_h = h, d_m = m;
+    thrust::device_vector<T>       s1, s2, s3;
+    domain.syncGrav(d_keys, d_x, d_y, d_z, d_h, d_m, std::tuple{}, std::tie(s1, s2, s3));
 
     //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
-    const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();
+    const cstone::FocusedOctree<KeyType, T, cstone::GpuTag>& focusTree = domain.focusTree();
     //! the focused octree, structure only
     const cstone::Octree<KeyType>&               octree  = focusTree.octree();
     gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();

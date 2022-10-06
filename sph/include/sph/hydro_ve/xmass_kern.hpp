@@ -42,34 +42,35 @@ namespace sph
 {
 
 //! @brief a particular choice of defining generalized volume elements
-template<class T>
-HOST_DEVICE_FUN inline T veDefinition(T mass, T rhoZero)
+template<class T, class Tm>
+HOST_DEVICE_FUN inline T veDefinition(Tm mass, T rhoZero)
 {
     return mass / rhoZero;
 }
 
-template<typename T>
-HOST_DEVICE_FUN inline T xmassJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
-                                    int neighborsCount, const T* x, const T* y, const T* z, const T* h, const T* m,
-                                    const T* wh, const T* whd)
+template<class Tc, class Tm, class T>
+HOST_DEVICE_FUN inline T xmassJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& box,
+                                    const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
+                                    const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd)
 {
-    T xi = x[i];
-    T yi = y[i];
-    T zi = z[i];
-    T hi = h[i];
-    T mi = m[i];
+    auto xi = x[i];
+    auto yi = y[i];
+    auto zi = z[i];
+    auto hi = h[i];
+    auto mi = m[i];
 
     T hInv  = 1.0 / hi;
     T h3Inv = hInv * hInv * hInv;
 
     // initialize with self-contribution
     T rho0i = mi;
-    for (int pj = 0; pj < neighborsCount; ++pj)
+    for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
-        int j    = neighbors[pj];
-        T   dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
-        T   vloc = dist * hInv;
-        T   w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
+        cstone::LocalIndex j = neighbors[pj];
+
+        T dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
+        T vloc = dist * hInv;
+        T w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
 
         rho0i += w * m[j];
     }

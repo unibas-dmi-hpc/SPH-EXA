@@ -39,43 +39,43 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeIADImpl(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIADImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    const int* neighbors      = d.neighbors.data();
-    const int* neighborsCount = d.neighborsCount.data();
+    const cstone::LocalIndex* neighbors      = d.neighbors.data();
+    const unsigned*           neighborsCount = d.nc.data();
 
-    const T* h   = d.h.data();
-    const T* m   = d.m.data();
-    const T* x   = d.x.data();
-    const T* y   = d.y.data();
-    const T* z   = d.z.data();
-    const T* rho = d.rho.data();
+    const auto* h   = d.h.data();
+    const auto* m   = d.m.data();
+    const auto* x   = d.x.data();
+    const auto* y   = d.y.data();
+    const auto* z   = d.z.data();
+    const auto* rho = d.rho.data();
 
-    T* c11 = d.c11.data();
-    T* c12 = d.c12.data();
-    T* c13 = d.c13.data();
-    T* c22 = d.c22.data();
-    T* c23 = d.c23.data();
-    T* c33 = d.c33.data();
+    auto* c11 = d.c11.data();
+    auto* c12 = d.c12.data();
+    auto* c13 = d.c13.data();
+    auto* c22 = d.c22.data();
+    auto* c23 = d.c23.data();
+    auto* c33 = d.c33.data();
 
-    const T* wh  = d.wh.data();
-    const T* whd = d.whd.data();
+    const auto* wh  = d.wh.data();
+    const auto* whd = d.whd.data();
 
     T K         = d.K;
     T sincIndex = d.sincIndex;
 
 #pragma omp parallel for schedule(static)
-    for (size_t i = startIndex; i < endIndex; ++i)
+    for (cstone::LocalIndex i = startIndex; i < endIndex; ++i)
     {
-        size_t ni = i - startIndex;
-        int    nc = std::min(neighborsCount[i], ngmax);
+        size_t   ni = i - startIndex;
+        unsigned nc = std::min(neighborsCount[i], ngmax);
         IADJLoopSTD(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22,
                     c23, c33);
     }
 }
 
 template<class T, class Dataset>
-void computeIAD(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIAD(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

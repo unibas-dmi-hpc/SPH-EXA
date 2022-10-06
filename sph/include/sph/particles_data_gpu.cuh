@@ -36,7 +36,8 @@
 #include <variant>
 
 #include "cstone/cuda/cuda_utils.cuh"
-#include "cstone/util/util.hpp"
+#include "cstone/primitives/primitives_gpu.h"
+#include "cstone/util/reallocate.hpp"
 
 #include "data_util.hpp"
 #include "field_states.hpp"
@@ -53,6 +54,9 @@ class DeviceParticlesData : public FieldStates<DeviceParticlesData<T, KeyType>>
     template<class FType>
     using DevVector = thrust::device_vector<FType>;
 
+    using Tmass   = float;
+    using XM1Type = float;
+
 public:
     // number of CUDA streams to use
     static constexpr int NST = 2;
@@ -62,7 +66,7 @@ public:
     struct neighbors_stream
     {
         cudaStream_t stream;
-        int*         d_neighborsCount;
+        unsigned*    d_neighborsCount;
     };
 
     struct neighbors_stream d_stream[NST];
@@ -72,28 +76,29 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    DevVector<T>       x, y, z, x_m1, y_m1, z_m1;    // Positions
-    DevVector<T>       vx, vy, vz;                   // Velocities
-    DevVector<T>       rho;                          // Density
-    DevVector<T>       temp;                         // Temperature
-    DevVector<T>       u;                            // Internal Energy
-    DevVector<T>       p;                            // Pressure
-    DevVector<T>       prho;                         // p / (kx * m^2 * gradh)
-    DevVector<T>       h;                            // Smoothing Length
-    DevVector<T>       m;                            // Mass
-    DevVector<T>       c;                            // Speed of sound
-    DevVector<T>       cv;                           // Specific heat
-    DevVector<T>       mue, mui;                     // mean molecular weight (electrons, ions)
-    DevVector<T>       divv, curlv;                  // Div(velocity), Curl(velocity)
-    DevVector<T>       ax, ay, az;                   // acceleration
-    DevVector<T>       du, du_m1;                    // energy rate of change (du/dt)
-    DevVector<T>       c11, c12, c13, c22, c23, c33; // IAD components
-    DevVector<T>       alpha;                        // AV coeficient
-    DevVector<T>       xm;                           // Volume element definition
-    DevVector<T>       kx;                           // Volume element normalization
-    DevVector<T>       gradh;                        // grad(h) term
-    DevVector<KeyType> codes;                        // Particle space-filling-curve keys
-    DevVector<int>     neighborsCount;               // number of neighbors of each particle
+    DevVector<T>        x, y, z;                      // Positions
+    DevVector<XM1Type>  x_m1, y_m1, z_m1;             // Difference to previous positions
+    DevVector<T>        vx, vy, vz;                   // Velocities
+    DevVector<T>        rho;                          // Density
+    DevVector<T>        temp;                         // Temperature
+    DevVector<T>        u;                            // Internal Energy
+    DevVector<T>        p;                            // Pressure
+    DevVector<T>        prho;                         // p / (kx * m^2 * gradh)
+    DevVector<T>        h;                            // Smoothing Length
+    DevVector<Tmass>    m;                            // Mass
+    DevVector<T>        c;                            // Speed of sound
+    DevVector<T>        cv;                           // Specific heat
+    DevVector<T>        mue, mui;                     // mean molecular weight (electrons, ions)
+    DevVector<T>        divv, curlv;                  // Div(velocity), Curl(velocity)
+    DevVector<T>        ax, ay, az;                   // acceleration
+    DevVector<XM1Type>  du, du_m1;                    // energy rate of change (du/dt)
+    DevVector<T>        c11, c12, c13, c22, c23, c33; // IAD components
+    DevVector<T>        alpha;                        // AV coeficient
+    DevVector<T>        xm;                           // Volume element definition
+    DevVector<T>        kx;                           // Volume element normalization
+    DevVector<T>        gradh;                        // grad(h) term
+    DevVector<KeyType>  keys;                         // Particle space-filling-curve keys
+    DevVector<unsigned> nc;                           // number of neighbors of each particle
 
     DevVector<T> wh;
     DevVector<T> whd;
@@ -114,7 +119,7 @@ public:
     {
         auto ret =
             std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11, c12,
-                     c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, codes, neighborsCount);
+                     c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc);
 
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
         return ret;
@@ -127,15 +132,37 @@ public:
      */
     auto data()
     {
-        using IntVecType = std::decay_t<decltype(neighborsCount)>;
-        using KeyVecType = std::decay_t<decltype(codes)>;
-        using FieldType  = std::variant<DevVector<float>*, DevVector<double>*, KeyVecType*, IntVecType*>;
+        using FieldType =
+            std::variant<DevVector<float>*, DevVector<double>*, DevVector<unsigned>*, DevVector<uint64_t>*>;
 
         return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
                           dataTuple());
     }
 
-    void resize(size_t size);
+    void resize(size_t size)
+    {
+        double growthRate = 1.01;
+        auto   data_      = data();
+
+        auto deallocateVector = [size](auto* devVectorPtr)
+        {
+            using DevVector = std::decay_t<decltype(*devVectorPtr)>;
+            if (devVectorPtr->capacity() < size) { *devVectorPtr = DevVector{}; }
+        };
+
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (this->isAllocated(i)) { std::visit(deallocateVector, data_[i]); }
+        }
+
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (this->isAllocated(i))
+            {
+                std::visit([size, growthRate](auto* arg) { reallocateDevice(*arg, size, growthRate); }, data_[i]);
+            }
+        }
+    }
 
     DeviceParticlesData()
     {
@@ -179,7 +206,7 @@ private:
 
             for (int i = 0; i < NST; ++i)
             {
-                checkGpuErrors(cudaMalloc((void**)&(d_stream[i].d_neighborsCount), newTaskSize * sizeof(int)));
+                checkGpuErrors(cudaMalloc((void**)&(d_stream[i].d_neighborsCount), newTaskSize * sizeof(unsigned)));
             }
 
             allocatedTaskSize = newTaskSize;
@@ -243,6 +270,12 @@ void transferToHost(DataType& d, size_t first, size_t last, const std::vector<st
             std::find(DataType::fieldNames.begin(), DataType::fieldNames.end(), field) - DataType::fieldNames.begin();
         std::visit(launchTransfer, hostData[fieldIdx], deviceData[fieldIdx]);
     }
+}
+
+template<class Vector, class T, std::enable_if_t<IsDeviceVector<Vector>{}, int> = 0>
+void fill(Vector& v, size_t first, size_t last, T value)
+{
+    cstone::fillGpu(rawPtr(v) + first, rawPtr(v) + last, value);
 }
 
 } // namespace sphexa

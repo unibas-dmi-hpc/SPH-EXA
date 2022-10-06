@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *               2021 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,39 +24,23 @@
  */
 
 /*! @file
- * @brief  Implementation of halo discovery and halo exchange
+ * @brief  Energy and momentum reductions on the GPU
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include <vector>
+#include <tuple>
 
-#include "cstone/domain/layout.hpp"
-#include "cstone/halos/exchange_halos_gpu.cuh"
-#include "cstone/halos/halos.hpp"
-#include "cstone/halos/radii.hpp"
-#include "cstone/traversal/collisions.hpp"
-#include "cstone/util/gsl-lite.hpp"
-#include "cstone/util/index_ranges.hpp"
+#include "cstone/tree/definitions.h"
 
-namespace cstone
+namespace sphexa
 {
 
-template<class KeyType>
-template<class... DeviceVectors, class DeviceVector>
-void Halos<KeyType>::exchangeHalosGpu(std::tuple<DeviceVectors&...> arrays,
-                                      DeviceVector& sendBuffer,
-                                      DeviceVector& receiveBuffer) const
-{
-    std::apply(
-        [this, &sendBuffer, &receiveBuffer](auto&... arrays)
-        {
-            haloExchangeGpu(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, sendBuffer, receiveBuffer,
-                            thrust::raw_pointer_cast(arrays.data())...);
-        },
-        arrays);
-}
+template<class Tc, class Tv, class Tu, class Tm>
+extern std::tuple<double, double, cstone::Vec3<double>, cstone::Vec3<double>>
+conservedQuantitiesGpu(const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz, const Tu* u,
+                       const Tm* m, size_t, size_t);
 
-} // namespace cstone
+} // namespace sphexa

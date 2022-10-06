@@ -161,9 +161,9 @@ void moveExpansionCenter(Vec3<T> Xold, Vec3<T> Xnew, CartesianQuadrupole<T>& gv)
  * @param sm    source mass
  * @return      tuple(ax, ay, az, ugrav)
  */
-template<class T1, class T2>
+template<class T1, class T2, class Tm>
 HOST_DEVICE_FUN inline __attribute__((always_inline)) util::tuple<T1, T1, T1, T1>
-particle2Particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
+particle2Particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, Tm sm)
 {
     T1 rx  = sx - tx;
     T1 ry  = sy - ty;
@@ -206,9 +206,9 @@ particle2Particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
  *    the target must be located and this function called twice, with all particles before target and
  *    all particles that follow it.
  */
-template<class T1, class T2>
+template<class T1, class T2, class Tm>
 HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2Particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy,
-                                                              const T1* sz, const T2* h, const T2* m,
+                                                              const T1* sz, const T2* h, const Tm* m,
                                                               LocalIndex numSources)
 {
     T1 axLoc = 0;
@@ -274,10 +274,8 @@ multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, const CartesianQ
     T2 rQrAndMonopole = (T2(-2.5) * rQr * r_minus5 - multipole[Cqi::mass] * r_minus1) * r_minus2;
 
     //       Qr Quad-term
-    return {r_minus5 * Qrx + rQrAndMonopole * rx,
-            r_minus5 * Qry + rQrAndMonopole * ry,
-            r_minus5 * Qrz + rQrAndMonopole * rz,
-            -(multipole[Cqi::mass] * r_minus1 + T2(0.5) * r_minus5 * rQr)};
+    return {r_minus5 * Qrx + rQrAndMonopole * rx, r_minus5 * Qry + rQrAndMonopole * ry,
+            r_minus5 * Qrz + rQrAndMonopole * rz, -(multipole[Cqi::mass] * r_minus1 + T2(0.5) * r_minus5 * rQr)};
 }
 
 /*! @brief add a multipole contribution to the composite multipole

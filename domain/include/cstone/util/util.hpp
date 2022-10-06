@@ -84,14 +84,6 @@ private:
     T value_;
 };
 
-//! @brief constexpr string as structural type for use as non-type template parameter (C++20)
-template<size_t N>
-struct StructuralString
-{
-    constexpr StructuralString(const char (&str)[N]) { std::copy_n(str, N, value); }
-    char value[N];
-};
-
 /*! @brief StrongType equality comparison
  *
  * Requires that both T and Phantom template parameters match.
@@ -134,6 +126,14 @@ constexpr HOST_DEVICE_FUN StrongType<T, Phantom> operator-(const StrongType<T, P
     return StrongType<T, Phantom>(lhs.value() - rhs.value());
 }
 
+//! @brief constexpr string as structural type for use as non-type template parameter (C++20)
+template<size_t N>
+struct StructuralString
+{
+    constexpr StructuralString(const char (&str)[N]) { std::copy_n(str, N, value); }
+    char value[N];
+};
+
 //! @brief Utility to call function with each element in tuple_
 template<class F, class... Ts>
 void for_each_tuple(F&& func, std::tuple<Ts...>& tuple_)
@@ -150,22 +150,33 @@ void for_each_tuple(F&& func, const std::tuple<Ts...>& tuple_)
                tuple_);
 }
 
-//! @brief resizes a vector with a determined growth rate upon reallocation
-template<class Vector>
-void reallocate(Vector& vector, size_t size, double growthRate)
+//! @brief convert an index_sequence into a tuple of integral constants (e.g. for use with for_each_tuple)
+template<size_t... Is>
+constexpr auto makeIntegralTuple(std::index_sequence<Is...>)
 {
-    size_t current_capacity = vector.capacity();
-
-    if (size > current_capacity)
-    {
-        size_t reserve_size = double(size) * growthRate;
-        vector.reserve(reserve_size);
-    }
-    vector.resize(size);
+    return std::make_tuple(std::integral_constant<size_t, Is>{}...);
 }
 
-//! @brief ceil(divident/divisor) for integers
+template<class Tuple, size_t... Is>
+constexpr auto discardLastImpl(const Tuple& tuple, std::index_sequence<Is...>)
+{
+    return std::tie(std::get<Is>(tuple)...);
+}
+
+template<class Tuple>
+constexpr auto discardLastElement(const Tuple& tuple)
+{
+    constexpr int tupleSize = std::tuple_size_v<Tuple>;
+    static_assert(tupleSize > 1);
+
+    using Seq = std::make_index_sequence<tupleSize - 1>;
+    return discardLastImpl(tuple, Seq{});
+}
+
+//! @brief ceil(dividend/divisor) for integers
 HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
 {
     return (dividend + divisor - 1) / divisor;
 }
+
+HOST_DEVICE_FUN constexpr size_t round_up(size_t n, unsigned multiple) { return iceil(n, multiple) * multiple; }

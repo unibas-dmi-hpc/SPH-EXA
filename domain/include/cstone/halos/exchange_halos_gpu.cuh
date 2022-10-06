@@ -34,67 +34,25 @@
 #include <numeric>
 #include <vector>
 
-#include <thrust/device_vector.h>
-
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/primitives/mpi_cuda.cuh"
-#include "cstone/util/index_ranges.hpp"
-#include "cstone/util/thrust_alloc.cuh"
+#include "cstone/domain/index_ranges.hpp"
+#include "cstone/util/reallocate.hpp"
+#include "cstone/util/util.hpp"
 
-#include "gather_scatter.cuh"
+#include "gather_halos_gpu.h"
 
 namespace cstone
 {
 
-auto createRanges(const SendManifest& ranges)
-{
-    using IndexType = SendManifest::IndexType;
-    std::vector<IndexType> offsets(ranges.nRanges());
-    std::vector<IndexType> scan(ranges.nRanges());
-
-    for (IndexType i = 0; i < ranges.nRanges(); ++i)
-    {
-        offsets[i] = ranges.rangeStart(i);
-        scan[i]    = ranges.count(i);
-    }
-
-    std::exclusive_scan(scan.begin(), scan.end(), scan.begin(), IndexType(0));
-    return std::make_tuple(std::move(offsets), std::move(scan));
-}
-
-size_t sendCountSum(const SendList& outgoingHalos)
-{
-    size_t sendCount = 0;
-    for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
-    {
-        sendCount += outgoingHalos[destinationRank].totalCount();
-    }
-    return sendCount;
-}
-
-size_t maxNumRanges(const SendList& sendList)
-{
-    size_t ret = 0;
-    for (const auto& manifest : sendList)
-    {
-        ret = std::max(ret, manifest.nRanges());
-    }
-    return ret;
-}
-
-template<size_t... Is>
-constexpr auto makeIntegralTuple(std::index_sequence<Is...>)
-{
-    return std::make_tuple(std::integral_constant<size_t, Is>{}...);
-}
-
-template<class DeviceVector, class... Arrays>
+template<class DevVec1, class DevVec2, class... Arrays>
 void haloExchangeGpu(int epoch,
                      const SendList& incomingHalos,
                      const SendList& outgoingHalos,
-                     DeviceVector& sendScratchBuffer,
-                     DeviceVector& receiveScratchBuffer,
+                     DevVec1& sendScratchBuffer,
+                     DevVec2& receiveScratchBuffer,
                      Arrays... arrays)
 {
     using IndexType         = SendManifest::IndexType;
@@ -105,12 +63,8 @@ void haloExchangeGpu(int epoch,
 
     std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
-    const size_t totalSendCount = sendCountSum(outgoingHalos);
-    const size_t oldSendSize    = sendScratchBuffer.size();
-    reallocateDevice(sendScratchBuffer, totalSendCount * bytesPerElement / sizeof(typename DeviceVector::value_type),
-                     1.01);
-
-    char* sendBuffer = reinterpret_cast<char*>(thrust::raw_pointer_cast(sendScratchBuffer.data()));
+    const size_t oldSendSize = reallocateBytes(sendScratchBuffer, outgoingHalos.totalCount() * bytesPerElement);
+    char* sendBuffer         = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
 
     std::vector<MPI_Request> sendRequests;
     std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
@@ -125,22 +79,21 @@ void haloExchangeGpu(int epoch,
     char* sendPtr = sendBuffer;
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
-        size_t sendCount = outgoingHalos[destinationRank].totalCount();
+        const auto& outHalos = outgoingHalos[destinationRank];
+        size_t sendCount = outHalos.totalCount();
         if (sendCount == 0) continue;
 
-        // compute indices to extract and upload to GPU
-        auto [rangeOffsets, rangeScan] = createRanges(outgoingHalos[destinationRank]);
         checkGpuErrors(
-            cudaMemcpy(d_range, rangeOffsets.data(), rangeOffsets.size() * sizeof(IndexType), cudaMemcpyHostToDevice));
+            cudaMemcpy(d_range, outHalos.offsets(), outHalos.nRanges() * sizeof(IndexType), cudaMemcpyHostToDevice));
         checkGpuErrors(
-            cudaMemcpy(d_rangeScan, rangeScan.data(), rangeScan.size() * sizeof(IndexType), cudaMemcpyHostToDevice));
+            cudaMemcpy(d_rangeScan, outHalos.scan(), outHalos.nRanges() * sizeof(IndexType), cudaMemcpyHostToDevice));
 
         util::array<size_t, numArrays> arrayByteOffsets = sendCount * elementSizes;
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
         size_t sendBytes = sendCount * bytesPerElement;
 
         auto gatherArray = [sendPtr, sendCount, &data, &arrayByteOffsets, &elementSizes, d_range, d_rangeScan,
-                            numRanges = rangeOffsets.size()](auto arrayIndex)
+                            numRanges = outHalos.nRanges()](auto arrayIndex)
         {
             size_t outputOffset = arrayByteOffsets[arrayIndex];
             char* bufferPtr     = sendPtr + outputOffset;
@@ -168,30 +121,28 @@ void haloExchangeGpu(int epoch,
         }
     }
 
-    const size_t oldRecvSize = receiveScratchBuffer.size();
-    reallocateDevice(receiveScratchBuffer, maxReceiveSize * bytesPerElement / sizeof(typename DeviceVector::value_type),
-                     1.01);
-    char* receiveBuffer = reinterpret_cast<char*>(thrust::raw_pointer_cast(receiveScratchBuffer.data()));
+    const size_t oldRecvSize = reallocateBytes(receiveScratchBuffer, maxReceiveSize * bytesPerElement);
+    char* receiveBuffer      = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
     while (numMessages > 0)
     {
         MPI_Status status;
         mpiRecvGpuDirect(receiveBuffer, maxReceiveSize * bytesPerElement, MPI_ANY_SOURCE, haloExchangeTag, &status);
         int receiveRank     = status.MPI_SOURCE;
-        size_t receiveCount = incomingHalos[receiveRank].totalCount();
+        const auto& inHalos = incomingHalos[receiveRank];
+        size_t receiveCount = inHalos.totalCount();
 
         util::array<size_t, numArrays> arrayByteOffsets = receiveCount * elementSizes;
         std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
 
         // compute indices to extract and upload to GPU
-        auto [rangeOffsets, rangeScan] = createRanges(incomingHalos[receiveRank]);
         checkGpuErrors(
-            cudaMemcpy(d_range, rangeOffsets.data(), rangeOffsets.size() * sizeof(IndexType), cudaMemcpyHostToDevice));
+            cudaMemcpy(d_range, inHalos.offsets(), inHalos.nRanges() * sizeof(IndexType), cudaMemcpyHostToDevice));
         checkGpuErrors(
-            cudaMemcpy(d_rangeScan, rangeScan.data(), rangeScan.size() * sizeof(IndexType), cudaMemcpyHostToDevice));
+            cudaMemcpy(d_rangeScan, inHalos.scan(), inHalos.nRanges() * sizeof(IndexType), cudaMemcpyHostToDevice));
 
         auto scatterArray = [receiveBuffer, receiveCount, &data, &arrayByteOffsets, &elementSizes, d_range, d_rangeScan,
-                             numRanges = rangeOffsets.size()](auto arrayIndex)
+                             numRanges = inHalos.nRanges()](auto arrayIndex)
         {
             size_t outputOffset = arrayByteOffsets[arrayIndex];
             char* bufferPtr     = receiveBuffer + outputOffset;
