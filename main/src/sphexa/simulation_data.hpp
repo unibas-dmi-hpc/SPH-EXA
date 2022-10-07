@@ -38,10 +38,13 @@
 namespace sphexa
 {
 
-template<typename T, typename KeyType, class AccType>
+template<typename T, typename KeyType_, class AccType>
 class SimulationData
 {
 public:
+    using KeyType  = KeyType_;
+    using RealType = T;
+
     ParticlesData<T, KeyType, AccType> hydro;
 
     MPI_Comm comm;

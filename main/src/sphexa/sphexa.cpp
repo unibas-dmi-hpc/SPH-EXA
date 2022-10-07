@@ -78,10 +78,11 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    using Real    = double;
-    using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType, AccType>;
-    using Domain  = cstone::Domain<KeyType, Real, AccType>;
+    using Real      = double;
+    using KeyType   = uint64_t;
+    using Dataset   = SimulationData<Real, KeyType, AccType>;
+    using HydroData = ParticlesData<Real, KeyType, AccType>;
+    using Domain    = cstone::Domain<KeyType, Real, AccType>;
 
     const std::string        initCond          = parser.get("--init");
     const size_t             problemSize       = parser.get("-n", 50);
@@ -104,15 +105,17 @@ int main(int argc, char** argv)
 
     //! @brief evaluate user choice for different kind of actions
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
-    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, ngmax, ng0, output, rank);
-    auto fileWriter  = fileWriterFactory<Dataset>(ascii);
-    auto observables = observablesFactory<Dataset>(initCond, constantsFile);
+    auto propagator  = propagatorFactory<Domain, HydroData>(propChoice, ngmax, ng0, output, rank);
+    auto fileWriter  = fileWriterFactory<HydroData>(ascii);
+    auto observables = observablesFactory<HydroData>(initCond, constantsFile);
 
-    Dataset d;
-    d.comm = MPI_COMM_WORLD;
+    Dataset simData;
+    auto&   d = simData.hydro;
+    d.comm    = MPI_COMM_WORLD;
+
     propagator->activateFields(d);
     propagator->restoreState(initCond, d.comm);
-    cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, d);
+    cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, simData);
     transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
     d.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
 
