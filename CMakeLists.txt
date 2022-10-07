@@ -59,7 +59,6 @@ if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     find_package(CUDAToolkit)
     set(CMAKE_CUDA_STANDARD 17)
-    set(CMAKE_CUDA_ARCHITECTURES OFF)
 endif()
 
 option(SPH_EXA_WITH_H5PART "Enable HDF5 IO using the H5Part library" ON)

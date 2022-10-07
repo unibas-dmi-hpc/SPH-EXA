@@ -111,31 +111,9 @@ module load cray-hdf5-parallel
 mkdir build
 cd build
 
-# -DCMAKE_CUDA_ARCHITECTURES is turned off, use CMAKE_CUDA_FLAGS instead:
-# -DCMAKE_C_COMPILER=cc is needed for hdf5 detection
-cmake -DCMAKE_CXX_COMPILER=CC -DCMAKE_C_COMPILER=cc \
--DCMAKE_CUDA_FLAGS=-arch=sm_60 -S <GIT_SOURCE_DIR>
+# C-compiler is needed for hdf5 detection
+CC=cc CXX=CC cmake -DCMAKE_CUDA_ARCHITECTURES=60 -S <GIT_SOURCE_DIR>
 
-# to avoid "HDF5 library version mismatched error":
-export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
-
-```
-
-CMake configuration on Piz Daint for GCC:
-**GCC 10.3.0** for CPU code (.cpp), **CUDA 11.3 + GCC 9.3.0** for GPU code (.cu):
-```shell
-module load daint-gpu
-module load cudatoolkit/21.5_11.3      # or newer
-module load CMake/3.22.1               # or newer
-module load cray-hdf5-parallel
-module swap PrgEnv-cray PrgEnv-gnu
-module swap gcc gcc/10.3.0
-export GCC_X86_64=/opt/gcc/9.3.0/snos  # system header versions are too old
-
-mkdir build
-cd build
-# GCC 10.3.0 cannot be used as CUDA host compiler due to compiler bugs
-cmake -DCMAKE_CXX_COMPILER=CC -DCMAKE_CUDA_FLAGS=-ccbin=/opt/gcc/9.3.0/snos/bin/g++ <GIT_SOURCE_DIR>
 ```
 
 Build everything: ```make -j```
