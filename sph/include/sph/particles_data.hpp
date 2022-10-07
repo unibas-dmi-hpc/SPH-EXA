@@ -35,14 +35,15 @@
 #include <variant>
 
 #include "cstone/cuda/cuda_utils.hpp"
+#include "cstone/tree/accel_switch.hpp"
 #include "cstone/tree/definitions.h"
 #include "cstone/util/reallocate.hpp"
 
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
 
-#include "data_util.hpp"
-#include "field_states.hpp"
+#include "cstone/fields/data_util.hpp"
+#include "cstone/fields/field_states.hpp"
 #include "particles_data_stubs.hpp"
 
 #if defined(USE_CUDA)
@@ -54,7 +55,7 @@ namespace sphexa
 {
 
 template<typename T, typename KeyType_, class AccType>
-class ParticlesData : public FieldStates<ParticlesData<T, KeyType_, AccType>>
+class ParticlesData : public cstone::FieldStates<ParticlesData<T, KeyType_, AccType>>
 {
 public:
     using KeyType         = KeyType_;
@@ -169,7 +170,7 @@ public:
     void setOutputFields(const std::vector<std::string>& outFields)
     {
         outputFieldNames   = outFields;
-        outputFieldIndices = fieldStringsToInt(outFields, fieldNames);
+        outputFieldIndices = cstone::fieldStringsToInt(outFields, fieldNames);
     }
 
     void resize(size_t size)
@@ -218,6 +219,15 @@ public:
 
 template<typename T, typename I, class Acc>
 const T ParticlesData<T, I, Acc>::K = ::sph::compute_3d_k(sincIndex);
+
+//! @brief resizes the neighbors list, only used in the CPU version
+template<class Dataset>
+void resizeNeighbors(Dataset& d, size_t size)
+{
+    double growthRate = 1.05;
+    //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
+    reallocate(d.neighbors, cstone::HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
+}
 
 template<class Dataset, std::enable_if_t<not cstone::HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
 void transferToDevice(Dataset&, size_t, size_t, const std::vector<std::string>&)

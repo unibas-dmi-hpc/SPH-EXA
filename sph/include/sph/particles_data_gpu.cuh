@@ -37,17 +37,18 @@
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/primitives_gpu.h"
+#include "cstone/tree/accel_switch.hpp"
 #include "cstone/util/reallocate.hpp"
 
-#include "data_util.hpp"
-#include "field_states.hpp"
+#include "cstone/fields/data_util.hpp"
+#include "cstone/fields/field_states.hpp"
 #include "tables.hpp"
 
 namespace sphexa
 {
 
 template<typename T, class KeyType>
-class DeviceParticlesData : public FieldStates<DeviceParticlesData<T, KeyType>>
+class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData<T, KeyType>>
 {
     size_t allocatedTaskSize = 0;
 

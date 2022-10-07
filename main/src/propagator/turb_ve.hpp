@@ -36,6 +36,7 @@
 #include <sstream>
 #include <variant>
 
+#include "cstone/fields/particles_get.hpp"
 #include "sph/sph.hpp"
 #include "sph/hydro_turb/turbulence_data.hpp"
 
@@ -49,6 +50,7 @@ namespace sphexa
 {
 
 using namespace sph;
+using cstone::FieldStates;
 
 //! @brief VE hydro propagator that adds turbulence stirring to the acceleration prior to position update
 template<class DomainType, class ParticleDataType>

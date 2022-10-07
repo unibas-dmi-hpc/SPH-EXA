@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Contains the object holding all particle data
+ * @brief Extension for particle field containers. Provides acquire/release semantics.
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -35,7 +35,7 @@
 #include <vector>
 #include <variant>
 
-namespace sphexa
+namespace cstone
 {
 
 /*! @brief Helper class to keep track of field states
@@ -182,6 +182,8 @@ private:
                                  ". No suitable field available");
     }
 
+    void setState(size_t idx, State state) { fieldStates_[idx] = state; }
+
     void setState(const std::string& field, State state)
     {
         size_t idx =
@@ -190,11 +192,11 @@ private:
         {
             throw std::runtime_error("Cannot set state of " + field + ": unknown field\n");
         }
-        fieldStates_[idx] = state;
+        setState(idx, state);
     }
 
     //! @brief current state of each field
     std::vector<State> fieldStates_;
 };
 
-} // namespace sphexa
+} // namespace cstone

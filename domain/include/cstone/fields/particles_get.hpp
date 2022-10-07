@@ -31,11 +31,12 @@
 
 #pragma once
 
+#include "cstone/fields/data_util.hpp"
+#include "cstone/tree/accel_switch.hpp"
 #include "cstone/util/traits.hpp"
 #include "cstone/util/util.hpp"
-#include "data_util.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 template<StructuralString... Fields>
@@ -92,7 +93,7 @@ template<StructuralString... Fields, class Dataset>
 decltype(auto) get(Dataset& d)
 {
     using AcceleratorType = typename Dataset::AcceleratorType;
-    if constexpr (std::is_same_v<AcceleratorType, cstone::CpuTag>) { return getHost<Fields...>(d); }
+    if constexpr (std::is_same_v<AcceleratorType, CpuTag>) { return getHost<Fields...>(d); }
     else { return getDevice<Fields...>(d); }
 }
 
@@ -114,4 +115,4 @@ constexpr auto make_tuple(FieldList<Fields...>)
     return std::make_tuple(Fields...);
 }
 
-} // namespace sphexa
+} // namespace cstone
