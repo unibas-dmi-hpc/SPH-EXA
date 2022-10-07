@@ -92,12 +92,12 @@ void initXm1(H5PartFile* h5_file, int rank, Dataset& d)
 
 template<class HydroData>
 cstone::Box<typename HydroData::RealType> restoreHydroData(const std::string& h5File, int rank, int numRanks,
-                                                           HydroData& d)
+                                                           MPI_Comm comm, HydroData& d)
 {
     using T        = typename HydroData::RealType;
     using Boundary = cstone::BoundaryType;
 
-    H5PartFile* h5_file    = fileutils::openH5Part(h5File, H5PART_READ, d.comm);
+    H5PartFile* h5_file    = fileutils::openH5Part(h5File, H5PART_READ, comm);
     size_t      numH5Steps = H5PartGetNumSteps(h5_file);
     H5PartSetStep(h5_file, numH5Steps - 1);
 
@@ -168,7 +168,7 @@ public:
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t /*n*/, Dataset& simData) const override
     {
-        auto box = restoreHydroData(h5_fname, rank, numRanks, simData.hydro);
+        auto box = restoreHydroData(h5_fname, rank, numRanks, simData.comm, simData.hydro);
         return box;
     }
 

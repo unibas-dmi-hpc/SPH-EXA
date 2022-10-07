@@ -49,12 +49,13 @@ public:
     {
     }
 
-    void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
         int rank;
-        MPI_Comm_rank(d.comm, &rank);
+        MPI_Comm_rank(simData.comm, &rank);
+        auto& d = simData.hydro;
 
-        computeConservedQuantities(firstIndex, lastIndex, d);
+        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
 
         if (rank == 0)
         {

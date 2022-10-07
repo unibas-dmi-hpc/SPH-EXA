@@ -78,11 +78,10 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    using Real      = double;
-    using KeyType   = uint64_t;
-    using Dataset   = SimulationData<Real, KeyType, AccType>;
-    using HydroData = ParticlesData<Real, KeyType, AccType>;
-    using Domain    = cstone::Domain<KeyType, Real, AccType>;
+    using Real    = double;
+    using KeyType = uint64_t;
+    using Dataset = SimulationData<Real, KeyType, AccType>;
+    using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
     const std::string        initCond          = parser.get("--init");
     const size_t             problemSize       = parser.get("-n", 50);
@@ -105,17 +104,18 @@ int main(int argc, char** argv)
 
     //! @brief evaluate user choice for different kind of actions
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
-    auto propagator  = propagatorFactory<Domain, HydroData>(propChoice, ngmax, ng0, output, rank);
-    auto fileWriter  = fileWriterFactory<HydroData>(ascii);
-    auto observables = observablesFactory<HydroData>(initCond, constantsFile);
+    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, ngmax, ng0, output, rank);
+    auto fileWriter  = fileWriterFactory<Dataset>(ascii);
+    auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
     Dataset simData;
-    auto&   d = simData.hydro;
-    d.comm    = MPI_COMM_WORLD;
+    simData.comm = MPI_COMM_WORLD;
 
-    propagator->activateFields(d);
-    propagator->restoreState(initCond, d.comm);
+    propagator->activateFields(simData);
+    propagator->restoreState(initCond, simData.comm);
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, simData);
+
+    auto& d = simData.hydro;
     transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
     d.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
 
@@ -134,7 +134,7 @@ int main(int argc, char** argv)
     size_t bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
     Domain domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
 
-    propagator->sync(domain, d);
+    propagator->sync(domain, simData);
     if (rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
     viz::init_catalyst(argc, argv);
@@ -145,19 +145,19 @@ int main(int argc, char** argv)
     size_t startIteration = d.iteration;
     for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
     {
-        propagator->step(domain, d);
+        propagator->step(domain, simData);
 
-        observables->computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
-        propagator->printIterationTimings(domain, d);
+        observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
+        propagator->printIterationTimings(domain, simData);
 
         if (isPeriodicOutputStep(d.iteration, writeFrequencyStr) ||
             isPeriodicOutputTime(d.ttot - d.minDt, d.ttot, writeFrequencyStr) ||
             isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra))
         {
-            propagator->prepareOutput(d, domain.startIndex(), domain.endIndex(), domain.box());
-            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
+            propagator->prepareOutput(simData, domain.startIndex(), domain.endIndex(), domain.box());
+            fileWriter->dump(simData, domain.startIndex(), domain.endIndex(), box, outFile);
             propagator->dump(d.iteration, outFile);
-            propagator->finishOutput(d);
+            propagator->finishOutput(simData);
         }
 
         viz::execute(d, domain.startIndex(), domain.endIndex());

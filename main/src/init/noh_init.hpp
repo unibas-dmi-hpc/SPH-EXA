@@ -152,7 +152,7 @@ public:
         cutSphere(r, d.x, d.y, d.z);
 
         d.numParticlesGlobal = d.x.size();
-        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
+        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
 
         d.resize(d.x.size());
 

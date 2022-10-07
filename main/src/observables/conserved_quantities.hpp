@@ -91,7 +91,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
  * @param[inout]  d            particle data set
  */
 template<class Dataset>
-void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
+void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, MPI_Comm comm)
 {
     using T = typename Dataset::RealType;
 
@@ -132,7 +132,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     quantities[9] = T(ncsum);
 
     int rootRank = 0;
-    MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<T>{}, MPI_SUM, rootRank, d.comm);
+    MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<T>{}, MPI_SUM, rootRank, comm);
 
     d.ecin  = globalQuantities[0];
     d.eint  = globalQuantities[1];

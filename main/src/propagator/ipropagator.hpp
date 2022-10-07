@@ -75,8 +75,9 @@ public:
 
     virtual ~Propagator() = default;
 
-    void printIterationTimings(const DomainType& domain, const ParticleDataType& d)
+    void printIterationTimings(const DomainType& domain, const ParticleDataType& simData)
     {
+        const auto& d = simData.hydro;
         if (rank_ == 0)
         {
             printCheck(d.ttot, d.minDt, d.etot, d.eint, d.ecin, d.egrav, domain.box(), d.numParticlesGlobal,

@@ -105,14 +105,15 @@ public:
     {
     }
 
-    void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
+        auto& d = simData.hydro;
         auto [httplus, httcross, d2xx, d2yy, d2zz, d2xy, d2xz, d2yz] =
             gravRad(firstIndex, lastIndex, d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
                     d.ax.data(), d.ay.data(), d.az.data(), d.m.data(), viewTheta, viewPhi);
 
         int rank;
-        MPI_Comm_rank(d.comm, &rank);
+        MPI_Comm_rank(simData.comm, &rank);
 
         if (rank == 0)
         {

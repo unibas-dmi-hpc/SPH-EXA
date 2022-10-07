@@ -215,7 +215,7 @@ public:
         T innerVolume = (4. / 3.) * M_PI * innerSide * innerSide * innerSide;
 
         size_t numParticlesInternal = xBlob.size();
-        MPI_Allreduce(MPI_IN_PLACE, &numParticlesInternal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
+        MPI_Allreduce(MPI_IN_PLACE, &numParticlesInternal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
         T massPart = innerVolume * rhoInt / numParticlesInternal;
 
         // Initialize Wind shock domain variables
@@ -223,7 +223,7 @@ public:
         initWindShockFields(d, constants_, massPart);
 
         d.numParticlesGlobal = d.x.size();
-        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
+        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
 
         return globalBox;
     }

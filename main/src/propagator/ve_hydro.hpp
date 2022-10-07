@@ -47,21 +47,21 @@ namespace sphexa
 using namespace sph;
 using cstone::FieldList;
 
-template<class DomainType, class ParticleDataType>
-class HydroVeProp : public Propagator<DomainType, ParticleDataType>
+template<class DomainType, class DataType>
+class HydroVeProp : public Propagator<DomainType, DataType>
 {
 protected:
-    using Base = Propagator<DomainType, ParticleDataType>;
+    using Base = Propagator<DomainType, DataType>;
     using Base::ng0_;
     using Base::ngmax_;
     using Base::timer;
 
-    using T             = typename ParticleDataType::RealType;
-    using KeyType       = typename ParticleDataType::KeyType;
-    using Tmass         = typename ParticleDataType::Tmass;
+    using T             = typename DataType::RealType;
+    using KeyType       = typename DataType::KeyType;
+    using Tmass         = typename DataType::HydroData::Tmass;
     using MultipoleType = ryoanji::CartesianQuadrupole<Tmass>;
 
-    using Acc = typename ParticleDataType::AcceleratorType;
+    using Acc = typename DataType::AcceleratorType;
     using MHolder_t =
         typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
                                          MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
@@ -95,8 +95,9 @@ public:
         return ret;
     }
 
-    void activateFields(ParticleDataType& d) override
+    void activateFields(DataType& simData) override
     {
+        auto& d = simData.hydro;
         //! @brief Fields accessed in domain sync (x,y,z,h,m,keys) are not part of extensible lists.
         d.setConserved("x", "y", "z", "h", "m");
         d.setDependent("keys");
@@ -109,8 +110,9 @@ public:
         std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFieldsGpu{}));
     }
 
-    void sync(DomainType& domain, ParticleDataType& d) override
+    void sync(DomainType& domain, DataType& simData) override
     {
+        auto& d = simData.hydro;
         if (d.g != 0.0)
         {
             domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
@@ -123,12 +125,13 @@ public:
         }
     }
 
-    void computeForces(DomainType& domain, ParticleDataType& d)
+    void computeForces(DomainType& domain, DataType& simData)
     {
         timer.start();
-        sync(domain, d);
+        sync(domain, simData);
         timer.step("domain::sync");
 
+        auto& d = simData.hydro;
         d.resize(domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * ngmax_);
         size_t first = domain.startIndex();
@@ -189,10 +192,11 @@ public:
         }
     }
 
-    void step(DomainType& domain, ParticleDataType& d) override
+    void step(DomainType& domain, DataType& simData) override
     {
-        computeForces(domain, d);
+        computeForces(domain, simData);
 
+        auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
@@ -207,15 +211,16 @@ public:
     }
 
     //! @brief configure the dataset for output by calling EOS again to recover rho and p
-    void prepareOutput(ParticleDataType& d, size_t startIndex, size_t endIndex, const cstone::Box<T>& box) override
+    void prepareOutput(DataType& simData, size_t startIndex, size_t endIndex, const cstone::Box<T>& box) override
     {
+        auto& d = simData.hydro;
         transferToHost(d, startIndex, endIndex, conservedFields());
         transferToHost(d, startIndex, endIndex, {"ax", "ay", "az", "du", "kx", "xm", "nc"});
         d.release("c11", "c12", "c13");
         d.acquire("rho", "p", "gradh");
         computeEOS_Impl(startIndex, endIndex, d);
 
-        if constexpr (cstone::HaveGpu<typename ParticleDataType::AcceleratorType>{})
+        if constexpr (cstone::HaveGpu<typename DataType::AcceleratorType>{})
         {
             const auto& outFields = d.outputFieldNames;
             bool        outDiv    = std::find(outFields.begin(), outFields.end(), "divv") != outFields.end();
@@ -233,8 +238,9 @@ public:
     }
 
     //! @brief undo output configuration and restore compute configuration
-    void finishOutput(ParticleDataType& d) override
+    void finishOutput(DataType& simData) override
     {
+        auto& d = simData.hydro;
         d.release("rho", "p", "gradh");
         d.acquire("c11", "c12", "c13");
     }
