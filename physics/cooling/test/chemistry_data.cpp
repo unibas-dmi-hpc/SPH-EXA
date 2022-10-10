@@ -34,7 +34,7 @@
 
 #include "gtest/gtest.h"
 
-#include "chemistry_data.hpp"
+#include "cooling/chemistry_data.hpp"
 
 using namespace cooling;
 using cstone::get;

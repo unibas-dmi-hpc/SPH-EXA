@@ -193,10 +193,6 @@ public:
     std::vector<int>         outputFieldIndices;
     std::vector<std::string> outputFieldNames;
 
-#ifdef USE_MPI
-    MPI_Comm comm;
-#endif
-
     constexpr static T sincIndex     = 6.0;
     constexpr static T Kcour         = 0.2;
     constexpr static T maxDtIncrease = 1.1;

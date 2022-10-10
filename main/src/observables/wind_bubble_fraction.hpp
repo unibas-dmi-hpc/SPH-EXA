@@ -105,9 +105,10 @@ public:
 
     using T = typename Dataset::RealType;
 
-    void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
-        computeConservedQuantities(firstIndex, lastIndex, d);
+        auto& d = simData.hydro;
+        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
 
         if (d.kx.empty())
         {
@@ -118,7 +119,7 @@ public:
         auto bubbleFraction = calculateSurvivingFraction(firstIndex, lastIndex, d.u.data(), d.kx.data(), d.xm.data(),
                                                          d.m.data(), rhoBubble, uWind, initialMass);
         int  rank;
-        MPI_Comm_rank(d.comm, &rank);
+        MPI_Comm_rank(simData.comm, &rank);
 
         if (rank == 0)
         {
