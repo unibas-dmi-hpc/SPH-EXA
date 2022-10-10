@@ -62,6 +62,11 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
         return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
 #endif
     }
+    if (choice == "nuclear") {
+#ifdef USE_NUCLEAR_NETWORKS
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+#endif
+    }
 
     throw std::runtime_error("Unknown propagator choice: " + choice);
 }

@@ -29,3 +29,48 @@
  */
 
 #include "nnet/sphexa/observables.hpp"
+
+#include "iobservables.hpp"
+#include "io/ifile_writer.hpp"
+
+namespace sphexa
+{
+
+template<class Dataset>
+class NuclearEnergy : public IObservables<Dataset>
+{
+    std::ofstream& constantsFile;
+    using T = typename Dataset::RealType;
+
+public:
+    NuclearEnergy(std::ofstream& constPath)
+        : constantsFile(constPath)
+    {
+    }
+
+    void *BE; // need to find a way to set BE !!!
+
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
+    {
+        int rank;
+        MPI_Comm_rank(simData.comm, &rank);
+        auto& d = simData.hydro;
+
+        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
+
+        auto &n = simData.nuclearData;
+		using Float = typename std::remove_reference<decltype(n.Y[0][0])>::type;
+
+        Float nuclearEnergy = sphnnet::totalNuclearEnergy(n, (Float*)BE);
+        d.etot += nuclearEnergy;
+
+
+        if (rank == 0)
+        {
+            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, nuclearEnergy, d.ecin, d.eint, d.egrav,
+                                    d.linmom, d.angmom);
+        }
+    }
+};
+
+} // namespace sphexa
