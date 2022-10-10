@@ -1,7 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 CSCS, ETH Zurich, University of Zurich, University of Basel
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,19 +24,8 @@
  */
 
 /*! @file
- * @brief constexpr concatenation of arrays. 
- *
+ * @brief output nuclear energies each iteration (default). TODO
  * @author Joseph Touzet <joseph.touzet@ens-paris-saclay.fr>
  */
 
-#include <array>
-
-template<typename T, std::size_t LL, std::size_t RL>
-	constexpr std::array<T, LL+RL> concat(std::array<T, LL> rhs, std::array<T, RL> lhs) {
-	std::array<T, LL+RL> ar;
-
-	auto current = std::copy(rhs.begin(), rhs.end(), ar.begin());
-	std::copy(lhs.begin(), lhs.end(), current);
-
-	return ar;
-}
+#include "nnet/sphexa/observables.hpp"

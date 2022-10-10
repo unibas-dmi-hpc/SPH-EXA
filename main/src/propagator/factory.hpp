@@ -40,6 +40,9 @@
 #ifdef SPH_EXA_HAVE_H5PART
 #include "turb_ve.hpp"
 #endif
+#ifdef USE_NUCLEAR_NETWORKS
+#include "nuclear_propagator.hpp"
+#endif
 
 namespace sphexa
 {

@@ -39,6 +39,9 @@
 #include "time_energies.hpp"
 #include "gravitational_waves.hpp"
 #include "wind_bubble_fraction.hpp"
+#ifdef USE_NUCLEAR_NETWORKS
+#include "nuclear_observable.hpp"
+#endif
 
 namespace sphexa
 {
