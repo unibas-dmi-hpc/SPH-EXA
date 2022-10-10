@@ -42,6 +42,9 @@
 #endif
 #ifdef USE_NUCLEAR_NETWORKS
 #include "nuclear_propagator.hpp"
+
+#include "nnet/parameterization/net87/net87.hpp"
+#include "nnet/parameterization/net14/net14.hpp"
 #endif
 
 namespace sphexa
@@ -62,9 +65,19 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
         return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
 #endif
     }
-    if (choice == "nuclear") {
+    if (choice == "net14") {
 #ifdef USE_NUCLEAR_NETWORKS
-        return std::make_unique<NuclearProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType, nnet::net14::reaction_list>>(ngmax, ng0, output, rank);
+#endif
+    }
+    if (choice == "net86") {
+#ifdef USE_NUCLEAR_NETWORKS
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType, nnet::net86::reaction_list>>(ngmax, ng0, output, rank);
+#endif
+    }
+    if (choice == "net87") {
+#ifdef USE_NUCLEAR_NETWORKS
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType, nnet::net87::reaction_list>>(ngmax, ng0, output, rank);
 #endif
     }
 

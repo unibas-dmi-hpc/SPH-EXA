@@ -38,7 +38,7 @@ namespace sphexa
 using namespace sph;
 using cstone::FieldList;
 
-template<class DomainType, class DataType>
+template<class DomainType, class DataType, const nnet::reaction_list &reactions>
 class NuclearProp final : public Propagator<DomainType, DataType>
 {
     using Base = Propagator<DomainType, DataType>;
