@@ -38,7 +38,7 @@ namespace sphexa
 using namespace sph;
 using cstone::FieldList;
 
-template<class DomainType, class DataType, const nnet::reaction_list &reactions>
+template<class DomainType, class DataType, const nnet::reaction_list& reactions>
 class NuclearProp final : public Propagator<DomainType, DataType>
 {
     using Base = Propagator<DomainType, DataType>;
@@ -67,7 +67,8 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     using NuclearConservedFields = FieldList</* TODO */>;
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
-    using DependentFields = FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
+    using DependentFields =
+        FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
 
     //! @brief the list of dependent nuclear fields, these may be used as scratch space during domain sync
     using NuclearDependentFields = FieldList</* TODO */>;
@@ -99,8 +100,6 @@ public:
         d.devData.setDependent(/* TODO */);
         std::apply([&d](auto... f) { d.devData.setConserved(f.value...); }, make_tuple(ConservedFields{}));
         std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
-
-
 
         auto& n = simData.nuclearData;
 
@@ -179,7 +178,7 @@ private:
 
     void hydro_step_after(DomainType& domain, DataType& simData)
     {
-        auto& d = simData.hydro;
+        auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
@@ -218,20 +217,11 @@ private:
         timer.stop();
     }
 
-    void nuclear_step(DomainType& domain, DataType& simData)
-    {
-        /* TODO */
-    }
+    void nuclear_step(DomainType& domain, DataType& simData) { /* TODO */ }
 
-    void nuclear_sync_before(DomainType& domain, DataType& simData)
-    {
-        /* TODO */
-    }
+    void nuclear_sync_before(DomainType& domain, DataType& simData) { /* TODO */ }
 
-    void nuclear_sync_after(DomainType& domain, DataType& simData)
-    {
-        /* TODO */
-    }
+    void nuclear_sync_after(DomainType& domain, DataType& simData) { /* TODO */ }
 };
 
 } // namespace sphexa

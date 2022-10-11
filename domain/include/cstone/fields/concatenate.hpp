@@ -23,7 +23,7 @@
  */
 
 /*! @file
- * @brief constexpr concatenation of arrays. 
+ * @brief constexpr concatenation of arrays.
  *
  * @author Joseph Touzet <joseph.touzet@ens-paris-saclay.fr>
  */
@@ -31,11 +31,12 @@
 #include <array>
 
 template<typename T, std::size_t LL, std::size_t RL>
-	constexpr std::array<T, LL+RL> concat(std::array<T, LL> rhs, std::array<T, RL> lhs) {
-	std::array<T, LL+RL> ar;
+constexpr std::array<T, LL + RL> concat(std::array<T, LL> rhs, std::array<T, RL> lhs)
+{
+    std::array<T, LL + RL> ar;
 
-	auto current = std::copy(rhs.begin(), rhs.end(), ar.begin());
-	std::copy(lhs.begin(), lhs.end(), current);
+    auto current = std::copy(rhs.begin(), rhs.end(), ar.begin());
+    std::copy(lhs.begin(), lhs.end(), current);
 
-	return ar;
+    return ar;
 }

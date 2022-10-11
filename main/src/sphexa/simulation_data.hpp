@@ -50,8 +50,8 @@ public:
     using KeyType         = KeyType_;
     using RealType        = T;
 
-    using HydroData   = ParticlesData<RealType, KeyType, AccType>;
-    using ChemData    = cooling::ChemistryData<T>;
+    using HydroData = ParticlesData<RealType, KeyType, AccType>;
+    using ChemData  = cooling::ChemistryData<T>;
 #ifdef USE_NUCLEAR_NETWORKS
     using NuclearData = sphnnet::NuclearDataType<RealType, KeyType, AccType>;
 #endif

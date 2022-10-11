@@ -65,19 +65,25 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
         return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
 #endif
     }
-    if (choice == "net14") {
+    if (choice == "net14")
+    {
 #ifdef USE_NUCLEAR_NETWORKS
-        return std::make_unique<NuclearProp<DomainType, ParticleDataType, nnet::net14::reaction_list>>(ngmax, ng0, output, rank);
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType, nnet::net14::reaction_list>>(ngmax, ng0,
+                                                                                                       output, rank);
 #endif
     }
-    if (choice == "net86") {
+    if (choice == "net86")
+    {
 #ifdef USE_NUCLEAR_NETWORKS
-        return std::make_unique<NuclearProp<DomainType, ParticleDataType, nnet::net86::reaction_list>>(ngmax, ng0, output, rank);
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType, nnet::net86::reaction_list>>(ngmax, ng0,
+                                                                                                       output, rank);
 #endif
     }
-    if (choice == "net87") {
+    if (choice == "net87")
+    {
 #ifdef USE_NUCLEAR_NETWORKS
-        return std::make_unique<NuclearProp<DomainType, ParticleDataType, nnet::net87::reaction_list>>(ngmax, ng0, output, rank);
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType, nnet::net87::reaction_list>>(ngmax, ng0,
+                                                                                                       output, rank);
 #endif
     }
 
