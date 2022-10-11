@@ -6,7 +6,7 @@
   <img src="https://raw.githubusercontent.com/unibas-dmi-hpc/SPH-EXA/develop/docs/artwork/SPH-EXA_logo.png" alt="SPH-EXA logo" width="200"/>
 </p>
 
-#SPH
+# SPH
 
 The smoothed particle hydrodynamics (SPH) technique is a purely Lagrangian method.
 SPH discretizes a fluid in a series of interpolation points (SPH particles)
@@ -27,7 +27,7 @@ individual time-stepping, halos exchange, and long-range forces.
 Therefore, the goal is to extrapolate their common basic SPH features, and consolidate them in a fully optimized,
 Exascale-ready, MPI+X, SPH code: SPH-EXA.
 
-#SPH - EXA
+# SPH-EXA
 
 SPH-EXA is a C++20 simulation code for hydrodynamics simulations (with gravity and other physics), parallelized with MPI, OpenMP, CUDA, and HIP.
 
@@ -111,7 +111,7 @@ module load cray-hdf5-parallel
 mkdir build
 cd build
 
-#C - compiler is needed for hdf5 detection
+# C-compiler is needed for hdf5 detection
 CC=cc CXX=CC cmake -DCMAKE_CUDA_ARCHITECTURES=60 -S <GIT_SOURCE_DIR>
 
 ```
