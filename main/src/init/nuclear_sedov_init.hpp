@@ -85,9 +85,9 @@ public:
             X_87[1] = 0.5;
             X_87[2] = 0.5;
 
-            for (int i = 0; i < 14; ++i) 
+            for (int i = 0; i < 14; ++i)
             {
-                Y0_87[i] = X_87[i]/nnet::net14::constants::A[i];
+                Y0_87[i] = X_87[i] / nnet::net14::constants::A[i];
             }
         }
         else if (n.numSpecies == 86 || n.numSpecies == 87)
@@ -97,7 +97,7 @@ public:
 
             for (int i = 0; i < 86; ++i)
             {
-                Y0_87[i] = X_87[i]/nnet::net86::constants::A[i];
+                Y0_87[i] = X_87[i] / nnet::net86::constants::A[i];
             }
         }
         else
@@ -178,9 +178,9 @@ public:
             X_87[1] = 0.5;
             X_87[2] = 0.5;
 
-            for (int i = 0; i < 14; ++i) 
+            for (int i = 0; i < 14; ++i)
             {
-                Y0_87[i] = X_87[i]/nnet::net14::constants::A[i];
+                Y0_87[i] = X_87[i] / nnet::net14::constants::A[i];
             }
         }
         else if (n.numSpecies == 86 || n.numSpecies == 87)
@@ -190,7 +190,7 @@ public:
 
             for (int i = 0; i < 86; ++i)
             {
-                Y0_87[i] = X_87[i]/nnet::net86::constants::A[i];
+                Y0_87[i] = X_87[i] / nnet::net86::constants::A[i];
             }
         }
         else
