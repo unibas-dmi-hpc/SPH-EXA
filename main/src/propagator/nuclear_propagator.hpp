@@ -217,11 +217,17 @@ private:
         timer.stop();
     }
 
-    void nuclear_step(DomainType& domain, DataType& simData) { /* TODO */ }
+    void nuclear_step(DomainType& domain, DataType& simData)
+    { /* TODO */
+    }
 
-    void nuclear_sync_before(DomainType& domain, DataType& simData) { /* TODO */ }
+    void nuclear_sync_before(DomainType& domain, DataType& simData)
+    { /* TODO */
+    }
 
-    void nuclear_sync_after(DomainType& domain, DataType& simData) { /* TODO */ }
+    void nuclear_sync_after(DomainType& domain, DataType& simData)
+    { /* TODO */
+    }
 };
 
 } // namespace sphexa
