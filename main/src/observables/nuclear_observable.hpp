@@ -62,19 +62,10 @@ public:
 
         computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
 
-        double * const BE;
-        if (n.numSpecies == 14)
-        {
-            BE = nnet::net14::BE.data();
-        }
-        else if (n.numSpecies == 86)
-        {
-            BE = nnet::net86::BE.data();
-        }
-        else if (n.numSpecies == 87)
-        {
-            BE = nnet::net87::BE.data();
-        }
+        double* const BE;
+        if (n.numSpecies == 14) { BE = nnet::net14::BE.data(); }
+        else if (n.numSpecies == 86) { BE = nnet::net86::BE.data(); }
+        else if (n.numSpecies == 87) { BE = nnet::net87::BE.data(); }
         else
         {
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");

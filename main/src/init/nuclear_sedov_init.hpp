@@ -75,37 +75,37 @@ public:
         /* !!!!!!!!!!!!!!!!!!!!!! */
 
 		util::array<double, 87> Y0_87, X_87;
-   		for (int i = 0; i < 86; ++i)
-   		{
-   			X_87[i] = 0;
-   		}
+		for (int i = 0; i < 86; ++i)
+		{
+			X_87[i] = 0;
+		}
 
 		if (n.numSpecies == 14)
 		{
-	    	X_87[1] = 0.5;
+			X_87[1] = 0.5;
 			X_87[2] = 0.5;
 
-	    	for (int i = 0; i < 14; ++i) 
-	    	{
-	    		Y0_87[i] = X_87[i]/nnet::net14::constants::A[i];
-	    	}
+			for (int i = 0; i < 14; ++i) 
+			{
+				Y0_87[i] = X_87[i]/nnet::net14::constants::A[i];
+			}
 		}
 		else if (n.numSpecies == 86 || n.numSpecies == 87)
 		{
 			X_87[nnet::net86::constants::net14_species_order[1]] = 0.5;
 			X_87[nnet::net86::constants::net14_species_order[2]] = 0.5;
 
-	    	for (int i = 0; i < 86; ++i)
-	    	{
-	    		Y0_87[i] = X_87[i]/nnet::net86::constants::A[i];
-	    	}
+			for (int i = 0; i < 86; ++i)
+			{
+				Y0_87[i] = X_87[i]/nnet::net86::constants::A[i];
+			}
 		}
 		else
 		{
 			throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
 		}
 
-     // sphexa::sphnnet::initNuclearDataFromConst(first, last, simData, Y0_87);
+		// sphexa::sphnnet::initNuclearDataFromConst(first, last, simData, Y0_87);
 
         return globalBox;
     }
@@ -138,10 +138,10 @@ public:
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
                                                  Dataset& simData) const override
     {
-        auto& d              = simData.hydro;
-        auto& n              = simData.nuclearData;
-        using KeyType        = typename Dataset::KeyType;
-        using T              = typename Dataset::RealType;
+        auto& d       = simData.hydro;
+        auto& n       = simData.nuclearData;
+        using KeyType = typename Dataset::KeyType;
+        using T       = typename Dataset::RealType;
 
         /* !!!!!!!!!!!!!!!!!!!! */
         /* hydro initialization */
@@ -168,37 +168,37 @@ public:
         /* !!!!!!!!!!!!!!!!!!!!!! */
 
 		util::array<double, 87> Y0_87, X_87;
-   		for (int i = 0; i < 86; ++i)
-   		{
+		for (int i = 0; i < 86; ++i)
+		{
    			X_87[i] = 0;
    		}
 
-		if (n.numSpecies == 14)
-		{
-	    	X_87[1] = 0.5;
-			X_87[2] = 0.5;
+   		if (n.numSpecies == 14)
+   		{
+   			X_87[1] = 0.5;
+   			X_87[2] = 0.5;
 
-	    	for (int i = 0; i < 14; ++i) 
-	    	{
-	    		Y0_87[i] = X_87[i]/nnet::net14::constants::A[i];
-	    	}
-		}
-		else if (n.numSpecies == 86 || n.numSpecies == 87)
-		{
-			X_87[nnet::net86::constants::net14_species_order[1]] = 0.5;
-			X_87[nnet::net86::constants::net14_species_order[2]] = 0.5;
+   			for (int i = 0; i < 14; ++i) 
+   			{
+   				Y0_87[i] = X_87[i]/nnet::net14::constants::A[i];
+   			}
+   		}
+   		else if (n.numSpecies == 86 || n.numSpecies == 87)
+   		{
+   			X_87[nnet::net86::constants::net14_species_order[1]] = 0.5;
+   			X_87[nnet::net86::constants::net14_species_order[2]] = 0.5;
 
-	    	for (int i = 0; i < 86; ++i)
-	    	{
-	    		Y0_87[i] = X_87[i]/nnet::net86::constants::A[i];
-	    	}
-		}
-		else
-		{
-			throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
-		}
+   			for (int i = 0; i < 86; ++i)
+   			{
+   				Y0_87[i] = X_87[i]/nnet::net86::constants::A[i];
+   			}
+   		}
+   		else
+   		{
+   			throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
+   		}
 
-     // sphexa::sphnnet::initNuclearDataFromConst(first, last, simData, Y0_87);
+   		// sphexa::sphnnet::initNuclearDataFromConst(first, last, simData, Y0_87);
 
         return globalBox;
     }

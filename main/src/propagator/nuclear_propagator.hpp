@@ -80,9 +80,9 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     using NuclearDependentFields = FieldList</* TODO */>;
 
     //! @brief nuclear network reaction list
-    nnet::reaction_list const *reactions;
+    nnet::reaction_list const* reactions;
     //! @brief nuclear network parameterization
-    nnet::compute_reaction_rates_functor<T> const *construct_rates_BE;
+    nnet::compute_reaction_rates_functor<T> const* construct_rates_BE;
     //! @brief eos
     nnet::eos_functor<T> eos;
 
@@ -90,14 +90,8 @@ public:
     NuclearProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
     {
-        if (use_helm)
-        {
-            eos = nnet::eos::helmholtz_functor<T>(nnet::net87::constants::Z, 87);
-        }
-        else
-        {
-            eos = nnet::eos::ideal_gas_functor<T>(10.0);
-        }
+        if (use_helm) { eos = nnet::eos::helmholtz_functor<T>(nnet::net87::constants::Z, 87); }
+        else { eos = nnet::eos::ideal_gas_functor<T>(10.0); }
 
 
         if (n_species == 14)
@@ -117,7 +111,8 @@ public:
         }
         else
         {
-            throw std::runtime_error("not able to initialize propagator " + std::to_string(n_species) + " nuclear species !");
+            throw std::runtime_error("not able to initialize propagator " + std::to_string(n_species) + 
+                                     " nuclear species !");
         }
     }
 
@@ -143,7 +138,7 @@ public:
         std::apply([&d](auto... f) { d.devData.setConserved(f.value...); }, make_tuple(ConservedFields{}));
         std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
-        auto& n = simData.nuclearData;
+        auto& n      = simData.nuclearData;
         n.numSpecies = n_species;
 
         //! @brief set nuclear data dependent
