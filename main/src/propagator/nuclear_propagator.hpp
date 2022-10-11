@@ -98,7 +98,7 @@ public:
         {
             reactions          = &nnet::net14::reaction_list;
             construct_rates_BE = &nnet::net14::compute_reaction_rates;
-        } 
+        }
         else if (n_species == 86)
         {
             reactions          = &nnet::net86::reaction_list;
