@@ -111,7 +111,7 @@ public:
         }
         else
         {
-            throw std::runtime_error("not able to initialize propagator " + std::to_string(n_species) + 
+            throw std::runtime_error("not able to initialize propagator " + std::to_string(n_species) +
                                      " nuclear species !");
         }
     }
