@@ -30,6 +30,9 @@
 
 #include "nnet/sphexa/observables.hpp"
 
+#include "nnet/parameterization/net87/net87.hpp"
+#include "nnet/parameterization/net14/net14.hpp"
+
 #include "iobservables.hpp"
 #include "io/ifile_writer.hpp"
 
@@ -48,20 +51,36 @@ public:
     {
     }
 
-    void* BE; // need to find a way to set BE !!!
-
     void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
-        int rank;
-        MPI_Comm_rank(simData.comm, &rank);
-        auto& d = simData.hydro;
-
-        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
-
+        auto& d     = simData.hydro;
         auto& n     = simData.nuclearData;
         using Float = typename std::remove_reference<decltype(n.Y[0][0])>::type;
 
-        Float nuclearEnergy = sphnnet::totalNuclearEnergy(n, (Float*)BE);
+        int rank;
+        MPI_Comm_rank(simData.comm, &rank);
+
+        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
+
+        double * const BE;
+        if (n.numSpecies == 14)
+        {
+            BE = nnet::net14::BE.data();
+        }
+        else if (n.numSpecies == 86)
+        {
+            BE = nnet::net86::BE.data();
+        }
+        else if (n.numSpecies == 87)
+        {
+            BE = nnet::net87::BE.data();
+        }
+        else
+        {
+            throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
+        }
+
+        Float nuclearEnergy = sphnnet::totalNuclearEnergy(n, BE);
         d.etot += nuclearEnergy;
 
         if (rank == 0)

@@ -30,6 +30,12 @@
 
 #include "nnet/sphexa/nuclear-net.hpp"
 
+#include "nnet/parameterization/net87/net87.hpp"
+#include "nnet/parameterization/net14/net14.hpp"
+
+#include "nnet/parameterization/eos/helmholtz.hpp"
+#include "nnet/parameterization/eos/ideal_gas.hpp"
+
 #include "ipropagator.hpp"
 
 namespace sphexa
@@ -38,7 +44,7 @@ namespace sphexa
 using namespace sph;
 using cstone::FieldList;
 
-template<class DomainType, class DataType, const nnet::reaction_list& reactions>
+template<class DomainType, class DataType, int n_species, bool use_helm>
 class NuclearProp final : public Propagator<DomainType, DataType>
 {
     using Base = Propagator<DomainType, DataType>;
@@ -73,10 +79,46 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     //! @brief the list of dependent nuclear fields, these may be used as scratch space during domain sync
     using NuclearDependentFields = FieldList</* TODO */>;
 
+    //! @brief nuclear network reaction list
+    nnet::reaction_list const *reactions;
+    //! @brief nuclear network parameterization
+    nnet::compute_reaction_rates_functor<T> const *construct_rates_BE;
+    //! @brief eos
+    nnet::eos_functor<T> eos;
+
 public:
     NuclearProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
     {
+        if (use_helm)
+        {
+            eos = nnet::eos::helmholtz_functor<T>(nnet::net87::constants::Z, 87);
+        }
+        else
+        {
+            eos = nnet::eos::ideal_gas_functor<T>(10.0);
+        }
+
+
+        if (n_species == 14)
+        {
+            reactions          = &nnet::net14::reaction_list;
+            construct_rates_BE = &nnet::net14::compute_reaction_rates;
+        } 
+        else if (n_species == 86)
+        {
+            reactions          = &nnet::net86::reaction_list;
+            construct_rates_BE = &nnet::net86::compute_reaction_rates;
+        }
+        else if (n_species == 87)
+        {
+            reactions          = &nnet::net87::reaction_list;
+            construct_rates_BE = &nnet::net87::compute_reaction_rates;
+        }
+        else
+        {
+            throw std::runtime_error("not able to initialize propagator " + std::to_string(n_species) + " nuclear species !");
+        }
     }
 
     std::vector<std::string> conservedFields() const override
@@ -102,6 +144,14 @@ public:
         std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
         auto& n = simData.nuclearData;
+        n.numSpecies = n_species;
+
+        //! @brief set nuclear data dependent
+        for (int i = 0; i < n.numSpecies; ++i)
+        {
+            n.setDependent("Y" + std::to_string(i));
+            n.devData.setDependent("Y" + std::to_string(i));
+        }
 
         //! @brief Fields accessed in domain sync are not part of extensible lists.
         n.setConserved(/* TODO */);
