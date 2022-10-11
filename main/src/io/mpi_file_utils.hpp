@@ -75,6 +75,12 @@ std::vector<std::string> fileAttributeNames(H5PartFile* h5_file)
     return setNames;
 }
 
+//Output for Grackle data field (not implemented)
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const util::array<double, 21>* field)
+{
+    return 0.;
+}
+
 inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, int* field)
 {
     static_assert(std::is_same_v<int, h5part_int32_t>);

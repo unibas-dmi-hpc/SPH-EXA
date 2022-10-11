@@ -40,19 +40,24 @@
 #ifdef SPH_EXA_HAVE_H5PART
 #include "turb_ve.hpp"
 #endif
+#include "std_hydro_grackle.hpp"
 
 namespace sphexa
 {
 
 template<class DomainType, class ParticleDataType>
 std::unique_ptr<Propagator<DomainType, ParticleDataType>>
-propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostream& output, size_t rank, const std::string& grackleOptionFile)
 {
     if (choice == "ve")
     {
         return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
     }
     if (choice == "std") { return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
+    if (choice == "std_cooling")
+    {
+        return std::make_unique<HydroGrackleProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank, grackleOptionFile);
+    }
     if (choice == "turbulence")
     {
 #ifdef SPH_EXA_HAVE_H5PART

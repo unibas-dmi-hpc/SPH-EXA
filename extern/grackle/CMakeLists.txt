@@ -31,6 +31,8 @@ set(grackle_SRCS
     grackle_repo/src/clib/cool_multi_time_g.F
     grackle_repo/src/clib/interpolators_g.F
     grackle_repo/src/clib/solve_rate_cool_g.F
+
+        grackle_repo/src/clib/index_helper.c
 )
 
 add_library(grackle ${grackle_SRCS})

@@ -157,8 +157,12 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         deltaA = 0.5 * dt * dt / dt_m1;
         deltaB = dt + deltaA;
 
+      //  u[i] += du[i] * deltaB - du_m1[i] * deltaA;
+        const T u_old = u[i];
         u[i] += du[i] * deltaB - du_m1[i] * deltaA;
-
+        if (u[i] < 0.) {
+            u[i] = u_old * std::exp(du[i] * dt / u_old);
+        }
         du_m1[i] = du[i];
 
 #ifndef NDEBUG
