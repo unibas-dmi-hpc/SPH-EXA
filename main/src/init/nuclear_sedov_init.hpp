@@ -113,7 +113,6 @@ public:
     const std::map<std::string, double>& constants() const override { return constants_; }
 };
 
-
 template<class Dataset>
 class NuclearSedovGlass : public ISimInitializer<Dataset>
 {

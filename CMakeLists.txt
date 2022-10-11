@@ -1,113 +1,154 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(sphexa CXX C)
-set(CMAKE_CXX_STANDARD 20)
+    project(sphexa CXX C) set(CMAKE_CXX_STANDARD 20)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
-set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
+        set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG") set(CMAKE_CUDA_FLAGS_RELEASE
+                                                                                      "-O3 -DNDEBUG")
 
-list(APPEND CMAKE_MODULE_PATH 
-     "${PROJECT_SOURCE_DIR}/cmake"
-     "${PROJECT_SOURCE_DIR}/main/cmake"
-)
+            list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake"
+                                          "${PROJECT_SOURCE_DIR}/main/cmake")
 
-option(BUILD_TESTING "build unit and integration tests" ON)
-option(BUILD_ANALYTICAL "build analytical solution" ON)
+                option(BUILD_TESTING "build unit and integration tests" ON) option(BUILD_ANALYTICAL
+                                                                                   "build analytical solution" ON)
 
-option(GPU_DIRECT "Enable CUDA-aware MPI communication" OFF)
+                    option(GPU_DIRECT "Enable CUDA-aware MPI communication" OFF)
 
-if (BUILD_TESTING)
-    include(setup_GTest)
-endif()
+                        if (BUILD_TESTING) include(setup_GTest) endif()
 
-find_package(MPI)
-find_package(OpenMP REQUIRED)
+                            find_package(MPI) find_package(OpenMP REQUIRED)
 
-# if INTERFACE_LINK_OPTIONS for OpenMP_CXX is not set, we set
-# INTERFACE_LINK_OPTIONS = INTERFACE_COMPILE_OPTIONS
-# i.e. we add e.g. the -fopenmp flag to the linker
-get_property(OpenMP_CXX_INTERFACE_LINK_OPTIONS TARGET OpenMP::OpenMP_CXX PROPERTY INTERFACE_LINK_OPTIONS)
-if (NOT OpenMP_CXX_INTERFACE_LINK_OPTIONS)
-    # fill in using INTERFACE_COMPILE_OPTIONS
-    get_property(OpenMP_CXX_INTERFACE_LINK_OPTIONS TARGET OpenMP::OpenMP_CXX PROPERTY INTERFACE_COMPILE_OPTIONS)
-    set_property(TARGET OpenMP::OpenMP_CXX PROPERTY INTERFACE_LINK_OPTIONS ${OpenMP_CXX_INTERFACE_LINK_OPTIONS})
-endif()
+#if INTERFACE_LINK_OPTIONS for OpenMP_CXX is not set, we set
+#INTERFACE_LINK_OPTIONS = INTERFACE_COMPILE_OPTIONS
+#i.e.we add e.g.the - fopenmp flag to the linker
+                                get_property(OpenMP_CXX_INTERFACE_LINK_OPTIONS TARGET OpenMP::OpenMP_CXX PROPERTY
+                                                 INTERFACE_LINK_OPTIONS) if (NOT OpenMP_CXX_INTERFACE_LINK_OPTIONS)
+#fill in using INTERFACE_COMPILE_OPTIONS
+                                    get_property(
+                                        OpenMP_CXX_INTERFACE_LINK_OPTIONS TARGET OpenMP::OpenMP_CXX PROPERTY
+                                            INTERFACE_COMPILE_OPTIONS) set_property(TARGET OpenMP::OpenMP_CXX PROPERTY
+                                                                                        INTERFACE_LINK_OPTIONS ${
+                                                                                            OpenMP_CXX_INTERFACE_LINK_OPTIONS}) endif()
 
-include(CTest)
-include(CheckLanguage)
+                                        include(CTest) include(CheckLanguage)
 
-set(default_build_type "Release")
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
-  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif()
+                                            set(default_build_type
+                                                "Release") if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+                                                message(STATUS "Setting build type to '${default_build_type}' as none "
+                                                               "was specified.") set(
+                                                    CMAKE_BUILD_TYPE
+                                                    "${default_build_type}" CACHE STRING
+                                                    "Choose the type of build." FORCE) set_property(CACHE
+                                                                                                        CMAKE_BUILD_TYPE
+                                                                                                            PROPERTY
+                                                                                                                STRINGS
+                                                                                                    "Debug"
+                                                                                                    "Release"
+                                                                                                    "MinSizeRel"
+                                                                                                    "RelWithDebInfo") endif()
 
-
-check_language(HIP)
-if(CMAKE_HIP_COMPILER)
-    enable_language(HIP)
-    find_package(hip)
-    set(CMAKE_HIP_STANDARD 17)
-    set(CMAKE_HIP_FLAGS "-w \
+                                                    check_language(HIP) if (CMAKE_HIP_COMPILER) enable_language(
+                                                        HIP) find_package(hip) set(CMAKE_HIP_STANDARD 17) set(CMAKE_HIP_FLAGS
+                                                                                                              "-w \
                          -I$ENV{GCC_X86_64}/include/g++/x86_64-suse-linux \
-                         -I$ENV{GCC_X86_64}/include/g++")
-endif()
+                         -I$ENV{GCC_X86_64}/include/g++") endif()
 
-check_language(CUDA)
-if(CMAKE_CUDA_COMPILER)
-    enable_language(CUDA)
-    find_package(CUDAToolkit)
-    set(CMAKE_CUDA_STANDARD 17)
-endif()
+                                                        check_language(CUDA) if (CMAKE_CUDA_COMPILER) enable_language(
+                                                            CUDA) find_package(CUDAToolkit) set(CMAKE_CUDA_STANDARD 17) endif()
 
-option(SPH_EXA_WITH_H5PART "Enable HDF5 IO using the H5Part library" ON)
-if (SPH_EXA_WITH_H5PART)
-    set(HDF5_PREFER_PARALLEL true)
-    find_package(HDF5)
-    if (HDF5_FOUND)
-        add_subdirectory(./extern/h5part)
-    else()
-        message(STATUS "No HDF5 support")
-        set(SPH_EXA_WITH_H5PART OFF)
-    endif ()
-endif ()
+                                                            option(SPH_EXA_WITH_H5PART "Enable HDF5 IO using the "
+                                                                                       "H5Part library" ON) if (
+                                                                SPH_EXA_WITH_H5PART) set(HDF5_PREFER_PARALLEL true)
+                                                                find_package(HDF5) if (HDF5_FOUND) add_subdirectory(
+                                                                        ./ extern /
+                                                                        h5part) else() message(STATUS "No HDF5 support")
+                                                                    set(SPH_EXA_WITH_H5PART OFF) endif() endif()
 
-set(INSITU None CACHE STRING "Enable in-situ support")
-set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent)
+                                                                        set(INSITU None CACHE STRING "Enable in-situ "
+                                                                                                     "support") set_property(
+                                                                            CACHE INSITU PROPERTY STRINGS None Catalyst
+                                                                                Ascent)
 
-if(INSITU STREQUAL "Catalyst")
-    find_package(catalyst REQUIRED PATHS "$ENV{EBROOTPARAVIEW}/lib/cmake/paraview-5.10")
-elseif(INSITU STREQUAL "Ascent")
-	find_package(Ascent REQUIRED PATHS "$ENV{EBROOTASCENT}/lib/cmake/ascent")
-endif()
+                                                                            if (INSITU STREQUAL "Catalyst") find_package(
+                                                                                catalyst REQUIRED PATHS
+                                                                                "$ENV{EBROOTPARAVIEW}/lib/cmake/"
+                                                                                "paraview-5.10") elseif(INSITU STREQUAL
+                                                                                                        "Ascent")
+                                                                                find_package(Ascent REQUIRED PATHS
+                                                                                             "$ENV{EBROOTASCENT}/lib/"
+                                                                                             "cmake/ascent") endif()
 
-option(SPH_EXA_WITH_FFTW "Enable use of the FFTW library" ON)
-if (SPH_EXA_WITH_FFTW)
-    find_package(FFTW)
-    if (NOT FFTW_FOUND)
-        message(STATUS "No FFTW support")
-        set(SPH_EXA_WITH_FFTW OFF)
-    endif ()
-endif ()
+                                                                                    option(SPH_EXA_WITH_FFTW "Enable "
+                                                                                                             "use of "
+                                                                                                             "the FFTW "
+                                                                                                             "librar"
+                                                                                                             "y" ON) if (
+                                                                                        SPH_EXA_WITH_FFTW) find_package(FFTW) if (NOT FFTW_FOUND)
+                                                                                        message(STATUS "No FFTW "
+                                                                                                       "support") set(
+                                                                                            SPH_EXA_WITH_FFTW
+                                                                                                OFF) endif() endif()
 
-option(SPH_EXA_WITH_NNET "Enable nuclear networks" ON)
-if (SPH_EXA_WITH_NNET)
-    if(EXISTS ${PROJECT_SOURCE_DIR}/physics/nuclear-networks/include)
-        set(NNET_DIR ${PROJECT_SOURCE_DIR}/physics/nuclear-networks/include)
-    else()
-        message(STATUS "Nuclear network module not found !")
-        set(SPH_EXA_WITH_NNET OFF)
-    endif()
-endif()
+                                                                                            option(SPH_EXA_WITH_NNET "E"
+                                                                                                                     "n"
+                                                                                                                     "a"
+                                                                                                                     "b"
+                                                                                                                     "l"
+                                                                                                                     "e"
+                                                                                                                     " "
+                                                                                                                     "n"
+                                                                                                                     "u"
+                                                                                                                     "c"
+                                                                                                                     "l"
+                                                                                                                     "e"
+                                                                                                                     "a"
+                                                                                                                     "r"
+                                                                                                                     " "
+                                                                                                                     "n"
+                                                                                                                     "e"
+                                                                                                                     "t"
+                                                                                                                     "w"
+                                                                                                                     "o"
+                                                                                                                     "r"
+                                                                                                                     "k"
+                                                                                                                     "s" ON) if (SPH_EXA_WITH_NNET) if (
+                                                                                                EXISTS ${
+                                                                                                    PROJECT_SOURCE_DIR} /
+                                                                                                    physics / nuclear -
+                                                                                                networks /
+                                                                                                    include) set(NNET_DIR ${
+                                                                                                                     PROJECT_SOURCE_DIR} /
+                                                                                                                     physics /
+                                                                                                                     nuclear -
+                                                                                                                 networks /
+                                                                                                                     include) else()
+                                                                                                message(STATUS "Nuclear"
+                                                                                                               " networ"
+                                                                                                               "k "
+                                                                                                               "module "
+                                                                                                               "not "
+                                                                                                               "found "
+                                                                                                               "!") set(
+                                                                                                    SPH_EXA_WITH_NNET
+                                                                                                        OFF) endif() endif()
 
-option(SPH_EXA_WITH_GRACKLE "Enable radiative cooling with GRACKLE" OFF)
-if (SPH_EXA_WITH_GRACKLE)
-    add_subdirectory(extern/grackle)
-endif()
+                                                                                                    option(
+                                                                                                        SPH_EXA_WITH_GRACKLE
+                                                                                                        "Enable "
+                                                                                                        "radiative "
+                                                                                                        "cooling with "
+                                                                                                        "GRACKL"
+                                                                                                        "E" OFF) if (SPH_EXA_WITH_GRACKLE)
+                                                                                                        add_subdirectory(
+                                                                                                            extern /
+                                                                                                            grackle) endif()
 
-add_subdirectory(domain)
-add_subdirectory(ryoanji)
-add_subdirectory(sph)
-add_subdirectory(physics)
-add_subdirectory(main)
+                                                                                                            add_subdirectory(
+                                                                                                                domain)
+                                                                                                                add_subdirectory(
+                                                                                                                    ryoanji)
+                                                                                                                    add_subdirectory(
+                                                                                                                        sph)
+                                                                                                                        add_subdirectory(
+                                                                                                                            physics)
+                                                                                                                            add_subdirectory(
+                                                                                                                                main)

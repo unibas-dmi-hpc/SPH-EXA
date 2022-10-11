@@ -93,7 +93,6 @@ public:
         if (use_helm) { eos = nnet::eos::helmholtz_functor<T>(nnet::net87::constants::Z, 87); }
         else { eos = nnet::eos::ideal_gas_functor<T>(10.0); }
 
-
         if (n_species == 14)
         {
             reactions          = &nnet::net14::reaction_list;
