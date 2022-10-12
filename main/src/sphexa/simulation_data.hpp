@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich, University of Basel, University of Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,45 +23,43 @@
  */
 
 /*! @file
- * @brief output time and energies each iteration (default)
- * @author Lukas Schmidt
+ * @brief Contains the object holding all simulation data
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <fstream>
+#pragma once
 
-#include "conserved_quantities.hpp"
-#include "iobservables.hpp"
-#include "io/ifile_writer.hpp"
+#include <mpi.h>
+
+#include "cooling/chemistry_data.hpp"
+#include "sph/particles_data.hpp"
 
 namespace sphexa
 {
 
-template<class Dataset>
-class TimeAndEnergy : public IObservables<Dataset>
+//! @brief the place to store hydro, chemistry, nuclear and other simulation data
+template<typename T, typename KeyType_, class AccType>
+class SimulationData
 {
-    std::ofstream& constantsFile;
-    using T = typename Dataset::RealType;
-
 public:
-    TimeAndEnergy(std::ofstream& constPath)
-        : constantsFile(constPath)
-    {
-    }
+    using AcceleratorType = AccType;
+    using KeyType         = KeyType_;
+    using RealType        = T;
 
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
-    {
-        int rank;
-        MPI_Comm_rank(simData.comm, &rank);
-        auto& d = simData.hydro;
+    using HydroData = ParticlesData<RealType, KeyType, AccType>;
+    using ChemData  = cooling::ChemistryData<T>;
 
-        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
+    //! @brief spacially distributed data for hydrodynamics and gravity
+    HydroData hydro;
 
-        if (rank == 0)
-        {
-            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
-                                    d.linmom, d.angmom);
-        }
-    }
+    //! @brief chemistry data for radiative cooling, e.g. for GRACKLE
+    ChemData chem;
+
+    //! @brief non-spacially distributed nuclear abundances
+    // NuclearData nuclear;
+
+    MPI_Comm comm;
 };
 
 } // namespace sphexa

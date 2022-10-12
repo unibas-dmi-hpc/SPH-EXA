@@ -96,8 +96,10 @@ class NohGrid : public ISimInitializer<Dataset>
 public:
     NohGrid() { constants_ = nohConstants(); }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide, Dataset& d) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide,
+                                                 Dataset& simData) const override
     {
+        auto& d              = simData.hydro;
         using T              = typename Dataset::RealType;
         d.numParticlesGlobal = cubeSide * cubeSide * cubeSide;
 
@@ -129,8 +131,10 @@ public:
         constants_ = nohConstants();
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& d) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
+                                                 Dataset& simData) const override
     {
+        auto& d       = simData.hydro;
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
@@ -148,7 +152,7 @@ public:
         cutSphere(r, d.x, d.y, d.z);
 
         d.numParticlesGlobal = d.x.size();
-        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
+        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
 
         d.resize(d.x.size());
 

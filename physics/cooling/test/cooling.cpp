@@ -34,7 +34,7 @@
 #include "gtest/gtest.h"
 
 #include "grackle_deps/version.h"
-#include "cooling.hpp"
+#include "cooling/cooling.hpp"
 
 TEST(cooling_grackle, test1a)
 {
@@ -86,30 +86,11 @@ TEST(cooling_grackle, test1a)
     std::cout << HeI_fraction[0] << std::endl;
     std::cout << metal_fraction[0] << std::endl;
 
-    cool_particle(dt,
-                  rho[0],
-                  u[0],
-                  HI_fraction[0],
-                  HII_fraction[0],
-                  HM_fraction[0],
-                  HeI_fraction[0],
-                  HeII_fraction[0],
-                  HeIII_fraction[0],
-                  H2I_fraction[0],
-                  H2II_fraction[0],
-                  DI_fraction[0],
-                  DII_fraction[0],
-                  HDI_fraction[0],
-                  e_fraction[0],
-                  metal_fraction[0],
-                  volumetric_heating_rate[0],
-                  specific_heating_rate[0],
-                  RT_heating_rate[0],
-                  RT_HI_ionization_rate[0],
-                  RT_HeI_ionization_rate[0],
-                  RT_HeII_ionization_rate[0],
-                  RT_H2_dissociation_rate[0],
-                  H2_self_shielding_length[0]);
+    cool_particle(dt, rho[0], u[0], HI_fraction[0], HII_fraction[0], HM_fraction[0], HeI_fraction[0], HeII_fraction[0],
+                  HeIII_fraction[0], H2I_fraction[0], H2II_fraction[0], DI_fraction[0], DII_fraction[0],
+                  HDI_fraction[0], e_fraction[0], metal_fraction[0], volumetric_heating_rate[0],
+                  specific_heating_rate[0], RT_heating_rate[0], RT_HI_ionization_rate[0], RT_HeI_ionization_rate[0],
+                  RT_HeII_ionization_rate[0], RT_H2_dissociation_rate[0], H2_self_shielding_length[0]);
 
     std::cout << HI_fraction[0] << std::endl;
 

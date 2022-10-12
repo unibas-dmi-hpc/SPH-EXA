@@ -59,15 +59,16 @@ struct IFileWriter
 template<class Dataset>
 struct AsciiWriter : public IFileWriter<Dataset>
 {
-    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<typename Dataset::RealType>& box,
+    void dump(Dataset& simData, size_t firstIndex, size_t lastIndex, const cstone::Box<typename Dataset::RealType>& box,
               std::string path) const override
     {
+        auto&      d         = simData.hydro;
         const char separator = ' ';
         path += std::to_string(d.ttot) + ".txt";
 
         int rank, numRanks;
-        MPI_Comm_rank(d.comm, &rank);
-        MPI_Comm_size(d.comm, &numRanks);
+        MPI_Comm_rank(simData.comm, &rank);
+        MPI_Comm_size(simData.comm, &numRanks);
 
         for (int turn = 0; turn < numRanks; turn++)
         {
@@ -83,11 +84,11 @@ struct AsciiWriter : public IFileWriter<Dataset>
                 catch (std::runtime_error& ex)
                 {
                     if (rank == 0) fprintf(stderr, "ERROR: %s Terminating\n", ex.what());
-                    MPI_Abort(d.comm, 1);
+                    MPI_Abort(simData.comm, 1);
                 }
             }
 
-            MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(simData.comm);
         }
     }
 
@@ -99,11 +100,12 @@ struct AsciiWriter : public IFileWriter<Dataset>
 template<class Dataset>
 struct H5PartWriter : public IFileWriter<Dataset>
 {
-    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<typename Dataset::RealType>& box,
+    void dump(Dataset& simData, size_t firstIndex, size_t lastIndex, const cstone::Box<typename Dataset::RealType>& box,
               std::string path) const override
     {
+        auto& d = simData.hydro;
 #ifdef SPH_EXA_HAVE_H5PART
-        fileutils::writeH5Part(d, firstIndex, lastIndex, box, path);
+        fileutils::writeH5Part(d, firstIndex, lastIndex, box, path, simData.comm);
 #else
         throw std::runtime_error("Cannot write to HDF5 file: H5Part not enabled\n");
 #endif

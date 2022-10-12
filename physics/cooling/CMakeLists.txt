@@ -5,9 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(CSTONE_DIR ${CMAKE_SOURCE_DIR}/domain/include)
 
-#find_package(MPI)
-#find_package(OpenMP REQUIRED)
-
 #include(CTest)
 #include(CheckLanguage)
 

@@ -89,7 +89,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
  * @param[inout]  d            particle data set
  */
 template<class Dataset>
-void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
+void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, MPI_Comm comm)
 {
     double               eKin, eInt;
     cstone::Vec3<double> linmom, angmom;
@@ -129,7 +129,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 
     int rootRank = 0;
     MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<double>{}, MPI_SUM, rootRank,
-               d.comm);
+               comm);
 
     d.ecin  = globalQuantities[0];
     d.eint  = globalQuantities[1];

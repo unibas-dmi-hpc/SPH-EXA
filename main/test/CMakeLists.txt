@@ -20,7 +20,11 @@ if(CMAKE_CUDA_COMPILER)
     add_executable(${testname}
             cuda/gpu_particles_data.cpp
             test_main.cpp)
-    target_include_directories(${testname} PRIVATE ${SPH_DIR} ${CSTONE_DIR} ${PROJECT_SOURCE_DIR}/main/src)
+    target_include_directories(${testname} PRIVATE
+                               ${COOLING_DIR}
+                               ${SPH_DIR}
+                               ${CSTONE_DIR}
+                               ${PROJECT_SOURCE_DIR}/main/src)
     target_link_libraries(${testname} PUBLIC cstone_gpu sph_gpu OpenMP::OpenMP_CXX CUDA::cudart GTest::gtest_main)
     add_test(NAME FrontendUnitsCuda COMMAND ${exename})
     unset(testname)

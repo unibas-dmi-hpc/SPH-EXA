@@ -47,20 +47,20 @@ namespace sphexa
 using namespace sph;
 using cstone::FieldList;
 
-template<class DomainType, class ParticleDataType>
-class HydroProp final : public Propagator<DomainType, ParticleDataType>
+template<class DomainType, class DataType>
+class HydroProp final : public Propagator<DomainType, DataType>
 {
-    using Base = Propagator<DomainType, ParticleDataType>;
+    using Base = Propagator<DomainType, DataType>;
     using Base::ng0_;
     using Base::ngmax_;
     using Base::timer;
 
-    using T             = typename ParticleDataType::RealType;
-    using KeyType       = typename ParticleDataType::KeyType;
-    using Tmass         = typename ParticleDataType::Tmass;
+    using T             = typename DataType::RealType;
+    using KeyType       = typename DataType::KeyType;
+    using Tmass         = typename DataType::HydroData::Tmass;
     using MultipoleType = ryoanji::CartesianQuadrupole<Tmass>;
 
-    using Acc = typename ParticleDataType::AcceleratorType;
+    using Acc = typename DataType::AcceleratorType;
     using MHolder_t =
         typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
                                          MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
@@ -89,8 +89,10 @@ public:
         return ret;
     }
 
-    void activateFields(ParticleDataType& d) override
+    void activateFields(DataType& simData) override
     {
+        auto& d = simData.hydro;
+
         //! @brief Fields accessed in domain sync are not part of extensible lists.
         d.setConserved("x", "y", "z", "h", "m");
         d.setDependent("keys");
@@ -103,8 +105,9 @@ public:
         std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
     }
 
-    void sync(DomainType& domain, ParticleDataType& d) override
+    void sync(DomainType& domain, DataType& simData) override
     {
+        auto& d = simData.hydro;
         if (d.g != 0.0)
         {
             domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
@@ -117,12 +120,13 @@ public:
         }
     }
 
-    void step(DomainType& domain, ParticleDataType& d) override
+    void step(DomainType& domain, DataType& simData) override
     {
         timer.start();
-        sync(domain, d);
+        sync(domain, simData);
         timer.step("domain::sync");
 
+        auto& d = simData.hydro;
         d.resize(domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * ngmax_);
         size_t first = domain.startIndex();
@@ -172,8 +176,9 @@ public:
         timer.stop();
     }
 
-    void prepareOutput(ParticleDataType& d, size_t first, size_t last, const cstone::Box<T>& box) override
+    void prepareOutput(DataType& simData, size_t first, size_t last, const cstone::Box<T>& box) override
     {
+        auto& d = simData.hydro;
         transferToHost(d, first, last, conservedFields());
         transferToHost(d, first, last, {"rho", "p", "c", "du", "ax", "ay", "az", "nc"});
     }
