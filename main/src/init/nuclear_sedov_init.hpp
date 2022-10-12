@@ -67,7 +67,9 @@ public:
         cstone::Box<T> globalBox(-r, r, cstone::BoundaryType::periodic);
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
         syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
-        d.resize(d.x.size());
+
+        size_t last_first = d.x.size();
+        d.resize(last_first);
         initSedovFields(d, constants_);
 
         /* !!!!!!!!!!!!!!!!!!!!!! */
@@ -105,8 +107,8 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
-        sphexa::sphnnet::initializePointers(first, last, n);
-        sphexa::sphnnet::initNuclearDataFromConst(first, last, simData, Y0_87);
+        sphexa::sphnnet::initializePointers(0, last_first, n);
+        sphexa::sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
 
         return globalBox;
     }
@@ -160,7 +162,8 @@ public:
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
-        d.resize(d.x.size());
+        size_t last_first = d.x.size();
+        d.resize(last_first);
         initSedovFields(d, constants_);
 
         /* !!!!!!!!!!!!!!!!!!!!!! */
@@ -198,8 +201,8 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
-        sphexa::sphnnet::initializePointers(keyStart, keyEnd, n);
-        sphexa::sphnnet::initNuclearDataFromConst(keyStart, keyEnd, simData, Y0_87);
+        sphexa::sphnnet::initializePointers(0, last_first, n);
+        sphexa::sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
 
         return globalBox;
     }

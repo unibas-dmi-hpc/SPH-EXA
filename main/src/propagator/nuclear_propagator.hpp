@@ -77,7 +77,7 @@ class NuclearProp final : public Propagator<DomainType, DataType>
         FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
 
     //! @brief the list of dependent nuclear fields, these may be used as scratch space during domain sync
-    using NuclearDependentFields = FieldList</* TODO */>;
+    using NuclearDependentFields = FieldList<"nuclear_node_id", "nuclear_particle_id" /* TODO */>;
 
     //! @brief nuclear network reaction list
     nnet::reaction_list const* reactions;
@@ -168,12 +168,12 @@ public:
         }
 
         //! @brief Fields accessed in domain sync are not part of extensible lists.
-        n.setConserved(/* TODO */);
-        n.setDependent("node_id", "particle_id", "nuclear_node_id", "nuclear_particle_id", "rho", "temp" /* TODO */);
+        n.setConserved("nuclear_node_id", "nuclear_particle_id" /* TODO */);
+        n.setDependent("node_id", "particle_id", "rho", "temp" /* TODO */);
         std::apply([&n](auto... f) { n.setConserved(f.value...); }, make_tuple(NuclearConservedFields{}));
         std::apply([&n](auto... f) { n.setDependent(f.value...); }, make_tuple(NuclearDependentFields{}));
 
-        n.devData.setConserved(/* TODO */);
+        n.devData.setConserved(/* should be removed: */ "nuclear_node_id", "nuclear_particle_id" /* TODO */);
         n.devData.setDependent("rho", "temp" /* TODO */);
         std::apply([&n](auto... f) { n.devData.setConserved(f.value...); }, make_tuple(NuclearConservedFields{}));
         std::apply([&n](auto... f) { n.devData.setDependent(f.value...); }, make_tuple(NuclearDependentFields{}));
@@ -187,15 +187,15 @@ public:
         {
             domain.syncGrav(
                 get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                std::tuple_cat(/*std::tie(getHost<"node_id">(n), getHost<"particle_id">(n)),*/ get<ConservedFields>(d)),
-                get<DependentFields>(d));
+                std::tuple_cat(std::tie(get<"node_id">(n) /*, get<"particle_id">(n)*/), get<ConservedFields>(d)),
+                std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
         }
         else
         {
             domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                        std::tuple_cat(/*std::tie(getHost<"node_id">(n), getHost<"particle_id">(n)),*/
-                                       std::tie(get<"m">(d)), get<ConservedFields>(d)),
-                        get<DependentFields>(d));
+                        std::tuple_cat(std::tie(get<"node_id">(n) /*, get<"particle_id">(n)*/), std::tie(get<"m">(d)),
+                                       get<ConservedFields>(d)),
+                        std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
         }
     }
 
@@ -228,8 +228,11 @@ private:
     void hydro_step_before(DomainType& domain, DataType& simData)
     {
         auto& d = simData.hydro;
+        auto& n = simData.nuclearData;
 
         d.resize(domain.nParticlesWithHalos());
+        n.resize_hydro(domain.nParticlesWithHalos());
+
         resizeNeighbors(d, domain.nParticles() * ngmax_);
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
