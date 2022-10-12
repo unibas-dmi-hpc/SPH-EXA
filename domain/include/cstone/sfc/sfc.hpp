@@ -134,7 +134,7 @@ HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, KeyType> iSfcKey(u
     return KeyType{iHilbert<typename KeyType::ValueType>(ix, iy, iz)};
 }
 
-template <class KeyType, class T>
+template<class KeyType, class T>
 HOST_DEVICE_FUN inline KeyType sfc3D(T x, T y, T z, T xmin, T ymin, T zmin, T mx, T my, T mz)
 {
     constexpr unsigned mcoord = (1u << maxTreeLevel<typename KeyType::ValueType>{}) - 1;
