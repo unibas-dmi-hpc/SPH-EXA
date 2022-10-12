@@ -72,41 +72,58 @@ HOST_DEVICE_FUN const SfcKind<KeyType>* sfcKindPointer(const KeyType* ptr)
 }
 
 template<>
-struct unusedBits<MortonKey<unsigned>> : stl::integral_constant<unsigned, 2> {};
+struct unusedBits<MortonKey<unsigned>> : stl::integral_constant<unsigned, 2>
+{
+};
 template<>
-struct unusedBits<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 2> {};
-
-template<>
-struct unusedBits<MortonKey<unsigned long long>> : stl::integral_constant<unsigned, 1> {};
-template<>
-struct unusedBits<HilbertKey<unsigned long long>> : stl::integral_constant<unsigned, 1> {};
-
+struct unusedBits<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 2>
+{
+};
 
 template<>
-struct unusedBits<MortonKey<unsigned long>> : stl::integral_constant<unsigned, 1> {};
+struct unusedBits<MortonKey<unsigned long>> : stl::integral_constant<unsigned, 1>
+{
+};
 template<>
-struct unusedBits<HilbertKey<unsigned long>> : stl::integral_constant<unsigned, 1> {};
-
-
-
-
-template<>
-struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
-template<>
-struct maxTreeLevel<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
+struct unusedBits<HilbertKey<unsigned long>> : stl::integral_constant<unsigned, 1>
+{
+};
 
 template<>
-struct maxTreeLevel<MortonKey<unsigned long long>> : stl::integral_constant<unsigned, 21> {};
+struct unusedBits<MortonKey<unsigned long long>> : stl::integral_constant<unsigned, 1>
+{
+};
 template<>
-struct maxTreeLevel<HilbertKey<unsigned long long>> : stl::integral_constant<unsigned, 21> {};
+struct unusedBits<HilbertKey<unsigned long long>> : stl::integral_constant<unsigned, 1>
+{
+};
 
 template<>
-struct maxTreeLevel<MortonKey<unsigned long>> : stl::integral_constant<unsigned, 21> {};
+struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10>
+{
+};
 template<>
-struct maxTreeLevel<HilbertKey<unsigned long>> : stl::integral_constant<unsigned, 21> {};
+struct maxTreeLevel<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 10>
+{
+};
 
+template<>
+struct maxTreeLevel<MortonKey<unsigned long>> : stl::integral_constant<unsigned, 21>
+{
+};
+template<>
+struct maxTreeLevel<HilbertKey<unsigned long>> : stl::integral_constant<unsigned, 21>
+{
+};
 
-
+template<>
+struct maxTreeLevel<MortonKey<unsigned long long>> : stl::integral_constant<unsigned, 21>
+{
+};
+template<>
+struct maxTreeLevel<HilbertKey<unsigned long long>> : stl::integral_constant<unsigned, 21>
+{
+};
 
 //! @brief Meta function to detect Morton key types
 template<class KeyType>

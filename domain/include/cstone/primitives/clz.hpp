@@ -79,7 +79,7 @@ constexpr int clz64(uint64_t x)
  *            for an input value of 0
  */
 HOST_DEVICE_FUN
-constexpr int countLeadingZeros(unsigned int x)
+constexpr int countLeadingZeros(unsigned x)
 {
 #ifdef __CUDA_ARCH__
     return __clz(x);
@@ -91,11 +91,11 @@ constexpr int countLeadingZeros(unsigned int x)
     // __builtin_clz(l) is implemented with the LZCNT instruction
     // which returns the number of bits for an input of zero,
     // so this check is not required in that case (flag: -march=haswell)
-    if (x == 0) return 8 * sizeof(unsigned int);
+    if (x == 0) return 8 * sizeof(unsigned);
     return __builtin_clz(x);
 
 #else
-    if (x == 0) return 8 * sizeof(uint32_t);
+    if (x == 0) return 8 * sizeof(unsigned);
     return detail::clz32(x);
 
 #endif
@@ -118,28 +118,10 @@ constexpr int countLeadingZeros(unsigned long long x)
     return __builtin_clzl(x);
 
 #else
-    if (x == 0) return 8 * sizeof(uint64_t);
+    if (x == 0) return 8 * sizeof(unsigned long long);
     return detail::clz64(x);
 #endif
 }
+
 HOST_DEVICE_FUN
-constexpr int countLeadingZeros(unsigned long x)
-{
-#ifdef __CUDA_ARCH__
-    return __clzll(x);
-    // with GCC and clang, we can use the builtin implementation
-    // this also works with the intel compiler, which also defines __GNUC__
-#elif defined(__GNUC__) || defined(__clang__)
-
-    // if the target architecture is Haswell or later,
-    // __builtin_clz(l) is implemented with the LZCNT instruction
-    // which returns the number of bits for an input of zero,
-    // so this check is not required in that case (flag: -march=haswell)
-    if (x == 0) return 8 * sizeof(unsigned long);
-    return __builtin_clzl(x);
-
-#else
-    if (x == 0) return 8 * sizeof(uint64_t);
-    return detail::clz64(x);
-#endif
-}
+constexpr int countLeadingZeros(unsigned long x) { return countLeadingZeros((unsigned long long)x); }
