@@ -62,11 +62,6 @@ struct unusedBits<unsigned long> : stl::integral_constant<unsigned, 1>
 {
 };
 
-//If size_t ≠ uint64_t
-template<>
-struct unusedBits<size_t> : stl::integral_constant<unsigned, 1>
-{
-};
 template<class KeyType>
 struct maxTreeLevel
 {
@@ -86,11 +81,7 @@ struct maxTreeLevel<unsigned long> : stl::integral_constant<unsigned, 21>
 {
 };
 
-//If size_t ≠ uint64_t
-template<>
-struct maxTreeLevel<size_t> : stl::integral_constant<unsigned, 21>
-{
-};
+
 //! @brief maximum integer coordinate
 template<class KeyType>
 struct maxCoord : stl::integral_constant<unsigned, (1u << maxTreeLevel<KeyType>{})>
