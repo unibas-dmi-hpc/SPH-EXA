@@ -81,11 +81,20 @@ struct unusedBits<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 2>
 };
 
 template<>
-struct unusedBits<MortonKey<uint64_t>> : stl::integral_constant<unsigned, 1>
+struct unusedBits<MortonKey<unsigned long>> : stl::integral_constant<unsigned, 1>
 {
 };
 template<>
-struct unusedBits<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 1>
+struct unusedBits<HilbertKey<unsigned long>> : stl::integral_constant<unsigned, 1>
+{
+};
+
+template<>
+struct unusedBits<MortonKey<unsigned long long>> : stl::integral_constant<unsigned, 1>
+{
+};
+template<>
+struct unusedBits<HilbertKey<unsigned long long>> : stl::integral_constant<unsigned, 1>
 {
 };
 
@@ -99,11 +108,20 @@ struct maxTreeLevel<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 10>
 };
 
 template<>
-struct maxTreeLevel<MortonKey<uint64_t>> : stl::integral_constant<unsigned, 21>
+struct maxTreeLevel<MortonKey<unsigned long>> : stl::integral_constant<unsigned, 21>
 {
 };
 template<>
-struct maxTreeLevel<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 21>
+struct maxTreeLevel<HilbertKey<unsigned long>> : stl::integral_constant<unsigned, 21>
+{
+};
+
+template<>
+struct maxTreeLevel<MortonKey<unsigned long long>> : stl::integral_constant<unsigned, 21>
+{
+};
+template<>
+struct maxTreeLevel<HilbertKey<unsigned long long>> : stl::integral_constant<unsigned, 21>
 {
 };
 
