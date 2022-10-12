@@ -28,6 +28,8 @@
  * @author Joseph Touzet <joseph.touzet@ens-paris-saclay.fr>
  */
 
+#pragma once
+
 #include <array>
 
 template<typename T, std::size_t LL, std::size_t RL>

@@ -85,39 +85,54 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     nnet::compute_reaction_rates_functor<T> const* construct_rates_BE;
     //! @brief eos
     nnet::eos_functor<T>* eos;
+    //! @brief Z
+    std::vector<T> Z;
 
 public:
     NuclearProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
     {
-        if (use_helm)
-        {
-            if (n_species == 14) { eos = new nnet::eos::helmholtz_functor<double>(nnet::net14::constants::Z); }
-            else if (n_species == 86) { eos = new nnet::eos::helmholtz_functor<double>(nnet::net87::constants::Z, 86); }
-            else if (n_species == 87) { eos = new nnet::eos::helmholtz_functor<double>(nnet::net87::constants::Z, 87); }
-        }
-        else { eos = new nnet::eos::ideal_gas_functor<T>(10.0); }
-
         if (n_species == 14)
         {
             reactions          = &nnet::net14::reaction_list;
             construct_rates_BE = &nnet::net14::compute_reaction_rates;
+
+            Z.resize(14);
+            for (int i = 0; i < 14; ++i)
+            {
+                Z[i] = nnet::net14::constants::Z[i];
+            }
         }
         else if (n_species == 86)
         {
             reactions          = &nnet::net86::reaction_list;
             construct_rates_BE = &nnet::net86::compute_reaction_rates;
+
+            Z.resize(86);
+            for (int i = 0; i < 86; ++i)
+            {
+                Z[i] = nnet::net86::constants::Z[i];
+            }
         }
         else if (n_species == 87)
         {
             reactions          = &nnet::net87::reaction_list;
             construct_rates_BE = &nnet::net87::compute_reaction_rates;
+
+            Z.resize(87);
+            for (int i = 0; i < 87; ++i)
+            {
+                Z[i] = nnet::net87::constants::Z[i];
+            }
         }
         else
         {
             throw std::runtime_error("not able to initialize propagator " + std::to_string(n_species) +
                                      " nuclear species !");
         }
+
+        if (use_helm) { eos = new nnet::eos::helmholtz_functor<T>(Z); }
+        else { eos = new nnet::eos::ideal_gas_functor<T>(10.0); }
     }
 
     std::vector<std::string> conservedFields() const override
@@ -170,15 +185,17 @@ public:
         auto& n = simData.nuclearData;
         if (d.g != 0.0)
         {
-            domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                            get<ConservedFields>(d),
-                            get<DependentFields>(d) /*, get<"node_id">(n), get<"particle_id">(n) */);
+            domain.syncGrav(
+                get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
+                std::tuple_cat(/*std::tie(getHost<"node_id">(n), getHost<"particle_id">(n)),*/ get<ConservedFields>(d)),
+                get<DependentFields>(d));
         }
         else
         {
             domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d)
-                        /*, get<"node_id">(n), get<"particle_id">(n) */);
+                        std::tuple_cat(/*std::tie(getHost<"node_id">(n), getHost<"particle_id">(n)),*/
+                                       std::tie(get<"m">(d)), get<ConservedFields>(d)),
+                        get<DependentFields>(d));
         }
     }
 
