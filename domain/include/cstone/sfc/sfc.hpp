@@ -72,68 +72,76 @@ HOST_DEVICE_FUN const SfcKind<KeyType>* sfcKindPointer(const KeyType* ptr)
 }
 
 template<>
-struct unusedBits<MortonKey<unsigned>> : stl::integral_constant<unsigned, 2>
-{
-};
+struct unusedBits<MortonKey<unsigned>> : stl::integral_constant<unsigned, 2> {};
 template<>
-struct unusedBits<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 2>
-{
-};
+struct unusedBits<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 2> {};
 
 template<>
-struct unusedBits<MortonKey<uint64_t>> : stl::integral_constant<unsigned, 1>
-{
-};
+struct unusedBits<MortonKey<unsigned long long>> : stl::integral_constant<unsigned, 1> {};
 template<>
-struct unusedBits<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 1>
-{
-};
+struct unusedBits<HilbertKey<unsigned long long>> : stl::integral_constant<unsigned, 1> {};
+
 
 template<>
-struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10>
-{
-};
+struct unusedBits<MortonKey<unsigned long>> : stl::integral_constant<unsigned, 1> {};
 template<>
-struct maxTreeLevel<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 10>
-{
-};
+struct unusedBits<HilbertKey<unsigned long>> : stl::integral_constant<unsigned, 1> {};
+
 
 template<>
-struct maxTreeLevel<MortonKey<uint64_t>> : stl::integral_constant<unsigned, 21>
-{
-};
+struct unusedBits<MortonKey<size_t>> : stl::integral_constant<unsigned, 1> {};
 template<>
-struct maxTreeLevel<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 21>
-{
-};
+struct unusedBits<HilbertKey<size_t>> : stl::integral_constant<unsigned, 1> {};
+
+
+
+template<>
+struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
+template<>
+struct maxTreeLevel<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
+
+template<>
+struct maxTreeLevel<MortonKey<unsigned long long>> : stl::integral_constant<unsigned, 21> {};
+template<>
+struct maxTreeLevel<HilbertKey<unsigned long long>> : stl::integral_constant<unsigned, 21> {};
+
+template<>
+struct maxTreeLevel<MortonKey<unsigned long>> : stl::integral_constant<unsigned, 21> {};
+template<>
+struct maxTreeLevel<HilbertKey<unsigned long>> : stl::integral_constant<unsigned, 21> {};
+
+
+//If size_t ≠ uint64_t
+template<>
+struct maxTreeLevel<MortonKey<size_t>> : stl::integral_constant<unsigned, 21> {};
+template<>
+struct maxTreeLevel<HilbertKey<size_t>> : stl::integral_constant<unsigned, 21> {};
 
 //! @brief Meta function to detect Morton key types
 template<class KeyType>
-struct IsMorton : std::bool_constant<std::is_same_v<KeyType, MortonKey<typename KeyType::ValueType>>>
-{
-};
+struct IsMorton : std::bool_constant<std::is_same_v<KeyType, MortonKey<typename KeyType::ValueType>>> {};
 
 //! @brief Meta function to detect Hilbert key types
 template<class KeyType>
-struct IsHilbert : std::bool_constant<std::is_same_v<KeyType, HilbertKey<typename KeyType::ValueType>>>
-{
-};
+struct IsHilbert : std::bool_constant<std::is_same_v<KeyType, HilbertKey<typename KeyType::ValueType>>> {};
 
 //! @brief Key encode overload for Morton keys
 template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<IsMorton<KeyType>{}, KeyType> iSfcKey(unsigned ix, unsigned iy, unsigned iz)
+HOST_DEVICE_FUN inline std::enable_if_t<IsMorton<KeyType>{}, KeyType>
+iSfcKey(unsigned ix, unsigned iy, unsigned iz)
 {
     return KeyType{iMorton<typename KeyType::ValueType>(ix, iy, iz)};
 }
 
 //! @brief Key encode overload for Hilbert keys
 template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, KeyType> iSfcKey(unsigned ix, unsigned iy, unsigned iz)
+HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, KeyType>
+iSfcKey(unsigned ix, unsigned iy, unsigned iz)
 {
     return KeyType{iHilbert<typename KeyType::ValueType>(ix, iy, iz)};
 }
 
-template<class KeyType, class T>
+template <class KeyType, class T>
 HOST_DEVICE_FUN inline KeyType sfc3D(T x, T y, T z, T xmin, T ymin, T zmin, T mx, T my, T mz)
 {
     constexpr unsigned mcoord = (1u << maxTreeLevel<typename KeyType::ValueType>{}) - 1;
@@ -155,13 +163,13 @@ HOST_DEVICE_FUN inline KeyType sfc3D(T x, T y, T z, T xmin, T ymin, T zmin, T mx
  * Note: -KeyType needs to be specified explicitly.
  *       -not specifying an unsigned type results in a compilation error
  */
-template<class KeyType, class T>
+template <class KeyType, class T>
 HOST_DEVICE_FUN inline KeyType sfc3D(T x, T y, T z, const Box<T>& box)
 {
     constexpr unsigned cubeLength = (1u << maxTreeLevel<typename KeyType::ValueType>{});
 
-    return sfc3D<KeyType>(x, y, z, box.xmin(), box.ymin(), box.zmin(), cubeLength * box.ilx(), cubeLength * box.ily(),
-                          cubeLength * box.ilz());
+    return sfc3D<KeyType>(x, y, z, box.xmin(), box.ymin(), box.zmin(),
+                          cubeLength * box.ilx(), cubeLength * box.ily(), cubeLength * box.ilz());
 }
 
 //! @brief decode a Morton key
@@ -241,7 +249,7 @@ HOST_DEVICE_FUN inline KeyType sfcNeighbor(const IBox& ibox, unsigned level, int
 template<class T, class KeyType>
 void computeSfcKeys(const T* x, const T* y, const T* z, KeyType* particleKeys, size_t n, const Box<T>& box)
 {
-#pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
     {
         particleKeys[i] = sfc3D<KeyType>(x[i], y[i], z[i], box);
