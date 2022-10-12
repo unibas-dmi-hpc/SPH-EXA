@@ -84,14 +84,19 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     //! @brief nuclear network parameterization
     nnet::compute_reaction_rates_functor<T> const* construct_rates_BE;
     //! @brief eos
-    nnet::eos_functor<T> eos;
+    nnet::eos_functor<T>* eos;
 
 public:
     NuclearProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
     {
-        if (use_helm) { eos = nnet::eos::helmholtz_functor<T>(nnet::net87::constants::Z, 87); }
-        else { eos = nnet::eos::ideal_gas_functor<T>(10.0); }
+        if (use_helm)
+        {
+            if (n_species == 14) { eos = new nnet::eos::helmholtz_functor<double>(nnet::net14::constants::Z); }
+            else if (n_species == 86) { eos = new nnet::eos::helmholtz_functor<double>(nnet::net87::constants::Z, 86); }
+            else if (n_species == 87) { eos = new nnet::eos::helmholtz_functor<double>(nnet::net87::constants::Z, 87); }
+        }
+        else { eos = new nnet::eos::ideal_gas_functor<T>(10.0); }
 
         if (n_species == 14)
         {
@@ -149,12 +154,12 @@ public:
 
         //! @brief Fields accessed in domain sync are not part of extensible lists.
         n.setConserved(/* TODO */);
-        n.setDependent(/* TODO */);
+        n.setDependent("node_id", "particle_id", "nuclear_node_id", "nuclear_particle_id", "rho", "temp" /* TODO */);
         std::apply([&n](auto... f) { n.setConserved(f.value...); }, make_tuple(NuclearConservedFields{}));
         std::apply([&n](auto... f) { n.setDependent(f.value...); }, make_tuple(NuclearDependentFields{}));
 
         n.devData.setConserved(/* TODO */);
-        n.devData.setDependent(/* TODO */);
+        n.devData.setDependent("rho", "temp" /* TODO */);
         std::apply([&n](auto... f) { n.devData.setConserved(f.value...); }, make_tuple(NuclearConservedFields{}));
         std::apply([&n](auto... f) { n.devData.setDependent(f.value...); }, make_tuple(NuclearDependentFields{}));
     }
@@ -162,15 +167,18 @@ public:
     void sync(DomainType& domain, DataType& simData) override
     {
         auto& d = simData.hydro;
+        auto& n = simData.nuclearData;
         if (d.g != 0.0)
         {
             domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                            get<ConservedFields>(d), get<DependentFields>(d));
+                            get<ConservedFields>(d),
+                            get<DependentFields>(d) /*, get<"node_id">(n), get<"particle_id">(n) */);
         }
         else
         {
             domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d));
+                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d)
+                        /*, get<"node_id">(n), get<"particle_id">(n) */);
         }
     }
 
