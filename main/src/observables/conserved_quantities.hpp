@@ -47,8 +47,6 @@ namespace sphexa
 template<class Dataset>
 auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    using T = typename Dataset::RealType;
-
     const auto* x  = d.x.data();
     const auto* y  = d.y.data();
     const auto* z  = d.z.data();
@@ -58,20 +56,20 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     const auto* m  = d.m.data();
     const auto* u  = d.u.data();
 
-    T eKin = 0.0;
-    T eInt = 0.0;
+    double eKin = 0.0;
+    double eInt = 0.0;
 
-    util::array<T, 3> linmom{0.0, 0.0, 0.0};
-    util::array<T, 3> angmom{0.0, 0.0, 0.0};
+    util::array<double, 3> linmom{0.0, 0.0, 0.0};
+    util::array<double, 3> angmom{0.0, 0.0, 0.0};
 
-#pragma omp declare reduction(+ : util::array <T, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
+#pragma omp declare reduction(+ : util::array <double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
 
 #pragma omp parallel for reduction(+ : eKin, eInt, linmom, angmom)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        util::array<T, 3> X{x[i], y[i], z[i]};
-        util::array<T, 3> V{vx[i], vy[i], vz[i]};
-        auto              mi = m[i];
+        util::array<double, 3> X{x[i], y[i], z[i]};
+        util::array<double, 3> V{vx[i], vy[i], vz[i]};
+        auto                   mi = m[i];
 
         eKin += mi * norm2(V);
         eInt += u[i] * mi;
@@ -79,7 +77,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
         angmom += mi * cross(X, V);
     }
 
-    return std::make_tuple(T(0.5) * eKin, eInt, linmom, angmom);
+    return std::make_tuple(0.5 * eKin, eInt, linmom, angmom);
 }
 
 /*! @brief Computation of globally conserved quantities
@@ -93,11 +91,9 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 template<class Dataset>
 void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, MPI_Comm comm)
 {
-    using T = typename Dataset::RealType;
-
-    T               eKin, eInt;
-    cstone::Vec3<T> linmom, angmom;
-    size_t          ncsum = 0;
+    double               eKin, eInt;
+    cstone::Vec3<double> linmom, angmom;
+    size_t               ncsum = 0;
 
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
@@ -117,8 +113,8 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
         std::tie(eKin, eInt, linmom, angmom) = localConservedQuantities(startIndex, endIndex, d);
     }
 
-    util::array<T, 10> quantities, globalQuantities;
-    std::fill(globalQuantities.begin(), globalQuantities.end(), T(0));
+    util::array<double, 10> quantities, globalQuantities;
+    std::fill(globalQuantities.begin(), globalQuantities.end(), double(0));
 
     quantities[0] = eKin;
     quantities[1] = eInt;
@@ -129,18 +125,19 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     quantities[6] = angmom[0];
     quantities[7] = angmom[1];
     quantities[8] = angmom[2];
-    quantities[9] = T(ncsum);
+    quantities[9] = double(ncsum);
 
     int rootRank = 0;
-    MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<T>{}, MPI_SUM, rootRank, comm);
+    MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<double>{}, MPI_SUM, rootRank,
+               comm);
 
     d.ecin  = globalQuantities[0];
     d.eint  = globalQuantities[1];
     d.egrav = globalQuantities[2];
     d.etot  = d.ecin + d.eint + d.egrav;
 
-    util::array<T, 3> globalLinmom{globalQuantities[3], globalQuantities[4], globalQuantities[5]};
-    util::array<T, 3> globalAngmom{globalQuantities[6], globalQuantities[7], globalQuantities[8]};
+    util::array<double, 3> globalLinmom{globalQuantities[3], globalQuantities[4], globalQuantities[5]};
+    util::array<double, 3> globalAngmom{globalQuantities[6], globalQuantities[7], globalQuantities[8]};
     d.linmom         = std::sqrt(norm2(globalLinmom));
     d.angmom         = std::sqrt(norm2(globalAngmom));
     d.totalNeighbors = size_t(globalQuantities[9]);

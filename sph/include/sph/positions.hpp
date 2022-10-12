@@ -61,11 +61,11 @@ HOST_DEVICE_FUN double energyUpdate(double dt, double dt_m1, T du, T du_m1)
 
 //! @brief Update positions according to Press (2nd order)
 template<class T>
-HOST_DEVICE_FUN auto positionUpdate(T dt, T dt_m1, cstone::Vec3<T> X, cstone::Vec3<T> A, cstone::Vec3<T> X_m1,
+HOST_DEVICE_FUN auto positionUpdate(double dt, double dt_m1, cstone::Vec3<T> X, cstone::Vec3<T> A, cstone::Vec3<T> X_m1,
                                     const cstone::Box<T>& box)
 {
-    T deltaA = dt + T(0.5) * dt_m1;
-    T deltaB = T(0.5) * (dt + dt_m1);
+    double deltaA = dt + T(0.5) * dt_m1;
+    double deltaB = T(0.5) * (dt + dt_m1);
 
     auto Val = X_m1 * (T(1) / dt_m1);
     auto V   = Val + A * deltaA;
