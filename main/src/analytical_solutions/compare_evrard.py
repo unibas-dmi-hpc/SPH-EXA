@@ -343,7 +343,7 @@ def plotRadialProfile(props, xSim, ySim, xSol, ySol):
     plt.ylabel(props["ylabel"])
     plt.draw()
     plt.title(props["title"] + " : N = %8d, t = %.3f, step = %6d" % (len(xSim), props["tReal"], props["step"]))
-    plt.legend(loc="upper right")
+    plt.legend(loc="lower left")
     plt.savefig(props["fname"], format="png")
     plt.figure().clear()
 
