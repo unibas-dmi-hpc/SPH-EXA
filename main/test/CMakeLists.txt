@@ -29,3 +29,11 @@ if(CMAKE_CUDA_COMPILER)
     add_test(NAME FrontendUnitsCuda COMMAND ${exename})
     unset(testname)
 endif()
+
+if (SPH_EXA_WITH_NNET)
+    set(NNET_DIR ${CMAKE_SOURCE_DIR}/physics/nuclear-networks/include)
+    set(SPH_DIR ${CMAKE_SOURCE_DIR}/sph/include)
+    set(CSTONE_DIR ${CMAKE_SOURCE_DIR}/domain/include)
+
+    add_subdirectory(nuclear-networks)
+endif()

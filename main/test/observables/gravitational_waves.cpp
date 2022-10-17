@@ -49,97 +49,21 @@ TEST(grav_observable, quadpoleMomentum)
     std::vector<T> ay = {678.0e-3, 789.0, 891.0e-3, 901.0, 132.0e-3};
     std::vector<T> az = {122.0e-3, -333.0e-3, -543.0e-3, 765.0, -214.0};
     std::vector<T> m  = {
-         1.0e5,
-         1.0e5,
-         1.0e5,
-         1.0e5,
-         1.0e5,
+         1.0e5, 1.0e5, 1.0e5, 1.0e5, 1.0e5,
     };
 
-    T ixx = d2QuadpoleMomentum<T>(0,
-                                  5,
-                                  0,
-                                  0,
-                                  x.data(),
-                                  y.data(),
-                                  z.data(),
-                                  vx.data(),
-                                  vy.data(),
-                                  vz.data(),
-                                  ax.data(),
-                                  ay.data(),
-                                  az.data(),
-                                  m.data());
-    T iyy = d2QuadpoleMomentum<T>(0,
-                                  5,
-                                  1,
-                                  1,
-                                  x.data(),
-                                  y.data(),
-                                  z.data(),
-                                  vx.data(),
-                                  vy.data(),
-                                  vz.data(),
-                                  ax.data(),
-                                  ay.data(),
-                                  az.data(),
-                                  m.data());
-    T izz = d2QuadpoleMomentum<T>(0,
-                                  5,
-                                  2,
-                                  2,
-                                  x.data(),
-                                  y.data(),
-                                  z.data(),
-                                  vx.data(),
-                                  vy.data(),
-                                  vz.data(),
-                                  ax.data(),
-                                  ay.data(),
-                                  az.data(),
-                                  m.data());
-    T ixy = d2QuadpoleMomentum<T>(0,
-                                  5,
-                                  0,
-                                  1,
-                                  x.data(),
-                                  y.data(),
-                                  z.data(),
-                                  vx.data(),
-                                  vy.data(),
-                                  vz.data(),
-                                  ax.data(),
-                                  ay.data(),
-                                  az.data(),
-                                  m.data());
-    T ixz = d2QuadpoleMomentum<T>(0,
-                                  5,
-                                  0,
-                                  2,
-                                  x.data(),
-                                  y.data(),
-                                  z.data(),
-                                  vx.data(),
-                                  vy.data(),
-                                  vz.data(),
-                                  ax.data(),
-                                  ay.data(),
-                                  az.data(),
-                                  m.data());
-    T iyz = d2QuadpoleMomentum<T>(0,
-                                  5,
-                                  1,
-                                  2,
-                                  x.data(),
-                                  y.data(),
-                                  z.data(),
-                                  vx.data(),
-                                  vy.data(),
-                                  vz.data(),
-                                  ax.data(),
-                                  ay.data(),
-                                  az.data(),
-                                  m.data());
+    T ixx = d2QuadpoleMomentum<T>(0, 5, 0, 0, x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(), ax.data(),
+                                  ay.data(), az.data(), m.data());
+    T iyy = d2QuadpoleMomentum<T>(0, 5, 1, 1, x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(), ax.data(),
+                                  ay.data(), az.data(), m.data());
+    T izz = d2QuadpoleMomentum<T>(0, 5, 2, 2, x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(), ax.data(),
+                                  ay.data(), az.data(), m.data());
+    T ixy = d2QuadpoleMomentum<T>(0, 5, 0, 1, x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(), ax.data(),
+                                  ay.data(), az.data(), m.data());
+    T ixz = d2QuadpoleMomentum<T>(0, 5, 0, 2, x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(), ax.data(),
+                                  ay.data(), az.data(), m.data());
+    T iyz = d2QuadpoleMomentum<T>(0, 5, 1, 2, x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(), ax.data(),
+                                  ay.data(), az.data(), m.data());
 
     EXPECT_EQ(ixx, -2.89095364643866687e14); // ixx
     EXPECT_EQ(iyy, -6.69346245332466625e14); // iyy
@@ -154,12 +78,8 @@ TEST(grav_observable, httcalc)
     T                viewPhi   = 1.421;
     T                httplus;
     T                httcross;
-    std::array<T, 6> quadpole = {-2.89095364643866687e14,
-                                 -6.69346245332466625e14,
-                                 9.58441609976333125e14,
-                                 -6.17629053030000000e12,
-                                 -3.74431432361500000e14,
-                                 2.01029844058000000e13};
+    std::array<T, 6> quadpole = {-2.89095364643866687e14, -6.69346245332466625e14, 9.58441609976333125e14,
+                                 -6.17629053030000000e12, -3.74431432361500000e14, 2.01029844058000000e13};
     sphexa::computeHtt(quadpole, viewTheta, viewPhi, &httplus, &httcross);
 
     EXPECT_NEAR(2.69459728766579961E-58, httplus, 1e-72);
