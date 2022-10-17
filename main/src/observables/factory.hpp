@@ -135,6 +135,8 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
         return std::make_unique<WindBubble<Dataset>>(constantsFile, rhoInt, uExt, bubbleMass);
     }
 
+    if (testCase == "sedov-nuclear") { return std::make_unique<NuclearEnergy<Dataset>>(constantsFile); }
+
     return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
 }
 

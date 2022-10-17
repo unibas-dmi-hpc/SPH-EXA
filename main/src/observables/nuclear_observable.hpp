@@ -33,6 +33,7 @@
 #include "nnet/parameterization/net87/net87.hpp"
 #include "nnet/parameterization/net14/net14.hpp"
 
+#include "conserved_quantities.hpp"
 #include "iobservables.hpp"
 #include "io/ifile_writer.hpp"
 
@@ -62,7 +63,7 @@ public:
 
         computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
 
-        double* const BE;
+        double const* BE;
         if (n.numSpecies == 14) { BE = nnet::net14::BE.data(); }
         else if (n.numSpecies == 86) { BE = nnet::net86::BE.data(); }
         else if (n.numSpecies == 87) { BE = nnet::net87::BE.data(); }
@@ -71,12 +72,12 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
-        Float nuclearEnergy = sphnnet::totalNuclearEnergy(n, BE);
-        d.etot += nuclearEnergy;
+        n.enuclear = sphnnet::totalNuclearEnergy(n, BE);
+        d.etot += n.enuclear;
 
         if (rank == 0)
         {
-            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, nuclearEnergy, d.ecin,
+            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, n.enuclear, d.ecin,
                                     d.eint, d.egrav, d.linmom, d.angmom);
         }
     }
