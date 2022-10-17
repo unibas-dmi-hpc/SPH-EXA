@@ -48,12 +48,12 @@
 #include "nnet/parameterization/eos/ideal_gas.hpp"
 
 // base datatype
-#include "nnet/sphexa/nuclear-data.hpp"
+#include "sphnnet/nuclear-data.hpp"
 
 // nuclear reaction wrappers
-#include "nnet/sphexa/nuclear-net.hpp"
-#include "nnet/sphexa/observables.hpp"
-#include "nnet/sphexa/initializers.hpp"
+#include "sphnnet/nuclear-net.hpp"
+#include "sphnnet/observables.hpp"
+#include "sphnnet/initializers.hpp"
 
 #if !defined(CUDA_CPU_TEST) && defined(USE_CUDA)
 using AccType = cstone::GpuTag;

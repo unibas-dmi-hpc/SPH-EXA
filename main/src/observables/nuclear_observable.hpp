@@ -28,7 +28,7 @@
  * @author Joseph Touzet <joseph.touzet@ens-paris-saclay.fr>
  */
 
-#include "nnet/sphexa/observables.hpp"
+#include "sphnnet/observables.hpp"
 
 #include "nnet/parameterization/net87/net87.hpp"
 #include "nnet/parameterization/net14/net14.hpp"

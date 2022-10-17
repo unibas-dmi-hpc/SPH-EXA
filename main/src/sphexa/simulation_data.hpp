@@ -35,7 +35,7 @@
 #include "cooling/chemistry_data.hpp"
 #include "sph/particles_data.hpp"
 #ifdef USE_NUCLEAR_NETWORKS
-#include "nnet/sphexa/nuclear-data.hpp"
+#include "sphnnet/nuclear-data.hpp"
 #endif
 
 namespace sphexa
@@ -50,11 +50,9 @@ public:
     using KeyType         = KeyType_;
     using RealType        = T;
 
-    using HydroData = ParticlesData<RealType, KeyType, AccType>;
-    using ChemData  = cooling::ChemistryData<T>;
-#ifdef USE_NUCLEAR_NETWORKS
+    using HydroData   = ParticlesData<RealType, KeyType, AccType>;
+    using ChemData    = cooling::ChemistryData<T>;
     using NuclearData = sphnnet::NuclearDataType<RealType, KeyType, AccType>;
-#endif
 
     //! @brief spacially distributed data for hydrodynamics and gravity
     HydroData hydro;
@@ -62,10 +60,8 @@ public:
     //! @brief chemistry data for radiative cooling, e.g. for GRACKLE
     ChemData chem;
 
-#ifdef USE_NUCLEAR_NETWORKS
     //! @brief spacially distributed data for nuclear networks
     NuclearData nuclearData;
-#endif
 
     //! @brief non-spacially distributed nuclear abundances
     // NuclearData nuclear;

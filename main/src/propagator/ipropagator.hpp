@@ -78,22 +78,15 @@ public:
     void printIterationTimings(const DomainType& domain, const ParticleDataType& simData)
     {
         const auto& d = simData.hydro;
+        const auto& n = simData.nuclearData;
         if (rank_ == 0)
         {
             double nuclearEnergy       = 0.0;
-            size_t n_nuclear_particles = 0;
+            size_t n_nuclear_particles = n_nuclear_particles = n.Y[0].size();
 
-#ifdef USE_NUCLEAR_NETWORKS
-            const auto& n = simData.nuclearData;
-
-            nuclearEnergy       = n.enuclear;
-            n_nuclear_particles = n.Y[0].size();
-#endif
-
-            printCheck(d.ttot, d.minDt, d.etot, d.eint, d.ecin, d.egrav, nuclearEnergy, domain.box(),
-                       n_nuclear_particles, d.numParticlesGlobal, domain.nParticles(),
-                       domain.globalTree().numLeafNodes(), domain.nParticlesWithHalos() - domain.nParticles(),
-                       d.totalNeighbors);
+            printCheck(d.ttot, d.minDt, d.etot, d.eint, d.ecin, d.egrav, n.enuclear, domain.box(), n_nuclear_particles,
+                       d.numParticlesGlobal, domain.nParticles(), domain.globalTree().numLeafNodes(),
+                       domain.nParticlesWithHalos() - domain.nParticles(), d.totalNeighbors);
 
             std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().octree().numLeafNodes() << std::endl;
             printTotalIterationTime(d.iteration, timer.duration());

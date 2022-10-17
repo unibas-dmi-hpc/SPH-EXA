@@ -92,6 +92,8 @@ if (SPH_EXA_WITH_FFTW)
 endif ()
 
 option(SPH_EXA_WITH_NNET "Enable nuclear networks" ON)
+
+set(SPHNNET_DIR ${PROJECT_SOURCE_DIR}/physics/nuclear-networks/interface/include)
 if (SPH_EXA_WITH_NNET)
     if(EXISTS ${PROJECT_SOURCE_DIR}/physics/nuclear-networks/SPH-EXA-nnet/include)
         set(NNET_DIR ${PROJECT_SOURCE_DIR}/physics/nuclear-networks/SPH-EXA-nnet/include)
