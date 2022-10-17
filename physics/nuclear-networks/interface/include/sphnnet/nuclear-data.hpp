@@ -204,11 +204,13 @@ public:
                             std::fill(arg->begin() + previous_size, arg->end(), 0.);
                         }
 
+#ifdef USE_NUCLEAR_NETWORKS
                         // fill dt
                         if ((void*)arg == (void*)(&dt))
                         {
                             std::fill(dt.begin() + previous_size, dt.end(), nnet::constants::initial_dt);
                         }
+#endif
                     },
                     data_[i]);
             }
