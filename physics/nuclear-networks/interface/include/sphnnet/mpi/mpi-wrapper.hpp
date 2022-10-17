@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "nnet-util/algorithm.hpp"
+#include "util/algorithm.hpp"
 
 #ifdef USE_MPI
 #include <mpi.h>

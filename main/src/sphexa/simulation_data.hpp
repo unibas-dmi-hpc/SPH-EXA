@@ -34,9 +34,7 @@
 
 #include "cooling/chemistry_data.hpp"
 #include "sph/particles_data.hpp"
-#ifdef USE_NUCLEAR_NETWORKS
 #include "sphnnet/nuclear-data.hpp"
-#endif
 
 namespace sphexa
 {
