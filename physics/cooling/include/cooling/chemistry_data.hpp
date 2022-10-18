@@ -45,11 +45,11 @@ template<class T>
 class ChemistryData : public cstone::FieldStates<ChemistryData<T>>
 {
 public:
-    inline static constexpr size_t numFields = 14;
+    inline static constexpr size_t numFields = 21;
 
     template<class ValueType>
     using FieldVector = std::vector<ValueType, std::allocator<ValueType>>;
-
+    using RealType = T;
     using AcceleratorType = cstone::CpuTag;
 
     std::array<FieldVector<T>, numFields> fields;

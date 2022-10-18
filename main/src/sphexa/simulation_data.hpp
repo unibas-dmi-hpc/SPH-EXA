@@ -33,6 +33,7 @@
 #include <mpi.h>
 
 #include "cooling/chemistry_data.hpp"
+#include "cooling/cooling.hpp"
 #include "sph/particles_data.hpp"
 
 namespace sphexa
@@ -49,13 +50,14 @@ public:
 
     using HydroData = ParticlesData<RealType, KeyType, AccType>;
     using ChemData  = cooling::ChemistryData<T>;
+    using CoolData = cooling::CoolingData<T>;
 
     //! @brief spacially distributed data for hydrodynamics and gravity
     HydroData hydro;
 
     //! @brief chemistry data for radiative cooling, e.g. for GRACKLE
     ChemData chem;
-
+    
     //! @brief non-spacially distributed nuclear abundances
     // NuclearData nuclear;
 

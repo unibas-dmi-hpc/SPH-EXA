@@ -110,7 +110,12 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
         util::tie(d.x_m1[i], d.y_m1[i], d.z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
         util::tie(d.vx[i], d.vy[i], d.vz[i])       = util::tie(V[0], V[1], V[2]);
 
+        //To prevent u<0
+        const T u_old = d.u[i];
         d.u[i] += energyUpdate(dt, dt_m1, d.du[i], d.du_m1[i]);
+        if (d.u[i] < 0.) {
+            d.u[i] = u_old * std::exp(d.u[i] * dt / u_old);
+        }
         d.du_m1[i] = d.du[i];
     }
 }

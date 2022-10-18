@@ -51,6 +51,7 @@
 #include "propagator/factory.hpp"
 #include "util/timer.hpp"
 #include "util/utils.hpp"
+#include "cooling/chemistry_data.hpp"
 
 #include "simulation_data.hpp"
 
@@ -94,6 +95,8 @@ int main(int argc, char** argv)
     const bool               ascii             = parser.exists("--ascii");
     const std::string        outDirectory      = parser.get("--outDir");
     const bool               quiet             = parser.exists("--quiet");
+    const std::string grackleOptionFile = parser.get("--grackleOpt", std::string(""));
+
 
     size_t ngmax = 150;
     size_t ng0   = 100;
@@ -102,7 +105,14 @@ int main(int argc, char** argv)
     std::ostream& output = quiet ? nullOutput : std::cout;
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
+    std::optional<cooling::CoolingData<double>> cooling_data;
+    if (propChoice == "std_cooling") {
+        //Create cooling object
+        cooling_data.emplace(grackleOptionFile, 1e16, 46400., 0);
+    }
+
     //! @brief evaluate user choice for different kind of actions
+
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, ngmax, ng0, output, rank);
     auto fileWriter  = fileWriterFactory<Dataset>(ascii);
@@ -111,13 +121,21 @@ int main(int argc, char** argv)
     Dataset simData;
     simData.comm = MPI_COMM_WORLD;
 
+
     propagator->activateFields(simData);
     propagator->restoreState(initCond, simData.comm);
+
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, simData);
+
+    if (propChoice == "std_cooling") {
+        cooling::initGrackleData(simData.chem, cooling_data.value().global_values, simData.hydro.x.size());
+    }
 
     auto& d = simData.hydro;
     transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
+
     d.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
+
 
     bool  haveGrav = (d.g != 0.0);
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
@@ -127,8 +145,8 @@ int main(int argc, char** argv)
     {
         fileWriter->constants(simInit->constants(), outFile);
     }
-    if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
+    if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
@@ -143,9 +161,14 @@ int main(int argc, char** argv)
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
     size_t startIteration = d.iteration;
-    for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
-    {
-        propagator->step(domain, simData);
+    for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++) {
+        if (propChoice == "std_cooling") {
+            //Need better solution here
+            Propagator<Domain, Dataset> *p = propagator.get();
+            static_cast<HydroGrackleProp<Domain, Dataset>* >(p)->step(domain, simData, cooling_data.value());
+        } else {
+            propagator->step(domain, simData);
+        }
 
         observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
         propagator->printIterationTimings(domain, simData);
