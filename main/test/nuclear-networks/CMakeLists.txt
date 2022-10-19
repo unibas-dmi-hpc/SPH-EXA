@@ -9,7 +9,7 @@ target_include_directories(${nnet} PRIVATE ${NNET_DIR})
 
 target_include_directories(${nnet} PUBLIC ${MPI_CXX_INCLUDE_DIRS})
 
-target_compile_definitions(${nnet} PRIVATE USE_MPI)
+target_compile_definitions(${nnet} PRIVATE USE_MPI USE_NUCLEAR_NETWORKS)
 target_link_libraries(${nnet} PRIVATE ${MPI_CXX_LIBRARIES} OpenMP::OpenMP_CXX
 	nuclear)
 
@@ -41,7 +41,7 @@ if(CUDA_HYDRO_MOCKUP)
 
 		target_include_directories(${nnet}-cuda PUBLIC ${MPI_CXX_INCLUDE_DIRS})
 
-		target_compile_definitions(${nnet}-cuda PRIVATE USE_MPI USE_CUDA)
+		target_compile_definitions(${nnet}-cuda PRIVATE USE_MPI USE_NUCLEAR_NETWORKS USE_CUDA)
 		target_link_libraries(${nnet}-cuda PRIVATE OpenMP::OpenMP_CXX ${MPI_CXX_LIBRARIES} CUDA::cudart
 			nuclear_gpu reallocate_obj)
 
@@ -66,7 +66,7 @@ if(CUDA_HYDRO_MOCKUP)
 
 		target_include_directories(${nnet}-cpu PUBLIC ${MPI_CXX_INCLUDE_DIRS})
 
-		target_compile_definitions(${nnet}-cpu PRIVATE USE_MPI USE_CUDA CUDA_CPU_TEST)
+		target_compile_definitions(${nnet}-cpu PRIVATE USE_MPI USE_NUCLEAR_NETWORKS USE_CUDA CUDA_CPU_TEST)
 		target_link_libraries(${nnet}-cpu PRIVATE OpenMP::OpenMP_CXX ${MPI_CXX_LIBRARIES} CUDA::cudart
 			nuclear_gpu reallocate_obj)
 

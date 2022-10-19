@@ -75,6 +75,18 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
     {
         return std::make_unique<NuclearProp<DomainType, ParticleDataType, 87, false>>(ngmax, ng0, output, rank);
     }
+    if (choice == "std-net14-helm")
+    {
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType, 14, true>>(ngmax, ng0, output, rank);
+    }
+    if (choice == "std-net86-helm")
+    {
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType, 86, true>>(ngmax, ng0, output, rank);
+    }
+    if (choice == "std-net87-helm")
+    {
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType, 87, true>>(ngmax, ng0, output, rank);
+    }
 #endif
 
     throw std::runtime_error("Unknown propagator choice: " + choice);

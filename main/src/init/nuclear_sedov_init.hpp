@@ -101,6 +101,8 @@ public:
             {
                 Y0_87[i] = X_87[i] / nnet::net86::constants::A[i];
             }
+
+            Y0_87[nnet::net87::constants::electron] = 1;
         }
         else
         {

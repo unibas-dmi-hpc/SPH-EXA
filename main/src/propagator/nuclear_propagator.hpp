@@ -70,15 +70,14 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     using ConservedFields = FieldList<"u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1">;
 
     //! @brief the list of conserved nuclear fields with values preserved between iterations
-    using NuclearConservedFields = FieldList<"temp", "rho", "dt", "node_id", "particle_id">;
+    using NuclearConservedFields = FieldList<"temp", "rho", "dt", "m">;
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
     using DependentFields =
         FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
 
     //! @brief the list of dependent nuclear fields, these may be used as scratch space during domain sync
-    using NuclearDependentFields =
-        FieldList<"m", "u", "c", "p", "cv", "dpdT", "nuclear_node_id", "nuclear_particle_id", "rho_m1" /* TODO */>;
+    using NuclearDependentFields = FieldList<"u", "c", "p", "cv", "dpdT">;
 
     //! @brief nuclear network reaction list
     nnet::reaction_list const* reactions;
@@ -169,13 +168,13 @@ public:
         }
 
         //! @brief Fields accessed in domain sync are not part of extensible lists.
-        n.setConserved("node_id", "particle_id", "rho", "temp", "dt" /* TODO */);
-        n.setDependent("u", "c", "p", "cv", "dpdT", "rho_m1", "nuclear_node_id", "nuclear_particle_id" /* TODO */);
+        n.setConserved("node_id", "particle_id" /* TODO */);
+        n.setDependent("nuclear_node_id", "nuclear_particle_id" /* TODO */);
         std::apply([&n](auto... f) { n.setConserved(f.value...); }, make_tuple(NuclearConservedFields{}));
         std::apply([&n](auto... f) { n.setDependent(f.value...); }, make_tuple(NuclearDependentFields{}));
 
-        n.devData.setConserved("rho", "temp", "dt" /* TODO */);
-        n.devData.setDependent("u", "c", "p", "cv", "dpdT" /* TODO */);
+        n.devData.setConserved(/* TODO */);
+        n.devData.setDependent(/* TODO */);
         std::apply([&n](auto... f) { n.devData.setConserved(f.value...); }, make_tuple(NuclearConservedFields{}));
         std::apply([&n](auto... f) { n.devData.setDependent(f.value...); }, make_tuple(NuclearDependentFields{}));
     }
@@ -189,14 +188,18 @@ public:
         {
             domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
                             std::tuple_cat(std::tie(get<"node_id">(n), get<"particle_id">(n)), get<ConservedFields>(d)),
-                            std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
+                            std::tuple_cat(get<DependentFields>(d),
+                                           std::tie(get<"nuclear_node_id">(n), get<"nuclear_particle_id">(n)),
+                                           get<NuclearDependentFields>(n)));
         }
         else
         {
             domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
                         std::tuple_cat(std::tie(get<"node_id">(n), get<"particle_id">(n)), std::tie(get<"m">(d)),
                                        get<ConservedFields>(d)),
-                        std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
+                        std::tuple_cat(get<DependentFields>(d),
+                                       std::tie(get<"nuclear_node_id">(n), get<"nuclear_particle_id">(n)),
+                                       get<NuclearDependentFields>(n)));
         }
     }
 
@@ -233,8 +236,6 @@ public:
                   getHost<"nuclear_particle_id">(n).begin() + n_nuclear_particles, 0);
         std::fill(getHost<"nuclear_node_id">(n).begin(), getHost<"nuclear_node_id">(n).begin() + n_nuclear_particles,
                   node_id);
-
-        sphexa::sphnnet::syncHydroToNuclear(simData, {"m"});
     }
 
 private:
@@ -253,6 +254,8 @@ private:
         transferToHost(d, first, first + 1, {"m"});
         fill(get<"m">(d), 0, first, d.m[first]);
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
+
+        sphexa::sphnnet::syncHydroToNuclear(simData, {"m"});
 
         findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.keys, d.neighbors, d.nc, domain.box());
         timer.step("FindNeighbors");
@@ -300,8 +303,8 @@ private:
     void nuclear_sync_after(DomainType& domain, DataType& simData)
     {
         sphexa::sphnnet::syncNuclearToHydro(simData, {/*, "temp", */ /* TODO */});
-
         if (use_helm) { sphexa::sphnnet::syncNuclearToHydro(simData, {"u", "c", "p" /*, "cv", "dpdT"*/}); }
+        timer.step("sphnnet::syncNuclearToHydro");
     }
 
     void hydro_step_after(DomainType& domain, DataType& simData)
@@ -310,18 +313,19 @@ private:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        computeEOS_HydroStd(first, last, d);
-        timer.step("EquationOfState");
+        if (!use_helm)
+        {
+            computeEOS_HydroStd(first, last, d);
+            timer.step("EquationOfState");
+        }
 
         domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
-
         timer.step("mpi::synchronizeHalos");
 
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
-
         timer.step("mpi::synchronizeHalos");
 
         computeMomentumEnergySTD(first, last, ngmax_, d, domain.box());
