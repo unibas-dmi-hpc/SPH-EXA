@@ -54,7 +54,11 @@ struct unusedBits<unsigned> : stl::integral_constant<unsigned, 2>
 
 //! @brief number of unused leading zeros in a 64-bit SFC code
 template<>
-struct unusedBits<uint64_t> : stl::integral_constant<unsigned, 1>
+struct unusedBits<unsigned long long> : stl::integral_constant<unsigned, 1>
+{
+};
+template<>
+struct unusedBits<unsigned long> : stl::integral_constant<unsigned, 1>
 {
 };
 
@@ -69,9 +73,14 @@ struct maxTreeLevel<unsigned> : stl::integral_constant<unsigned, 10>
 };
 
 template<>
-struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21>
+struct maxTreeLevel<unsigned long long> : stl::integral_constant<unsigned, 21>
 {
 };
+template<>
+struct maxTreeLevel<unsigned long> : stl::integral_constant<unsigned, 21>
+{
+};
+
 
 //! @brief maximum integer coordinate
 template<class KeyType>

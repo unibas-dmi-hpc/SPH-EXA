@@ -119,7 +119,9 @@ constexpr std::array<const char*, sizeof...(Is)> enumerateFieldNames_helper(std:
     constexpr size_t N = sizeof...(Is);
     std::array<const char*, N> names;
     [[maybe_unused]] std::initializer_list<int> list{
-        (names[Is] = ConstexprOnly<Prefix + StructuralString(to_string<Is>.buf)>, 0)...};
+        // CTAD within template arguments is broken in GCC 11.2 (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102933)
+        // therefore we must explicitly specify the template argument of StructuralString below
+        (names[Is] = ConstexprOnly<Prefix + StructuralString<to_string<Is>.size()>(to_string<Is>.buf)>, 0)...};
     return names;
 }
 
