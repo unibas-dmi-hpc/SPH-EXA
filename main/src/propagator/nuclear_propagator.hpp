@@ -101,7 +101,7 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     static int getNumSpecies(const std::string& choice)
     {
         std::string ext;
-        std::copy_if(choice.begin(), choice.end(), std::back_inserter(ext), [](char x){ return std::isdigit(x); });
+        std::copy_if(choice.begin(), choice.end(), std::back_inserter(ext), [](char x) { return std::isdigit(x); });
         return std::atoi(ext.c_str());
     }
 
@@ -114,7 +114,9 @@ public:
     }
 
     NuclearProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, const std::string& choice)
-        : numSpecies(getNumSpecies(choice)), useHelm(hasHelm(choice)), Base(ngmax, ng0, output, rank)
+        : numSpecies(getNumSpecies(choice))
+        , useHelm(hasHelm(choice))
+        , Base(ngmax, ng0, output, rank)
     {
         Z.resize(numSpecies);
 
