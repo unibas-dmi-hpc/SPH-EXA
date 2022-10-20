@@ -47,20 +47,23 @@ namespace sphexa
 template<class Dataset>
 auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    const auto* x  = d.x.data();
-    const auto* y  = d.y.data();
-    const auto* z  = d.z.data();
-    const auto* vx = d.vx.data();
-    const auto* vy = d.vy.data();
-    const auto* vz = d.vz.data();
-    const auto* m  = d.m.data();
-    const auto* u  = d.u.data();
+    const auto* x    = d.x.data();
+    const auto* y    = d.y.data();
+    const auto* z    = d.z.data();
+    const auto* vx   = d.vx.data();
+    const auto* vy   = d.vy.data();
+    const auto* vz   = d.vz.data();
+    const auto* m    = d.m.data();
+    const auto* temp = d.temp.data();
 
     double eKin = 0.0;
     double eInt = 0.0;
 
     util::array<double, 3> linmom{0.0, 0.0, 0.0};
     util::array<double, 3> angmom{0.0, 0.0, 0.0};
+
+    double sharedCv = sph::idealGasCv(d.muiShared);
+    bool haveMui = !d.mui.empty();
 
 #pragma omp declare reduction(+ : util::array <double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
 
@@ -71,8 +74,9 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
         util::array<double, 3> V{vx[i], vy[i], vz[i]};
         auto                   mi = m[i];
 
+        auto cv = haveMui ? sph::idealGasCv(d.mui[i]) : sharedCv;
         eKin += mi * norm2(V);
-        eInt += u[i] * mi;
+        eInt += cv * temp[i] * mi;
         linmom += mi * V;
         angmom += mi * cross(X, V);
     }
@@ -99,8 +103,9 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     {
         ncsum = cstone::reduceGpu(rawPtr(d.devData.nc) + startIndex, endIndex - startIndex, size_t(0));
         std::tie(eKin, eInt, linmom, angmom) = conservedQuantitiesGpu(
-            rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
-            rawPtr(d.devData.vz), rawPtr(d.devData.u), rawPtr(d.devData.m), startIndex, endIndex);
+            sph::idealGasCv(d.muiShared), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
+            rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.temp),
+            rawPtr(d.devData.m), startIndex, endIndex);
     }
     else
     {

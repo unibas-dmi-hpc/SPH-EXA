@@ -23,6 +23,7 @@ std::map<std::string, double> sedovConstants()
         {"vr0", 0.},
         {"cs0", 0.},
         {"firstTimeStep", 1e-6},
+        {"mui", 10}
     };
     ret["ener0"] = ret["energyTotal"] / std::pow(M_PI, 1.5) / 1. / std::pow(ret["width"], 3.0);
 
