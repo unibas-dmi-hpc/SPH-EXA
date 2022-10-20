@@ -63,29 +63,9 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
 #endif
     }
 #if defined(USE_NUCLEAR_NETWORKS) && defined(SPH_EXA_HAVE_H5PART)
-    if (choice == "std-net14")
+    if (NuclearProp<DomainType, ParticleDataType>::isNuclear(choice))
     {
-        return std::make_unique<NuclearProp<DomainType, ParticleDataType, 14, false>>(ngmax, ng0, output, rank);
-    }
-    if (choice == "std-net86")
-    {
-        return std::make_unique<NuclearProp<DomainType, ParticleDataType, 86, false>>(ngmax, ng0, output, rank);
-    }
-    if (choice == "std-net87")
-    {
-        return std::make_unique<NuclearProp<DomainType, ParticleDataType, 87, false>>(ngmax, ng0, output, rank);
-    }
-    if (choice == "std-net14-helm")
-    {
-        return std::make_unique<NuclearProp<DomainType, ParticleDataType, 14, true>>(ngmax, ng0, output, rank);
-    }
-    if (choice == "std-net86-helm")
-    {
-        return std::make_unique<NuclearProp<DomainType, ParticleDataType, 86, true>>(ngmax, ng0, output, rank);
-    }
-    if (choice == "std-net87-helm")
-    {
-        return std::make_unique<NuclearProp<DomainType, ParticleDataType, 87, true>>(ngmax, ng0, output, rank);
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank, choice);
     }
 #endif
 

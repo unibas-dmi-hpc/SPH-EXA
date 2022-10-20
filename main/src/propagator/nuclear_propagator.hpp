@@ -44,7 +44,7 @@ namespace sphexa
 using namespace sph;
 using cstone::FieldList;
 
-template<class DomainType, class DataType, int n_species, bool use_helm>
+template<class DomainType, class DataType>
 class NuclearProp final : public Propagator<DomainType, DataType>
 {
     using Base = Propagator<DomainType, DataType>;
@@ -79,6 +79,11 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     //! @brief the list of dependent nuclear fields, these may be used as scratch space during domain sync
     using NuclearDependentFields = FieldList<"u", "c", "p", "cv", "dpdT">;
 
+    //! @brief number of nuclear species in use
+    int numSpecies;
+    //! @brief selector for Helmholtz EOS
+    bool useHelm;
+
     //! @brief nuclear network reaction list
     nnet::reaction_list const* reactions;
     //! @brief nuclear network parameterization
@@ -88,50 +93,58 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     //! @brief Z
     std::vector<T> Z;
 
-public:
-    NuclearProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : Base(ngmax, ng0, output, rank)
+    //! @brief possible propagator choices that are handled by this class
+    inline static std::array variants{"std-net14",      "std-net86",      "std-net87",
+                                      "std-net14-helm", "std-net86-helm", "std-net87-helm"};
+
+    //! @brief extract the number of species to use from the propagator choice
+    static int getNumSpecies(const std::string& choice)
     {
-        if (n_species == 14)
+        std::string ext;
+        std::copy_if(choice.begin(), choice.end(), std::back_inserter(ext), [](char x) { return std::isdigit(x); });
+        return std::atoi(ext.c_str());
+    }
+
+    static bool hasHelm(const std::string& choice) { return choice.ends_with("-helm"); }
+
+public:
+    static bool isNuclear(const std::string& choice)
+    {
+        return std::find(variants.begin(), variants.end(), choice) != variants.end();
+    }
+
+    NuclearProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, const std::string& choice)
+        : numSpecies(getNumSpecies(choice))
+        , useHelm(hasHelm(choice))
+        , Base(ngmax, ng0, output, rank)
+    {
+        Z.resize(numSpecies);
+
+        if (numSpecies == 14)
         {
             reactions          = &nnet::net14::reaction_list;
             construct_rates_BE = &nnet::net14::compute_reaction_rates;
-
-            Z.resize(14);
-            for (int i = 0; i < 14; ++i)
-            {
-                Z[i] = nnet::net14::constants::Z[i];
-            }
+            std::copy_n(nnet::net14::constants::Z.begin(), numSpecies, Z.begin());
         }
-        else if (n_species == 86)
+        else if (numSpecies == 86)
         {
             reactions          = &nnet::net86::reaction_list;
             construct_rates_BE = &nnet::net86::compute_reaction_rates;
-
-            Z.resize(86);
-            for (int i = 0; i < 86; ++i)
-            {
-                Z[i] = nnet::net86::constants::Z[i];
-            }
+            std::copy_n(nnet::net86::constants::Z.begin(), numSpecies, Z.begin());
         }
-        else if (n_species == 87)
+        else if (numSpecies == 87)
         {
             reactions          = &nnet::net87::reaction_list;
             construct_rates_BE = &nnet::net87::compute_reaction_rates;
-
-            Z.resize(87);
-            for (int i = 0; i < 87; ++i)
-            {
-                Z[i] = nnet::net87::constants::Z[i];
-            }
+            std::copy_n(nnet::net87::constants::Z.begin(), numSpecies, Z.begin());
         }
         else
         {
-            throw std::runtime_error("not able to initialize propagator " + std::to_string(n_species) +
+            throw std::runtime_error("not able to initialize propagator " + std::to_string(numSpecies) +
                                      " nuclear species !");
         }
 
-        if (use_helm) { eos = new nnet::eos::helmholtz_functor<T>(Z); }
+        if (useHelm) { eos = new nnet::eos::helmholtz_functor<T>(Z); }
         else { eos = new nnet::eos::ideal_gas_functor<T>(10.0); }
     }
 
@@ -158,7 +171,7 @@ public:
         std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
         auto& n      = simData.nuclearData;
-        n.numSpecies = n_species;
+        n.numSpecies = numSpecies;
 
         //! @brief set nuclear data dependent
         for (int i = 0; i < n.numSpecies; ++i)
@@ -293,7 +306,7 @@ private:
                                                  /*considering expansion:*/ false);
         timer.step("sphnnet::computeNuclearReactions");
 
-        if (use_helm)
+        if (useHelm)
         {
             sphexa::sphnnet::computeHelmEOS(n, 0, n_nuclear_particles, Z);
             timer.step("sphnnet::computeHelmEOS");
@@ -303,7 +316,7 @@ private:
     void nuclear_sync_after(DomainType& domain, DataType& simData)
     {
         sphexa::sphnnet::syncNuclearToHydro(simData, {/*, "temp", */ /* TODO */});
-        if (use_helm) { sphexa::sphnnet::syncNuclearToHydro(simData, {"u", "c", "p" /*, "cv", "dpdT"*/}); }
+        if (useHelm) { sphexa::sphnnet::syncNuclearToHydro(simData, {"u", "c", "p" /*, "cv", "dpdT"*/}); }
         timer.step("sphnnet::syncNuclearToHydro");
     }
 
@@ -313,7 +326,7 @@ private:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        if (!use_helm)
+        if (!useHelm)
         {
             computeEOS_HydroStd(first, last, d);
             timer.step("EquationOfState");
