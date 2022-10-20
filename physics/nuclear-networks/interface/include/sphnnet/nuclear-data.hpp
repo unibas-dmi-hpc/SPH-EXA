@@ -40,7 +40,6 @@
 
 #include "CUDA/nuclear-data-stubs.hpp"
 
-// #if COMPILE_DEVICE
 #if defined(USE_CUDA)
 #include "CUDA/nuclear-data-gpu.cuh"
 #endif
@@ -63,12 +62,12 @@ namespace sphexa::sphnnet
 {
 
 /*! @brief nuclear data class for nuclear network */
-template<typename Float, typename Int, class AccType>
-struct NuclearDataType : public cstone::FieldStates<NuclearDataType<Float, Int, AccType>>
+template<typename RealType_, typename KeyType_, class AccType>
+struct NuclearDataType : public cstone::FieldStates<NuclearDataType<RealType_, KeyType_, AccType>>
 {
 public:
     //! maximum number of nuclear species
-    static const int maxNumSpecies = 100;
+    static constexpr int maxNumSpecies = 100;
     //! actual number of nuclear species
     int numSpecies = 0;
 
@@ -78,11 +77,9 @@ public:
     template<class ValueType>
     using FieldVector = std::vector<ValueType, std::allocator<ValueType>>;
 
-    // types
-    using RealType        = Float;
-    using KeyType         = Int;
+    using RealType        = RealType_;
+    using KeyType         = KeyType_;
     using Tmass           = float;
-    using XM1Type         = float;
     using AcceleratorType = AccType;
 
     DeviceNuclearData_t<AcceleratorType, RealType, KeyType> devData;
@@ -174,9 +171,9 @@ public:
         outputFieldIndices = cstone::fieldStringsToInt(outFields, fieldNames);
     }
 
-    /*! @brief resize the number of particules (nuclear)
+    /*! @brief resize the number of particles (nuclear)
      *
-     * @param size  number of particle to be hold by the class
+     * @param size  number of particles to be held by the class
      */
     void resize(size_t size)
     {
@@ -217,9 +214,9 @@ public:
         }
     }
 
-    /*! @brief resize the number of particules (hydro)
+    /*! @brief resize the number of particles (hydro)
      *
-     * @param size  number of particle to be hold by the class
+     * @param size  number of particles to be held by the class
      */
     void resize_hydro(size_t size)
     {

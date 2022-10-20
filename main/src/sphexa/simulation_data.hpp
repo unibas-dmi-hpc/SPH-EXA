@@ -58,11 +58,8 @@ public:
     //! @brief chemistry data for radiative cooling, e.g. for GRACKLE
     ChemData chem;
 
-    //! @brief spacially distributed data for nuclear networks
+    //! @brief data for nuclear networks
     NuclearData nuclearData;
-
-    //! @brief non-spacially distributed nuclear abundances
-    // NuclearData nuclear;
 
     MPI_Comm comm;
 };
