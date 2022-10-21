@@ -36,6 +36,7 @@
 #include <algorithm>
 
 #include "cstone/sfc/box.hpp"
+#include "sph/eos.hpp"
 
 #include "io/file_utils.hpp"
 #include "isim_init.hpp"

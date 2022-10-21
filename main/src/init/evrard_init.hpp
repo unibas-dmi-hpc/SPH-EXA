@@ -34,6 +34,7 @@
 #include <map>
 
 #include "cstone/sfc/box.hpp"
+#include "sph/eos.hpp"
 
 #include "isim_init.hpp"
 #include "early_sync.hpp"
