@@ -72,8 +72,8 @@ void computeEOS_HydroStd(size_t startIndex, size_t endIndex, Dataset& d)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeEOS_HydroStd(startIndex, endIndex, d.muiShared, d.gamma, rawPtr(d.devData.temp), rawPtr(d.devData.rho),
-                                  rawPtr(d.devData.p), rawPtr(d.devData.c));
+        cuda::computeEOS_HydroStd(startIndex, endIndex, d.muiShared, d.gamma, rawPtr(d.devData.temp),
+                                  rawPtr(d.devData.rho), rawPtr(d.devData.p), rawPtr(d.devData.c));
     }
     else { computeEOS_HydroStdImpl(startIndex, endIndex, d); }
 }

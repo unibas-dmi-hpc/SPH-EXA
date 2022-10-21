@@ -76,8 +76,8 @@ struct TuplePlus
 
 template<class Tc, class Tv, class Tt, class Tm>
 std::tuple<double, double, Vec3<double>, Vec3<double>>
-conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz, const Tt* temp,
-                       const Tm* m, size_t first, size_t last)
+conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz,
+                       const Tt* temp, const Tm* m, size_t first, size_t last)
 {
     auto it1 = thrust::make_zip_iterator(thrust::make_tuple(x + first, y + first, z + first, m + first, vx + first,
                                                             vy + first, vz + first, temp + first));

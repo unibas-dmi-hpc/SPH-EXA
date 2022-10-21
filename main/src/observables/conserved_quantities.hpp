@@ -63,7 +63,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     util::array<double, 3> angmom{0.0, 0.0, 0.0};
 
     double sharedCv = sph::idealGasCv(d.muiShared);
-    bool haveMui = !d.mui.empty();
+    bool   haveMui  = !d.mui.empty();
 
 #pragma omp declare reduction(+ : util::array <double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
 

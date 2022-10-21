@@ -90,7 +90,7 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
         T zi = d.z[i];
         T r2 = xi * xi + yi * yi + zi * zi;
 
-        T ui = constants.at("ener0") * exp(-(r2 / width2)) + constants.at("u0");
+        T ui      = constants.at("ener0") * exp(-(r2 / width2)) + constants.at("u0");
         d.temp[i] = ui / cv;
 
         d.x_m1[i] = d.vx[i] * firstTimeStep;

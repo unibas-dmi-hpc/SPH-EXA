@@ -113,7 +113,7 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
         }
         else
         {
-            d.h[i] = hInt;
+            d.h[i]    = hInt;
             d.temp[i] = uInt / cv;
         }
 
