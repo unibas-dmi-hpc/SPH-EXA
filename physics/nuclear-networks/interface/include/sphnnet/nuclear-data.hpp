@@ -61,9 +61,11 @@
 namespace sphexa::sphnnet
 {
 
+// TODO: naming conventions: file names should haves underscores, not hyphens: nuclear_data.hpp
+
 /*! @brief nuclear data class for nuclear network */
-template<typename RealType_, typename KeyType_, class AccType>
-struct NuclearDataType : public cstone::FieldStates<NuclearDataType<RealType_, KeyType_, AccType>>
+template<typename RealType_, typename KeyType_, class Tmass_, class AccType>
+struct NuclearDataType : public cstone::FieldStates<NuclearDataType<RealType_, KeyType_, Tmass_, AccType>>
 {
 public:
     //! maximum number of nuclear species
@@ -79,13 +81,15 @@ public:
 
     using RealType        = RealType_;
     using KeyType         = KeyType_;
-    using Tmass           = float;
+    using Tmass           = Tmass_;
     using AcceleratorType = AccType;
 
     DeviceNuclearData_t<AcceleratorType, RealType, KeyType> devData;
 
     //! nuclear energy
     RealType enuclear{0.0};
+    // TODO: looks like iteration, ttot, minDt are duplicates of the same members in HydroData. Can you use these
+    //       instead of duplicating?
     size_t   iteration{0};
     size_t   numParticlesGlobal;
     RealType ttot{0.0};
@@ -111,6 +115,8 @@ public:
     FieldVector<KeyType> particle_id; // particle id (for hydro data)
 
     //! mpi communicator
+    // TODO: USE_MPI is deprecated and almost phased out. We don't want to introduce new instances of this macro
+    // TODO: the MPI communicator already exists in SimulationData. You shouldn't have to duplicate it here.
 #ifdef USE_MPI
     MPI_Comm                            comm = MPI_COMM_WORLD;
     sphexa::mpi::mpi_partition<KeyType> partition;
@@ -201,6 +207,8 @@ public:
                             std::fill(arg->begin() + previous_size, arg->end(), 0.);
                         }
 
+                        // TODO: a) this macro should not be here b) wrong place to initialize fields
+                        //       if you initialize this field in nuclear_sedov_init.hpp, you'll solve both problems
 #ifdef USE_NUCLEAR_NETWORKS
                         // fill dt
                         if ((void*)arg == (void*)(&dt))
@@ -225,6 +233,10 @@ public:
 
         devData.resize_hydro(size);
 
+        // TODO: unsafe assumption that future developers will remember to put more hydro fields at the correct
+        //       place and correctly update numHydroFields
+        //       This can be made safer by defining a list of at least the hydro fields, which can then
+        //       be used in the resize functions.
         for (size_t i = data_.size() - numHydroFields; i < data_.size(); ++i)
         {
             if (this->isAllocated(i))

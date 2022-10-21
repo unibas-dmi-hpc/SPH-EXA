@@ -50,7 +50,7 @@ public:
 
     using HydroData   = ParticlesData<RealType, KeyType, AccType>;
     using ChemData    = cooling::ChemistryData<T>;
-    using NuclearData = sphnnet::NuclearDataType<RealType, KeyType, AccType>;
+    using NuclearData = sphnnet::NuclearDataType<RealType, KeyType, typename HydroData::Tmass, AccType>;
 
     //! @brief spacially distributed data for hydrodynamics and gravity
     HydroData hydro;
