@@ -30,6 +30,7 @@
  */
 
 #include "sedov_init.hpp"
+#include "nuclear_sedov_constants.hpp"
 
 #include "sphnnet/initializers.hpp"
 
@@ -45,7 +46,7 @@ class NuclearSedovGrid : public ISimInitializer<Dataset>
     std::map<std::string, double> constants_;
 
 public:
-    NuclearSedovGrid() { constants_ = sedovConstants(); }
+    NuclearSedovGrid() { constants_ = nuclearSedovConstants(); }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide,
                                                  Dataset& simData) const override
@@ -132,7 +133,7 @@ public:
     NuclearSedovGlass(std::string initBlock)
         : glassBlock(initBlock)
     {
-        constants_ = sedovConstants();
+        constants_ = nuclearSedovConstants();
     }
 
     /*! @brief initialize particle data with a constant density cube

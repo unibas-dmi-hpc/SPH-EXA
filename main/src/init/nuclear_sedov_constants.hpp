@@ -6,7 +6,7 @@
 namespace sphexa
 {
 
-std::map<std::string, double> sedovConstants()
+std::map<std::string, double> nuclearSedovConstants()
 {
     std::map<std::string, double> ret{
         {"dim", 3},
@@ -14,11 +14,12 @@ std::map<std::string, double> sedovConstants()
         {"omega", 0.},
         {"r0", 0.},
         {"r1", 0.5},
-        {"mTotal", 1.},
-        {"energyTotal", 1.},
+        {"mTotal", 1e9},
+        {"energyTotal", 1e9},
+        {"nuclearTemperature", 1e9},
         {"width", 0.1},
-        {"rho0", 1.},
-        {"u0", 1e-8},
+        {"rho0", 1e9},
+        {"u0", 1e1},
         {"p0", 0.},
         {"vr0", 0.},
         {"cs0", 0.},
