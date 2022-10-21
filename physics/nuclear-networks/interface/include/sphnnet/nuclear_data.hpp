@@ -80,13 +80,6 @@ public:
 
     //! nuclear energy
     RealType enuclear{0.0};
-    // TODO: looks like iteration, ttot, minDt are duplicates of the same members in HydroData. Can you use these
-    //       instead of duplicating?
-    size_t   iteration{0};
-    size_t   numParticlesGlobal;
-    RealType ttot{0.0};
-    //! current and previous (global) time-steps
-    RealType minDt, minDt_m1;
 
     //! @brief hydro data
     FieldVector<RealType>                             c;                   // speed of sound
