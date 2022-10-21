@@ -34,8 +34,8 @@
 
 #include <numeric>
 
-#include "mpi/mpi-wrapper.hpp"
-#include "nuclear-net.hpp"
+#include "mpi/mpi_wrapper.hpp"
+#include "nuclear_net.hpp"
 
 namespace sphexa::sphnnet
 {
@@ -47,33 +47,27 @@ namespace sphexa::sphnnet
  * @param d            ParticlesDataType (contains positions)
  * @param n            nuclearDataType (to be populated)
  * @param initializer  function initializing nuclear abundances from position
+ * @param comm         mpi communicator
  */
 template<class NuclearDataType, class ParticlesDataType, class initFunc>
 void initNuclearDataFromPos(size_t firstIndex, size_t lastIndex, ParticlesDataType& d, NuclearDataType& n,
-                            const initFunc initializer)
+                            const initFunc initializer, MPI_Comm comm)
 {
     const int dimension = n.numSpecies;
     using Float         = typename std::remove_reference<decltype(n.Y[0][0])>::type;
 
-#ifdef USE_MPI
-    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n);
+    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n, comm);
+
     const size_t local_nuclear_n_particles = n.partition.recv_disp.back();
-#else
-    const size_t       local_nuclear_n_particles = local_hydro_n_particles;
-#endif
 
     // share the initial rho
     n.resize(local_nuclear_n_particles);
 
     // receiv position for initializer
-#ifdef USE_MPI
     std::vector<Float> x(local_nuclear_n_particles), y(local_nuclear_n_particles), z(local_nuclear_n_particles);
     sphexa::sphnnet::syncDataToStaticPartition(n.partition, d.x.data(), x.data(), d.comm);
     sphexa::sphnnet::syncDataToStaticPartition(n.partition, d.y.data(), y.data(), d.comm);
     sphexa::sphnnet::syncDataToStaticPartition(n.partition, d.z.data(), z.data(), d.comm);
-#else
-    std::vector<Float>&x = d.x, &y = d.y, &z = d.z;
-#endif
 
     std::vector<Float> Y(dimension);
 
@@ -95,34 +89,28 @@ void initNuclearDataFromPos(size_t firstIndex, size_t lastIndex, ParticlesDataTy
  * @param d            ParticlesDataType (contains positions)
  * @param n            nuclearDataType (to be populated)
  * @param initializer  function initializing nuclear abundances from radius
+ * @param comm         mpi communicator
  */
 template<class NuclearDataType, class ParticlesDataType, class initFunc>
 void initNuclearDataFromRadius(size_t firstIndex, size_t lastIndex, ParticlesDataType& d, NuclearDataType& n,
-                               const initFunc initializer)
+                               const initFunc initializer, MPI_Comm comm)
 {
     const int dimension = n.numSpecies;
     using Float         = typename std::remove_reference<decltype(n.Y[0][0])>::type;
 
-#ifdef USE_MPI
-    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n);
+    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n, comm);
+
     const size_t local_nuclear_n_particles = n.partition.recv_disp.back();
-#else
-    const size_t       local_nuclear_n_particles = local_hydro_n_particles;
-#endif
-    const size_t local_n_particles = d.x.size();
+    const size_t local_n_particles         = d.x.size();
 
     // receiv position for initializer
-#ifdef USE_MPI
     std::vector<Float> send_r(local_n_particles), r(local_nuclear_n_particles, d.comm);
-#else
-    std::vector<Float> r(local_n_particles), &send_r = r;
-#endif
+
 #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < local_n_particles; ++i)
         send_r[i] = std::sqrt(d.x[i] * d.x[i] + d.y[i] * d.y[i] + d.z[i] * d.z[i]);
-#ifdef USE_MPI
+
     sphexa::sphnnet::syncDataToStaticPartition(n.partition, send_r.data(), r.data(), d.comm);
-#endif
 
     std::vector<Float> Y(dimension);
 
@@ -144,28 +132,22 @@ void initNuclearDataFromRadius(size_t firstIndex, size_t lastIndex, ParticlesDat
  * @param d            ParticlesDataType (contains density)
  * @param n            nuclearDataType (to be populated)
  * @param initializer  function initializing nuclear abundances from radius
+ * @param comm         mpi communicator
  */
 template<class NuclearDataType, class ParticlesDataType, class initFunc>
 void initNuclearDataFromRho(size_t firstIndex, size_t lastIndex, ParticlesDataType& d, NuclearDataType& n,
-                            const initFunc initializer)
+                            const initFunc initializer, MPI_Comm comm)
 {
     const int dimension = n.numSpecies;
     using Float         = typename std::remove_reference<decltype(n.Y[0][0])>::type;
 
-#ifdef USE_MPI
-    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n);
+    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n, comm);
+
     const size_t local_nuclear_n_particles = n.partition.recv_disp.back();
-#else
-    const size_t       local_nuclear_n_particles = local_hydro_n_particles;
-#endif
 
     // share the initial rho
     n.resize(local_nuclear_n_particles);
-#ifdef USE_MPI
     sphexa::sphnnet::syncDataToStaticPartition(n.partition, d.rho.data(), n.rho.data(), d.comm);
-#else
-    n.rho                                        = d.rho;
-#endif
 
     std::vector<Float> Y(dimension);
 
@@ -187,19 +169,17 @@ void initNuclearDataFromRho(size_t firstIndex, size_t lastIndex, ParticlesDataTy
  * @param d           ParticlesDataType (not used)
  * @param n           nuclearDataType (to be populated)
  * @param Y0          constant abundances vector to be copied
+ * @param comm        mpi communicator
  */
 template<class NuclearDataType, class ParticlesDataType, class Vector>
 void initNuclearDataFromConst(size_t firstIndex, size_t lastIndex, ParticlesDataType& d, NuclearDataType& n,
-                              const Vector& Y0)
+                              const Vector& Y0, MPI_Comm comm)
 {
     const int dimension = n.numSpecies;
 
-#ifdef USE_MPI
-    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n);
+    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n, comm);
+
     const size_t local_nuclear_n_particles = n.partition.recv_disp.back();
-#else
-    const size_t local_nuclear_n_particles       = local_hydro_n_particles;
-#endif
 
     // share the initial rho
     n.resize(local_nuclear_n_particles);
@@ -222,7 +202,7 @@ template<class initFunc, class ParticlesDataType>
 void inline initNuclearDataFromPos(size_t firstIndex, size_t lastIndex, ParticlesDataType& d,
                                    const initFunc initializer)
 {
-    initNuclearDataFromPos(firstIndex, lastIndex, d.hydro, d.nuclearData, initializer);
+    initNuclearDataFromPos(firstIndex, lastIndex, d.hydro, d.nuclearData, initializer, d.comm);
 }
 
 /*! @brief intialize nuclear data, from a function of radius. Also initializes the partition correleating attached and
@@ -237,7 +217,7 @@ template<class initFunc, class ParticlesDataType>
 void inline initNuclearDataFromRadius(size_t firstIndex, size_t lastIndex, ParticlesDataType& d,
                                       const initFunc initializer)
 {
-    initNuclearDataFromRadius(firstIndex, lastIndex, d.hydro, d.nuclearData, initializer);
+    initNuclearDataFromRadius(firstIndex, lastIndex, d.hydro, d.nuclearData, initializer, d.comm);
 }
 
 /*! @brief intialize nuclear data, from a function of density. Also initializes the partition correleating attached and
@@ -252,7 +232,7 @@ template<class initFunc, class ParticlesDataType>
 void inline initNuclearDataFromRho(size_t firstIndex, size_t lastIndex, ParticlesDataType& d,
                                    const initFunc initializer)
 {
-    initNuclearDataFromRadius(firstIndex, lastIndex, d.hydro, d.nuclearData, initializer);
+    initNuclearDataFromRadius(firstIndex, lastIndex, d.hydro, d.nuclearData, initializer, d.comm);
 }
 
 /*! @brief intialize nuclear data, from a function of density. Also initializes the partition correleating attached and
@@ -266,6 +246,6 @@ void inline initNuclearDataFromRho(size_t firstIndex, size_t lastIndex, Particle
 template<class Vector, class ParticlesDataType>
 void inline initNuclearDataFromConst(size_t firstIndex, size_t lastIndex, ParticlesDataType& d, const Vector& Y0)
 {
-    initNuclearDataFromConst(firstIndex, lastIndex, d.hydro, d.nuclearData, Y0);
+    initNuclearDataFromConst(firstIndex, lastIndex, d.hydro, d.nuclearData, Y0, d.comm);
 }
 } // namespace sphexa::sphnnet

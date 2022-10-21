@@ -110,7 +110,7 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
-        sphexa::sphnnet::initializePointers(0, last_first, n);
+        sphexa::sphnnet::initializeNuclearPointers(0, last_first, simData);
         sphexa::sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
 
         size_t n_nuclear_particles = n.Y[0].size();
@@ -208,7 +208,7 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
-        sphexa::sphnnet::initializePointers(0, last_first, n);
+        sphexa::sphnnet::initializeNuclearPointers(0, last_first, simData);
         sphexa::sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
 
         size_t n_nuclear_particles = n.Y[0].size();

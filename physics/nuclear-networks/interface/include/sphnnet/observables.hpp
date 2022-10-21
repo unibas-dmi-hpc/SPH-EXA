@@ -40,16 +40,16 @@
 
 #include <thrust/device_vector.h>
 
-#include "nnet/CUDA/nuclear-net.cuh"
+#include "nnet/CUDA/nuclear_net.cuh"
 #endif
 
 #include <numeric>
 #include <omp.h>
 
-#include "nnet-util/eigen.hpp"
-#include "nnet-util/algorithm.hpp"
+#include "nnet_util/eigen.hpp"
+#include "nnet_util/algorithm.hpp"
 
-#include "mpi/mpi-wrapper.hpp"
+#include "mpi/mpi_wrapper.hpp"
 
 #include "cstone/fields/data_util.hpp"
 
@@ -57,13 +57,14 @@ namespace sphexa::sphnnet
 {
 /*! @brief function to compute the total nuclear energy
  *
- * @param n   nuclearDataType containing a list of magnitude (named Y, being a vector of array)
- * @param BE  binding energy vector used to compute nuclear energy
+ * @param n     nuclearDataType containing a list of magnitude (named Y, being a vector of array)
+ * @param BE    binding energy vector used to compute nuclear energy
+ * @param comm  mpi communicator
  *
  * Returns the total nuclear binding energy (negative).
  */
 template<class Data, typename Float>
-Float totalNuclearEnergy(Data const& n, const Float* BE)
+Float totalNuclearEnergy(Data const& n, const Float* BE, MPI_Comm comm)
 {
     const size_t n_particles = n.Y[0].size();
     const int    dimension   = n.numSpecies;
@@ -90,11 +91,9 @@ Float totalNuclearEnergy(Data const& n, const Float* BE)
         total_energy += -eigen::dot(Y.data(), Y.data() + dimension, BE) * n.m[i];
     }
 
-#ifdef USE_MPI
     double mpi_buffer_total_energy = (double)total_energy;
-    MPI_Allreduce(MPI_IN_PLACE, &mpi_buffer_total_energy, 1, MPI_DOUBLE, MPI_SUM, n.comm);
+    MPI_Allreduce(MPI_IN_PLACE, &mpi_buffer_total_energy, 1, MPI_DOUBLE, MPI_SUM, comm);
     total_energy = (Float)mpi_buffer_total_energy;
-#endif
 
     return total_energy;
 }

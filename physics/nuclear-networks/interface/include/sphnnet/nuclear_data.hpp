@@ -38,16 +38,13 @@
 #include <memory>
 #include <variant>
 
-#include "CUDA/nuclear-data-stubs.hpp"
+#include "CUDA/nuclear_data_stubs.hpp"
 
 #if defined(USE_CUDA)
-#include "CUDA/nuclear-data-gpu.cuh"
+#include "CUDA/nuclear_data_gpu.cuh"
 #endif
 
-#ifdef USE_MPI
-#include <mpi.h>
-#endif
-#include "mpi/mpi-wrapper.hpp"
+#include "mpi/mpi_wrapper.hpp"
 
 #include "cstone/tree/accel_switch.hpp"
 
@@ -62,8 +59,8 @@ namespace sphexa::sphnnet
 {
 
 /*! @brief nuclear data class for nuclear network */
-template<typename RealType_, typename KeyType_, class AccType>
-struct NuclearDataType : public cstone::FieldStates<NuclearDataType<RealType_, KeyType_, AccType>>
+template<typename RealType_, typename KeyType_, class Tmass_, class AccType>
+struct NuclearDataType : public cstone::FieldStates<NuclearDataType<RealType_, KeyType_, Tmass_, AccType>>
 {
 public:
     //! maximum number of nuclear species
@@ -71,26 +68,18 @@ public:
     //! actual number of nuclear species
     int numSpecies = 0;
 
-    //! @brief number of fields that have hydro size
-    const int numHydroFields = 2;
-
     template<class ValueType>
     using FieldVector = std::vector<ValueType, std::allocator<ValueType>>;
 
     using RealType        = RealType_;
     using KeyType         = KeyType_;
-    using Tmass           = float;
+    using Tmass           = Tmass_;
     using AcceleratorType = AccType;
 
-    DeviceNuclearData_t<AcceleratorType, RealType, KeyType> devData;
+    DeviceNuclearData_t<AcceleratorType, RealType, KeyType, Tmass> devData;
 
     //! nuclear energy
     RealType enuclear{0.0};
-    size_t   iteration{0};
-    size_t   numParticlesGlobal;
-    RealType ttot{0.0};
-    //! current and previous (global) time-steps
-    RealType minDt, minDt_m1;
 
     //! @brief hydro data
     FieldVector<RealType>                             c;                   // speed of sound
@@ -110,13 +99,10 @@ public:
     FieldVector<int>     node_id;     // node ids (for hydro data)
     FieldVector<KeyType> particle_id; // particle id (for hydro data)
 
-    //! mpi communicator
-#ifdef USE_MPI
-    MPI_Comm                            comm = MPI_COMM_WORLD;
+    //! mpi partition
     sphexa::mpi::mpi_partition<KeyType> partition;
-#endif
 
-    //! base hydro fieldNames (every nuclear species is named "Yn")
+    //! fieldNames (every nuclear species is named "Yn")
     inline static constexpr auto fieldNames =
         concat(enumerateFieldNames<"Y", maxNumSpecies>(), std::array<const char*, 14>{
                                                               "dt",
@@ -134,6 +120,11 @@ public:
                                                               "node_id",
                                                               "particle_id",
                                                           });
+    //! hydro sized field names
+    inline static constexpr std::array hydroFields = {
+        "node_id",
+        "particle_id",
+    };
 
     /*! @brief return a tuple of field references
      *
@@ -182,9 +173,9 @@ public:
 
         devData.resize(size);
 
-        for (size_t i = 0; i < data_.size() - numHydroFields; ++i)
+        for (size_t i = 0; i < data_.size(); ++i)
         {
-            if (this->isAllocated(i))
+            if ((!is_hydro(i)) && this->isAllocated(i))
             {
                 // actually resize
                 std::visit(
@@ -201,6 +192,8 @@ public:
                             std::fill(arg->begin() + previous_size, arg->end(), 0.);
                         }
 
+                    // TODO: a) this macro should not be here b) wrong place to initialize fields
+                    //       if you initialize this field in nuclear_sedov_init.hpp, you'll solve both problems
 #ifdef USE_NUCLEAR_NETWORKS
                         // fill dt
                         if ((void*)arg == (void*)(&dt))
@@ -225,9 +218,9 @@ public:
 
         devData.resize_hydro(size);
 
-        for (size_t i = data_.size() - numHydroFields; i < data_.size(); ++i)
+        for (size_t i = 0; i < data_.size(); ++i)
         {
-            if (this->isAllocated(i))
+            if (is_hydro(i) && this->isAllocated(i))
             {
                 // actually resize
                 std::visit(
@@ -246,6 +239,8 @@ public:
     std::vector<std::string> outputFieldNames;
 
 private:
+    bool is_hydro(int i) { return cstone::getFieldIndex(fieldNames[i], hydroFields) != hydroFields.size(); }
+
     template<size_t... Is>
     auto dataTuple_helper(std::index_sequence<Is...>)
     {

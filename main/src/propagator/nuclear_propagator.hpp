@@ -28,7 +28,7 @@
  * @author Joseph Touzet <joseph.touzet@ens-paris-saclay.fr>
  */
 
-#include "sphnnet/nuclear-net.hpp"
+#include "sphnnet/nuclear_net.hpp"
 
 #include "nnet/parameterization/net87/net87.hpp"
 #include "nnet/parameterization/net14/net14.hpp"
@@ -285,8 +285,8 @@ private:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        sphexa::sphnnet::computePartition(first, last, n);
-        timer.step("sphnnet::computePartition");
+        sphexa::sphnnet::computeNuclearPartition(first, last, simData);
+        timer.step("sphnnet::computeNuclearPartition");
 
         sphexa::sphnnet::syncHydroToNuclear(simData, {"rho" /*, "temp", */ /* TODO */});
         timer.step("sphnnet::syncHydroToNuclear");

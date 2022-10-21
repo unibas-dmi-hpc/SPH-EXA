@@ -36,7 +36,7 @@
 namespace sphexa::sphnnet
 {
 /*! @brief nuclear data device facade */
-template<typename T, typename I>
+template<typename T, typename I, typename M>
 class DeviceNuclearDataFacade
 {
 public:
@@ -68,14 +68,11 @@ public:
 };
 
 /*! @brief Forward declaration of DeviceNuclearDataType, defined to DeviceNuclearDataFacade for now ! */
-template<typename T, typename I>
-/*class DeviceNuclearDataType : public DeviceNuclearDataFacade<T, I>
-{
-};*/
+template<typename T, typename I, typename Tmass>
 class DeviceNuclearDataType;
 
-template<class Accelerator, class T, class KeyType>
+template<class Accelerator, class T, class KeyType, class Tmass>
 using DeviceNuclearData_t = typename cstone::AccelSwitchType<Accelerator, DeviceNuclearDataFacade,
-                                                             DeviceNuclearDataType>::template type<T, KeyType>;
+                                                             DeviceNuclearDataType>::template type<T, KeyType, Tmass>;
 
 } // namespace sphexa::sphnnet

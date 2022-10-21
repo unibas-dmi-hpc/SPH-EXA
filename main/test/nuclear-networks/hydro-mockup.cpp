@@ -48,10 +48,10 @@
 #include "nnet/parameterization/eos/ideal_gas.hpp"
 
 // base datatype
-#include "sphnnet/nuclear-data.hpp"
+#include "sphnnet/nuclear_data.hpp"
 
 // nuclear reaction wrappers
-#include "sphnnet/nuclear-net.hpp"
+#include "sphnnet/nuclear_net.hpp"
 #include "sphnnet/observables.hpp"
 #include "sphnnet/initializers.hpp"
 
@@ -72,10 +72,8 @@ void dump(Dataset& d, size_t firstIndex, size_t lastIndex,
     // path += std::to_string(d.iteration) + ".txt";
 
     int rank = 0, numRanks = 1;
-#ifdef USE_MPI
-    MPI_Comm_rank(d.comm, &rank);
-    MPI_Comm_size(d.comm, &numRanks);
-#endif
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
     for (int turn = 0; turn < numRanks; turn++)
     {
@@ -94,9 +92,7 @@ void dump(Dataset& d, size_t firstIndex, size_t lastIndex,
             }
         }
 
-#ifdef USE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
-#endif
     }
 }
 
@@ -105,16 +101,8 @@ template<typename Float, typename Int, class AccType>
 class ParticlesDataType
 {
 public:
-#ifdef USE_MPI
-    // communicator
-    MPI_Comm comm = MPI_COMM_WORLD;
-#endif
-
-    // pointers
-    std::vector<double> x, y, z;
-
     // hydro data
-    std::vector<double> rho, temp, cv; //...
+    std::vector<double> x, y, z, rho, temp, cv; //...
 
     void resize(const size_t N)
     {
@@ -158,13 +146,11 @@ template<typename Float, typename Int, class AccType>
 class SimData
 {
 public:
-    ParticlesDataType<Float, Int, AccType>                hydro;
-    sphexa::sphnnet::NuclearDataType<Float, Int, AccType> nuclearData;
+    ParticlesDataType<Float, Int, AccType>                       hydro;
+    sphexa::sphnnet::NuclearDataType<Float, Int, float, AccType> nuclearData;
 
-#ifdef USE_MPI
     // communicator
     MPI_Comm comm = MPI_COMM_WORLD;
-#endif
 };
 
 template<class Data>
@@ -176,9 +162,7 @@ double totalInternalEnergy(Data const& n)
     for (size_t i = 0; i < n_particles; ++i)
         total_energy += n.u[i] * n.m[i];
 
-#ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &total_energy, 1, MPI_DOUBLE, MPI_SUM, n.comm);
-#endif
+    MPI_Allreduce(MPI_IN_PLACE, &total_energy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     return total_energy;
 }
@@ -195,7 +179,7 @@ void step(int rank, size_t firstIndex, size_t lastIndex, SimData<Float, KeyType,
 
     // domain redecomposition
 
-    sphexa::sphnnet::computePartition(firstIndex, lastIndex, d.nuclearData);
+    sphexa::sphnnet::computeNuclearPartition(firstIndex, lastIndex, d);
 
     // do hydro stuff
 
@@ -216,7 +200,7 @@ void step(int rank, size_t firstIndex, size_t lastIndex, SimData<Float, KeyType,
     /* !! needed for now !! */
     sphexa::transferToHost(d.nuclearData, 0, n_nuclear_particles, {"Y"});
     // print total nuclear energy
-    Float total_nuclear_energy  = sphexa::sphnnet::totalNuclearEnergy(d.nuclearData, BE);
+    Float total_nuclear_energy  = sphexa::sphnnet::totalNuclearEnergy(d.nuclearData, BE, MPI_COMM_WORLD);
     Float total_internal_energy = totalInternalEnergy(d.nuclearData);
     if (rank == 0)
         std::cout << "etot=" << total_nuclear_energy + total_internal_energy << " (nuclear=" << total_nuclear_energy
@@ -230,14 +214,12 @@ int main(int argc, char* argv[])
     const double T_left = 0.5e9, T_right = 1.5e9;
 
     int size = 1, rank = 0;
-#ifdef USE_MPI
     MPI_Init(&argc, &argv);
 
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
 
-#if COMPILE_DEVICE && defined(USE_MPI)
+#if COMPILE_DEVICE
     cuda_util::initCudaMpi(MPI_COMM_WORLD);
 #endif
 
@@ -249,10 +231,7 @@ int main(int argc, char* argv[])
     if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))
     {
         printHelp(argv[0], rank);
-
-#ifdef USE_MPI
         MPI_Finalize();
-#endif
         return 0;
     }
 
@@ -386,7 +365,7 @@ int main(int argc, char* argv[])
                                            "c", "p", "cv", "u", "dpdT", "m", "temp", "rho", "rho_m1", "dt");
     particle_data.nuclearData.devData.setDependent("temp", "rho", "rho_m1", "dt", "c", "p", "cv", "u", "dpdT");
 
-    sphexa::sphnnet::initializePointers(first, last, particle_data.nuclearData);
+    sphexa::sphnnet::initializeNuclearPointers(first, last, particle_data);
 
     if (use_net87)
     {
@@ -449,9 +428,7 @@ int main(int argc, char* argv[])
         particle_data.nuclearData.setOutputFields(nuclearOutFields);
     }
 
-#ifdef USE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
     auto   start    = std::chrono::high_resolution_clock::now();
     double min_time = 3600, max_time = 0;
 
@@ -462,19 +439,16 @@ int main(int argc, char* argv[])
     for (int i = 0; i < n_max; ++i)
     {
         if (rank == 0) std::cout << i << "th iteration...\n";
-
-#ifdef USE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
-#endif
+
         auto start_it = std::chrono::high_resolution_clock::now();
 
         step(rank, first, last, particle_data, hydro_dt, *reactions, *construct_rates_BE, *eos, BE, Z);
 
         t += hydro_dt;
 
-#ifdef USE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
-#endif
+
         auto end_it = std::chrono::high_resolution_clock::now();
         auto duration_it =
             ((float)std::chrono::duration_cast<std::chrono::milliseconds>(end_it - start_it).count()) / 1e3;
@@ -484,9 +458,8 @@ int main(int argc, char* argv[])
         if (rank == 0) std::cout << "\t...Ok\n";
     }
 
-#ifdef USE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
+
     if (rank == 0)
     {
         auto stop         = std::chrono::high_resolution_clock::now();
@@ -499,15 +472,14 @@ int main(int argc, char* argv[])
             std::cout << name << " ";
         std::cout << "\n";
     }
-#ifdef USE_MPI
+
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
+
     dump(particle_data.hydro, first, first + n_print, "/dev/stdout");
     dump(particle_data.hydro, last - n_print, last, "/dev/stdout");
 
-#ifdef USE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
+
     if (rank == 0)
     {
         std::cout << "\n";
@@ -515,9 +487,8 @@ int main(int argc, char* argv[])
             std::cout << name << " ";
         std::cout << "\n";
     }
-#ifdef USE_MPI
+
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
 
     sphexa::transferToHost(particle_data.nuclearData, 0, n_nuclear_particles, {"cv"});
 
@@ -528,9 +499,7 @@ int main(int argc, char* argv[])
     dump(particle_data.nuclearData, 0, n_print, "/dev/stdout");
     dump(particle_data.nuclearData, n_nuclear_particles - n_print, n_nuclear_particles, "/dev/stdout");
 
-#ifdef USE_MPI
     MPI_Finalize();
-#endif
 
     return 0;
 }
