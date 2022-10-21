@@ -278,11 +278,11 @@ sph:build:cuda:sphexa:gpu:
     - export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.2/lib:$LD_LIBRARY_PATH
     - ln -fs /usr/local/bin/sedov_solution .
     - echo "# --- sedov:gpu"
-    - /usr/local/bin/sphexa-cuda --init sedov -f rho,p,u,x,y,z,vx,vy,vz -s 200 -n 50 -w 200 --outDir /scratch/ --quiet |grep -v "Focus Tree Nodes:"
+    - /usr/local/bin/sphexa-cuda --init sedov -s 200 -n 50 -w 200 --outDir /scratch/ --quiet |grep -v "Focus Tree Nodes:"
     - python3 /usr/local/bin/compare_solutions.py -s 200 /scratch/dump_sedov.h5 > /scratch/sedov.rpt
     #
     - echo "# --- noh:gpu"
-    - /usr/local/bin/sphexa-cuda --init noh -f rho,p,u,x,y,z,vx,vy,vz -s 200 -n 50 -w 200 --outDir /scratch/ --quiet |grep -v "Focus Tree Nodes:"
+    - /usr/local/bin/sphexa-cuda --init noh -s 200 -n 50 -w 200 --outDir /scratch/ --quiet |grep -v "Focus Tree Nodes:"
     - python3 /usr/local/bin/compare_noh.py -s 200 /scratch/dump_noh.h5 > /scratch/noh.rpt
     - echo "# --- evrard:gpu"
     - wget --quiet ${DEPS_PATH}/in/glass.h5
