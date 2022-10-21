@@ -36,6 +36,7 @@
 #include <algorithm>
 
 #include "cstone/sfc/box.hpp"
+#include "sph/eos.hpp"
 
 #include "io/mpi_file_utils.hpp"
 #include "isim_init.hpp"
@@ -46,9 +47,20 @@ namespace sphexa
 
 std::map<std::string, double> TurbulenceConstants()
 {
-    return {{"solWeight", 0.5},      {"stMaxModes", 100000}, {"Lbox", 1.0},       {"stMachVelocity", 0.3e0},
-            {"firstTimeStep", 1e-4}, {"epsilon", 1e-15},     {"rngSeed", 251299}, {"stSpectForm", 1},
-            {"mTotal", 1.0},         {"powerLawExp", 5 / 3}, {"anglesExp", 2.0}};
+    return {{"solWeight", 0.5},
+            {"stMaxModes", 100000},
+            {"Lbox", 1.0},
+            {"stMachVelocity", 0.3e0},
+            {"firstTimeStep", 1e-4},
+            {"epsilon", 1e-15},
+            {"rngSeed", 251299},
+            {"stSpectForm", 1},
+            {"mTotal", 1.0},
+            {"powerLawExp", 5 / 3},
+            {"anglesExp", 2.0},
+            {"gamma", 1.001},
+            {"mui", 10.},
+            {"u0", 1000.}};
 }
 
 template<class Dataset>
@@ -60,27 +72,27 @@ void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& 
     double hInit         = std::cbrt(3.0 / (4. * M_PI) * ng0 * std::pow(Lbox, 3) / d.numParticlesGlobal) * 0.5;
     double firstTimeStep = constants.at("firstTimeStep");
 
+    d.gamma     = constants.at("gamma");
+    d.muiShared = constants.at("mui");
+    d.minDt     = firstTimeStep;
+    d.minDt_m1  = firstTimeStep;
+
+    auto cv    = sph::idealGasCv(d.muiShared);
+    auto temp0 = constants.at("u0") / cv;
+
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
     std::fill(d.h.begin(), d.h.end(), hInit);
-    std::fill(d.mui.begin(), d.mui.end(), 10.0);
+    std::fill(d.mui.begin(), d.mui.end(), d.muiShared);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-    std::fill(d.u.begin(), d.u.end(), 1000.0);
+    std::fill(d.temp.begin(), d.temp.end(), temp0);
 
-    d.minDt    = firstTimeStep;
-    d.minDt_m1 = firstTimeStep;
-    d.gamma    = 1.001;
-
-#pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < d.x.size(); i++)
-    {
-        d.vx[i]   = 0.;
-        d.vy[i]   = 0.;
-        d.vz[i]   = 0.;
-        d.x_m1[i] = d.vx[i] * firstTimeStep;
-        d.y_m1[i] = d.vy[i] * firstTimeStep;
-        d.z_m1[i] = d.vz[i] * firstTimeStep;
-    }
+    std::fill(d.vx.begin(), d.vx.end(), 0.);
+    std::fill(d.vy.begin(), d.vy.end(), 0.);
+    std::fill(d.vz.begin(), d.vz.end(), 0.);
+    std::fill(d.x_m1.begin(), d.x_m1.end(), 0.);
+    std::fill(d.y_m1.begin(), d.y_m1.end(), 0.);
+    std::fill(d.z_m1.begin(), d.z_m1.end(), 0.);
 }
 
 template<class Dataset>
