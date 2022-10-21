@@ -285,8 +285,8 @@ private:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        sphexa::sphnnet::computePartition(first, last, n);
-        timer.step("sphnnet::computePartition");
+        sphexa::sphnnet::computeNuclearPartition(first, last, simData);
+        timer.step("sphnnet::computeNuclearPartition");
 
         sphexa::sphnnet::syncHydroToNuclear(simData, {"rho" /*, "temp", */ /* TODO */});
         timer.step("sphnnet::syncHydroToNuclear");

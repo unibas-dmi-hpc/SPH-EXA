@@ -72,7 +72,7 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
-        n.enuclear = sphnnet::totalNuclearEnergy(n, BE);
+        n.enuclear = sphnnet::totalNuclearEnergy(n, BE, simData.comm);
         d.etot += n.enuclear;
 
         if (rank == 0)

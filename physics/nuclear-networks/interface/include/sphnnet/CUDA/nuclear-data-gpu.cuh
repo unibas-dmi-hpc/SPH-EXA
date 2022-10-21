@@ -49,8 +49,8 @@
 namespace sphexa::sphnnet
 {
 /*! @brief device nuclear data class for nuclear network */
-template<typename Float, typename Int>
-class DeviceNuclearDataType : public cstone::FieldStates<DeviceNuclearDataType<Float, Int>>
+template<typename RealType_, typename KeyType_, typename Tmass_>
+class DeviceNuclearDataType : public cstone::FieldStates<DeviceNuclearDataType<RealType_, KeyType_, Tmass_>>
 {
 public:
     //! maximum number of nuclear species
@@ -58,17 +58,13 @@ public:
     //! actual number of nuclear species
     int numSpecies = 0;
 
-    //! @brief number of fields that have hydro size
-    const int numHydroFields = 2;
-
     template<class FType>
     using DevVector = thrust::device_vector<FType>;
 
     // types
-    using RealType = Float;
-    using KeyType  = Int;
-    using Tmass    = float;
-    using XM1Type  = float;
+    using RealType = RealType_;
+    using KeyType  = KeyType_;
+    using Tmass    = Tmass_;
 
     DevVector<RealType>                             c;                   // speed of sound
     DevVector<RealType>                             p;                   // pressure
@@ -108,6 +104,12 @@ public:
                                                               "particle_id",
                                                           });
 
+    //! hydro sized field names
+    inline static constexpr std::array hydroFields = {
+        "node_id",
+        "particle_id",
+    };
+
     /*! @brief return a tuple of field references
      *
      * Note: this needs to be in the same order as listed in fieldNames
@@ -139,9 +141,9 @@ public:
         double growthRate = 1;
         auto   data_      = data();
 
-        for (size_t i = 0; i < data_.size() - numHydroFields; ++i)
+        for (size_t i = 0; i < data_.size(); ++i)
         {
-            if (this->isAllocated(i))
+            if ((!is_hydro(i)) && this->isAllocated(i))
             {
                 // actually resize
                 std::visit([&](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
@@ -158,9 +160,9 @@ public:
         double growthRate = 1.01;
         auto   data_      = data();
 
-        for (size_t i = data_.size() - numHydroFields; i < data_.size(); ++i)
+        for (size_t i = 0; i < data_.size(); ++i)
         {
-            if (this->isAllocated(i))
+            if (is_hydro(i) && this->isAllocated(i))
             {
                 // actually resize
                 std::visit(
@@ -175,6 +177,8 @@ public:
     }
 
 private:
+    bool is_hydro(int i) { return cstone::getFieldIndex(fieldNames[i], hydroFields) != hydroFields.size(); }
+
     template<size_t... Is>
     auto dataTuple_helper(std::index_sequence<Is...>)
     {
@@ -183,6 +187,6 @@ private:
 };
 
 // used templates:
-template class DeviceNuclearDataType<double, size_t>;
-template class DeviceNuclearDataType<float, size_t>;
+// template class DeviceNuclearDataType<double, size_t>;
+// template class DeviceNuclearDataType<float, size_t>;
 } // namespace sphexa::sphnnet
