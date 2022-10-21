@@ -40,16 +40,16 @@
 
 #include <thrust/device_vector.h>
 
-#include "nnet/CUDA/nuclear-net.cuh"
+#include "nnet/CUDA/nuclear_net.cuh"
 #endif
 
 #include <numeric>
 #include <omp.h>
 
-#include "nnet-util/eigen.hpp"
-#include "nnet-util/algorithm.hpp"
+#include "nnet_util/eigen.hpp"
+#include "nnet_util/algorithm.hpp"
 
-#include "mpi/mpi-wrapper.hpp"
+#include "mpi/mpi_wrapper.hpp"
 
 #include "cstone/fields/data_util.hpp"
 

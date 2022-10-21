@@ -38,13 +38,13 @@
 #include <memory>
 #include <variant>
 
-#include "CUDA/nuclear-data-stubs.hpp"
+#include "CUDA/nuclear_data_stubs.hpp"
 
 #if defined(USE_CUDA)
-#include "CUDA/nuclear-data-gpu.cuh"
+#include "CUDA/nuclear_data_gpu.cuh"
 #endif
 
-#include "mpi/mpi-wrapper.hpp"
+#include "mpi/mpi_wrapper.hpp"
 
 #include "cstone/tree/accel_switch.hpp"
 
@@ -57,8 +57,6 @@
 
 namespace sphexa::sphnnet
 {
-
-// TODO: naming conventions: file names should haves underscores, not hyphens: nuclear_data.hpp
 
 /*! @brief nuclear data class for nuclear network */
 template<typename RealType_, typename KeyType_, class Tmass_, class AccType>

@@ -48,10 +48,10 @@
 #include "nnet/parameterization/eos/ideal_gas.hpp"
 
 // base datatype
-#include "sphnnet/nuclear-data.hpp"
+#include "sphnnet/nuclear_data.hpp"
 
 // nuclear reaction wrappers
-#include "sphnnet/nuclear-net.hpp"
+#include "sphnnet/nuclear_net.hpp"
 #include "sphnnet/observables.hpp"
 #include "sphnnet/initializers.hpp"
 

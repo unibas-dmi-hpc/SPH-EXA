@@ -34,8 +34,8 @@
 
 #include <numeric>
 
-#include "mpi/mpi-wrapper.hpp"
-#include "nuclear-net.hpp"
+#include "mpi/mpi_wrapper.hpp"
+#include "nuclear_net.hpp"
 
 namespace sphexa::sphnnet
 {

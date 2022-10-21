@@ -31,13 +31,13 @@
 
 #pragma once
 
-#include "nnet/parallel/parallel-nuclear-net.hpp"
+#include "nnet/parallel/parallel_nuclear_net.hpp"
 
-#include "mpi/mpi-wrapper.hpp"
+#include "mpi/mpi_wrapper.hpp"
 
 #include "cstone/fields/data_util.hpp"
 
-#include "nnet-util/algorithm.hpp"
+#include "nnet_util/algorithm.hpp"
 
 namespace sphexa::sphnnet
 {
