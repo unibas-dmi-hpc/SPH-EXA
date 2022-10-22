@@ -2,5 +2,5 @@
 	path = extern/grackle/grackle_repo
 	url = https://github.com/grackle-project/grackle
 [submodule "physics/nuclear-networks"]
-	path = physics/nuclear-networks/SPH-EXA-nnet
+	path = physics/nuclear_networks/SPH-EXA-nnet
 	url = https://github.com/jolatechno/SPH-EXA-nnet.git

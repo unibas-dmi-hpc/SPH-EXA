@@ -93,10 +93,10 @@ endif ()
 
 option(SPH_EXA_WITH_NNET "Enable nuclear networks" ON)
 
-set(SPHNNET_DIR ${PROJECT_SOURCE_DIR}/physics/nuclear-networks/interface/include)
+set(SPHNNET_DIR ${PROJECT_SOURCE_DIR}/physics/nuclear_networks/interface/include)
 if (SPH_EXA_WITH_NNET)
-    if(EXISTS ${PROJECT_SOURCE_DIR}/physics/nuclear-networks/SPH-EXA-nnet/include)
-        set(NNET_DIR ${PROJECT_SOURCE_DIR}/physics/nuclear-networks/SPH-EXA-nnet/include)
+    if(EXISTS ${PROJECT_SOURCE_DIR}/physics/nuclear_networks/SPH-EXA-nnet/include)
+        set(NNET_DIR ${PROJECT_SOURCE_DIR}/physics/nuclear_networks/SPH-EXA-nnet/include)
     else()
         message(STATUS "Nuclear network module not found !")
         set(SPH_EXA_WITH_NNET OFF)

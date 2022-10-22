@@ -1,6 +1,6 @@
 set(nnet hydro-mockup)
 
-add_executable(${nnet} hydro-mockup.cpp)
+add_executable(${nnet} hydro_mockup.cpp)
 
 target_include_directories(${nnet} PRIVATE ${SPH_DIR})
 target_include_directories(${nnet} PRIVATE ${CSTONE_DIR})
@@ -23,12 +23,12 @@ option(CUDA_HYDRO_MOCKUP "Enable CUDA hydro mockut test for nuclear networks coo
 
 if(CUDA_HYDRO_MOCKUP)
 	if(CMAKE_HIP_COMPILER)
-		set_source_properties(hydro-mockup.cpp PROPERTY LANGUAGE HIP)
+		set_source_properties(hydro_mockup.cpp PROPERTY LANGUAGE HIP)
 	endif()
 
 	if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
-	    add_executable(${nnet}-cuda hydro-mockup.cpp)
-	  # add_executable(${nnet}-cuda hydro-mockup.cpp)
+	    add_executable(${nnet}-cuda hydro_mockup.cpp)
+	  # add_executable(${nnet}-cuda hydro_mockup.cpp)
 
 	   	set_target_properties(${nnet}-cuda PROPERTIES
 	   		CUDA_SEPARABLE_COMPILATION ON
@@ -52,8 +52,8 @@ if(CUDA_HYDRO_MOCKUP)
 
 
 
-	    add_executable(${nnet}-cpu hydro-mockup.cpp)
-	  # add_executable(${nnet}-cpu hydro-mockup.cpp)
+	    add_executable(${nnet}-cpu hydro_mockup.cpp)
+	  # add_executable(${nnet}-cpu hydro_mockup.cpp)
 
 	   	set_target_properties(${nnet}-cpu PROPERTIES
 	   		CUDA_SEPARABLE_COMPILATION ON
