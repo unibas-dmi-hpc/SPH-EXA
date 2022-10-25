@@ -34,6 +34,7 @@
 #include <map>
 
 #include "cstone/sfc/box.hpp"
+#include "sph/eos.hpp"
 
 #include "io/file_utils.hpp"
 #ifdef SPH_EXA_HAVE_H5PART
@@ -63,18 +64,22 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
 
     double firstTimeStep = constants.at("firstTimeStep");
 
+    d.gamma    = constants.at("gamma");
+    d.muiConst = constants.at("mui");
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
+
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.h.begin(), d.h.end(), hInit);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
-    std::fill(d.mui.begin(), d.mui.end(), 10.0);
+    std::fill(d.mui.begin(), d.mui.end(), d.muiConst);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-
-    d.minDt    = firstTimeStep;
-    d.minDt_m1 = firstTimeStep;
 
     std::fill(d.vx.begin(), d.vx.end(), 0.0);
     std::fill(d.vy.begin(), d.vy.end(), 0.0);
     std::fill(d.vz.begin(), d.vz.end(), 0.0);
+
+    auto cv = sph::idealGasCv(d.muiConst);
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
@@ -84,7 +89,8 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
         T zi = d.z[i];
         T r2 = xi * xi + yi * yi + zi * zi;
 
-        d.u[i] = constants.at("ener0") * exp(-(r2 / width2)) + constants.at("u0");
+        T ui      = constants.at("ener0") * exp(-(r2 / width2)) + constants.at("u0");
+        d.temp[i] = ui / cv;
 
         d.x_m1[i] = d.vx[i] * firstTimeStep;
         d.y_m1[i] = d.vy[i] * firstTimeStep;

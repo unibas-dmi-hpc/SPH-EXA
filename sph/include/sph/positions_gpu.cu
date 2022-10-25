@@ -28,16 +28,18 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include "eos.hpp"
 #include "positions.hpp"
 #include "sph_gpu.hpp"
 
 namespace sph
 {
 
-template<class Tc, class Tv, class Ta, class Tm1, class Tu, class Thydro>
+template<class Tc, class Tv, class Ta, class Tm1, class Tt, class Thydro>
 __global__ void computePositionsKernel(size_t first, size_t last, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx,
-                                       Tv* vy, Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, Tu* u,
-                                       Tm1* du, Tm1* du_m1, Thydro* h, const cstone::Box<Tc> box)
+                                       Tv* vy, Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az,
+                                       Tt* temp, Tm1* du, Tm1* du_m1, Thydro* h, Thydro* mui, Thydro constCv,
+                                       const cstone::Box<Tc> box)
 {
     cstone::LocalIndex i = first + blockDim.x * blockIdx.x + threadIdx.x;
     if (i >= last) { return; }
@@ -66,27 +68,29 @@ __global__ void computePositionsKernel(size_t first, size_t last, double dt, dou
     util::tie(x_m1[i], y_m1[i], z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
     util::tie(vx[i], vy[i], vz[i])       = util::tie(V[0], V[1], V[2]);
 
-    u[i] += energyUpdate(dt, dt_m1, du[i], du_m1[i]);
+    Thydro cv = (constCv < 0) ? idealGasCv(mui[i]) : constCv;
+    temp[i] += energyUpdate(dt, dt_m1, du[i], du_m1[i]) / cv;
     du_m1[i] = du[i];
 }
 
-template<class Tc, class Tv, class Ta, class Tm1, class Tu, class Thydro>
+template<class Tc, class Tv, class Ta, class Tm1, class Tt, class Thydro>
 void computePositionsGpu(size_t first, size_t last, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx, Tv* vy,
-                         Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, Tu* u, Tm1* du, Tm1* du_m1,
-                         Thydro* h, const cstone::Box<Tc>& box)
+                         Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, Tt* temp, Tm1* du, Tm1* du_m1,
+                         Thydro* h, Thydro* mui, Thydro constCv, const cstone::Box<Tc>& box)
 {
     cstone::LocalIndex numParticles = last - first;
     unsigned           numThreads   = 256;
     unsigned           numBlocks    = (numParticles + numThreads - 1) / numThreads;
 
     computePositionsKernel<<<numBlocks, numThreads>>>(first, last, dt, dt_m1, x, y, z, vx, vy, vz, x_m1, y_m1, z_m1, ax,
-                                                      ay, az, u, du, du_m1, h, box);
+                                                      ay, az, temp, du, du_m1, h, mui, constCv, box);
 }
 
-#define POS_GPU(Tc, Tv, Ta, Tm1, Tu, Thydro)                                                                           \
+#define POS_GPU(Tc, Tv, Ta, Tm1, Tt, Thydro)                                                                           \
     template void computePositionsGpu(size_t first, size_t last, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx, \
-                                      Tv* vy, Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, Tu* u,  \
-                                      Tm1* du, Tm1* du_m1, Thydro* h, const cstone::Box<Tc>& box)
+                                      Tv* vy, Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az,         \
+                                      Tt* temp, Tm1* du, Tm1* du_m1, Thydro* h, Thydro* mui, Thydro constCv,           \
+                                      const cstone::Box<Tc>& box)
 
 POS_GPU(double, double, double, double, double, double);
 POS_GPU(double, double, double, float, double, double);
