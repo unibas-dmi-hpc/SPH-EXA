@@ -35,20 +35,14 @@
 #include "../../src/io/arg_parser.hpp"
 #include "../../src/io/file_utils.hpp"
 
-#include "sph/particles_data.hpp"
-#if defined(USE_CUDA)
-#include "sph/util/pinned_allocator.cuh"
-#include "sph/particles_data_gpu.cuh"
-#endif
+// base datatype
+#include "../../src/sphexa/simulation_data.hpp"
 
 // physical parameters
 #include "nnet/parameterization/net14/net14.hpp"
 #include "nnet/parameterization/net87/net87.hpp"
 #include "nnet/parameterization/eos/helmholtz.hpp"
 #include "nnet/parameterization/eos/ideal_gas.hpp"
-
-// base datatype
-#include "sphnnet/nuclear_data.hpp"
 
 // nuclear reaction wrappers
 #include "sphnnet/nuclear_net.hpp"
@@ -96,63 +90,6 @@ void dump(Dataset& d, size_t firstIndex, size_t lastIndex,
     }
 }
 
-// mockup of the ParticlesDataType
-template<typename Float, typename Int, class AccType>
-class ParticlesDataType
-{
-public:
-    // hydro data
-    std::vector<double> x, y, z, rho, temp, cv; //...
-
-    void resize(const size_t N)
-    {
-        x.resize(N);
-        y.resize(N);
-        z.resize(N);
-
-        rho.resize(N);
-        temp.resize(N);
-    }
-
-    const std::vector<std::string> fieldNames = {"rho", "temp", "x", "y", "z", "cv"};
-
-    auto data()
-    {
-        using FieldType = std::variant<std::vector<size_t>*, std::vector<int>*, std::vector<double>*>;
-
-        std::array<FieldType, 6> ret = {&rho, &temp, &x, &y, &z, &cv};
-
-        return ret;
-    }
-
-    std::vector<int>         outputFieldIndices;
-    std::vector<std::string> outputFieldNames;
-
-    void setOutputFields(const std::vector<std::string>& outFields)
-    {
-        outputFieldNames   = fieldNames;
-        outputFieldIndices = cstone::fieldStringsToInt(outFields, outputFieldNames);
-    }
-
-    bool isAllocated(int i) const
-    {
-        /* TODO */
-        return true;
-    }
-};
-
-// mockup of the SimData
-template<typename Float, typename Int, class AccType>
-class SimData
-{
-public:
-    ParticlesDataType<Float, Int, AccType>                       hydro;
-    sphexa::sphnnet::NuclearDataType<Float, Int, float, AccType> nuclearData;
-
-    // communicator
-    MPI_Comm comm = MPI_COMM_WORLD;
-};
-
 template<class Data>
 double totalInternalEnergy(Data const& n)
 {
@@ -171,9 +108,10 @@ void printHelp(char* name, int rank);
 
 // mockup of the step function
 template<class Zvector, typename Float, typename KeyType, class AccType>
-void step(int rank, size_t firstIndex, size_t lastIndex, SimData<Float, KeyType, AccType>& d, const double dt,
-          const nnet::reaction_list& reactions, const nnet::compute_reaction_rates_functor<Float>& construct_rates_BE,
-          const nnet::eos_functor<Float>& eos, const Float* BE, const Zvector& Z)
+void step(int rank, size_t firstIndex, size_t lastIndex, sphexa::SimulationData<Float, KeyType, AccType>& d,
+          const double dt, const nnet::reaction_list& reactions,
+          const nnet::compute_reaction_rates_functor<Float>& construct_rates_BE, const nnet::eos_functor<Float>& eos,
+          const Float* BE, const Zvector& Z)
 {
     size_t n_nuclear_particles = d.nuclearData.temp.size();
 
@@ -192,7 +130,7 @@ void step(int rank, size_t firstIndex, size_t lastIndex, SimData<Float, KeyType,
                                              /*considering expansion:*/ true);
     sphexa::sphnnet::computeHelmEOS(d.nuclearData, 0, n_nuclear_particles, Z);
 
-    sphexa::transferToHost(d.nuclearData, 0, n_nuclear_particles, {"temp", "c", "p", "cv", "u", "dpdT"});
+    sphexa::transferToHost(d.nuclearData, 0, n_nuclear_particles, {"temp", "c", "p", "cv", "u"});
     sphexa::sphnnet::syncNuclearToHydro(d, {"temp"});
 
     // do hydro stuff
@@ -297,8 +235,14 @@ int main(int argc, char* argv[])
     /* !!!!!!!!!!!!
     initialize the hydro state
     !!!!!!!!!!!! */
-    SimData<double, size_t, AccType> particle_data;
-    particle_data.nuclearData.numSpecies = 14;
+
+    sphexa::SimulationData<double, size_t, AccType> particle_data;
+    particle_data.comm = MPI_COMM_WORLD;
+
+    particle_data.hydro.setDependent("c", "p", "cv", "u", "m", "temp", "rho");
+    particle_data.nuclearData.setDependent("nuclear_node_id", "nuclear_particle_id", "node_id", "particle_id", "dt",
+                                           "c", "p", "cv", "u", "dpdT", "m", "temp", "rho", "rho_m1");
+    particle_data.nuclearData.devData.setDependent("temp", "rho", "rho_m1", "dt", "c", "p", "cv", "u", "dpdT");
 
     const size_t n_particles = total_n_particles * (rank + 1) / size - total_n_particles * rank / size;
     const size_t offset      = 10 * rank;
@@ -361,10 +305,6 @@ int main(int argc, char* argv[])
     initialize nuclear data
     !!!!!!!!!!!! */
 
-    particle_data.nuclearData.setDependent("nuclear_node_id", "nuclear_particle_id", "node_id", "particle_id", "dt",
-                                           "c", "p", "cv", "u", "dpdT", "m", "temp", "rho", "rho_m1", "dt");
-    particle_data.nuclearData.devData.setDependent("temp", "rho", "rho_m1", "dt", "c", "p", "cv", "u", "dpdT");
-
     sphexa::sphnnet::initializeNuclearPointers(first, last, particle_data);
 
     if (use_net87)
@@ -403,6 +343,9 @@ int main(int argc, char* argv[])
 
         sphexa::sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_14);
     }
+
+    // initialize dt
+    std::fill(particle_data.nuclearData.dt.begin(), particle_data.nuclearData.dt.end(), nnet::constants::initial_dt);
 
     size_t n_nuclear_particles = particle_data.nuclearData.temp.size();
     for (int i = 0; i < particle_data.nuclearData.numSpecies; ++i)

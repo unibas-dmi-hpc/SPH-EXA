@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief output nuclear energies each iteration (default). TODO
+ * @brief output nuclear energies each iteration (default).
  * @author Joseph Touzet <joseph.touzet@ens-paris-saclay.fr>
  */
 

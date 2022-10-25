@@ -113,6 +113,10 @@ public:
         sphexa::sphnnet::initializeNuclearPointers(0, last_first, simData);
         sphexa::sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
 
+        // initialize dt
+        std::fill(n.dt.begin(), n.dt.end(), nnet::constants::initial_dt);
+
+        // initialize temp
         size_t n_nuclear_particles = n.Y[0].size();
         std::fill(getHost<"temp">(n).begin(), getHost<"temp">(n).begin() + n_nuclear_particles,
                   constants_.at("nuclearTemperature"));
@@ -211,6 +215,10 @@ public:
         sphexa::sphnnet::initializeNuclearPointers(0, last_first, simData);
         sphexa::sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
 
+        // initialize dt
+        std::fill(n.dt.begin(), n.dt.end(), nnet::constants::initial_dt);
+
+        // initialize temp
         size_t n_nuclear_particles = n.Y[0].size();
         std::fill(getHost<"temp">(n).begin(), getHost<"temp">(n).begin() + n_nuclear_particles,
                   constants_.at("nuclearTemperature"));

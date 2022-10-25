@@ -191,16 +191,6 @@ public:
                         {
                             std::fill(arg->begin() + previous_size, arg->end(), 0.);
                         }
-
-                    // TODO: a) this macro should not be here b) wrong place to initialize fields
-                    //       if you initialize this field in nuclear_sedov_init.hpp, you'll solve both problems
-#ifdef USE_NUCLEAR_NETWORKS
-                        // fill dt
-                        if ((void*)arg == (void*)(&dt))
-                        {
-                            std::fill(dt.begin() + previous_size, dt.end(), nnet::constants::initial_dt);
-                        }
-#endif
                     },
                     data_[i]);
             }

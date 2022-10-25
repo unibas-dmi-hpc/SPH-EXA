@@ -4,6 +4,7 @@ add_executable(${nnet} hydro_mockup.cpp)
 
 target_include_directories(${nnet} PRIVATE ${SPH_DIR})
 target_include_directories(${nnet} PRIVATE ${CSTONE_DIR})
+target_include_directories(${nnet} PRIVATE ${COOLING_DIR})
 target_include_directories(${nnet} PRIVATE ${SPHNNET_DIR})
 target_include_directories(${nnet} PRIVATE ${NNET_DIR})
 
@@ -36,6 +37,7 @@ if(CUDA_HYDRO_MOCKUP)
 
 		target_include_directories(${nnet}-cuda PRIVATE ${SPH_DIR})
 		target_include_directories(${nnet}-cuda PRIVATE ${CSTONE_DIR})
+		target_include_directories(${nnet}-cuda PRIVATE ${COOLING_DIR})
 		target_include_directories(${nnet}-cuda PRIVATE ${SPHNNET_DIR})
 		target_include_directories(${nnet}-cuda PRIVATE ${NNET_DIR})
 
@@ -61,6 +63,7 @@ if(CUDA_HYDRO_MOCKUP)
 
 		target_include_directories(${nnet}-cpu PRIVATE ${SPH_DIR})
 		target_include_directories(${nnet}-cpu PRIVATE ${CSTONE_DIR})
+		target_include_directories(${nnet}-cpu PRIVATE ${COOLING_DIR})
 		target_include_directories(${nnet}-cpu PRIVATE ${SPHNNET_DIR})
 		target_include_directories(${nnet}-cpu PRIVATE ${NNET_DIR})
 
