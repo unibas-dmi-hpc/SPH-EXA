@@ -118,8 +118,7 @@ public:
 
         // initialize temp
         size_t n_nuclear_particles = n.Y[0].size();
-        std::fill(getHost<"temp">(n).begin(), getHost<"temp">(n).begin() + n_nuclear_particles,
-                  constants_.at("nuclearTemperature"));
+        std::fill(getHost<"temp">(n).begin(), getHost<"temp">(n).begin() + n_nuclear_particles, constants_.at("T0"));
 
         return globalBox;
     }
@@ -220,8 +219,7 @@ public:
 
         // initialize temp
         size_t n_nuclear_particles = n.Y[0].size();
-        std::fill(getHost<"temp">(n).begin(), getHost<"temp">(n).begin() + n_nuclear_particles,
-                  constants_.at("nuclearTemperature"));
+        std::fill(getHost<"temp">(n).begin(), getHost<"temp">(n).begin() + n_nuclear_particles, constants_.at("T0"));
 
         return globalBox;
     }
