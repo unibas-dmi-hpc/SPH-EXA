@@ -115,7 +115,7 @@ cstone::Box<typename HydroData::RealType> restoreHydroData(const std::string& h5
     d.iteration++;
     H5PartReadStepAttrib(h5_file, "gravConstant", &d.g);
     H5PartReadStepAttrib(h5_file, "gamma", &d.gamma);
-    H5PartReadStepAttrib(h5_file, "muiShared", &d.muiShared);
+    H5PartReadStepAttrib(h5_file, "muiConst", &d.muiConst);
 
     double extents[6];
     H5PartReadStepAttrib(h5_file, "box", extents);
@@ -145,7 +145,7 @@ cstone::Box<typename HydroData::RealType> restoreHydroData(const std::string& h5
 
     initField(h5_file, rank, d.du_m1, "du_m1", 0.0);
     initField(h5_file, rank, d.alpha, "alpha", d.alphamin);
-    initField(h5_file, rank, d.mui, "mui", d.muiShared);
+    initField(h5_file, rank, d.mui, "mui", d.muiConst);
 
     initXm1(h5_file, rank, d);
 

@@ -62,7 +62,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     util::array<double, 3> linmom{0.0, 0.0, 0.0};
     util::array<double, 3> angmom{0.0, 0.0, 0.0};
 
-    double sharedCv = sph::idealGasCv(d.muiShared);
+    double sharedCv = sph::idealGasCv(d.muiConst);
     bool   haveMui  = !d.mui.empty();
 
 #pragma omp declare reduction(+ : util::array <double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
@@ -103,7 +103,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     {
         ncsum = cstone::reduceGpu(rawPtr(d.devData.nc) + startIndex, endIndex - startIndex, size_t(0));
         std::tie(eKin, eInt, linmom, angmom) = conservedQuantitiesGpu(
-            sph::idealGasCv(d.muiShared), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
+            sph::idealGasCv(d.muiConst), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
             rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.temp),
             rawPtr(d.devData.m), startIndex, endIndex);
     }

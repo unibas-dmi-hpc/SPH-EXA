@@ -185,7 +185,7 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     sphexaWriteStepAttrib(h5_file, "minDt_m1", &d.minDt_m1, 1);
     sphexaWriteStepAttrib(h5_file, "gravConstant", &d.g, 1);
     sphexaWriteStepAttrib(h5_file, "gamma", &d.gamma, 1);
-    sphexaWriteStepAttrib(h5_file, "muiShared", &d.muiShared, 1);
+    sphexaWriteStepAttrib(h5_file, "muiConst", &d.muiConst, 1);
     // record the actual SPH-iteration as step attribute
     H5PartWriteStepAttrib(h5_file, "step", H5PART_INT64, &d.iteration, 1);
 

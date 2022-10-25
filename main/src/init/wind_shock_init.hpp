@@ -85,16 +85,16 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
     T      hInt = 0.5 * std::cbrt(3. * ng0 * massPart / 4. / M_PI / rhoInt);
     T      hExt = 0.5 * std::cbrt(3. * ng0 * massPart / 4. / M_PI / rhoExt);
 
-    d.gamma     = constants.at("gamma");
-    d.muiShared = constants.at("mui");
-    d.minDt     = firstTimeStep;
-    d.minDt_m1  = firstTimeStep;
+    d.gamma    = constants.at("gamma");
+    d.muiConst = constants.at("mui");
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
 
-    auto cv = sph::idealGasCv(d.muiShared);
+    auto cv = sph::idealGasCv(d.muiConst);
 
     std::fill(d.m.begin(), d.m.end(), massPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
-    std::fill(d.mui.begin(), d.mui.end(), d.muiShared);
+    std::fill(d.mui.begin(), d.mui.end(), d.muiConst);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
 
     T uInt = uExt / (rhoInt / rhoExt);

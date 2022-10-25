@@ -74,16 +74,16 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
     T firstTimeStep = constants.at("firstTimeStep");
     T epsilon       = constants.at("epsilon");
 
-    d.gamma     = constants.at("gamma");
-    d.muiShared = constants.at("mui");
-    d.minDt     = firstTimeStep;
-    d.minDt_m1  = firstTimeStep;
+    d.gamma    = constants.at("gamma");
+    d.muiConst = constants.at("mui");
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
 
-    auto cv = sph::idealGasCv(d.muiShared);
+    auto cv = sph::idealGasCv(d.muiConst);
 
     std::fill(d.m.begin(), d.m.end(), massPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
-    std::fill(d.mui.begin(), d.mui.end(), d.muiShared);
+    std::fill(d.mui.begin(), d.mui.end(), d.muiConst);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
     std::fill(d.vx.begin(), d.vx.end(), 0.0);
     std::fill(d.vy.begin(), d.vy.end(), 0.0);

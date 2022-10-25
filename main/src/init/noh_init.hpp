@@ -62,18 +62,18 @@ void initNohFields(Dataset& d, double totalVolume, const std::map<std::string, d
     double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
     double firstTimeStep = constants.at("firstTimeStep");
 
-    d.gamma     = constants.at("gamma");
-    d.muiShared = constants.at("mui");
-    d.minDt     = firstTimeStep;
-    d.minDt_m1  = firstTimeStep;
+    d.gamma    = constants.at("gamma");
+    d.muiConst = constants.at("mui");
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
 
-    auto cv    = sph::idealGasCv(d.muiShared);
+    auto cv    = sph::idealGasCv(d.muiConst);
     auto temp0 = constants.at("u0") / cv;
 
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.h.begin(), d.h.end(), hInit);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
-    std::fill(d.mui.begin(), d.mui.end(), constants.at("mui"));
+    std::fill(d.mui.begin(), d.mui.end(), d.muiConst);
     std::fill(d.temp.begin(), d.temp.end(), temp0);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
 

@@ -64,22 +64,22 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
 
     double firstTimeStep = constants.at("firstTimeStep");
 
-    d.gamma     = constants.at("gamma");
-    d.muiShared = constants.at("mui");
-    d.minDt     = firstTimeStep;
-    d.minDt_m1  = firstTimeStep;
+    d.gamma    = constants.at("gamma");
+    d.muiConst = constants.at("mui");
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
 
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.h.begin(), d.h.end(), hInit);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
-    std::fill(d.mui.begin(), d.mui.end(), d.muiShared);
+    std::fill(d.mui.begin(), d.mui.end(), d.muiConst);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
 
     std::fill(d.vx.begin(), d.vx.end(), 0.0);
     std::fill(d.vy.begin(), d.vy.end(), 0.0);
     std::fill(d.vz.begin(), d.vz.end(), 0.0);
 
-    auto cv = sph::idealGasCv(d.muiShared);
+    auto cv = sph::idealGasCv(d.muiConst);
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
