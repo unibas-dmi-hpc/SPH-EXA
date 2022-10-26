@@ -1,0 +1,8 @@
+//
+// Created by Noah Kubli on 26.10.22.
+//
+
+#ifndef SPHEXA_EVRARD_COOLING_INIT_HPP
+#define SPHEXA_EVRARD_COOLING_INIT_HPP
+
+#endif //SPHEXA_EVRARD_COOLING_INIT_HPP
