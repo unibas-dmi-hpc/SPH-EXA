@@ -50,7 +50,7 @@ public:
 
     using HydroData = ParticlesData<RealType, KeyType, AccType>;
     using ChemData  = cooling::ChemistryData<T>;
-    using CoolData = cooling::CoolingData<T>;
+
 
     //! @brief spacially distributed data for hydrodynamics and gravity
     HydroData hydro;
@@ -62,6 +62,12 @@ public:
     // NuclearData nuclear;
 
     MPI_Comm comm;
+    SimulationData(const std::string &grackle_options_file_path,
+                   const double ms_sim = 1e16,
+                   const double kp_sim = 46400.,
+                   const int comoving_coordinates = 0,
+                   const std::optional<double> t_sim = std::nullopt):
+                   chem(grackle_options_file_path, ms_sim, kp_sim, comoving_coordinates, t_sim) {};
 };
 
 } // namespace sphexa

@@ -95,8 +95,10 @@ int main(int argc, char** argv)
     const bool               ascii             = parser.exists("--ascii");
     const std::string        outDirectory      = parser.get("--outDir");
     const bool               quiet             = parser.exists("--quiet");
-    const std::string grackleOptionFile = parser.get("--grackleOpt", std::string(""));
 
+    const std::string grackleOptionFile = parser.get("--grackleOpt", std::string(""));
+    const float             code_mass_in_solarmass = parser.get("--unit_mass", 1e16);
+    const float             code_length_in_kpc = parser.get("--unit_length", 46400);
 
     size_t ngmax = 150;
     size_t ng0   = 100;
@@ -105,11 +107,6 @@ int main(int argc, char** argv)
     std::ostream& output = quiet ? nullOutput : std::cout;
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
-    std::optional<cooling::CoolingData<double>> cooling_data;
-    if (propChoice == "std_cooling") {
-        //Create cooling object
-        cooling_data.emplace(grackleOptionFile, 1e16, 46400., 0);
-    }
 
     //! @brief evaluate user choice for different kind of actions
 
@@ -118,7 +115,7 @@ int main(int argc, char** argv)
     auto fileWriter  = fileWriterFactory<Dataset>(ascii);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
-    Dataset simData;
+    Dataset simData(grackleOptionFile, code_mass_in_solarmass, code_length_in_kpc, 0);
     simData.comm = MPI_COMM_WORLD;
 
 
@@ -127,9 +124,7 @@ int main(int argc, char** argv)
 
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, simData);
 
-    if (propChoice == "std_cooling") {
-        cooling::initGrackleData(simData.chem, cooling_data.value().global_values, simData.hydro.x.size());
-    }
+
 
     auto& d = simData.hydro;
     transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
@@ -162,13 +157,8 @@ int main(int argc, char** argv)
     totalTimer.start();
     size_t startIteration = d.iteration;
     for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++) {
-        if (propChoice == "std_cooling") {
-            //Need better solution here
-            Propagator<Domain, Dataset> *p = propagator.get();
-            static_cast<HydroGrackleProp<Domain, Dataset>* >(p)->step(domain, simData, cooling_data.value());
-        } else {
-            propagator->step(domain, simData);
-        }
+
+        propagator->step(domain, simData);
 
         observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
         propagator->printIterationTimings(domain, simData);

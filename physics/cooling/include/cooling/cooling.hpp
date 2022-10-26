@@ -242,7 +242,7 @@ namespace cooling
 
 // Initialize Grackle chemistry arrays with default data
     template<typename ChemistryData>
-    void initGrackleData(ChemistryData& d, typename CoolingData<typename ChemistryData::RealType>::global_values& gv, size_t n)
+    void initGrackleData(ChemistryData& d, size_t n)
     {
 
         using T = typename ChemistryData::RealType;
@@ -260,8 +260,8 @@ namespace cooling
             std::fill(vec.begin(), vec.end(), value);
         };
 
-        fillVec(d.fields[gr_data::HI_fraction], non_metal_fraction * gv.data.HydrogenFractionByMass);
-        fillVec(d.fields[gr_data::HeI_fraction], non_metal_fraction * (1. - gv.data.HydrogenFractionByMass));
+        fillVec(d.fields[gr_data::HI_fraction], non_metal_fraction * d.cooling_data.global_values.data.HydrogenFractionByMass);
+        fillVec(d.fields[gr_data::HeI_fraction], non_metal_fraction * (1. - d.cooling_data.global_values.data.HydrogenFractionByMass));
         fillVec(d.fields[gr_data::DI_fraction], 2.0 * 3.4e-5);
         fillVec(d.fields[gr_data::metal_fraction], metal_fraction);
         fillVec(d.fields[gr_data::HII_fraction], tiny_number);

@@ -146,6 +146,7 @@ void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const c
     H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_CHAR, value, numElements);
 }
 
+
 //! @brief Open in parallel mode if supported, otherwise serial if numRanks == 1
 H5PartFile* openH5Part(const std::string& path, h5part_int64_t mode, MPI_Comm comm)
 {
