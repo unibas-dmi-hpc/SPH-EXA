@@ -67,9 +67,7 @@ namespace cooling
                     const std::optional<double> t_sim = std::nullopt);
 
         CoolingData(const CoolingData&) = delete;
-        /*struct global_values& get_global_values() {
-            return global_values;
-        }*/
+
         //Solar mass in g
         constexpr static T      ms_g = 1.989e33;
         //kpc in cm
@@ -117,8 +115,8 @@ namespace cooling
     template<typename T>
     CoolingData<T>::CoolingData(const std::string &grackle_options_file_path,
                                 const double ms_sim, //Solar mass in simulation units
-                                  const double kp_sim, //Kpc in simulation units
-                                  const int comoving_coordinates,
+                                const double kp_sim, //Kpc in simulation units
+                                const int comoving_coordinates,
                                 const std::optional<double> t_sim) //sec in simulation units, just used for the unit test, otherwise G=1)
             : ms(ms_sim), kpc(kp_sim)
     {
