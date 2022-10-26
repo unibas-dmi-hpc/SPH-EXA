@@ -66,7 +66,7 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     if (testCase == "sedov-nuclear")
     {
 #ifdef USE_NUCLEAR_NETWORKS
-        if (glassBlock.empty()) { return std::make_unique<NuclearSedovGrid<Dataset>>(); }
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for nuclear sedov test case\n"); }
 #ifdef SPH_EXA_HAVE_H5PART
         else { return std::make_unique<NuclearSedovGlass<Dataset>>(glassBlock); }
 #endif
