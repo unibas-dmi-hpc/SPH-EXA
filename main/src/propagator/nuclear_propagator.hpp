@@ -258,7 +258,7 @@ private:
         auto& n = simData.nuclearData;
 
         d.resize(domain.nParticlesWithHalos());
-        n.resize_hydro(domain.nParticlesWithHalos());
+        n.resizeAttached(domain.nParticlesWithHalos());
 
         resizeNeighbors(d, domain.nParticles() * ngmax_);
         size_t first = domain.startIndex();

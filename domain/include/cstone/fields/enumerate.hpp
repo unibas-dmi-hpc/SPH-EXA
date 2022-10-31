@@ -133,3 +133,13 @@ constexpr std::array<const char*, N> enumerateFieldNames()
 {
     return constexpr_to_string::enumerateFieldNames_helper<Prefix>(std::make_index_sequence<N>{});
 }
+
+//! @brief compile-time concatenation of two std::arrays
+template<class T, size_t N1, size_t N2>
+constexpr std::array<T, N1 + N2> concatenate(const std::array<T, N1>& rhs, const std::array<T, N2>& lhs)
+{
+    std::array<T, N1 + N2> ret;
+    std::copy(rhs.begin(), rhs.end(), ret.begin());
+    std::copy(lhs.begin(), lhs.end(), ret.begin() + N1);
+    return ret;
+}
