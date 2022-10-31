@@ -31,20 +31,13 @@
 
 #pragma once
 
-#include "util/algorithm.hpp"
-
-#ifdef USE_MPI
-#include <mpi.h>
-#else
-struct mpi_comm
-{
-};
-typedef mpi_comm MPI_Comm;
-#endif
-
-#include <vector>
-#include <numeric>
 #include <algorithm>
+#include <numeric>
+#include <vector>
+
+#include <mpi.h>
+
+#include "util/algorithm.hpp"
 
 namespace sphexa::mpi
 {
@@ -110,7 +103,6 @@ mpi_partition<Int> partitionFromPointers(size_t firstIndex, size_t lastIndex, co
 {
     mpi_partition<Int> partition(node_id, particle_id);
 
-#ifdef USE_MPI
     int rank, size;
     MPI_Comm_size(comm, &size);
     MPI_Comm_rank(comm, &rank);
@@ -148,12 +140,10 @@ mpi_partition<Int> partitionFromPointers(size_t firstIndex, size_t lastIndex, co
     MPI_Alltoallv(&send_buffer[0], &partition.send_count[0], &partition.send_disp[0], MPI_UNSIGNED_LONG_LONG,
                   &partition.recv_partition[0], &partition.recv_count[0], &partition.recv_disp[0],
                   MPI_UNSIGNED_LONG_LONG, comm);
-#endif
 
     return partition;
 }
 
-#ifdef USE_MPI
 /*! @brief function that initialize node_id and particle_id for "maximal mixing".
  *
  * @param firstIndex   index of the first particle to be considered (included) when populating the node_id and
@@ -188,9 +178,7 @@ void initializePointers(size_t firstIndex, size_t lastIndex, std::vector<int>& n
         particle_id[firstIndex + i] = global_idx / size;
     }
 }
-#endif
 
-#ifdef USE_MPI
 /*! @brief function that sync attached to detached data
  *
  * @param partition    MPI partition
@@ -345,5 +333,4 @@ void syncDataFromStaticPartition(const mpi_partition<Int>& partition, const T1* 
 {
     throw std::runtime_error("Type mismatch in syncDataFromStaticPartition\n");
 }
-#endif
 } // namespace sphexa::mpi
