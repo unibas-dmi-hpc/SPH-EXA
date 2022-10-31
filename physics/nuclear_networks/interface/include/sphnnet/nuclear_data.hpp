@@ -36,19 +36,18 @@
 #include <memory>
 #include <variant>
 
-#include "CUDA/nuclear_data_stubs.hpp"
-
-#if defined(USE_CUDA)
-#include "CUDA/nuclear_data_gpu.cuh"
-#endif
-
-#include "mpi/mpi_wrapper.hpp"
-
 #include "cstone/tree/accel_switch.hpp"
 #include "cstone/fields/field_states.hpp"
 #include "cstone/fields/data_util.hpp"
 #include "cstone/fields/enumerate.hpp"
 #include "cstone/util/reallocate.hpp"
+
+#include "mpi/mpi_wrapper.hpp"
+
+#include "nuclear_data_stubs.hpp"
+#if defined(USE_CUDA)
+#include "nuclear_data_gpu.cuh"
+#endif
 
 namespace sphexa::sphnnet
 {
