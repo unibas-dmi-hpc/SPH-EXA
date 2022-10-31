@@ -31,8 +31,6 @@
 
 #pragma once
 
-#include "CUDA/cuda.inl"
-
 #include <vector>
 #include <array>
 #include <memory>
