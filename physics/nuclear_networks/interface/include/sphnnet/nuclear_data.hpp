@@ -31,29 +31,23 @@
 
 #pragma once
 
-#include "CUDA/cuda.inl"
-
 #include <vector>
 #include <array>
 #include <memory>
 #include <variant>
 
-#include "CUDA/nuclear_data_stubs.hpp"
-
-#if defined(USE_CUDA)
-#include "CUDA/nuclear_data_gpu.cuh"
-#endif
-
-#include "mpi/mpi_wrapper.hpp"
-
 #include "cstone/tree/accel_switch.hpp"
-
 #include "cstone/fields/field_states.hpp"
 #include "cstone/fields/data_util.hpp"
 #include "cstone/fields/enumerate.hpp"
-#include "cstone/fields/concatenate.hpp"
-
 #include "cstone/util/reallocate.hpp"
+
+#include "mpi/mpi_wrapper.hpp"
+
+#include "nuclear_data_stubs.hpp"
+#if defined(USE_CUDA)
+#include "nuclear_data_gpu.cuh"
+#endif
 
 namespace sphexa::sphnnet
 {
@@ -102,29 +96,20 @@ public:
     //! mpi partition
     sphexa::mpi::mpi_partition<KeyType> partition;
 
-    //! fieldNames (every nuclear species is named "Yn")
-    inline static constexpr auto fieldNames =
-        concat(enumerateFieldNames<"Y", maxNumSpecies>(), std::array<const char*, 14>{
-                                                              "dt",
-                                                              "c",
-                                                              "p",
-                                                              "cv",
-                                                              "u",
-                                                              "dpdT",
-                                                              "m",
-                                                              "temp",
-                                                              "rho",
-                                                              "rho_m1",
-                                                              "nuclear_node_id",
-                                                              "nuclear_particle_id",
-                                                              "node_id",
-                                                              "particle_id",
-                                                          });
-    //! hydro sized field names
-    inline static constexpr std::array hydroFields = {
-        "node_id",
-        "particle_id",
+    //! nuclear species are named "Yn"
+    inline static constexpr std::array nuclearSpecies = enumerateFieldNames<"Y", maxNumSpecies>();
+
+    //! detached hydro fields with same size as nuclearSpecies
+    inline static constexpr std::array detachedHydroFields{
+        "dt", "c", "p", "cv", "u", "dpdT", "m", "temp", "rho", "rho_m1", "nuclear_node_id", "nuclear_particle_id",
     };
+
+    //! attached fields with same size as spatially distributed fields from SPH
+    inline static constexpr std::array attachedFields{"node_id", "particle_id"};
+    //! all detached fields
+    inline static constexpr auto detachedFields = concatenate(nuclearSpecies, detachedHydroFields);
+    //! the complete list with all fields
+    inline static constexpr auto fieldNames = concatenate(detachedFields, attachedFields);
 
     /*! @brief return a tuple of field references
      *
@@ -151,9 +136,9 @@ public:
                           dataTuple());
     }
 
-    /*! @brief sets the field to be outputed
+    /*! @brief sets the fields to be output
      *
-     * @param outFields  vector of the names of fields to be outputed (including abundances names "Y(i)" for the ith
+     * @param outFields  vector of the names of fields to be output (including abundances names "Yi" for the ith
      * species)
      */
     void setOutputFields(const std::vector<std::string>& outFields)
@@ -162,74 +147,48 @@ public:
         outputFieldIndices = cstone::fieldStringsToInt(outFields, fieldNames);
     }
 
-    /*! @brief resize the number of particles (nuclear)
+    /*! @brief resize the number of particles of detached fields
      *
      * @param size  number of particles to be held by the class
      */
     void resize(size_t size)
     {
-        double growthRate = 1;
-        auto   data_      = data();
-
         devData.resize(size);
 
-        for (size_t i = 0; i < data_.size(); ++i)
-        {
-            if ((!is_hydro(i)) && this->isAllocated(i))
-            {
-                // actually resize
-                std::visit(
-                    [&](auto& arg)
-                    {
-                        size_t previous_size = arg->size();
-
-                        // reallocate
-                        reallocate(*arg, size, growthRate);
-
-                        // fill rho or rho_m1
-                        if ((void*)arg == (void*)(&rho) || (void*)arg == (void*)(&rho_m1))
-                        {
-                            std::fill(arg->begin() + previous_size, arg->end(), 0.);
-                        }
-                    },
-                    data_[i]);
-            }
-        }
+        double growthRate = 1;
+        resizeFields(detachedFields, size, growthRate);
     }
 
-    /*! @brief resize the number of particles (hydro)
+    /*! @brief resize the number of particles of attached fields
      *
      * @param size  number of particles to be held by the class
      */
-    void resize_hydro(size_t size)
+    void resizeAttached(size_t size)
     {
-        double growthRate = 1.05;
-        auto   data_      = data();
+        devData.resizeAttached(size);
 
-        devData.resize_hydro(size);
-
-        for (size_t i = 0; i < data_.size(); ++i)
-        {
-            if (is_hydro(i) && this->isAllocated(i))
-            {
-                // actually resize
-                std::visit(
-                    [&](auto& arg)
-                    {
-                        // reallocate
-                        reallocate(*arg, size, growthRate);
-                    },
-                    data_[i]);
-            }
-        }
+        double growthRate = 1.01;
+        resizeFields(attachedFields, size, growthRate);
     }
 
-    // particle fields selected for file output
+    //! @brief particle fields selected for file output
     std::vector<int>         outputFieldIndices;
     std::vector<std::string> outputFieldNames;
 
 private:
-    bool is_hydro(int i) { return cstone::getFieldIndex(fieldNames[i], hydroFields) != hydroFields.size(); }
+    template<class FieldList>
+    void resizeFields(const FieldList& fields, size_t size, double growthRate)
+    {
+        auto data_ = data();
+        for (auto field : fields)
+        {
+            size_t i = cstone::getFieldIndex(field, fieldNames);
+            if (this->isAllocated(i))
+            {
+                std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
+            }
+        }
+    }
 
     template<size_t... Is>
     auto dataTuple_helper(std::index_sequence<Is...>)

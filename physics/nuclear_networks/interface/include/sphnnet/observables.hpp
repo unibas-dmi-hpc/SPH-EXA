@@ -31,27 +31,17 @@
 
 #pragma once
 
-#include "CUDA/cuda.inl"
-#if COMPILE_DEVICE
-#include <device_launch_parameters.h>
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-#include <cuda_runtime.h>
-
-#include <thrust/device_vector.h>
-
-#include "nnet/CUDA/nuclear_net.cuh"
-#endif
-
 #include <numeric>
 #include <omp.h>
+
+#include "cstone/fields/data_util.hpp"
 
 #include "nnet_util/eigen.hpp"
 #include "nnet_util/algorithm.hpp"
 
-#include "mpi/mpi_wrapper.hpp"
+// TODO header for nuclear energy calculation goes here. Equivalent to conserved_gpu.h
 
-#include "cstone/fields/data_util.hpp"
+#include "mpi/mpi_wrapper.hpp"
 
 namespace sphexa::sphnnet
 {
@@ -69,32 +59,27 @@ Float totalNuclearEnergy(Data const& n, const Float* BE, MPI_Comm comm)
     const size_t n_particles = n.Y[0].size();
     const int    dimension   = n.numSpecies;
 
-#if COMPILE_DEVICE
-    if constexpr (HaveGpu<typename Data::AcceleratorType>{} && false /* NOT IMPLEMENTED */)
+    if constexpr (cstone::HaveGpu<typename Data::AcceleratorType>{})
     {
-
-        /* TODO */
-
+        // TODO
         return 0.0;
     }
-#endif
     std::vector<Float> Y(dimension);
 
-    Float total_energy = 0;
-#pragma omp parallel for firstprivate(Y) schedule(static) reduction(+ : total_energy)
+    double localEnergy = 0;
+#pragma omp parallel for firstprivate(Y) schedule(static) reduction(+ : localEnergy)
     for (size_t i = 0; i < n_particles; ++i)
     {
         // copy to local vector
         for (int j = 0; j < dimension; ++j)
             Y[j] = n.Y[j][i];
 
-        total_energy += -eigen::dot(Y.data(), Y.data() + dimension, BE) * n.m[i];
+        localEnergy += -eigen::dot(Y.data(), Y.data() + dimension, BE) * n.m[i];
     }
 
-    double mpi_buffer_total_energy = (double)total_energy;
-    MPI_Allreduce(MPI_IN_PLACE, &mpi_buffer_total_energy, 1, MPI_DOUBLE, MPI_SUM, comm);
-    total_energy = (Float)mpi_buffer_total_energy;
+    double totalEnergy = localEnergy;
+    MPI_Allreduce(MPI_IN_PLACE, &totalEnergy, 1, MPI_DOUBLE, MPI_SUM, comm);
 
-    return total_energy;
+    return totalEnergy;
 }
 } // namespace sphexa::sphnnet

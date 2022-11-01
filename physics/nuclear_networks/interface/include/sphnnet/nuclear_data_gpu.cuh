@@ -31,15 +31,12 @@
 
 #pragma once
 
-#include "cuda.inl"
-
 #include <vector>
 #include <array>
 #include <memory>
 
 #include "cstone/fields/field_states.hpp"
 #include "cstone/fields/enumerate.hpp"
-#include "cstone/fields/concatenate.hpp"
 
 #include "cstone/util/reallocate.hpp"
 #include "cstone/util/array.hpp"
@@ -61,7 +58,6 @@ public:
     template<class FType>
     using DevVector = thrust::device_vector<FType>;
 
-    // types
     using RealType = RealType_;
     using KeyType  = KeyType_;
     using Tmass    = Tmass_;
@@ -85,30 +81,20 @@ public:
 
     mutable thrust::device_vector<RealType> buffer; // solver buffer
 
-    //! base hydro fieldNames (every nuclear species is named "Yn")
-    inline static constexpr auto fieldNames =
-        concat(enumerateFieldNames<"Y", maxNumSpecies>(), std::array<const char*, 14>{
-                                                              "dt",
-                                                              "c",
-                                                              "p",
-                                                              "cv",
-                                                              "u",
-                                                              "dpdT",
-                                                              "m",
-                                                              "temp",
-                                                              "rho",
-                                                              "rho_m1",
-                                                              "nuclear_node_id",
-                                                              "nuclear_particle_id",
-                                                              "node_id",
-                                                              "particle_id",
-                                                          });
+    //! nuclear species are named "Yn"
+    inline static constexpr std::array nuclearSpecies = enumerateFieldNames<"Y", maxNumSpecies>();
 
-    //! hydro sized field names
-    inline static constexpr std::array hydroFields = {
-        "node_id",
-        "particle_id",
+    //! detached hydro fields with same size as nuclearSpecies
+    inline static constexpr std::array detachedHydroFields{
+        "dt", "c", "p", "cv", "u", "dpdT", "m", "temp", "rho", "rho_m1", "nuclear_node_id", "nuclear_particle_id",
     };
+
+    //! attached fields with same size as spatially distributed fields from SPH
+    inline static constexpr std::array attachedFields{"node_id", "particle_id"};
+    //! all detached fields
+    inline static constexpr auto detachedFields = concatenate(nuclearSpecies, detachedHydroFields);
+    //! the complete list with all fields
+    inline static constexpr auto fieldNames = concatenate(detachedFields, attachedFields);
 
     /*! @brief return a tuple of field references
      *
@@ -135,49 +121,34 @@ public:
                           dataTuple());
     }
 
-    //!  resize the number of particules
+    //! @brief resize the number of particles of detached fields
     void resize(size_t size)
     {
         double growthRate = 1;
-        auto   data_      = data();
-
-        for (size_t i = 0; i < data_.size(); ++i)
-        {
-            if ((!is_hydro(i)) && this->isAllocated(i))
-            {
-                // actually resize
-                std::visit([&](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
-            }
-        }
+        resizeFields(detachedFields, size, growthRate);
     }
 
-    /*! @brief resize the number of particules (hydro)
-     *
-     * @param size  number of particle to be hold by the class
-     */
-    void resize_hydro(size_t size)
+    //! @brief resize the number of particles of attached fields
+    void resizeAttached(size_t size)
     {
         double growthRate = 1.01;
-        auto   data_      = data();
-
-        for (size_t i = 0; i < data_.size(); ++i)
-        {
-            if (is_hydro(i) && this->isAllocated(i))
-            {
-                // actually resize
-                std::visit(
-                    [&](auto& arg)
-                    {
-                        // reallocate
-                        reallocate(*arg, size, growthRate);
-                    },
-                    data_[i]);
-            }
-        }
+        resizeFields(attachedFields, size, growthRate);
     }
 
 private:
-    bool is_hydro(int i) { return cstone::getFieldIndex(fieldNames[i], hydroFields) != hydroFields.size(); }
+    template<class FieldList>
+    void resizeFields(const FieldList& fields, size_t size, double growthRate)
+    {
+        auto data_ = data();
+        for (auto field : fields)
+        {
+            size_t i = cstone::getFieldIndex(field, fieldNames);
+            if (this->isAllocated(i))
+            {
+                std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
+            }
+        }
+    }
 
     template<size_t... Is>
     auto dataTuple_helper(std::index_sequence<Is...>)
@@ -186,7 +157,4 @@ private:
     }
 };
 
-// used templates:
-// template class DeviceNuclearDataType<double, size_t>;
-// template class DeviceNuclearDataType<float, size_t>;
 } // namespace sphexa::sphnnet

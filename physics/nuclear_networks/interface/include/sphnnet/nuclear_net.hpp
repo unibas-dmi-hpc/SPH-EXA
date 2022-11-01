@@ -115,7 +115,7 @@ void inline computeNuclearPartition(size_t firstIndex, size_t lastIndex, Simulat
 template<class Data>
 void inline initializePointers(size_t firstIndex, size_t lastIndex, Data& n, MPI_Comm comm)
 {
-    n.resize_hydro(lastIndex);
+    n.resizeAttached(lastIndex);
     sphexa::mpi::initializePointers(firstIndex, lastIndex, n.node_id, n.particle_id, comm);
 }
 
