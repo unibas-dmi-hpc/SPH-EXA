@@ -72,8 +72,8 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T ene
     if (spectForm == 1) { kc = 0.5 * (stirMin + stirMax); }
 
     // this makes the rms force const irrespective of the solenoidal weight
-    d.solWeight = std::sqrt(3.0) * std::sqrt(3.0 / T(ndim)) /
-                  std::sqrt(1.0 - 2.0 * d.solWeight + T(ndim) * d.solWeight * d.solWeight);
+    d.solWeightNorm = std::sqrt(3.0) * std::sqrt(3.0 / T(ndim)) /
+                      std::sqrt(1.0 - 2.0 * d.solWeight + T(ndim) * d.solWeight * d.solWeight);
 
     size_t ikxmin = 0;
     size_t ikymin = 0;
