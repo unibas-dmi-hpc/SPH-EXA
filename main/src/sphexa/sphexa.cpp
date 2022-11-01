@@ -51,7 +51,6 @@
 #include "propagator/factory.hpp"
 #include "util/timer.hpp"
 #include "util/utils.hpp"
-#include "cooling/chemistry_data.hpp"
 
 #include "simulation_data.hpp"
 
