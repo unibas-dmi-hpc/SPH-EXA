@@ -85,9 +85,9 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     bool useHelm;
 
     //! @brief nuclear network reaction list
-    nnet::reaction_list const* reactions;
+    nnet::ReactionList const* reactions;
     //! @brief nuclear network parameterization
-    nnet::compute_reaction_rates_functor<T> const* construct_rates_BE;
+    nnet::ComputeReactionRatesFunctor<T> const* construct_rates_BE;
     //! @brief eos
     nnet::eos_functor<T> const* eos;
     //! @brief Z
@@ -122,20 +122,20 @@ public:
 
         if (numSpecies == 14)
         {
-            reactions          = &nnet::net14::reaction_list;
-            construct_rates_BE = &nnet::net14::compute_reaction_rates;
+            reactions          = &nnet::net14::reactionList;
+            construct_rates_BE = &nnet::net14::computeReactionRates;
             std::copy_n(nnet::net14::constants::Z.begin(), numSpecies, Z.begin());
         }
         else if (numSpecies == 86)
         {
-            reactions          = &nnet::net86::reaction_list;
-            construct_rates_BE = &nnet::net86::compute_reaction_rates;
+            reactions          = &nnet::net86::reactionList;
+            construct_rates_BE = &nnet::net86::computeReactionRates;
             std::copy_n(nnet::net86::constants::Z.begin(), numSpecies, Z.begin());
         }
         else if (numSpecies == 87)
         {
-            reactions          = &nnet::net87::reaction_list;
-            construct_rates_BE = &nnet::net87::compute_reaction_rates;
+            reactions          = &nnet::net87::reactionList;
+            construct_rates_BE = &nnet::net87::computeReactionRates;
             std::copy_n(nnet::net87::constants::Z.begin(), numSpecies, Z.begin());
         }
         else
@@ -144,8 +144,8 @@ public:
                                      " nuclear species !");
         }
 
-        if (useHelm) { eos = new nnet::eos::helmholtz_functor<T>(Z); }
-        else { eos = new nnet::eos::ideal_gas_functor<T>(10.0); }
+        if (useHelm) { eos = new nnet::eos::HelmholtzFunctor<T>(Z); }
+        else { eos = new nnet::eos::IdealGasFunctor<T>(10.0); }
     }
 
     std::vector<std::string> conservedFields() const override

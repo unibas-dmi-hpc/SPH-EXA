@@ -55,8 +55,8 @@ namespace sphnnet
  */
 template<class Data, typename Float, class nseFunction = void*>
 void inline computeNuclearReactions(Data& n, size_t firstIndex, size_t lastIndex, const Float hydro_dt,
-                                    const Float previous_dt, const nnet::reaction_list& reactions,
-                                    const nnet::compute_reaction_rates_functor<Float>& construct_rates_BE,
+                                    const Float previous_dt, const nnet::ReactionList& reactions,
+                                    const nnet::ComputeReactionRatesFunctor<Float>& construct_rates_BE,
                                     const nnet::eos_functor<Float>& eos, bool use_drhodt,
                                     const nseFunction jumpToNse = NULL)
 {

@@ -109,8 +109,8 @@ void printHelp(char* name, int rank);
 // mockup of the step function
 template<class Zvector, typename Float, typename KeyType, class AccType>
 void step(int rank, size_t firstIndex, size_t lastIndex, sphexa::SimulationData<Float, KeyType, AccType>& d,
-          const double dt, const nnet::reaction_list& reactions,
-          const nnet::compute_reaction_rates_functor<Float>& construct_rates_BE, const nnet::eos_functor<Float>& eos,
+          const double dt, const nnet::ReactionList& reactions,
+          const nnet::ComputeReactionRatesFunctor<Float>& construct_rates_BE, const nnet::eos_functor<Float>& eos,
           const Float* BE, const Zvector& Z)
 {
     size_t n_nuclear_particles = d.nuclearData.temp.size();
@@ -259,9 +259,9 @@ int main(int argc, char* argv[])
     }
 
     //! @brief nuclear network reaction list
-    nnet::reaction_list const* reactions;
+    nnet::ReactionList const* reactions;
     //! @brief nuclear network parameterization
-    nnet::compute_reaction_rates_functor<double> const* construct_rates_BE;
+    nnet::ComputeReactionRatesFunctor<double> const* construct_rates_BE;
     //! @brief eos
     nnet::eos_functor<double>* eos;
     //! @brief BE
@@ -271,8 +271,8 @@ int main(int argc, char* argv[])
 
     if (use_net87)
     {
-        reactions          = &nnet::net87::reaction_list;
-        construct_rates_BE = &nnet::net87::compute_reaction_rates;
+        reactions          = &nnet::net87::reactionList;
+        construct_rates_BE = &nnet::net87::computeReactionRates;
         BE                 = nnet::net87::BE.data();
 
         Z.resize(87);
@@ -280,8 +280,8 @@ int main(int argc, char* argv[])
     }
     else if (use_net86)
     {
-        reactions          = &nnet::net86::reaction_list;
-        construct_rates_BE = &nnet::net86::compute_reaction_rates;
+        reactions          = &nnet::net86::reactionList;
+        construct_rates_BE = &nnet::net86::computeReactionRates;
         BE                 = nnet::net86::BE.data();
 
         Z.resize(86);
@@ -289,16 +289,16 @@ int main(int argc, char* argv[])
     }
     else
     {
-        reactions          = &nnet::net14::reaction_list;
-        construct_rates_BE = &nnet::net14::compute_reaction_rates;
+        reactions          = &nnet::net14::reactionList;
+        construct_rates_BE = &nnet::net14::computeReactionRates;
         BE                 = nnet::net14::BE.data();
 
         Z.resize(14);
         std::copy(nnet::net14::constants::Z.begin(), nnet::net14::constants::Z.begin() + 14, Z.begin());
     }
 
-    if (idealGas) { eos = new nnet::eos::ideal_gas_functor<double>(isotherm ? 1e-20 : 10.0); }
-    else { eos = new nnet::eos::helmholtz_functor<double>(Z); }
+    if (idealGas) { eos = new nnet::eos::IdealGasFunctor<double>(isotherm ? 1e-20 : 10.0); }
+    else { eos = new nnet::eos::HelmholtzFunctor<double>(Z); }
 
     /* !!!!!!!!!!!!
     initialize nuclear data
