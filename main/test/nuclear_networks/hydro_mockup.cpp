@@ -125,9 +125,8 @@ void step(int rank, size_t firstIndex, size_t lastIndex, sphexa::SimulationData<
     sphnnet::syncHydroToNuclear(d, {"rho", "temp"});
     sphexa::transferToDevice(d.nuclearData, 0, n_nuclear_particles, {"rho_m1", "rho", "temp"});
 
-    sphnnet::computeNuclearReactions(d.nuclearData, 0, n_nuclear_particles, dt, dt, reactions,
-                                             construct_rates_BE, eos,
-                                             /*considering expansion:*/ true);
+    sphnnet::computeNuclearReactions(d.nuclearData, 0, n_nuclear_particles, dt, dt, reactions, construct_rates_BE, eos,
+                                     /*considering expansion:*/ true);
     sphnnet::computeHelmEOS(d.nuclearData, 0, n_nuclear_particles, Z);
 
     sphexa::transferToHost(d.nuclearData, 0, n_nuclear_particles, {"temp", "c", "p", "cv", "u"});

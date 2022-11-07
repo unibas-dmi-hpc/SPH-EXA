@@ -302,8 +302,8 @@ private:
         timer.step("transferToDevice");
 
         sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt_m1, *reactions,
-                                                 *construct_rates_BE, *eos,
-                                                 /*considering expansion:*/ false);
+                                         *construct_rates_BE, *eos,
+                                         /*considering expansion:*/ false);
         timer.step("sphnnet::computeNuclearReactions");
 
         if (useHelm)

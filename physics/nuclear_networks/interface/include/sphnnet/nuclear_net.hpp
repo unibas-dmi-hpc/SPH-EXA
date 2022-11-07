@@ -31,13 +31,12 @@
 
 #pragma once
 
-#include "nnet/parallel/parallel_nuclear_net.hpp"
-
-#include "mpi/mpi_wrapper.hpp"
-
 #include "cstone/fields/data_util.hpp"
 
+#include "nnet/parallel/parallel_nuclear_net.hpp"
 #include "nnet_util/algorithm.hpp"
+
+#include "mpi/mpi_wrapper.hpp"
 
 namespace sphnnet
 {
