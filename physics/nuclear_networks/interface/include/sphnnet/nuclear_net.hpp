@@ -57,10 +57,10 @@ template<class Data, typename Float, class nseFunction = void*>
 void inline computeNuclearReactions(Data& n, size_t firstIndex, size_t lastIndex, const Float hydro_dt,
                                     const Float previous_dt, const nnet::ReactionList& reactions,
                                     const nnet::ComputeReactionRatesFunctor<Float>& construct_rates_BE,
-                                    const nnet::eos_functor<Float>& eos, bool use_drhodt,
+                                    const nnet::EosFunctor<Float>& eos, bool use_drhodt,
                                     const nseFunction jumpToNse = NULL)
 {
-    nnet::parallel_nnet::computeNuclearReactions<cstone::HaveGpu<typename Data::AcceleratorType>{}>(
+    nnet::parallel::computeNuclearReactions<cstone::HaveGpu<typename Data::AcceleratorType>{}>(
         n, firstIndex, lastIndex, hydro_dt, previous_dt, reactions, construct_rates_BE, eos, use_drhodt, jumpToNse);
 }
 
@@ -74,7 +74,7 @@ void inline computeNuclearReactions(Data& n, size_t firstIndex, size_t lastIndex
 template<class Data, class Vector>
 void inline computeHelmEOS(Data& n, size_t firstIndex, size_t lastIndex, const Vector& Z)
 {
-    nnet::parallel_nnet::computeHelmEOS<cstone::HaveGpu<typename Data::AcceleratorType>{}>(n, firstIndex, lastIndex, Z);
+    nnet::parallel::computeHelmEOS<cstone::HaveGpu<typename Data::AcceleratorType>{}>(n, firstIndex, lastIndex, Z);
 }
 
 /*! @brief function that updates the nuclear partition

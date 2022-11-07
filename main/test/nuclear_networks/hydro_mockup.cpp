@@ -110,7 +110,7 @@ void printHelp(char* name, int rank);
 template<class Zvector, typename Float, typename KeyType, class AccType>
 void step(int rank, size_t firstIndex, size_t lastIndex, sphexa::SimulationData<Float, KeyType, AccType>& d,
           const double dt, const nnet::ReactionList& reactions,
-          const nnet::ComputeReactionRatesFunctor<Float>& construct_rates_BE, const nnet::eos_functor<Float>& eos,
+          const nnet::ComputeReactionRatesFunctor<Float>& construct_rates_BE, const nnet::EosFunctor<Float>& eos,
           const Float* BE, const Zvector& Z)
 {
     size_t n_nuclear_particles = d.nuclearData.temp.size();
@@ -263,7 +263,7 @@ int main(int argc, char* argv[])
     //! @brief nuclear network parameterization
     nnet::ComputeReactionRatesFunctor<double> const* construct_rates_BE;
     //! @brief eos
-    nnet::eos_functor<double>* eos;
+    nnet::EosFunctor<double>* eos;
     //! @brief BE
     double const* BE;
     //!@brief Z

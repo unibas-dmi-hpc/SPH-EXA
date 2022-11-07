@@ -89,7 +89,7 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     //! @brief nuclear network parameterization
     nnet::ComputeReactionRatesFunctor<T> const* construct_rates_BE;
     //! @brief eos
-    nnet::eos_functor<T> const* eos;
+    nnet::EosFunctor<T> const* eos;
     //! @brief Z
     std::vector<T> Z;
 
