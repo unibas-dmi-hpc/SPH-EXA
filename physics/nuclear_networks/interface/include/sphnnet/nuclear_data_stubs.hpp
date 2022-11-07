@@ -33,7 +33,7 @@
 
 #include "cstone/tree/accel_switch.hpp"
 
-namespace sphexa::sphnnet
+namespace sphnnet
 {
 /*! @brief nuclear data device facade */
 template<typename T, typename I, typename M>
@@ -75,4 +75,4 @@ template<class Accelerator, class T, class KeyType, class Tmass>
 using DeviceNuclearData_t = typename cstone::AccelSwitchType<Accelerator, DeviceNuclearDataFacade,
                                                              DeviceNuclearDataType>::template type<T, KeyType, Tmass>;
 
-} // namespace sphexa::sphnnet
+} // namespace sphnnet

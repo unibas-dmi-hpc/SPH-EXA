@@ -39,7 +39,7 @@
 
 #include "nnet_util/algorithm.hpp"
 
-namespace sphexa::sphnnet
+namespace sphnnet
 {
 /*! @brief function to compute nuclear reaction, either from NuclearData or ParticuleData if it includes Y
  *
@@ -218,4 +218,4 @@ void inline syncNuclearToHydro(SimulationData& simData, const std::vector<std::s
 {
     syncDataFromStaticPartition(simData.hydro, simData.nuclearData, sync_fields, simData.comm);
 }
-} // namespace sphexa::sphnnet
+} // namespace sphnnet

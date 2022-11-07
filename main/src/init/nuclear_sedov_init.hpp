@@ -135,8 +135,8 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
-        sphexa::sphnnet::initializeNuclearPointers(0, last_first, simData);
-        sphexa::sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
+        sphnnet::initializeNuclearPointers(0, last_first, simData);
+        sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
 
         // initialize dt
         std::fill(n.dt.begin(), n.dt.end(), nnet::constants::initial_dt);

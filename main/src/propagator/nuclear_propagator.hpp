@@ -268,7 +268,7 @@ private:
         fill(get<"m">(d), 0, first, d.m[first]);
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
-        sphexa::sphnnet::syncHydroToNuclear(simData, {"m"});
+        sphnnet::syncHydroToNuclear(simData, {"m"});
 
         findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.keys, d.neighbors, d.nc, domain.box());
         timer.step("FindNeighbors");
@@ -285,10 +285,10 @@ private:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        sphexa::sphnnet::computeNuclearPartition(first, last, simData);
+        sphnnet::computeNuclearPartition(first, last, simData);
         timer.step("sphnnet::computeNuclearPartition");
 
-        sphexa::sphnnet::syncHydroToNuclear(simData, {"rho" /*, "temp", */ /* TODO */});
+        sphnnet::syncHydroToNuclear(simData, {"rho" /*, "temp", */ /* TODO */});
         timer.step("sphnnet::syncHydroToNuclear");
     }
 
@@ -301,22 +301,22 @@ private:
         sphexa::transferToDevice(n, 0, n_nuclear_particles, {/*"rho_m1", "rho", "temp"*/});
         timer.step("transferToDevice");
 
-        sphexa::sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt_m1, *reactions,
+        sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt_m1, *reactions,
                                                  *construct_rates_BE, *eos,
                                                  /*considering expansion:*/ false);
         timer.step("sphnnet::computeNuclearReactions");
 
         if (useHelm)
         {
-            sphexa::sphnnet::computeHelmEOS(n, 0, n_nuclear_particles, Z);
+            sphnnet::computeHelmEOS(n, 0, n_nuclear_particles, Z);
             timer.step("sphnnet::computeHelmEOS");
         }
     }
 
     void nuclear_sync_after(DomainType& domain, DataType& simData)
     {
-        sphexa::sphnnet::syncNuclearToHydro(simData, {/*, "temp", */ /* TODO */});
-        if (useHelm) { sphexa::sphnnet::syncNuclearToHydro(simData, {"u", "c", "p" /*, "cv", "dpdT"*/}); }
+        sphnnet::syncNuclearToHydro(simData, {/*, "temp", */ /* TODO */});
+        if (useHelm) { sphnnet::syncNuclearToHydro(simData, {"u", "c", "p" /*, "cv", "dpdT"*/}); }
         timer.step("sphnnet::syncNuclearToHydro");
     }
 

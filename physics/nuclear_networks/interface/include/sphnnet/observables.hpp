@@ -43,7 +43,7 @@
 
 #include "mpi/mpi_wrapper.hpp"
 
-namespace sphexa::sphnnet
+namespace sphnnet
 {
 /*! @brief function to compute the total nuclear energy
  *
@@ -82,4 +82,4 @@ Float totalNuclearEnergy(Data const& n, const Float* BE, MPI_Comm comm)
 
     return totalEnergy;
 }
-} // namespace sphexa::sphnnet
+} // namespace sphnnet

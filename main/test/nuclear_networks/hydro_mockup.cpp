@@ -117,28 +117,28 @@ void step(int rank, size_t firstIndex, size_t lastIndex, sphexa::SimulationData<
 
     // domain redecomposition
 
-    sphexa::sphnnet::computeNuclearPartition(firstIndex, lastIndex, d);
+    sphnnet::computeNuclearPartition(firstIndex, lastIndex, d);
 
     // do hydro stuff
 
     std::swap(d.nuclearData.rho, d.nuclearData.rho_m1);
-    sphexa::sphnnet::syncHydroToNuclear(d, {"rho", "temp"});
+    sphnnet::syncHydroToNuclear(d, {"rho", "temp"});
     sphexa::transferToDevice(d.nuclearData, 0, n_nuclear_particles, {"rho_m1", "rho", "temp"});
 
-    sphexa::sphnnet::computeNuclearReactions(d.nuclearData, 0, n_nuclear_particles, dt, dt, reactions,
+    sphnnet::computeNuclearReactions(d.nuclearData, 0, n_nuclear_particles, dt, dt, reactions,
                                              construct_rates_BE, eos,
                                              /*considering expansion:*/ true);
-    sphexa::sphnnet::computeHelmEOS(d.nuclearData, 0, n_nuclear_particles, Z);
+    sphnnet::computeHelmEOS(d.nuclearData, 0, n_nuclear_particles, Z);
 
     sphexa::transferToHost(d.nuclearData, 0, n_nuclear_particles, {"temp", "c", "p", "cv", "u"});
-    sphexa::sphnnet::syncNuclearToHydro(d, {"temp"});
+    sphnnet::syncNuclearToHydro(d, {"temp"});
 
     // do hydro stuff
 
     /* !! needed for now !! */
     sphexa::transferToHost(d.nuclearData, 0, n_nuclear_particles, {"Y"});
     // print total nuclear energy
-    Float total_nuclear_energy  = sphexa::sphnnet::totalNuclearEnergy(d.nuclearData, BE, MPI_COMM_WORLD);
+    Float total_nuclear_energy  = sphnnet::totalNuclearEnergy(d.nuclearData, BE, MPI_COMM_WORLD);
     Float total_internal_energy = totalInternalEnergy(d.nuclearData);
     if (rank == 0)
         std::cout << "etot=" << total_nuclear_energy + total_internal_energy << " (nuclear=" << total_nuclear_energy
@@ -305,7 +305,7 @@ int main(int argc, char* argv[])
     initialize nuclear data
     !!!!!!!!!!!! */
 
-    sphexa::sphnnet::initializeNuclearPointers(first, last, particle_data);
+    sphnnet::initializeNuclearPointers(first, last, particle_data);
 
     if (use_net87)
     {
@@ -317,7 +317,7 @@ int main(int argc, char* argv[])
             particle_data.nuclearData.devData.setDependent("Y" + std::to_string(i));
         }
 
-        sphexa::sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_87);
+        sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_87);
     }
     else if (use_net86)
     {
@@ -329,7 +329,7 @@ int main(int argc, char* argv[])
             particle_data.nuclearData.devData.setDependent("Y" + std::to_string(i));
         }
 
-        sphexa::sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_87);
+        sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_87);
     }
     else
     {
@@ -341,7 +341,7 @@ int main(int argc, char* argv[])
             particle_data.nuclearData.devData.setDependent("Y" + std::to_string(i));
         }
 
-        sphexa::sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_14);
+        sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_14);
     }
 
     // initialize dt

@@ -43,7 +43,7 @@
 
 #include <thrust/device_vector.h>
 
-namespace sphexa::sphnnet
+namespace sphnnet
 {
 /*! @brief device nuclear data class for nuclear network */
 template<typename RealType_, typename KeyType_, typename Tmass_>
@@ -157,4 +157,4 @@ private:
     }
 };
 
-} // namespace sphexa::sphnnet
+} // namespace sphnnet
