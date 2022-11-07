@@ -290,10 +290,8 @@ sph:build:cuda:sphexa:gpu:
     - echo "# --- rpt:"
     - cat /scratch/sedov.rpt
     - cat /scratch/noh.rpt
-    # - cp /sources/.gitlab/rfm.py /usr/local/games/rfm.py
     - pwd
     - ls -la
-    - cp .gitlab/rfm.py /usr/local/games/rfm.py
     - reframe -c /usr/local/games/rfm.py -r -S rpt_path=/scratch
   variables:
     USE_MPI: 'YES'
