@@ -160,4 +160,20 @@ int main()
 
     std::cout << "keys match: " << thrust::equal(hilbertKeys.begin(), hilbertKeys.end(), hilbertKeys2.begin())
               << std::endl;
+
+    {
+        thrust::device_vector<unsigned> ordering(numKeys);
+        thrust::sequence(ordering.begin(), ordering.end(), 0);
+
+        auto radixSort = [&]()
+        {
+            thrust::sort_by_key(thrust::device, (IntegerType*)rawPtr(hilbertKeys),
+                                (IntegerType*)rawPtr(hilbertKeys) + numKeys, ordering.begin());
+        };
+        float t_radixSort = timeGpu(radixSort);
+
+        size_t numBytesMoved = 2 * numKeys * (sizeof(IntegerType) + sizeof(unsigned));
+        std::cout << "radix sort time for " << numKeys << " key-value pairs: " << t_radixSort / 1000 << " s"
+                  << ", bandwidth: " << float(numBytesMoved) / t_radixSort / 1000 << " MiB/s" << std::endl;
+    }
 }
