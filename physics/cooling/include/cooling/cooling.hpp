@@ -52,21 +52,7 @@ namespace cooling
     template<typename T>
     struct CoolingData
     {
-        //These values need to be passed to GRACKLE at each call
-        struct global_values
-        {
-            code_units             units;
-            chemistry_data         data;
-            chemistry_data_storage rates;
-        } global_values;
-
-        CoolingData(const std::string &grackle_options_file_path,
-                    const double ms_sim = 1e16,
-                    const double kp_sim = 46400.,
-                    const int comoving_coordinates = 0,
-                    const std::optional<double> t_sim = std::nullopt);
-
-        CoolingData(const CoolingData&) = delete;
+    private:
 
         //Solar mass in g
         constexpr static T      ms_g = 1.989e33;
@@ -79,7 +65,33 @@ namespace cooling
         //code unit length in kpc
         T                       kpc = 46400.;
         //Path to Grackle data file
-        std::string             grackle_data_file_path;
+        std::string             grackle_data_file_path = PROJECT_SOURCE_DIR "/extern/grackle/grackle_repo/input/CloudyData_UVB=HM2012.h5";
+
+
+        void initOptions(const chemistry_data &grackle_options);
+        void initOptions(const std::string &grackle_options_file_path);
+
+    public:
+        //These values need to be passed to GRACKLE at each call
+        struct global_values
+        {
+            code_units             units;
+            chemistry_data         data;
+            chemistry_data_storage rates;
+        } global_values;
+
+        void init(const double ms_sim,
+                  const double kp_sim,
+                  const int comoving_coordinates,
+                  const std::optional<chemistry_data> grackleOptions=std::nullopt,
+                  const std::optional<std::string> grackleOptionsFile=std::nullopt,
+                  const std::optional<double> t_sim=std::nullopt);
+
+        chemistry_data getDefaultChemistryData() {
+            chemistry_data data_default = _set_default_chemistry_parameters();
+            data_default.grackle_data_file = &grackle_data_file_path[0];
+            return data_default;
+        }
 
         //Indices to access fields
         struct FieldNames
@@ -111,16 +123,15 @@ namespace cooling
         };
     };
 
-
     template<typename T>
-    CoolingData<T>::CoolingData(const std::string &grackle_options_file_path,
-                                const double ms_sim, //Solar mass in simulation units
-                                const double kp_sim, //Kpc in simulation units
-                                const int comoving_coordinates,
-                                const std::optional<double> t_sim) //sec in simulation units, just used for the unit test, otherwise G=1)
-            : ms(ms_sim), kpc(kp_sim)
-    {
-
+    void CoolingData<T>::init(const double ms_sim,
+                              const double kp_sim,
+                              const int comoving_coordinates,
+                              const std::optional<chemistry_data> grackleOptions,
+                              const std::optional<std::string> grackleOptionsFile,
+                              const std::optional<double> t_sim) {
+        ms = ms_sim;
+        kpc = kp_sim;
         grackle_verbose = 1;
 
         //Density
@@ -151,17 +162,52 @@ namespace cooling
                   global_values.units.length_units << "\n";
 
         global_values.data = _set_default_chemistry_parameters();
+        //grackle_data_file_path = PROJECT_SOURCE_DIR "/extern/grackle/grackle_repo/input/CloudyData_UVB=HM2012.h5";
 
-        grackle_data_file_path = PROJECT_SOURCE_DIR "/extern/grackle/grackle_repo/input/CloudyData_UVB=HM2012.h5";
-
+        //Möglicherweise nicht nötig
         global_values.data.grackle_data_file = &grackle_data_file_path[0];
 
+        if (grackleOptions.has_value() && grackleOptionsFile.has_value())
+            throw std::runtime_error("Specify only one; either grackleOptions or grackleOptionsFile");
+
+        if (grackleOptions.has_value()) {
+            initOptions(grackleOptions.value());
+        }
+        else if (grackleOptionsFile.has_value()) {
+            initOptions(grackleOptionsFile.value());
+        }
+        else {
+            initOptions(getDefaultChemistryData());
+        }
+
+        if (0 == _initialize_chemistry_data(&global_values.data,
+                                            &global_values.rates,
+                                            &global_values.units))
+        {
+            throw std::runtime_error("Grackle: Error in _initialize_chemistry_data");
+        }
+    }
+
+    template<typename T>
+    void CoolingData<T>::initOptions(const chemistry_data &grackle_options)
+    {
+        global_values.data = grackle_options;
+        grackle_data_file_path = std::string(grackle_options.grackle_data_file);
+        std::cout << grackle_data_file_path << std::endl;
+        global_values.data.grackle_data_file = &grackle_data_file_path[0];
+    }
+
+    template<typename T>
+    void CoolingData<T>::initOptions(const std::string &grackle_options_file_path)
+    {
         auto setGrackleOption = [&](chemistry_data &data, const std::string &key, const std::string &value)
         {
             if (key.find("grackle_data_file_path") != std::string::npos) {
                 grackle_data_file_path = std::string(value);
                 data.grackle_data_file = &grackle_data_file_path[0];
             }
+            if (key.find("use_grackle") != std::string::npos)
+                data.use_grackle = std::stoi(value);
             if (key.find("with_radiative_cooling") != std::string::npos)
                 data.with_radiative_cooling = std::stoi(value);
             if (key.find("primordial_chemistry") != std::string::npos)
@@ -216,8 +262,6 @@ namespace cooling
                 data.dust_chemistry = std::stoi(value);
         };
 
-
-
         FILE* file = fopen(grackle_options_file_path.c_str(), "r");
         char key[32], value[64];
 
@@ -227,16 +271,7 @@ namespace cooling
         std::cout << global_values.data.grackle_data_file << std::endl;
         fclose(file);
 
-        global_values.data.use_grackle = 1;
-
-        if (0 == _initialize_chemistry_data(&global_values.data,
-                                            &global_values.rates,
-                                            &global_values.units)) {
-            throw std::runtime_error("Grackle: Error in _initialize_chemistry_data");
-        };
     }
-
-
 
 // Initialize Grackle chemistry arrays with default data
     template<typename ChemistryData>
@@ -286,6 +321,7 @@ namespace cooling
     }
 
 //
+
     template<typename T>
     void cool_particle(typename CoolingData<T>::global_values& gv, const T& dt, T& rho, T& u, T& HI_fraction,
                        T& HII_fraction, T& HM_fraction, T& HeI_fraction, T& HeII_fraction, T& HeIII_fraction,

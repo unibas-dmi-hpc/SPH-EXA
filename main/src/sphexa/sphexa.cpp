@@ -96,10 +96,6 @@ int main(int argc, char** argv)
     const std::string        outDirectory      = parser.get("--outDir");
     const bool               quiet             = parser.exists("--quiet");
 
-    const std::string grackleOptionFile = parser.get("--grackleOpt", std::string(""));
-    const float             code_mass_in_solarmass = parser.get("--unit_mass", 1e16);
-    const float             code_length_in_kpc = parser.get("--unit_length", 46400);
-
     size_t ngmax = 150;
     size_t ng0   = 100;
 
@@ -115,7 +111,7 @@ int main(int argc, char** argv)
     auto fileWriter  = fileWriterFactory<Dataset>(ascii);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
-    Dataset simData(grackleOptionFile, code_mass_in_solarmass, code_length_in_kpc, 0);
+    Dataset simData;//(grackleOptionFile, code_mass_in_solarmass, code_length_in_kpc, 0);
     simData.comm = MPI_COMM_WORLD;
 
 
