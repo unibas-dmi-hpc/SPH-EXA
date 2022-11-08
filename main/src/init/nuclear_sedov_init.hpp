@@ -122,8 +122,8 @@ public:
         }
         else if (n.numSpecies == 86 || n.numSpecies == 87)
         {
-            X_87[nnet::net86::constants::net14_species_order[1]] = 0.5;
-            X_87[nnet::net86::constants::net14_species_order[2]] = 0.5;
+            X_87[nnet::net86::constants::net14SpeciesOrder[1]] = 0.5;
+            X_87[nnet::net86::constants::net14SpeciesOrder[2]] = 0.5;
 
             for (int i = 0; i < 86; ++i)
             {
@@ -139,7 +139,7 @@ public:
         sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
 
         // initialize dt
-        std::fill(n.dt.begin(), n.dt.end(), nnet::constants::initial_dt);
+        std::fill(n.dt.begin(), n.dt.end(), nnet::constants::initialDt);
 
         // initialize temp
         size_t n_nuclear_particles = n.Y[0].size();

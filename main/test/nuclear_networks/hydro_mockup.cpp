@@ -193,11 +193,11 @@ int main(int argc, char* argv[])
 
         if (test_case == "C-O-burning")
         {
-            X_87[nnet::net86::constants::net14_species_order[1]] = 0.5;
-            X_87[nnet::net86::constants::net14_species_order[2]] = 0.5;
+            X_87[nnet::net86::constants::net14SpeciesOrder[1]] = 0.5;
+            X_87[nnet::net86::constants::net14SpeciesOrder[2]] = 0.5;
         }
-        else if (test_case == "He-burning") { X_87[nnet::net86::constants::net14_species_order[0]] = 1; }
-        else if (test_case == "Si-burning") { X_87[nnet::net86::constants::net14_species_order[5]] = 1; }
+        else if (test_case == "He-burning") { X_87[nnet::net86::constants::net14SpeciesOrder[0]] = 1; }
+        else if (test_case == "Si-burning") { X_87[nnet::net86::constants::net14SpeciesOrder[5]] = 1; }
         else
         {
             printHelp(argv[0], rank);
@@ -344,7 +344,7 @@ int main(int argc, char* argv[])
     }
 
     // initialize dt
-    std::fill(particle_data.nuclearData.dt.begin(), particle_data.nuclearData.dt.end(), nnet::constants::initial_dt);
+    std::fill(particle_data.nuclearData.dt.begin(), particle_data.nuclearData.dt.end(), nnet::constants::initialDt);
 
     size_t n_nuclear_particles = particle_data.nuclearData.temp.size();
     for (int i = 0; i < particle_data.nuclearData.numSpecies; ++i)
