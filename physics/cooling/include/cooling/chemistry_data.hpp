@@ -54,7 +54,7 @@ public:
 
     cooling::CoolingData<T> cooling_data;
     std::array<FieldVector<T>, numFields> fields;
-    
+
     auto dataTuple() { return dataTuple_helper(std::make_index_sequence<numFields>{}); }
 
     auto data()
