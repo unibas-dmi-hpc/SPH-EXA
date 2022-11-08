@@ -162,9 +162,7 @@ namespace cooling
                   global_values.units.length_units << "\n";
 
         global_values.data = _set_default_chemistry_parameters();
-        //grackle_data_file_path = PROJECT_SOURCE_DIR "/extern/grackle/grackle_repo/input/CloudyData_UVB=HM2012.h5";
 
-        //Möglicherweise nicht nötig
         global_values.data.grackle_data_file = &grackle_data_file_path[0];
 
         if (grackleOptions.has_value() && grackleOptionsFile.has_value())
