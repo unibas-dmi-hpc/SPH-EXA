@@ -181,4 +181,41 @@ HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType 
     return makeHaloBox<KeyType>(nodeBox, radius, box);
 }
 
+//! @brief returns the smallest distance vector of point X to box b, 0 if X is in b
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, const Vec3<T>& bSize, const Box<T>& box)
+{
+    Vec3<T> dX = bCenter - X;
+    dX         = abs(applyPbc(dX, box));
+    dX -= bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    return dX;
+}
+
+//! @brief returns the smallest distance vector between two boxes, 0 if they overlap
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(
+    const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter, const Vec3<T>& bSize, const Box<T>& box)
+{
+    Vec3<T> dX = bCenter - aCenter;
+    dX         = abs(applyPbc(dX, box));
+    dX -= aSize;
+    dX -= bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    return dX;
+}
+
+//! @brief Convenience wrapper to minDistance. This should only be used for testing.
+template<class KeyType, class T>
+HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
+{
+    auto [aCenter, aSize] = centerAndSize<KeyType>(a, box);
+    auto [bCenter, bSize] = centerAndSize<KeyType>(b, box);
+    return norm2(minDistance(aCenter, aSize, bCenter, bSize, box));
+}
+
 } // namespace cstone

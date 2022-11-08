@@ -313,6 +313,14 @@ using IBox = SimpleBox<int>;
 template<class T>
 using FBox = SimpleBox<T>;
 
+/*! @brief calculate floating point 3D center and radius of a and integer box and bounding box pair
+ *
+ * @tparam T         float or double
+ * @tparam KeyType   32- or 64-bit unsigned integer
+ * @param ibox       integer coordinate box
+ * @param box        floating point bounding box
+ * @return           the geometrical center and the vector from the center to the box corner farthest from the origin
+ */
 template<class KeyType, class T>
 constexpr HOST_DEVICE_FUN util::tuple<Vec3<T>, Vec3<T>> centerAndSize(const IBox& ibox, const Box<T>& box)
 {
