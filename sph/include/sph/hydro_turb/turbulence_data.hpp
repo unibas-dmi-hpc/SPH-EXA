@@ -53,12 +53,21 @@ class TurbulenceData
 public:
     using RealType = T;
 
-    TurbulenceData(const std::map<std::string, double>& constants, bool verbose) { initModes(constants, verbose); }
+    TurbulenceData(const std::map<std::string, double>& constants, bool verbose)
+        : solWeight(constants.at("solWeight"))
+    {
+        initModes(constants, verbose);
+    }
 
-    const size_t numDim{3}; // Number of dimensions
-    T            variance;  // Variance of Ornstein-Uhlenbeck process
-    T            decayTime;
-    T            solWeight; // Normalized Solenoidal weight
+    //! Number of dimensions
+    const size_t numDim{3};
+    //! Variance of Ornstein-Uhlenbeck process
+    T variance;
+    T decayTime;
+    //! Solenoidal weight
+    const T solWeight;
+    //! Normalized solenoidal weight
+    T solWeightNorm;
 
     std::mt19937 gen; // random engine
 
@@ -99,10 +108,10 @@ private:
     void initModes(const std::map<std::string, double>& constants, bool verbose)
     {
         double eps         = constants.at("epsilon");
-        size_t stMaxModes  = constants.at("stMaxModes");
+        size_t stMaxModes  = size_t(constants.at("stMaxModes"));
         double Lbox        = constants.at("Lbox");
         double velocity    = constants.at("stMachVelocity");
-        size_t stSpectForm = constants.at("stSpectForm");
+        size_t stSpectForm = size_t(constants.at("stSpectForm"));
         double powerLawExp = constants.at("powerLawExp");
         double anglesExp   = constants.at("anglesExp");
 
@@ -112,8 +121,7 @@ private:
         double stirMax = (3.0 + eps) * twopi / Lbox;
 
         decayTime = Lbox / (2.0 * velocity);
-        solWeight = constants.at("solWeight");
-        gen.seed(constants.at("rngSeed"));
+        gen.seed(size_t(constants.at("rngSeed")));
 
         amplitudes.resize(stMaxModes);
         modes.resize(stMaxModes * numDim);

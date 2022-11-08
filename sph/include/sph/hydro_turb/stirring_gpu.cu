@@ -40,7 +40,7 @@ namespace sph
 template<class Tc, class Ta, class T>
 __global__ void computeStirringKernel(size_t startIndex, size_t endIndex, size_t numDim, const Tc* x, const Tc* y,
                                       const Tc* z, Ta* ax, Ta* ay, Ta* az, size_t numModes, const T* modes,
-                                      const T* phaseReal, const T* phaseImag, const T* amplitudes, T solWeight)
+                                      const T* phaseReal, const T* phaseImag, const T* amplitudes, T solWeightNorm)
 {
     size_t i = startIndex + blockDim.x * blockIdx.x + threadIdx.x;
     if (i >= endIndex) { return; }
@@ -48,22 +48,22 @@ __global__ void computeStirringKernel(size_t startIndex, size_t endIndex, size_t
     auto [turbAx, turbAy, turbAz] =
         stirParticle<Tc, Ta, T>(numDim, x[i], y[i], z[i], numModes, modes, phaseReal, phaseImag, amplitudes);
 
-    ax[i] += solWeight * turbAx;
-    ay[i] += solWeight * turbAy;
-    az[i] += solWeight * turbAz;
+    ax[i] += solWeightNorm * turbAx;
+    ay[i] += solWeightNorm * turbAy;
+    az[i] += solWeightNorm * turbAz;
 }
 
 //! @brief Add stirring accelerations on the GPU, see CPU version for documentation
 template<class Tc, class Ta, class T>
 void computeStirringGpu(size_t startIndex, size_t endIndex, size_t numDim, const Tc* x, const Tc* y, const Tc* z,
                         Ta* ax, Ta* ay, Ta* az, size_t numModes, const T* modes, const T* st_aka, const T* st_akb,
-                        const T* amplitudes, T solWeight)
+                        const T* amplitudes, T solWeightNorm)
 {
     unsigned numThreads = 256;
     unsigned numBlocks  = iceil(endIndex - startIndex, numThreads);
 
     computeStirringKernel<<<numBlocks, numThreads>>>(startIndex, endIndex, numDim, x, y, z, ax, ay, az, numModes, modes,
-                                                     st_aka, st_akb, amplitudes, solWeight);
+                                                     st_aka, st_akb, amplitudes, solWeightNorm);
 }
 
 // all double

@@ -97,8 +97,8 @@ cstone::Box<typename HydroData::RealType> restoreHydroData(const std::string& h5
     using T        = typename HydroData::RealType;
     using Boundary = cstone::BoundaryType;
 
-    H5PartFile* h5_file    = fileutils::openH5Part(h5File, H5PART_READ, comm);
-    size_t      numH5Steps = H5PartGetNumSteps(h5_file);
+    H5PartFile*    h5_file    = fileutils::openH5Part(h5File, H5PART_READ, comm);
+    h5part_int64_t numH5Steps = H5PartGetNumSteps(h5_file);
     H5PartSetStep(h5_file, numH5Steps - 1);
 
     size_t numParticles  = H5PartGetNumParticles(h5_file);
@@ -115,6 +115,7 @@ cstone::Box<typename HydroData::RealType> restoreHydroData(const std::string& h5
     d.iteration++;
     H5PartReadStepAttrib(h5_file, "gravConstant", &d.g);
     H5PartReadStepAttrib(h5_file, "gamma", &d.gamma);
+    H5PartReadStepAttrib(h5_file, "muiConst", &d.muiConst);
 
     double extents[6];
     H5PartReadStepAttrib(h5_file, "box", extents);
@@ -134,9 +135,9 @@ cstone::Box<typename HydroData::RealType> restoreHydroData(const std::string& h5
     errors |= fileutils::readH5PartField(h5_file, "z", d.z.data());
     errors |= fileutils::readH5PartField(h5_file, "h", d.h.data());
     errors |= fileutils::readH5PartField(h5_file, "m", d.m.data());
-    errors |= fileutils::readH5PartField(h5_file, "u", d.u.data());
+    errors |= fileutils::readH5PartField(h5_file, "temp", d.temp.data());
 
-    if (errors != H5PART_SUCCESS) { throw std::runtime_error("Could not read essential fields x,y,z,h,m,u\n"); }
+    if (errors != H5PART_SUCCESS) { throw std::runtime_error("Could not read essential fields x,y,z,h,m,temp\n"); }
 
     initField(h5_file, rank, d.vx, "vx", 0.0);
     initField(h5_file, rank, d.vy, "vy", 0.0);
@@ -144,11 +145,9 @@ cstone::Box<typename HydroData::RealType> restoreHydroData(const std::string& h5
 
     initField(h5_file, rank, d.du_m1, "du_m1", 0.0);
     initField(h5_file, rank, d.alpha, "alpha", d.alphamin);
+    initField(h5_file, rank, d.mui, "mui", d.muiConst);
 
     initXm1(h5_file, rank, d);
-
-    std::fill(d.mue.begin(), d.mue.end(), 2.0);
-    std::fill(d.mui.begin(), d.mui.end(), 10.0);
 
     H5PartCloseFile(h5_file);
     return box;

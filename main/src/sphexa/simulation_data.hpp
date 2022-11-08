@@ -33,7 +33,6 @@
 #include <mpi.h>
 
 #include "cooling/chemistry_data.hpp"
-#include "cooling/cooling.hpp"
 #include "sph/particles_data.hpp"
 
 namespace sphexa

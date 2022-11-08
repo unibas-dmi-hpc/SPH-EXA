@@ -32,12 +32,16 @@
 #pragma once
 
 #include <array>
+#include <optional>
 
 #include "cstone/fields/enumerate.hpp"
 #include "cstone/fields/field_states.hpp"
 #include "cstone/fields/particles_get.hpp"
 #include "cstone/util/reallocate.hpp"
+#ifdef SPH_EXA_HAVE_GRACKLE
 #include "cooling/cooling.hpp"
+#endif
+
 namespace cooling
 {
 
@@ -48,11 +52,13 @@ public:
     inline static constexpr size_t numFields = 21;
 
     template<class ValueType>
-    using FieldVector = std::vector<ValueType, std::allocator<ValueType>>;
-    using RealType = T;
+    using FieldVector     = std::vector<ValueType, std::allocator<ValueType>>;
+    using RealType        = T;
     using AcceleratorType = cstone::CpuTag;
 
-    cooling::CoolingData<T> cooling_data;
+#ifdef SPH_EXA_HAVE_GRACKLE
+    cooling::CoolingData<T>               cooling_data;
+#endif
     std::array<FieldVector<T>, numFields> fields;
 
     auto dataTuple() { return dataTuple_helper(std::make_index_sequence<numFields>{}); }

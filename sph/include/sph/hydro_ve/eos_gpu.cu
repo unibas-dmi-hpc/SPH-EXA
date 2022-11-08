@@ -41,37 +41,37 @@ namespace sph
 namespace cuda
 {
 
-template<class Tu, class Tm, class Thydro>
-__global__ void cudaEOS(size_t firstParticle, size_t lastParticle, Tu gamma, const Tu* u, const Tm* m, const Thydro* kx,
-                        const Thydro* xm, const Thydro* gradh, Thydro* prho, Thydro* c)
+template<class Tt, class Tm, class Thydro>
+__global__ void cudaEOS(size_t firstParticle, size_t lastParticle, Tt mui, Tt gamma, const Tt* temp, const Tm* m,
+                        const Thydro* kx, const Thydro* xm, const Thydro* gradh, Thydro* prho, Thydro* c)
 {
     unsigned i = firstParticle + blockDim.x * blockIdx.x + threadIdx.x;
     if (i >= lastParticle) return;
 
     Thydro p;
     Thydro rho         = kx[i] * m[i] / xm[i];
-    util::tie(p, c[i]) = idealGasEOS(u[i], rho, gamma);
+    util::tie(p, c[i]) = idealGasEOS(temp[i], rho, mui, gamma);
     prho[i]            = p / (kx[i] * m[i] * m[i] * gradh[i]);
 }
 
-template<class Tu, class Tm, class Thydro>
-void computeEOS(size_t firstParticle, size_t lastParticle, Tu gamma, const Tu* u, const Tm* m, const Thydro* kx,
-                const Thydro* xm, const Thydro* gradh, Thydro* prho, Thydro* c)
+template<class Tt, class Tm, class Thydro>
+void computeEOS(size_t firstParticle, size_t lastParticle, Tt mui, Tt gamma, const Tt* temp, const Tm* m,
+                const Thydro* kx, const Thydro* xm, const Thydro* gradh, Thydro* prho, Thydro* c)
 {
-    int numThreads = 256;
-    int numBlocks  = iceil(lastParticle - firstParticle, numThreads);
-    cudaEOS<<<numBlocks, numThreads>>>(firstParticle, lastParticle, gamma, u, m, kx, xm, gradh, prho, c);
+    unsigned numThreads = 256;
+    unsigned numBlocks  = iceil(lastParticle - firstParticle, numThreads);
+    cudaEOS<<<numBlocks, numThreads>>>(firstParticle, lastParticle, mui, gamma, temp, m, kx, xm, gradh, prho, c);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeEOS(size_t, size_t, double, const double*, const double*, const double*, const double*,
+template void computeEOS(size_t, size_t, double, double, const double*, const double*, const double*, const double*,
                          const double*, double*, double*);
-template void computeEOS(size_t, size_t, double, const double*, const float*, const double*, const double*,
+template void computeEOS(size_t, size_t, double, double, const double*, const float*, const double*, const double*,
                          const double*, double*, double*);
-template void computeEOS(size_t, size_t, double, const double*, const float*, const float*, const float*, const float*,
-                         float*, float*);
-template void computeEOS(size_t, size_t, float, const float*, const float*, const float*, const float*, const float*,
-                         float*, float*);
+template void computeEOS(size_t, size_t, double, double, const double*, const float*, const float*, const float*,
+                         const float*, float*, float*);
+template void computeEOS(size_t, size_t, float, float, const float*, const float*, const float*, const float*,
+                         const float*, float*, float*);
 
 } // namespace cuda
 } // namespace sph
