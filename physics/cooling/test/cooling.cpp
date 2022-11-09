@@ -24,8 +24,8 @@ TEST(cooling_grackle, test1a)
 
     const Real mass_unit = std::pow(length_units, 3.0) * density_units / MSOLG;
 
-    cooling::CoolingData<Real> cd(PROJECT_SOURCE_DIR "/physics/cooling/test/test.param", mass_unit, 1.0 / KPCCM, 0, time_units);
-
+    cooling::CoolingData<Real> cd;
+    cd.init(mass_unit, 1.0 / KPCCM, 0, std::nullopt, PROJECT_SOURCE_DIR "/physics/cooling/test/test.param", time_units);
 
     constexpr gr_float tiny_number = 1.e-20;
     constexpr Real     dt          = 3.15e7 * 1e6; // grackle_units.time_units;
@@ -97,17 +97,22 @@ TEST(cooling_grackle, test1a)
 
     //cleanGrackle();
 }
+//This test just produces a table of cooling values for different choices of rho and u
 TEST(cooling_grackle2, test2)
 {
-    using Real = double;
-    cooling::CoolingData<Real> cd("~/param.test");
+    //Path where to write the table
+    const std::string writePath{"~/cooling_test1/sphexa.txt"};
 
-    /*Parameters set:
-   with_radiative_cooling = 1;
-   primordial_chemistry   = 1;
-   dust_chemistry         = 0;
-   metal_cooling          = 0;
-   UVbackground           = 0;*/
+    using Real = double;
+    cooling::CoolingData<Real> cd;
+    auto options = cd.getDefaultChemistryData();
+    options.use_grackle = 1;
+    options.with_radiative_cooling = 1;
+    options.primordial_chemistry = 1;
+    options.dust_chemistry = 0;
+    options.metal_cooling = 0;
+    options.UVbackground = 0;
+    cd.init(1e16, 46400., 0, options, std::nullopt, std::nullopt);
 
     constexpr gr_float tiny_number = 1.e-20;
     constexpr Real     dt          = 0.01; // grackle_units.time_units;
@@ -158,7 +163,6 @@ TEST(cooling_grackle2, test2)
         auto RT_H2_dissociation_rate  = std::vector<Real>{0.};
         auto H2_self_shielding_length = std::vector<Real>{0.};
 
-
         cooling::cool_particle(cd.global_values,
                                dt,
                                rho[0],
@@ -189,7 +193,7 @@ TEST(cooling_grackle2, test2)
         return u[0];
     };
     std::vector<Real> results(n_rho * n_u);
-    std::FILE *file = std::fopen("~/cooling_test1/sphexa.txt", "w");
+    std::FILE *file = std::fopen(writePath.c_str(), "w");
     if (!file)
         throw std::runtime_error("File could not be opened");
     for (size_t i = 0; i < n_rho; i++) {

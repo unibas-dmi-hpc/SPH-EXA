@@ -1,3 +1,4 @@
+use_grackle = 1
 with_radiative_cooling = 1
 primordial_chemistry = 3
 dust_chemistry = 1
