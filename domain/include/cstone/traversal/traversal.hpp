@@ -102,6 +102,47 @@ void singleTraversal(const TreeType<KeyType>& octree, C&& continuationCriterion,
     } while (node != 0); // the root can only be obtained when the tree has been fully traversed
 }
 
+template<class C, class A>
+void singleTraversal(const TreeNodeIndex* childOffsets, C&& continuationCriterion, A&& endpointAction)
+{
+    if (!continuationCriterion(0) || childOffsets[0] == 0)
+    {
+        // root node is already the endpoint
+        endpointAction(0);
+        return;
+    }
+
+    TreeNodeIndex stack[128];
+    stack[0] = 0;
+
+    TreeNodeIndex stackPos = 1;
+    TreeNodeIndex node     = 0; // start at the root
+
+    do
+    {
+        for (int octant = 0; octant < 8; ++octant)
+        {
+            TreeNodeIndex child = childOffsets[node] + octant;
+            bool descend        = continuationCriterion(child);
+            if (descend)
+            {
+                if (childOffsets[child] == 0)
+                {
+                    // endpoint reached with child is a leaf node
+                    endpointAction(child);
+                }
+                else
+                {
+                    assert(stackPos < 128);
+                    stack[stackPos++] = child; // push
+                }
+            }
+        }
+        node = stack[--stackPos];
+
+    } while (node != 0); // the root can only be obtained when the tree has been fully traversed
+}
+
 /*! @brief Generic dual-traversal of a tree with pairs of indices. Also called simultaneous traversal.
  *
  * Since the continuation criterion and the two endpoint actions for failed/passed criteria are
