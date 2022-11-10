@@ -190,7 +190,10 @@ def createVelocityPlot(h5File, attrs, radii, time, step):
 
 
 def createEnergyPlot(h5File, attrs, radii, time, step):
-    u = loadH5Field(h5File, "u", step)
+    temp = loadH5Field(h5File, "temp", step)
+    mui = 10.0
+    cv = 1.5 * 8.317e7 / mui
+    u = cv * temp
 
     rSol = np.linspace(attrs["r0"], attrs["r1"], 1000)
     uSol = np.vectorize(nohU)(attrs["gamma"], attrs["u0"], attrs["vr0"], rSol, time)
@@ -258,4 +261,4 @@ if __name__ == "__main__":
     try:
         createEnergyPlot(h5File, attrs, radii, time, hdf5_step)
     except KeyError:
-        print("Could not plot velocity profile, input does not contain fields \"u\"")
+        print("Could not plot velocity profile, input does not contain fields \"temp\"")

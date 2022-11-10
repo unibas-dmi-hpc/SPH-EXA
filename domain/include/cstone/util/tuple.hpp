@@ -87,7 +87,7 @@ namespace util
 template<class... Ts>
 using tuple = std::tuple<Ts...>;
 
-template<size_t N, class T>
+template<std::size_t N, class T>
 constexpr auto get(T&& tup) noexcept
 {
     return std::get<N>(tup);
@@ -101,3 +101,31 @@ constexpr tuple<Ts&...> tie(Ts&... args) noexcept
 
 } // namespace util
 #endif
+
+namespace util
+{
+
+template<class Tuple>
+struct TuplePlusImpl
+{
+    template<std::size_t... Is>
+    HOST_DEVICE_FUN Tuple operator()(const Tuple& a, const Tuple& b, std::index_sequence<Is...>)
+    {
+        return Tuple((util::get<Is>(a) + util::get<Is>(b))...);
+    }
+};
+
+/*! @brief generic tuple addition functor that works for both thrust and std tuples
+ *
+ * @tparam Tuple   the kind of tuple to be added, e.g. thrust::tuple<int, double>
+ */
+template<class Tuple>
+struct TuplePlus
+{
+    HOST_DEVICE_FUN Tuple operator()(const Tuple& a, const Tuple& b)
+    {
+        return TuplePlusImpl<Tuple>{}(a, b, std::make_index_sequence<std::tuple_size_v<Tuple>>{});
+    }
+};
+
+} // namespace util
