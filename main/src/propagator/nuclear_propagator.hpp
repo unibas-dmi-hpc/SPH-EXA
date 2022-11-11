@@ -374,10 +374,10 @@ private:
             timer.step("Gravity");
         }
 
-        computePositions(first, last, d, domain.box());
-        timer.step("UpdateQuantities");
         computeTimestep(d);
         timer.step("Timestep");
+        computePositions(first, last, d, domain.box());
+        timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 

@@ -41,10 +41,10 @@ namespace sphexa
 
 std::map<std::string, double> nuclearSedovConstants()
 {
-    std::map<std::string, double> ret{
-        {"dim", 3},        {"gamma", 5. / 3.},       {"omega", 0.},  {"r0", 0.},    {"r1", 0.5}, {"mTotal", 1e9},
-        {"ener0", 1.2e16}, {"u0", 0.8e16},           {"width", 0.1}, {"rho0", 1e9}, {"p0", 0.},  {"vr0", 0.},
-        {"cs0", 0.},       {"firstTimeStep", 1e-10}, {"mui", 10}};
+    std::map<std::string, double> ret{{"dim", 3},     {"gamma", 5. / 3.},      {"omega", 0.},     {"r0", 0.},
+                                      {"r1", 0.5},    {"mTotal", 1e9},         {"ener0", 1.5e10}, {"u0", 1.5e10},
+                                      {"width", 0.2}, {"rho0", 1e9},           {"p0", 0.},        {"vr0", 0.},
+                                      {"cs0", 0.},    {"firstTimeStep", 2e-9}, {"mui", 1e7}};
 
     // original relation between ret["ener0"] and ret["energyTotal"]:
     // ret["ener0"] = ret["energyTotal"] / std::pow(M_PI, 1.5) / 1. / std::pow(ret["width"], 3.0);
