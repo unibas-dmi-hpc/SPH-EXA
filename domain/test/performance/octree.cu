@@ -34,8 +34,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 
-#include "cstone/halos/discovery.cuh"
-#include "cstone/traversal/collisions.hpp"
+#include "cstone/traversal/collisions.cuh"
 #include "cstone/tree/update_gpu.cuh"
 #include "cstone/tree/octree_internal_gpu.cuh"
 
