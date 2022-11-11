@@ -24,18 +24,14 @@
  */
 
 /*! @file
- * @brief  GPU driver for halo discovery using traversal of an internal binary radix tree
+ * @brief  GPU driver for halo discovery using traversal of an octree
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include <algorithm>
-#include <vector>
-
-#include "cstone/halos/discovery.hpp"
-#include "cstone/tree/btree.cuh"
+#include "cstone/traversal/collisions.hpp"
 
 namespace cstone
 {
@@ -44,53 +40,65 @@ namespace cstone
  *
  * @tparam KeyType               32- or 64-bit unsigned integer
  * @tparam RadiusType            float or double, float is sufficient for 64-bit codes or less
- * @tparam CoordinateType        float or double
- * @param[in]  binaryTree        matching binary tree on top of @p leaves
- * @param[in]  leaves            cornerstone octree leaves
+ * @tparam T                     float or double
+ * @param[in]  nodePrefixes      Warren-Salmon node keys of the octree, length = numTreeNodes
+ * @param[in]  childOffsets      child offsets array, length = numTreeNodes
+ * @param[in]  toInternalOrder   map cstone leaf node indices to fully linked format
+ * @param[in]  toLeafOrder       map leaf node indices of fully linked format to cornerstone order
  * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
  * @param[in]  box               coordinate bounding box
- * @param[in]  firstNode         first leaf node index of @p leaves to consider as local
- * @param[in]  lastNode          last leaf node index of @p leaves to consider as local
- * @param[out] collisionFlags    array of length nNodes(leaves), each node that is a halo
+ * @param[in]  firstNode         first cstone leaf node index to consider as local
+ * @param[in]  lastNode          last cstone leaf node index to consider as local
+ * @param[out] collisionFlags    array of length numLeafNodes, each node that is a halo
  *                               from the perspective of [firstNode:lastNode] will be marked
  *                               with a non-zero value.
  *                               Note: does NOT reset non-colliding indices to 0, so @p collisionFlags
  *                               should be zero-initialized prior to calling this function.
  */
-template<class KeyType, class RadiusType, class CoordinateType>
-__global__ void findHalosKernel(const KeyType* leaves,
-                                const BinaryNode<KeyType>* binaryTree,
+template<class KeyType, class RadiusType, class T>
+__global__ void findHalosKernel(const KeyType* nodePrefixes,
+                                const TreeNodeIndex* childOffsets,
+                                const TreeNodeIndex* toInternalOrder,
+                                const TreeNodeIndex* toLeafOrder,
                                 const RadiusType* interactionRadii,
-                                const Box<CoordinateType> box,
+                                const Box<T> box,
                                 TreeNodeIndex firstNode,
                                 TreeNodeIndex lastNode,
                                 int* collisionFlags)
 {
-    unsigned tid     = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned nodeIdx = firstNode + tid;
+    unsigned leafIdx = blockIdx.x * blockDim.x + threadIdx.x + firstNode;
 
-    if (tid < lastNode - firstNode)
+    auto markCollisions = [collisionFlags, toLeafOrder](TreeNodeIndex i) { collisionFlags[toLeafOrder[i]] = 1; };
+
+    if (leafIdx < lastNode)
     {
-        KeyType lowestCode  = leaves[firstNode];
-        KeyType highestCode = leaves[lastNode];
+        RadiusType radius      = interactionRadii[leafIdx];
+        TreeNodeIndex idx      = toInternalOrder[leafIdx];
+        KeyType lowerTargetKey = decodePlaceholderBit(nodePrefixes[idx]);
+        KeyType upperTargetKey = lowerTargetKey + nodeRange<KeyType>(decodePrefixLength(nodePrefixes[idx]) / 3);
+        IBox haloBox           = makeHaloBox(lowerTargetKey, upperTargetKey, radius, box);
 
-        RadiusType radius = interactionRadii[nodeIdx];
-        IBox haloBox      = makeHaloBox(leaves[nodeIdx], leaves[nodeIdx + 1], radius, box);
+        KeyType firstPrefix = nodePrefixes[toInternalOrder[firstNode]];
+        KeyType lastPrefix  = nodePrefixes[toInternalOrder[lastNode - 1]];
+        KeyType lowestKey   = decodePlaceholderBit(firstPrefix);
+        KeyType highestKey  = decodePlaceholderBit(lastPrefix) + nodeRange<KeyType>(decodePrefixLength(lastPrefix) / 3);
 
         // if the halo box is fully inside the assigned SFC range, we skip collision detection
-        if (containedIn(lowestCode, highestCode, haloBox)) { return; }
+        if (containedIn(lowestKey, highestKey, haloBox)) { return; }
 
-        // mark all colliding node indices outside [lowestCode:highestCode]
-        findCollisions(binaryTree, leaves, collisionFlags, haloBox, {lowestCode, highestCode});
+        // mark all colliding node indices outside [lowestKey:highestKey]
+        findCollisions(nodePrefixes, childOffsets, markCollisions, haloBox, lowestKey, highestKey);
     }
 }
 
 //! @brief convenience kernel wrapper
-template<class KeyType, class RadiusType, class CoordinateType>
-void findHalosGpu(const KeyType* leaves,
-                  const BinaryNode<KeyType>* binaryTree,
+template<class KeyType, class RadiusType, class T>
+void findHalosGpu(const KeyType* nodePrefixes,
+                  const TreeNodeIndex* childOffsets,
+                  const TreeNodeIndex* toInternalOrder,
+                  const TreeNodeIndex* toLeafOrder,
                   const RadiusType* interactionRadii,
-                  const Box<CoordinateType>& box,
+                  const Box<T>& box,
                   TreeNodeIndex firstNode,
                   TreeNodeIndex lastNode,
                   int* collisionFlags)
@@ -98,8 +106,8 @@ void findHalosGpu(const KeyType* leaves,
     constexpr unsigned numThreads = 128;
     unsigned numBlocks            = iceil(lastNode - firstNode, numThreads);
 
-    findHalosKernel<<<numBlocks, numThreads>>>(leaves, binaryTree, interactionRadii, box, firstNode, lastNode,
-                                               collisionFlags);
+    findHalosKernel<<<numBlocks, numThreads>>>(nodePrefixes, childOffsets, toInternalOrder, toLeafOrder,
+                                               interactionRadii, box, firstNode, lastNode, collisionFlags);
 }
 
 } // namespace cstone

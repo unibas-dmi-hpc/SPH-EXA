@@ -37,12 +37,12 @@ namespace cstone
 {
 
 template<class KeyType, class F>
-void findCollisions(const KeyType* nodePrefixes,
-                    const TreeNodeIndex* childOffsets,
-                    F&& endpointAction,
-                    const IBox& target,
-                    KeyType excludeStart,
-                    KeyType excludeEnd)
+HOST_DEVICE_FUN void findCollisions(const KeyType* nodePrefixes,
+                                    const TreeNodeIndex* childOffsets,
+                                    F&& endpointAction,
+                                    const IBox& target,
+                                    KeyType excludeStart,
+                                    KeyType excludeEnd)
 {
     auto overlaps = [excludeStart, excludeEnd, nodePrefixes, &target](TreeNodeIndex idx)
     {
