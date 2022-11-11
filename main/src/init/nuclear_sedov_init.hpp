@@ -42,11 +42,15 @@ namespace sphexa
 std::map<std::string, double> nuclearSedovConstants()
 {
     std::map<std::string, double> ret{
-        {"dim", 3},           {"gamma", 5. / 3.}, {"omega", 0.},           {"r0", 0.},    {"r1", 0.5}, {"mTotal", 1e9},
-        {"energyTotal", 1e9}, {"T0", 1e9},        {"width", 0.1},          {"rho0", 1e9}, {"u0", 1e1}, {"p0", 0.},
-        {"vr0", 0.},          {"cs0", 0.},        {"firstTimeStep", 1e-6}, {"mui", 10}};
+        {"dim", 3},        {"gamma", 5. / 3.},       {"omega", 0.},  {"r0", 0.},    {"r1", 0.5}, {"mTotal", 1e9},
+        {"ener0", 1.2e16}, {"u0", 0.8e16},           {"width", 0.1}, {"rho0", 1e9}, {"p0", 0.},  {"vr0", 0.},
+        {"cs0", 0.},       {"firstTimeStep", 1e-10}, {"mui", 10}};
 
-    ret["ener0"] = ret["energyTotal"] / std::pow(M_PI, 1.5) / 1. / std::pow(ret["width"], 3.0);
+    // original relation between ret["ener0"] and ret["energyTotal"]:
+    // ret["ener0"] = ret["energyTotal"] / std::pow(M_PI, 1.5) / 1. / std::pow(ret["width"], 3.0);
+    //
+    // inversed relation between ret["ener0"] and ret["energyTotal"] (proably useless):
+    ret["energyTotal"] = ret["ener0"] * std::pow(M_PI, 1.5) * std::pow(ret["width"], 3.0);
     return ret;
 }
 
@@ -140,10 +144,6 @@ public:
 
         // initialize dt
         std::fill(n.dt.begin(), n.dt.end(), nnet::constants::initialDt);
-
-        // initialize temp
-        size_t n_nuclear_particles = n.Y[0].size();
-        std::fill(getHost<"temp">(n).begin(), getHost<"temp">(n).begin() + n_nuclear_particles, constants_.at("T0"));
 
         return globalBox;
     }

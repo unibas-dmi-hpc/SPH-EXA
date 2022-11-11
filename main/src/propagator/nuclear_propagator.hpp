@@ -67,7 +67,7 @@ class NuclearProp final : public Propagator<DomainType, DataType>
      *
      * x, y, z, h and m are automatically considered conserved and must not be specified in this list
      */
-    using ConservedFields = FieldList<"u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1">;
+    using ConservedFields = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1">;
 
     //! @brief the list of conserved nuclear fields with values preserved between iterations
     using NuclearConservedFields = FieldList<"temp", "rho", "dt", "m">;
@@ -83,6 +83,8 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     int numSpecies;
     //! @brief selector for Helmholtz EOS
     bool useHelm;
+    //! @brief selector for nuclear reactions, only for debugging
+    bool useNuclear;
 
     //! @brief nuclear network reaction list
     nnet::ReactionList const* reactions;
@@ -94,8 +96,18 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     std::vector<T> Z;
 
     //! @brief possible propagator choices that are handled by this class
-    inline static std::array variants{"std-net14",      "std-net86",      "std-net87",
-                                      "std-net14-helm", "std-net86-helm", "std-net87-helm"};
+    inline static std::array variants{"std-net14",
+                                      "std-net86",
+                                      "std-net87",
+                                      "std-net14-helm",
+                                      "std-net86-helm",
+                                      "std-net87-helm",
+                                      "std-net14-no-nuclear",
+                                      "std-net86-no-nuclear",
+                                      "std-net87-no-nuclear",
+                                      "std-net14-helm-no-nuclear",
+                                      "std-net86-helm-no-nuclear",
+                                      "std-net87-helm-no-nuclear"};
 
     //! @brief extract the number of species to use from the propagator choice
     static int getNumSpecies(const std::string& choice)
@@ -105,7 +117,12 @@ class NuclearProp final : public Propagator<DomainType, DataType>
         return std::atoi(ext.c_str());
     }
 
-    static bool hasHelm(const std::string& choice) { return choice.ends_with("-helm"); }
+    static bool choiceContains(const std::string& choice, const std::string& patern)
+    {
+        return choice.find(patern) != std::string::npos;
+    }
+    static bool hasNuclear(const std::string& choice) { return !choiceContains(choice, "no-nuclear"); }
+    static bool hasHelm(const std::string& choice) { return choiceContains(choice, "helm"); }
 
 public:
     static bool isNuclear(const std::string& choice)
@@ -116,6 +133,7 @@ public:
     NuclearProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, const std::string& choice)
         : numSpecies(getNumSpecies(choice))
         , useHelm(hasHelm(choice))
+        , useNuclear(hasNuclear(choice))
         , Base(ngmax, ng0, output, rank)
     {
         Z.resize(numSpecies);
@@ -165,8 +183,8 @@ public:
         std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
         std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
-        d.devData.setConserved(/* TODO */);
-        d.devData.setDependent(/* TODO */);
+        d.devData.setConserved("x", "y", "z", "h", "m");
+        d.devData.setDependent("keys");
         std::apply([&d](auto... f) { d.devData.setConserved(f.value...); }, make_tuple(ConservedFields{}));
         std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
@@ -257,8 +275,9 @@ private:
         auto& d = simData.hydro;
         auto& n = simData.nuclearData;
 
-        d.resize(domain.nParticlesWithHalos());
-        n.resizeAttached(domain.nParticlesWithHalos());
+        size_t domain_size = domain.nParticlesWithHalos();
+        d.resize(domain_size);
+        n.resizeAttached(domain_size);
 
         resizeNeighbors(d, domain.nParticles() * ngmax_);
         size_t first = domain.startIndex();
@@ -288,7 +307,7 @@ private:
         sphnnet::computeNuclearPartition(first, last, simData);
         timer.step("sphnnet::computeNuclearPartition");
 
-        sphnnet::syncHydroToNuclear(simData, {"rho" /*, "temp", */ /* TODO */});
+        sphnnet::syncHydroToNuclear(simData, {"rho", "temp" /*, TODO */});
         timer.step("sphnnet::syncHydroToNuclear");
     }
 
@@ -298,13 +317,16 @@ private:
         auto&  n                   = simData.nuclearData;
         size_t n_nuclear_particles = n.Y[0].size();
 
-        sphexa::transferToDevice(n, 0, n_nuclear_particles, {/*"rho_m1", "rho", "temp"*/});
+        sphexa::transferToDevice(n, 0, n_nuclear_particles, {/*"rho", "temp"*/});
         timer.step("transferToDevice");
 
-        sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt_m1, *reactions,
-                                         *construct_rates_BE, *eos,
-                                         /*considering expansion:*/ false);
-        timer.step("sphnnet::computeNuclearReactions");
+        if (useNuclear)
+        {
+            sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt_m1, *reactions,
+                                             *construct_rates_BE, *eos,
+                                             /*considering expansion:*/ false);
+            timer.step("sphnnet::computeNuclearReactions");
+        }
 
         if (useHelm)
         {
@@ -315,8 +337,8 @@ private:
 
     void nuclear_sync_after(DomainType& domain, DataType& simData)
     {
-        sphnnet::syncNuclearToHydro(simData, {/*, "temp", */ /* TODO */});
-        if (useHelm) { sphnnet::syncNuclearToHydro(simData, {"u", "c", "p" /*, "cv", "dpdT"*/}); }
+        sphnnet::syncNuclearToHydro(simData, {"temp" /*, TODO */});
+        if (useHelm) { sphnnet::syncNuclearToHydro(simData, {"c", "p", "cv" /*, "u", "dpdT", TODO */}); }
         timer.step("sphnnet::syncNuclearToHydro");
     }
 
@@ -332,7 +354,7 @@ private:
             timer.step("EquationOfState");
         }
 
-        domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
+        domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c", "temp">(d), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
 
         computeIAD(first, last, ngmax_, d, domain.box());
@@ -352,10 +374,10 @@ private:
             timer.step("Gravity");
         }
 
-        computeTimestep(d);
-        timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
+        computeTimestep(d);
+        timer.step("Timestep");
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 
