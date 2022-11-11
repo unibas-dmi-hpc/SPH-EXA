@@ -109,10 +109,30 @@ void benchmarkGpu()
     const T* x        = coords.x().data();
     const T* y        = coords.y().data();
     const T* z        = coords.z().data();
-    const auto* codes = (KeyType*)(coords.particleKeys().data());
+    const auto* codes = (Integer*)(coords.particleKeys().data());
+
+    unsigned bucketSize   = 64;
+    auto [csTree, counts] = computeOctree(codes, codes + n, bucketSize);
+    Octree<Integer> octree;
+    octree.update(csTree.data(), nNodes(csTree));
+
+    std::vector<LocalIndex> layout(nNodes(csTree) + 1);
+    std::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), 0);
+
+    std::vector<Vec3<T>> centers(octree.numTreeNodes()), sizes(octree.numTreeNodes());
+    gsl::span<const Integer> nodeKeys(octree.nodeKeys().data(), octree.numTreeNodes());
+    nodeFpCenters<KeyType>(nodeKeys, centers.data(), sizes.data(), box);
 
     auto findNeighborsCpu = [&]()
-    { findNeighbors(x, y, z, h.data(), 0, n, n, box, codes, neighborsCPU.data(), neighborsCountCPU.data(), ngmax); };
+    {
+#pragma omp parallel for
+        for (LocalIndex i = 0; i < n; ++i)
+        {
+            findNeighborsT(i, x, y, z, h.data(),
+                           octree.childOffsets().data(), octree.toLeafOrder().data(), layout.data(), centers.data(),
+                           sizes.data(), box, ngmax, neighborsCPU.data() + i * ngmax, neighborsCountCPU.data());
+        }
+    };
 
     float cpuTime = timeCpu(findNeighborsCpu);
 

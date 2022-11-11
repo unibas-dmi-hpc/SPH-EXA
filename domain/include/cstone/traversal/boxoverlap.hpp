@@ -181,6 +181,18 @@ HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType 
     return makeHaloBox<KeyType>(nodeBox, radius, box);
 }
 
+//! @brief returns true if neighbor searches from point X within box b has to take PBC into account
+template<class T>
+HOST_DEVICE_FUN bool needPbc(const Vec3<T>& X, const Vec3<T>& bCenter, const Vec3<T>& bSize, const Box<T>& box)
+{
+    Vec3<T> dXmax   = abs(bCenter - X) + bSize;
+    Vec3<T> pbcDiff = dXmax - abs(applyPbc(dXmax, box));
+    pbcDiff[0] *= box.ilx();
+    pbcDiff[1] *= box.ily();
+    pbcDiff[2] *= box.ilz();
+    return norm2(pbcDiff) > T(1e-10);
+}
+
 //! @brief returns the smallest distance vector of point X to box b, 0 if X is in b
 template<class T>
 HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, const Vec3<T>& bSize, const Box<T>& box)

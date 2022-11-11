@@ -32,13 +32,14 @@
 #pragma once
 
 #include <cmath>
-#include <span>
 
 #include "cstone/primitives/stl.hpp"
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/traversal/traversal.hpp"
 #include "cstone/tree/definitions.h"
 #include "cstone/util/array.hpp"
+#include "cstone/util/gsl-lite.hpp"
+#include "cstone/util/tuple.hpp"
 
 namespace cstone
 {
@@ -421,7 +422,7 @@ void findNeighbors(const T* x,
 }
 
 template<class KeyType, class T>
-void nodeFpCenters(std::span<const typename KeyType::ValueType> prefixes,
+void nodeFpCenters(gsl::span<const typename KeyType::ValueType> prefixes,
                    Vec3<T>* centers,
                    Vec3<T>* sizes,
                    const Box<T>& box)
@@ -434,7 +435,7 @@ void nodeFpCenters(std::span<const typename KeyType::ValueType> prefixes,
         KeyInt startKey                = decodePlaceholderBit(prefix);
         unsigned level                 = decodePrefixLength(prefix) / 3;
         auto nodeBox                   = sfcIBox(KeyType(startKey), level);
-        std::tie(centers[i], sizes[i]) = centerAndSize<KeyInt>(nodeBox, box);
+        util::tie(centers[i], sizes[i]) = centerAndSize<KeyInt>(nodeBox, box);
     }
 }
 
@@ -470,20 +471,35 @@ void findNeighborsT(LocalIndex i,
         return norm2(minDistance(particle, nodeCenter, nodeSize, box)) < radiusSq;
     };
 
-    auto searchBox =
-        [i, particle, radiusSq, layout, toLeafOrder, x, y, z, ngmax, neighbors, &numNeighbors, &box](TreeNodeIndex idx)
+    auto searchBox = [i, particle, radiusSq, layout, toLeafOrder, centers, sizes, x, y, z, ngmax, neighbors,
+                      &numNeighbors, &box](TreeNodeIndex idx)
     {
         TreeNodeIndex leafIdx    = toLeafOrder[idx];
         LocalIndex firstParticle = layout[leafIdx];
         LocalIndex lastParticle  = layout[leafIdx + 1];
 
-        for (LocalIndex j = firstParticle; j < lastParticle; ++j)
+        if (needPbc(particle, centers[idx], sizes[idx], box))
         {
-            if (j == i) { continue; }
-            if (distanceSqPbc(x[j], y[j], z[j], particle[0], particle[1], particle[2], box) < radiusSq)
+            for (LocalIndex j = firstParticle; j < lastParticle; ++j)
             {
-                if (numNeighbors < ngmax) { neighbors[numNeighbors] = j; }
-                numNeighbors++;
+                if (j == i) { continue; }
+                if (distanceSqPbc(x[j], y[j], z[j], particle[0], particle[1], particle[2], box) < radiusSq)
+                {
+                    if (numNeighbors < ngmax) { neighbors[numNeighbors] = j; }
+                    numNeighbors++;
+                }
+            }
+        }
+        else
+        {
+            for (LocalIndex j = firstParticle; j < lastParticle; ++j)
+            {
+                if (j == i) { continue; }
+                if (distancesq(x[j], y[j], z[j], particle[0], particle[1], particle[2]) < radiusSq)
+                {
+                    if (numNeighbors < ngmax) { neighbors[numNeighbors] = j; }
+                    numNeighbors++;
+                }
             }
         }
     };

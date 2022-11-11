@@ -72,8 +72,7 @@ static void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box
     EXPECT_EQ(layout.back(), numParticles);
 
     std::vector<Vec3<T>> centers(octree.numTreeNodes()), sizes(octree.numTreeNodes());
-
-    std::span<const KeyInt> nodeKeys(octree.nodeKeys().data(), octree.numTreeNodes());
+    gsl::span<const KeyInt> nodeKeys(octree.nodeKeys().data(), octree.numTreeNodes());
     nodeFpCenters<KeyType>(nodeKeys, centers.data(), sizes.data(), box);
 
     std::vector<LocalIndex> neighbors(numParticles * ngmax);
