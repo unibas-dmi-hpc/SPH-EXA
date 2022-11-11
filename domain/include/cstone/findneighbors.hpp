@@ -440,20 +440,20 @@ void nodeFpCenters(gsl::span<const typename KeyType::ValueType> prefixes,
 }
 
 template<class T>
-void findNeighborsT(LocalIndex i,
-                    const T* x,
-                    const T* y,
-                    const T* z,
-                    const T* h,
-                    const TreeNodeIndex* childOffsets,
-                    const TreeNodeIndex* toLeafOrder,
-                    const LocalIndex* layout,
-                    const Vec3<T>* centers,
-                    const Vec3<T>* sizes,
-                    const Box<T>& box,
-                    unsigned ngmax,
-                    LocalIndex* neighbors,
-                    unsigned* nc)
+HOST_DEVICE_FUN void findNeighborsT(LocalIndex i,
+                                    const T* x,
+                                    const T* y,
+                                    const T* z,
+                                    const T* h,
+                                    const TreeNodeIndex* childOffsets,
+                                    const TreeNodeIndex* toLeafOrder,
+                                    const LocalIndex* layout,
+                                    const Vec3<T>* centers,
+                                    const Vec3<T>* sizes,
+                                    const Box<T>& box,
+                                    unsigned ngmax,
+                                    LocalIndex* neighbors,
+                                    unsigned* nc)
 {
     T xi = x[i];
     T yi = y[i];

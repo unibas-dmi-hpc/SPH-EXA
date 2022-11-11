@@ -103,7 +103,7 @@ void singleTraversal(const TreeType<KeyType>& octree, C&& continuationCriterion,
 }
 
 template<class C, class A>
-void singleTraversal(const TreeNodeIndex* childOffsets, C&& continuationCriterion, A&& endpointAction)
+HOST_DEVICE_FUN void singleTraversal(const TreeNodeIndex* childOffsets, C&& continuationCriterion, A&& endpointAction)
 {
     if (!continuationCriterion(0) || childOffsets[0] == 0)
     {
