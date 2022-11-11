@@ -78,6 +78,9 @@ public:
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
                                                  Dataset& simData) const override
     {
+        nnet::eos::helmholtz::constants::copyTableToGPU();
+        nnet::net87::electrons::constants::copyTableToGPU();
+
         auto& d       = simData.hydro;
         auto& n       = simData.nuclearData;
         using KeyType = typename Dataset::KeyType;
@@ -108,30 +111,31 @@ public:
         /* nuclear initialization */
         /* !!!!!!!!!!!!!!!!!!!!!! */
 
-        util::array<double, 87> Y0_87, X_87;
+        util::array<double, 87> Y0_87, X0_87;
         for (int i = 0; i < 86; ++i)
         {
-            X_87[i] = 0;
+            X0_87[i] = 0.0;
         }
+        Y0_87[86] = 1.0;
 
         if (n.numSpecies == 14)
         {
-            X_87[1] = 0.5;
-            X_87[2] = 0.5;
+            X0_87[1] = 0.5;
+            X0_87[2] = 0.5;
 
             for (int i = 0; i < 14; ++i)
             {
-                Y0_87[i] = X_87[i] / nnet::net14::constants::A[i];
+                Y0_87[i] = X0_87[i] / nnet::net14::constants::A[i];
             }
         }
         else if (n.numSpecies == 86 || n.numSpecies == 87)
         {
-            X_87[nnet::net86::constants::net14SpeciesOrder[1]] = 0.5;
-            X_87[nnet::net86::constants::net14SpeciesOrder[2]] = 0.5;
+            X0_87[nnet::net86::constants::net14SpeciesOrder[1]] = 0.5;
+            X0_87[nnet::net86::constants::net14SpeciesOrder[2]] = 0.5;
 
             for (int i = 0; i < 86; ++i)
             {
-                Y0_87[i] = X_87[i] / nnet::net86::constants::A[i];
+                Y0_87[i] = X0_87[i] / nnet::net86::constants::A[i];
             }
         }
         else

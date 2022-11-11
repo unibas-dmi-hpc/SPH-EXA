@@ -157,12 +157,11 @@ int main(int argc, char* argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 #if COMPILE_DEVICE
-    cuda_util::initCudaMpi(MPI_COMM_WORLD);
+    util::cuda::initCudaMpi(MPI_COMM_WORLD);
 #endif
 
-#if !defined(CUDA_CPU_TEST) && defined(USE_CUDA)
-    nnet::eos::helmholtz_constants::copy_table_to_gpu();
-#endif
+    nnet::eos::helmholtz::constants::copyTableToGPU();
+    nnet::net87::electrons::constants::copyTableToGPU();
 
     const sphexa::ArgParser parser(argc, argv);
     if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))

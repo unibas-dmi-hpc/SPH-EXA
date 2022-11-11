@@ -338,7 +338,7 @@ private:
     void nuclear_sync_after(DomainType& domain, DataType& simData)
     {
         sphnnet::syncNuclearToHydro(simData, {"temp" /*, TODO */});
-        if (useHelm) { sphnnet::syncNuclearToHydro(simData, {"c", "p", "cv" /*, "u", "dpdT", TODO */}); }
+        if (useHelm) { sphnnet::syncNuclearToHydro(simData, {"c", "p" /*, "cv", "u", "dpdT", TODO */}); }
         timer.step("sphnnet::syncNuclearToHydro");
     }
 
