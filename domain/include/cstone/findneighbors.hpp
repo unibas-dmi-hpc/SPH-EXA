@@ -32,9 +32,11 @@
 #pragma once
 
 #include <cmath>
+#include <span>
 
 #include "cstone/primitives/stl.hpp"
 #include "cstone/sfc/sfc.hpp"
+#include "cstone/traversal/traversal.hpp"
 #include "cstone/tree/definitions.h"
 #include "cstone/util/array.hpp"
 
@@ -416,6 +418,79 @@ void findNeighbors(const T* x,
         findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + i * ngmax, neighborsCount + i, numParticles,
                       ngmax);
     }
+}
+
+template<class KeyType, class T>
+void nodeFpCenters(std::span<const typename KeyType::ValueType> prefixes,
+                   Vec3<T>* centers,
+                   Vec3<T>* sizes,
+                   const Box<T>& box)
+{
+    using KeyInt = typename KeyType::ValueType;
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < prefixes.size(); ++i)
+    {
+        KeyInt prefix                  = prefixes[i];
+        KeyInt startKey                = decodePlaceholderBit(prefix);
+        unsigned level                 = decodePrefixLength(prefix) / 3;
+        auto nodeBox                   = sfcIBox(KeyType(startKey), level);
+        std::tie(centers[i], sizes[i]) = centerAndSize<KeyInt>(nodeBox, box);
+    }
+}
+
+template<class T>
+void findNeighborsT(LocalIndex i,
+                    const T* x,
+                    const T* y,
+                    const T* z,
+                    const T* h,
+                    const TreeNodeIndex* childOffsets,
+                    const TreeNodeIndex* toLeafOrder,
+                    const LocalIndex* layout,
+                    const Vec3<T>* centers,
+                    const Vec3<T>* sizes,
+                    const Box<T>& box,
+                    unsigned ngmax,
+                    LocalIndex* neighbors,
+                    unsigned* nc)
+{
+    T xi = x[i];
+    T yi = y[i];
+    T zi = z[i];
+    T hi = h[i];
+
+    T radiusSq = 4.0 * hi * hi;
+    Vec3<T> particle{xi, yi, zi};
+    unsigned numNeighbors = 0;
+
+    auto overlaps = [particle, radiusSq, centers, sizes, &box](TreeNodeIndex idx)
+    {
+        auto nodeCenter = centers[idx];
+        auto nodeSize   = sizes[idx];
+        return norm2(minDistance(particle, nodeCenter, nodeSize, box)) < radiusSq;
+    };
+
+    auto searchBox =
+        [i, particle, radiusSq, layout, toLeafOrder, x, y, z, ngmax, neighbors, &numNeighbors, &box](TreeNodeIndex idx)
+    {
+        TreeNodeIndex leafIdx    = toLeafOrder[idx];
+        LocalIndex firstParticle = layout[leafIdx];
+        LocalIndex lastParticle  = layout[leafIdx + 1];
+
+        for (LocalIndex j = firstParticle; j < lastParticle; ++j)
+        {
+            if (j == i) { continue; }
+            if (distanceSqPbc(x[j], y[j], z[j], particle[0], particle[1], particle[2], box) < radiusSq)
+            {
+                if (numNeighbors < ngmax) { neighbors[numNeighbors] = j; }
+                numNeighbors++;
+            }
+        }
+    };
+
+    singleTraversal(childOffsets, overlaps, searchBox);
+
+    nc[i] = numNeighbors;
 }
 
 } // namespace cstone

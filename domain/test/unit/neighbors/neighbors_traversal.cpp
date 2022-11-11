@@ -37,101 +37,33 @@
 
 #include "gtest/gtest.h"
 #include "cstone/findneighbors.hpp"
-#include "cstone/tree/octree_internal.hpp"
-#include "cstone/traversal/traversal.hpp"
 
 #include "coord_samples/random.hpp"
 #include "all_to_all.hpp"
 
 using namespace cstone;
 
-template<class KeyType, class T>
-void nodeFpCenters(std::span<const KeyType> prefixes, Vec3<T>* centers, Vec3<T>* sizes, const Box<T>& box)
+template<class Coordinates, class T>
+static void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
 {
-#pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < prefixes.size(); ++i)
-    {
-        KeyType prefix                 = prefixes[i];
-        KeyType startKey               = decodePlaceholderBit(prefix);
-        unsigned level                 = decodePrefixLength(prefix) / 3;
-        auto nodeBox                   = sfcIBox(HilbertKey<KeyType>(startKey), level);
-        std::tie(centers[i], sizes[i]) = centerAndSize<KeyType>(nodeBox, box);
-    }
-}
+    using KeyType                   = typename Coordinates::KeyType;
+    using KeyInt                    = typename KeyType::ValueType;
+    cstone::LocalIndex numParticles = coords.x().size();
+    unsigned ngmax                  = numParticles;
+    unsigned bucketSize             = 64;
 
-template<class T>
-void traverseNeighbors(LocalIndex i,
-                       const T* x,
-                       const T* y,
-                       const T* z,
-                       const T* h,
-                       const TreeNodeIndex* childOffsets,
-                       const TreeNodeIndex* toLeafOrder,
-                       const LocalIndex* layout,
-                       const Vec3<T>* centers,
-                       const Vec3<T>* sizes,
-                       const Box<T>& box,
-                       unsigned ngmax,
-                       LocalIndex* neighbors,
-                       unsigned* nc)
-{
-    T xi = x[i];
-    T yi = y[i];
-    T zi = z[i];
-    T hi = h[i];
+    std::vector<T> h(numParticles, radius / 2);
 
-    T radiusSq = 4.0 * hi * hi;
-    Vec3<T> particle{xi, yi, zi};
-    unsigned numNeighbors = 0;
-
-    auto overlaps = [particle, radiusSq, centers, sizes, &box](TreeNodeIndex idx)
-    {
-        auto nodeCenter = centers[idx];
-        auto nodeSize   = sizes[idx];
-        return norm2(minDistance(particle, nodeCenter, nodeSize, box)) < radiusSq;
-    };
-
-    auto searchBox =
-        [i, particle, radiusSq, layout, toLeafOrder, x, y, z, ngmax, neighbors, &numNeighbors, &box](TreeNodeIndex idx)
-    {
-        TreeNodeIndex leafIdx    = toLeafOrder[idx];
-        LocalIndex firstParticle = layout[leafIdx];
-        LocalIndex lastParticle  = layout[leafIdx + 1];
-
-        for (LocalIndex j = firstParticle; j < lastParticle; ++j)
-        {
-            if (j == i) { continue; }
-            if (distanceSqPbc(x[j], y[j], z[j], particle[0], particle[1], particle[2], box) < radiusSq)
-            {
-                if (numNeighbors < ngmax) { neighbors[numNeighbors] = j; }
-                numNeighbors++;
-            }
-        }
-    };
-
-    singleTraversal(childOffsets, overlaps, searchBox);
-
-    nc[i] = numNeighbors;
-}
-
-TEST(FindNeighbors, traversal)
-{
-    using T       = double;
-    using KeyType = uint64_t;
-
-    unsigned numParticles = 10000;
-    unsigned bucketSize   = 64;
-    unsigned ngmax        = 150;
-
-    Box<T> box(0, 1);
-
-    //RandomGaussianCoordinates<T, HilbertKey<KeyType>> coords(numParticles, box);
-    RandomCoordinates<T, HilbertKey<KeyType>> coords(numParticles, box);
+    std::vector<LocalIndex> neighborsRef(numParticles * ngmax);
+    std::vector<unsigned> ncRef(numParticles);
+    all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), numParticles,
+                     neighborsRef.data(), ncRef.data(), ngmax, box);
+    sortNeighbors(neighborsRef.data(), ncRef.data(), numParticles, ngmax);
 
     auto [csTree, counts] =
         computeOctree(coords.particleKeys().data(), coords.particleKeys().data() + numParticles, bucketSize);
 
-    Octree<KeyType> octree;
+    Octree<KeyInt> octree;
     octree.update(csTree.data(), nNodes(csTree));
 
     std::vector<LocalIndex> layout(nNodes(csTree) + 1);
@@ -141,29 +73,68 @@ TEST(FindNeighbors, traversal)
 
     std::vector<Vec3<T>> centers(octree.numTreeNodes()), sizes(octree.numTreeNodes());
 
-    std::span<const KeyType> nodeKeys(octree.nodeKeys().data(), octree.numTreeNodes());
-    nodeFpCenters(nodeKeys, centers.data(), sizes.data(), box);
+    std::span<const KeyInt> nodeKeys(octree.nodeKeys().data(), octree.numTreeNodes());
+    nodeFpCenters<KeyType>(nodeKeys, centers.data(), sizes.data(), box);
 
-    std::vector<T> h(numParticles, 0.05);
     std::vector<LocalIndex> neighbors(numParticles * ngmax);
     std::vector<unsigned> nc(numParticles);
 
 #pragma omp parallel for
     for (LocalIndex idx = 0; idx < numParticles; ++idx)
     {
-        traverseNeighbors(idx, coords.x().data(), coords.y().data(), coords.z().data(), h.data(),
-                          octree.childOffsets().data(), octree.toLeafOrder().data(), layout.data(), centers.data(),
-                          sizes.data(), box, ngmax, neighbors.data() + idx * ngmax, nc.data());
+        findNeighborsT(idx, coords.x().data(), coords.y().data(), coords.z().data(), h.data(),
+                       octree.childOffsets().data(), octree.toLeafOrder().data(), layout.data(), centers.data(),
+                       sizes.data(), box, ngmax, neighbors.data() + idx * ngmax, nc.data());
     }
     sortNeighbors(neighbors.data(), nc.data(), numParticles, ngmax);
 
-    std::vector<unsigned> ncRef(numParticles);
-    std::vector<LocalIndex> neighborsRef(numParticles * ngmax);
-
-    all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), numParticles,
-                     neighborsRef.data(), ncRef.data(), ngmax, box);
-    sortNeighbors(neighborsRef.data(), ncRef.data(), numParticles, ngmax);
-
-    EXPECT_EQ(neighbors, neighborsRef);
-    EXPECT_EQ(nc, ncRef);
+    EXPECT_EQ(neighborsRef, neighbors);
+    EXPECT_EQ(ncRef, nc);
 }
+
+class FindNeighborsTRandom
+    : public testing::TestWithParam<std::tuple<double, int, std::array<double, 6>, cstone::BoundaryType>>
+{
+public:
+    template<class KeyType, template<class...> class CoordinateKind>
+    void check()
+    {
+        double radius                = std::get<0>(GetParam());
+        int nParticles               = std::get<1>(GetParam());
+        std::array<double, 6> limits = std::get<2>(GetParam());
+        cstone::BoundaryType usePbc  = std::get<3>(GetParam());
+        Box<double> box{limits[0], limits[1], limits[2], limits[3], limits[4], limits[5], usePbc, usePbc, usePbc};
+
+        CoordinateKind<double, KeyType> coords(nParticles, box);
+
+        neighborCheck(coords, radius, box);
+    }
+};
+
+TEST_P(FindNeighborsTRandom, MortonUniform32) { check<MortonKey<uint32_t>, RandomCoordinates>(); }
+// TEST_P(FindNeighborsRandom, MortonUniform64)   { check<MortonKey<uint64_t>, RandomCoordinates>(); }
+// TEST_P(FindNeighborsRandom, MortonGaussian32)  { check<MortonKey<uint32_t>, RandomGaussianCoordinates>(); }
+// TEST_P(FindNeighborsRandom, MortonGaussian64)  { check<MortonKey<uint64_t>, RandomGaussianCoordinates>(); }
+TEST_P(FindNeighborsTRandom, HilbertUniform32) { check<HilbertKey<uint32_t>, RandomCoordinates>(); }
+// TEST_P(FindNeighborsRandom, HilbertUniform64)  { check<HilbertKey<uint64_t>, RandomCoordinates>(); }
+TEST_P(FindNeighborsTRandom, HilbertGaussian32) { check<HilbertKey<uint32_t>, RandomGaussianCoordinates>(); }
+TEST_P(FindNeighborsTRandom, HilbertGaussian64) { check<HilbertKey<uint64_t>, RandomGaussianCoordinates>(); }
+
+static std::array<double, 2> radii{0.124, 0.0624};
+static std::array<int, 1> nParticles{2500};
+static std::array<std::array<double, 6>, 2> boxes{{{0., 1., 0., 1., 0., 1.}, {-1.2, 0.23, -0.213, 3.213, -5.1, 1.23}}};
+static std::array<cstone::BoundaryType, 2> pbcUsage{BoundaryType::open, BoundaryType::periodic};
+
+INSTANTIATE_TEST_SUITE_P(RandomNeighbors,
+                         FindNeighborsTRandom,
+                         testing::Combine(testing::ValuesIn(radii),
+                                          testing::ValuesIn(nParticles),
+                                          testing::ValuesIn(boxes),
+                                          testing::ValuesIn(pbcUsage)));
+
+INSTANTIATE_TEST_SUITE_P(RandomNeighborsLargeRadius,
+                         FindNeighborsTRandom,
+                         testing::Combine(testing::Values(3.0),
+                                          testing::Values(500),
+                                          testing::ValuesIn(boxes),
+                                          testing::ValuesIn(pbcUsage)));
