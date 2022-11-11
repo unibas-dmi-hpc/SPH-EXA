@@ -218,7 +218,7 @@ void markMacPerBox(const Vec3<T>& targetCenter,
         return violatesMac;
     };
 
-    singleTraversal(octree, checkAndMarkMac, [](TreeNodeIndex) {});
+    singleTraversal(octree.childOffsets().data(), checkAndMarkMac, [](TreeNodeIndex) {});
 }
 
 /*! @brief Mark each node in an octree that fails the MAC paired with any node from a given focus SFC range

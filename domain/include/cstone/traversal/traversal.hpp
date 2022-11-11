@@ -65,43 +65,6 @@ namespace cstone
 //     return;
 // }
 
-template<template<class> class TreeType, class KeyType, class C, class A>
-void singleTraversal(const TreeType<KeyType>& octree, C&& continuationCriterion, A&& endpointAction)
-{
-    if (!continuationCriterion(0) || octree.isLeaf(0))
-    {
-        // root node is already the endpoint
-        endpointAction(0);
-        return;
-    }
-
-    TreeNodeIndex stack[128];
-    stack[0] = 0;
-
-    TreeNodeIndex stackPos = 1;
-    TreeNodeIndex node     = 0; // start at the root
-
-    do
-    {
-        for (int octant = 0; octant < 8; ++octant)
-        {
-            TreeNodeIndex child = octree.child(node, octant);
-            bool descend        = continuationCriterion(child);
-            if (descend)
-            {
-                if (octree.isLeaf(child)) { endpointAction(octree.cstoneIndex(child)); }
-                else
-                {
-                    assert(stackPos < 128);
-                    stack[stackPos++] = child; // push
-                }
-            }
-        }
-        node = stack[--stackPos];
-
-    } while (node != 0); // the root can only be obtained when the tree has been fully traversed
-}
-
 template<class C, class A>
 HOST_DEVICE_FUN void singleTraversal(const TreeNodeIndex* childOffsets, C&& continuationCriterion, A&& endpointAction)
 {

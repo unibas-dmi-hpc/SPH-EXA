@@ -147,13 +147,13 @@ std::vector<int> findPeersMacStt(int myRank,
             return !minVecMacMutual(targetCenter, targetSize, sourceCenter, sourceSize, box, invThetaEff);
         };
 
-        auto markLeafIdx = [&peers, &assignment](TreeNodeIndex idx)
+        auto markLeafIdx = [toLeaf = octree.toLeafOrder(), &peers, &assignment](TreeNodeIndex idx)
         {
-            int peerRank    = assignment.findRank(idx);
+            int peerRank    = assignment.findRank(toLeaf[idx]);
             peers[peerRank] = 1;
         };
 
-        singleTraversal(octree, violatesMac, markLeafIdx);
+        singleTraversal(octree.childOffsets().data(), violatesMac, markLeafIdx);
     }
 
     std::vector<int> ret;

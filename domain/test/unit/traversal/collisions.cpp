@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Binary radix tree traversal tests with explicit references
+ * @brief Octree traversal tests with explicit references
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -54,9 +54,10 @@ findCollidingIndices(IBox target, gsl::span<const KeyType> leaves, KeyType exclS
     octree.update(leaves.data(), nNodes(leaves));
 
     std::vector<TreeNodeIndex> collisions;
-    auto storeCollisions = [&collisions](TreeNodeIndex i) { collisions.push_back(i); };
+    auto storeCollisions = [toLeaf = octree.toLeafOrder().data(), &collisions](TreeNodeIndex i)
+    { collisions.push_back(toLeaf[i]); };
 
-    findCollisions(octree, storeCollisions, target, exclStart, exclEnd);
+    findCollisions(octree.nodeKeys().data(), octree.childOffsets().data(), storeCollisions, target, exclStart, exclEnd);
     std::sort(collisions.begin(), collisions.end());
 
     return collisions;
@@ -107,7 +108,7 @@ static void pbcCollision()
     EXPECT_EQ(probe, refCollided);
 }
 
-TEST(BinaryTreeTraversal, pbcCollision)
+TEST(OctreeTraversal, pbcCollision)
 {
     pbcCollision<unsigned>();
     pbcCollision<uint64_t>();
@@ -141,7 +142,7 @@ static void pbcCollisionWithExclusions()
     EXPECT_EQ(probe, refCollided);
 }
 
-TEST(BinaryTreeTraversal, pbcCollisionWithExclusions)
+TEST(OctreeTraversal, pbcCollisionWithExclusions)
 {
     pbcCollisionWithExclusions<unsigned>();
     pbcCollisionWithExclusions<uint64_t>();
@@ -176,7 +177,7 @@ static void anisotropicHaloBox()
     EXPECT_EQ(probe, refCollided);
 }
 
-TEST(BinaryTreeTraversal, anisotropicHalo)
+TEST(OctreeTraversal, anisotropicHalo)
 {
     anisotropicHaloBox<unsigned>();
     anisotropicHaloBox<uint64_t>();

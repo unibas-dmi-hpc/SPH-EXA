@@ -36,20 +36,24 @@
 namespace cstone
 {
 
-template<class TreeType, class KeyType, class F>
-void findCollisions(
-    const TreeType& octree, F&& endpointAction, const IBox& target, KeyType excludeStart, KeyType excludeEnd)
+template<class KeyType, class F>
+void findCollisions(const KeyType* nodePrefixes,
+                    const TreeNodeIndex* childOffsets,
+                    F&& endpointAction,
+                    const IBox& target,
+                    KeyType excludeStart,
+                    KeyType excludeEnd)
 {
-    auto overlaps = [excludeStart, excludeEnd, &octree, &target](TreeNodeIndex idx)
+    auto overlaps = [excludeStart, excludeEnd, nodePrefixes, &target](TreeNodeIndex idx)
     {
-        KeyType nodeKey = octree.codeStart(idx);
-        int level       = octree.level(idx);
+        KeyType nodeKey = decodePlaceholderBit(nodePrefixes[idx]);
+        int level       = decodePrefixLength(nodePrefixes[idx]) / 3;
         IBox sourceBox  = sfcIBox(sfcKey(nodeKey), level);
         return !containedIn(nodeKey, nodeKey + nodeRange<KeyType>(level), excludeStart, excludeEnd) &&
                overlap<KeyType>(sourceBox, target);
     };
 
-    singleTraversal(octree, overlaps, endpointAction);
+    singleTraversal(childOffsets, overlaps, endpointAction);
 }
 
 /*! @brief mark halo nodes with flags
@@ -79,7 +83,8 @@ void findHalos(const TreeType<KeyType>& octree,
     KeyType lowestCode  = octree.codeStart(octree.toInternal(firstNode));
     KeyType highestCode = octree.codeEnd(octree.toInternal(lastNode - 1));
 
-    auto markCollisions = [flags = collisionFlags](TreeNodeIndex i) { flags[i] = 1; };
+    const TreeNodeIndex* toLeafOrder = octree.toLeafOrder().data();
+    auto markCollisions = [collisionFlags, toLeafOrder](TreeNodeIndex i) { collisionFlags[toLeafOrder[i]] = 1; };
 
 #pragma omp parallel for
     for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
@@ -94,7 +99,8 @@ void findHalos(const TreeType<KeyType>& octree,
         // if the halo box is fully inside the assigned SFC range, we skip collision detection
         if (containedIn(lowestCode, highestCode, haloBox)) { continue; }
 
-        findCollisions(octree, markCollisions, haloBox, lowestCode, highestCode);
+        findCollisions(octree.nodeKeys().data(), octree.childOffsets().data(), markCollisions, haloBox, lowestCode,
+                       highestCode);
     }
 }
 

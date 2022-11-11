@@ -70,10 +70,10 @@ void surfaceDetection()
     std::vector<IBox> surfaceBoxes;
     auto saveBox = [numInternalNodes = fullTree.numInternalNodes(), &surfaceBoxes, &treeBoxes](TreeNodeIndex idx)
     {
-        surfaceBoxes.push_back(treeBoxes[idx + numInternalNodes]);
+        surfaceBoxes.push_back(treeBoxes[idx]);
     };
 
-    singleTraversal(fullTree, isSurface, saveBox);
+    singleTraversal(fullTree.childOffsets().data(), isSurface, saveBox);
 
     std::sort(begin(surfaceBoxes), end(surfaceBoxes));
 
