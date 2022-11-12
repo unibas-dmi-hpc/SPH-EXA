@@ -74,7 +74,7 @@ class NuclearProp final : public Propagator<DomainType, DataType>
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
     using DependentFields =
-        FieldList<"cv", "rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
+        FieldList<"cv", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc", "rho">;
 
     //! @brief the list of dependent nuclear fields, these may be used as scratch space during domain sync
     using NuclearDependentFields = FieldList<"u", "c", "p", "cv", "dpdT">;
@@ -102,16 +102,16 @@ class NuclearProp final : public Propagator<DomainType, DataType>
                                       "std-net14-helm",
                                       "std-net86-helm",
                                       "std-net87-helm",
-                                      "std-net14-no-nuclear",
-                                      "std-net86-no-nuclear",
-                                      "std-net87-no-nuclear",
                                       "std-net14-helm-no-nuclear",
                                       "std-net86-helm-no-nuclear",
-                                      "std-net87-helm-no-nuclear"};
+                                      "std-net87-helm-no-nuclear",
+                                      "std-no-nuclear"};
 
     //! @brief extract the number of species to use from the propagator choice
     static int getNumSpecies(const std::string& choice)
     {
+        if (choice == "std-no-nuclear") { return 14; }
+
         std::string ext;
         std::copy_if(choice.begin(), choice.end(), std::back_inserter(ext), [](char x) { return std::isdigit(x); });
         return std::atoi(ext.c_str());
@@ -240,13 +240,26 @@ public:
         sync(domain, simData);
         timer.step("domain::sync");
 
-        hydro_step_before(domain, simData);
+        hydroBeforeEOS(domain, simData);
 
-        nuclear_sync_before(domain, simData);
-        nuclear_step(domain, simData);
-        nuclear_sync_after(domain, simData);
+        if (useHelm || useNuclear) { synchronizeNuclearPartition(domain, simData); }
 
-        hydro_step_after(domain, simData);
+        if (useHelm)
+        {
+            nuclearSyncBeforeEOS(domain, simData);
+            helmholtzEOS(domain, simData);
+            nuclearSyncAfterEOS(domain, simData);
+        }
+        else { idealGasEOS(domain, simData); }
+
+        hydroAfterEOS(domain, simData);
+
+        if (useNuclear)
+        {
+            syncBeforeNuclearReactions(domain, simData);
+            nuclearReactions(domain, simData);
+            syncAfterNuclearReactions(domain, simData);
+        }
     }
 
     void prepareOutput(DataType& simData, size_t first, size_t last, const cstone::Box<T>& box) override
@@ -270,7 +283,7 @@ public:
     }
 
 private:
-    void hydro_step_before(DomainType& domain, DataType& simData)
+    void hydroBeforeEOS(DomainType& domain, DataType& simData)
     {
         auto& d = simData.hydro;
         auto& n = simData.nuclearData;
@@ -296,63 +309,54 @@ private:
         timer.step("Density");
     }
 
-    void nuclear_sync_before(DomainType& domain, DataType& simData)
+    void synchronizeNuclearPartition(DomainType& domain, DataType& simData)
     {
-        auto& d = simData.hydro;
-        auto& n = simData.nuclearData;
-
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
         sphnnet::computeNuclearPartition(first, last, simData);
         timer.step("sphnnet::computeNuclearPartition");
+    }
 
+    void nuclearSyncBeforeEOS(DomainType& domain, DataType& simData)
+    {
         sphnnet::syncHydroToNuclear(simData, {"rho", "temp" /*, TODO */});
         timer.step("sphnnet::syncHydroToNuclear");
     }
 
-    void nuclear_step(DomainType& domain, DataType& simData)
+    void helmholtzEOS(DomainType& domain, DataType& simData)
     {
-        auto&  d                   = simData.hydro;
         auto&  n                   = simData.nuclearData;
         size_t n_nuclear_particles = n.Y[0].size();
 
         sphexa::transferToDevice(n, 0, n_nuclear_particles, {/*"rho", "temp"*/});
         timer.step("transferToDevice");
 
-        if (useNuclear)
-        {
-            sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt_m1, *reactions,
-                                             *construct_rates_BE, *eos,
-                                             /*considering expansion:*/ false);
-            timer.step("sphnnet::computeNuclearReactions");
-        }
-
-        if (useHelm)
-        {
-            sphnnet::computeHelmEOS(n, 0, n_nuclear_particles, Z);
-            timer.step("sphnnet::computeHelmEOS");
-        }
+        sphnnet::computeHelmEOS(n, 0, n_nuclear_particles, Z);
+        timer.step("sphnnet::computeHelmEOS");
     }
 
-    void nuclear_sync_after(DomainType& domain, DataType& simData)
-    {
-        sphnnet::syncNuclearToHydro(simData, {"temp" /*, TODO */});
-        if (useHelm) { sphnnet::syncNuclearToHydro(simData, {"c", "p", "cv" /*, "u", "dpdT", TODO */}); }
-        timer.step("sphnnet::syncNuclearToHydro");
-    }
-
-    void hydro_step_after(DomainType& domain, DataType& simData)
+    void idealGasEOS(DomainType& domain, DataType& simData)
     {
         auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        if (!useHelm)
-        {
-            computeEOS_HydroStd(first, last, d);
-            timer.step("EquationOfState");
-        }
+        computeEOS_HydroStd(first, last, d);
+        timer.step("EquationOfState");
+    }
+
+    void nuclearSyncAfterEOS(DomainType& domain, DataType& simData)
+    {
+        sphnnet::syncNuclearToHydro(simData, {"c", "p", "cv" /*, "u", "dpdT", TODO */});
+        timer.step("sphnnet::syncNuclearToHydro");
+    }
+
+    void hydroAfterEOS(DomainType& domain, DataType& simData)
+    {
+        auto&  d     = simData.hydro;
+        size_t first = domain.startIndex();
+        size_t last  = domain.endIndex();
 
         domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c", "temp">(d), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
@@ -383,6 +387,33 @@ private:
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
+    }
+
+    void syncBeforeNuclearReactions(DomainType& domain, DataType& simData)
+    {
+        sphnnet::syncHydroToNuclear(simData, {"rho", "temp" /*, TODO */});
+        timer.step("sphnnet::syncHydroToNuclear");
+    }
+
+    void nuclearReactions(DomainType& domain, DataType& simData)
+    {
+        auto&  d                   = simData.hydro;
+        auto&  n                   = simData.nuclearData;
+        size_t n_nuclear_particles = n.Y[0].size();
+
+        sphexa::transferToDevice(n, 0, n_nuclear_particles, {/*"rho", "temp"*/});
+        timer.step("transferToDevice");
+
+        sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt, *reactions, *construct_rates_BE,
+                                         *eos,
+                                         /*considering expansion:*/ false);
+        timer.step("sphnnet::computeNuclearReactions");
+    }
+
+    void syncAfterNuclearReactions(DomainType& domain, DataType& simData)
+    {
+        sphnnet::syncNuclearToHydro(simData, {"temp" /*, TODO */});
+        timer.step("sphnnet::syncNuclearToHydro");
     }
 };
 
