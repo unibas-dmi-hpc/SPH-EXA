@@ -74,7 +74,7 @@ class NuclearProp final : public Propagator<DomainType, DataType>
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
     using DependentFields =
-        FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
+        FieldList<"cv", "rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
 
     //! @brief the list of dependent nuclear fields, these may be used as scratch space during domain sync
     using NuclearDependentFields = FieldList<"u", "c", "p", "cv", "dpdT">;
@@ -338,7 +338,7 @@ private:
     void nuclear_sync_after(DomainType& domain, DataType& simData)
     {
         sphnnet::syncNuclearToHydro(simData, {"temp" /*, TODO */});
-        if (useHelm) { sphnnet::syncNuclearToHydro(simData, {"c", "p" /*, "cv", "u", "dpdT", TODO */}); }
+        if (useHelm) { sphnnet::syncNuclearToHydro(simData, {"c", "p", "cv" /*, "u", "dpdT", TODO */}); }
         timer.step("sphnnet::syncNuclearToHydro");
     }
 
@@ -376,7 +376,8 @@ private:
 
         computeTimestep(d);
         timer.step("Timestep");
-        computePositions(first, last, d, domain.box());
+        if (useHelm) { computePositionsFromCv(first, last, d, domain.box()); }
+        else { computePositions(first, last, d, domain.box()); }
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
