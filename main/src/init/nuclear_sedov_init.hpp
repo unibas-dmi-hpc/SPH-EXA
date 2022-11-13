@@ -149,6 +149,9 @@ public:
         // initialize dt
         std::fill(n.dt.begin(), n.dt.end(), nnet::constants::initialDt);
 
+        // intialize m for nuclear energy
+        sphnnet::syncHydroToNuclear(simData, {"m"});
+
         return globalBox;
     }
 

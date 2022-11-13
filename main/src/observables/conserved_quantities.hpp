@@ -55,6 +55,8 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     const auto* vz   = d.vz.data();
     const auto* m    = d.m.data();
     const auto* temp = d.temp.data();
+    const auto* u    = d.u.data();
+    const auto* cv   = d.cv.data();
 
     double eKin = 0.0;
     double eInt = 0.0;
@@ -64,6 +66,8 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 
     double sharedCv = sph::idealGasCv(d.muiConst);
     bool   haveMui  = !d.mui.empty();
+    bool   haveU    = !d.u.empty();
+    bool   haveCv   = !d.cv.empty();
 
 #pragma omp declare reduction(+ : util::array <double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
 
@@ -74,9 +78,9 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
         util::array<double, 3> V{vx[i], vy[i], vz[i]};
         auto                   mi = m[i];
 
-        auto cv = haveMui ? sph::idealGasCv(d.mui[i]) : sharedCv;
+        auto cvi = haveCv ? cv[i] : (haveMui ? sph::idealGasCv(d.mui[i]) : sharedCv);
         eKin += mi * norm2(V);
-        eInt += cv * temp[i] * mi;
+        eInt += haveU ? u[i] : cvi * temp[i] * mi;
         linmom += mi * V;
         angmom += mi * cross(X, V);
     }

@@ -76,7 +76,7 @@ HOST_DEVICE_FUN auto positionUpdate(double dt, double dt_m1, cstone::Vec3<T> X, 
 }
 
 template<class T, class Dataset>
-void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box, bool use_cv)
+void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     double dt    = d.minDt;
     double dt_m1 = d.minDt_m1;
@@ -88,6 +88,7 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
     bool anyFBC = fbcX || fbcY || fbcZ;
 
     bool haveMui = !d.mui.empty();
+    bool haveCv  = !d.cv.empty();
     T    constCv = idealGasCv(d.muiConst);
 
 #pragma omp parallel for schedule(static)
@@ -113,7 +114,7 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
         util::tie(d.x_m1[i], d.y_m1[i], d.z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
         util::tie(d.vx[i], d.vy[i], d.vz[i])       = util::tie(V[0], V[1], V[2]);
 
-        T cv = use_cv ? d.cv[i] : (haveMui ? idealGasCv(d.mui[i]) : constCv);
+        T cv = haveCv ? d.cv[i] : (haveMui ? idealGasCv(d.mui[i]) : constCv);
         d.temp[i] += energyUpdate(dt, dt_m1, d.du[i], d.du_m1[i]) / cv;
         d.du_m1[i] = d.du[i];
     }
@@ -124,37 +125,19 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        T               constCv = d.mui.empty() ? idealGasCv(d.muiConst) : -1.0;
-        auto*           d_mui   = d.mui.empty() ? nullptr : rawPtr(d.devData.mui);
-        decltype(d_mui) d_cv    = nullptr;
-
-        computePositionsGpu(startIndex, endIndex, d.minDt, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y),
-                            rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
-                            rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1),
-                            rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.temp),
-                            rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h), d_mui, constCv, d_cv,
-                            false, box);
-    }
-    else { computePositionsHost(startIndex, endIndex, d, box, false); }
-}
-
-template<class T, class Dataset>
-void computePositionsFromCv(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
-{
-    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
-    {
         T     constCv = d.mui.empty() ? idealGasCv(d.muiConst) : -1.0;
         auto* d_mui   = d.mui.empty() ? nullptr : rawPtr(d.devData.mui);
-        auto* d_cv    = rawPtr(d.devData.cv);
+        auto* d_cv    = d.cv.empty() ? nullptr : rawPtr(d.devData.cv);
+        bool  use_cv  = !d.cv.empty();
 
         computePositionsGpu(startIndex, endIndex, d.minDt, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y),
                             rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
                             rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1),
                             rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.temp),
                             rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h), d_mui, constCv, d_cv,
-                            true, box);
+                            use_cv, box);
     }
-    else { computePositionsHost(startIndex, endIndex, d, box, true); }
+    else { computePositionsHost(startIndex, endIndex, d, box); }
 }
 
 } // namespace sph
