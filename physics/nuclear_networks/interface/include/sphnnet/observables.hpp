@@ -36,9 +36,6 @@
 
 #include "cstone/fields/data_util.hpp"
 
-#include "nnet_util/eigen.hpp"
-#include "nnet_util/algorithm.hpp"
-
 // TODO header for nuclear energy calculation goes here. Equivalent to conserved_gpu.h
 
 #include "mpi/mpi_wrapper.hpp"
@@ -70,11 +67,12 @@ Float totalNuclearEnergy(Data const& n, const Float* BE, MPI_Comm comm)
 #pragma omp parallel for firstprivate(Y) schedule(static) reduction(+ : localEnergy)
     for (size_t i = 0; i < n_particles; ++i)
     {
+        double YDotBE = 0;
         // copy to local vector
         for (int j = 0; j < dimension; ++j)
-            Y[j] = n.Y[j][i];
+            YDotBE += n.Y[j][i] * BE[j];
 
-        localEnergy += -eigen::dot(Y.data(), Y.data() + dimension, BE) * n.m[i];
+        localEnergy += -YDotBE * n.m[i];
     }
 
     double totalEnergy = localEnergy;
