@@ -36,9 +36,6 @@
 
 #include "cstone/fields/data_util.hpp"
 
-#include "nnet_util/eigen.hpp"
-#include "nnet_util/algorithm.hpp"
-
 // TODO header for nuclear energy calculation goes here. Equivalent to conserved_gpu.h
 
 #include "mpi/mpi_wrapper.hpp"
