@@ -38,6 +38,21 @@
 namespace sphexa
 {
 
+/*! @brief compute conserved energies and momenta on the GPU
+ *
+ * @param[in] cv         heat capacity
+ * @param[in] x          x-coordinates
+ * @param[in] y          y-coordinates
+ * @param[in] z          z-coordinates
+ * @param[in] vx         x-velocities
+ * @param[in] vy         v-velocities
+ * @param[in] vz         z-velocities
+ * @param[in] temp       temperatures
+ * @param[in] m          masses
+ * @param[in] first      first particle index to include in the sum
+ * @param[in] last       last particle index to include in the sum
+ * @return               A tuple with the total kinetic energy, internal energy, linear momentum and angular momentum
+ */
 template<class Tc, class Tv, class Tt, class Tm>
 extern std::tuple<double, double, cstone::Vec3<double>, cstone::Vec3<double>>
 conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz,

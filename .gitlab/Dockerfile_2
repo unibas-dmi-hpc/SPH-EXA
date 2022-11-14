@@ -110,6 +110,7 @@ RUN echo \
     && echo "## cmake --build + --install :" \
     && cmake --build build -j `grep processor /proc/cpuinfo | wc -l` \
     && cmake --install build \
+    && cp SPH-EXA.git/.gitlab/rfm.py /usr/local/games/rfm.py \
     && ls /usr/local/sbin
 #    -DSPH_EXA_WITH_HIP=OFF \
 #     -DCMAKE_CXX_FLAGS_DEBUG="-g -w" \
