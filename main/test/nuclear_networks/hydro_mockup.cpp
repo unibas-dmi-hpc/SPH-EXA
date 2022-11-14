@@ -137,7 +137,7 @@ void step(int rank, size_t firstIndex, size_t lastIndex, sphexa::SimulationData<
     /* !! needed for now !! */
     sphexa::transferToHost(d.nuclearData, 0, n_nuclear_particles, {"Y"});
     // print total nuclear energy
-    Float total_nuclear_energy  = sphnnet::totalNuclearEnergy(d.nuclearData, BE, MPI_COMM_WORLD);
+    Float total_nuclear_energy = sphnnet::totalNuclearEnergy(0, n_nuclear_particles, d.nuclearData, BE, MPI_COMM_WORLD);
     Float total_internal_energy = totalInternalEnergy(d.nuclearData);
     if (rank == 0)
         std::cout << "etot=" << total_nuclear_energy + total_internal_energy << " (nuclear=" << total_nuclear_energy

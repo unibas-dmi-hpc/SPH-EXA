@@ -138,7 +138,7 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
 #ifdef USE_NUCLEAR_NETWORKS
     if (testCase == "sedov-nuclear" || testCase == "sedov-nuclear-attached")
     {
-        return std::make_unique<NuclearEnergy<Dataset>>(constantsFile);
+        return std::make_unique<NuclearEnergy<Dataset>>(constantsFile, testCase == "sedov-nuclear-attached");
     }
 #endif
 

@@ -54,10 +54,9 @@ namespace sphnnet
  * Returns the total nuclear binding energy (negative).
  */
 template<class Data, typename Float>
-Float totalNuclearEnergy(Data const& n, const Float* BE, MPI_Comm comm)
+Float totalNuclearEnergy(size_t firstIndex, size_t lastIndex, Data const& n, const Float* BE, MPI_Comm comm)
 {
-    const size_t n_particles = n.Y[0].size();
-    const int    dimension   = n.numSpecies;
+    const int dimension = n.numSpecies;
 
     if constexpr (cstone::HaveGpu<typename Data::AcceleratorType>{})
     {
@@ -68,7 +67,7 @@ Float totalNuclearEnergy(Data const& n, const Float* BE, MPI_Comm comm)
 
     double localEnergy = 0;
 #pragma omp parallel for firstprivate(Y) schedule(static) reduction(+ : localEnergy)
-    for (size_t i = 0; i < n_particles; ++i)
+    for (size_t i = firstIndex; i < lastIndex; ++i)
     {
         // copy to local vector
         for (int j = 0; j < dimension; ++j)

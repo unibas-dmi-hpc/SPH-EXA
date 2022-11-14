@@ -46,17 +46,20 @@ class NuclearEnergy : public IObservables<Dataset>
     std::ofstream& constantsFile;
     using T = typename Dataset::RealType;
 
+    bool useAttached;
+
 public:
-    NuclearEnergy(std::ofstream& constPath)
+    NuclearEnergy(std::ofstream& constPath, bool attached)
         : constantsFile(constPath)
+        , useAttached(attached)
     {
     }
 
     void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
-        auto& d     = simData.hydro;
-        auto& n     = simData.nuclearData;
-        using Float = typename std::remove_reference<decltype(n.Y[0][0])>::type;
+        auto&  d                   = simData.hydro;
+        auto&  n                   = simData.nuclearData;
+        size_t n_nuclear_particles = n.Y[0].size();
 
         int rank;
         MPI_Comm_rank(simData.comm, &rank);
@@ -72,7 +75,8 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
-        n.enuclear = sphnnet::totalNuclearEnergy(n, BE, simData.comm);
+        if (!useAttached) { n.enuclear = sphnnet::totalNuclearEnergy(0, n_nuclear_particles, n, BE, simData.comm); }
+        else { n.enuclear = sphnnet::totalNuclearEnergy(firstIndex, lastIndex, n, BE, simData.comm); }
         d.etot += n.enuclear;
 
         if (rank == 0)
