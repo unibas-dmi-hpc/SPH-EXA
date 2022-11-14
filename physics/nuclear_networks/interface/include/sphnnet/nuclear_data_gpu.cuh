@@ -123,7 +123,7 @@ public:
     //! @brief resize the number of particles of detached fields
     void resize(size_t size)
     {
-        double growthRate = 1;
+        double growthRate = 1.01;
         resizeFields(detachedFields, size, growthRate);
     }
 

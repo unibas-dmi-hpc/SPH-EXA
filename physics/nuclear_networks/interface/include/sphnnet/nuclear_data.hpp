@@ -155,7 +155,7 @@ public:
     {
         devData.resize(size);
 
-        double growthRate = 1;
+        double growthRate = 1.01;
         resizeFields(detachedFields, size, growthRate);
     }
 

@@ -28,6 +28,8 @@
  * @author Joseph Touzet <joseph.touzet@ens-paris-saclay.fr>
  */
 
+#include "cstone/fields/enumerate.hpp"
+
 #include "sphnnet/nuclear_net.hpp"
 
 #include "nnet/parameterization/net87/net87.hpp"
@@ -85,6 +87,8 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     bool useHelm;
     //! @brief selector for nuclear reactions, only for debugging
     bool useNuclear;
+    //! @brief selector for attached vs detached data
+    bool useAttached;
 
     //! @brief nuclear network reaction list
     nnet::ReactionList const* reactions;
@@ -105,7 +109,13 @@ class NuclearProp final : public Propagator<DomainType, DataType>
                                       "std-net14-helm-no-nuclear",
                                       "std-net86-helm-no-nuclear",
                                       "std-net87-helm-no-nuclear",
-                                      "std-no-nuclear"};
+                                      "std-no-nuclear",
+                                      "std-net14-attached",
+                                      "std-net86-attached",
+                                      "std-net87-attached",
+                                      "std-net14-helm-attached",
+                                      "std-net86-helm-attached",
+                                      "std-net87-helm-attached"};
 
     //! @brief extract the number of species to use from the propagator choice
     static int getNumSpecies(const std::string& choice)
@@ -123,6 +133,7 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     }
     static bool hasNuclear(const std::string& choice) { return !choiceContains(choice, "no-nuclear"); }
     static bool hasHelm(const std::string& choice) { return choiceContains(choice, "helm"); }
+    static bool hasAttached(const std::string& choice) { return choiceContains(choice, "attached"); }
 
 public:
     static bool isNuclear(const std::string& choice)
@@ -134,6 +145,7 @@ public:
         : numSpecies(getNumSpecies(choice))
         , useHelm(hasHelm(choice))
         , useNuclear(hasNuclear(choice))
+        , useAttached(hasAttached(choice))
         , Base(ngmax, ng0, output, rank)
     {
         Z.resize(numSpecies);
@@ -217,22 +229,78 @@ public:
         auto& d = simData.hydro;
         auto& n = simData.nuclearData;
 
-        if (d.g != 0.0)
+        if (!useAttached)
         {
-            domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                            std::tuple_cat(std::tie(get<"node_id">(n), get<"particle_id">(n)), get<ConservedFields>(d)),
+            if (d.g != 0.0)
+            {
+                domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
+                                std::tuple_cat(getNuclearAttachedFieldsDetachedData(n), get<ConservedFields>(d)),
+                                std::tuple_cat(get<DependentFields>(d),
+                                               std::tie(get<"nuclear_node_id">(n), get<"nuclear_particle_id">(n)),
+                                               get<NuclearDependentFields>(n)));
+            }
+            else
+            {
+                domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
+                            std::tuple_cat(getNuclearAttachedFieldsDetachedData(n), std::tie(get<"m">(d)),
+                                           get<ConservedFields>(d)),
                             std::tuple_cat(get<DependentFields>(d),
                                            std::tie(get<"nuclear_node_id">(n), get<"nuclear_particle_id">(n)),
                                            get<NuclearDependentFields>(n)));
+            }
+        }
+        else if (n.numSpecies == 14)
+        {
+            if (d.g != 0.0)
+            {
+                domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
+                                std::tuple_cat(getNuclearAttachedFieldsAttachedData<14>(n), get<ConservedFields>(d)),
+                                std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
+            }
+            else
+            {
+                domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
+                            std::tuple_cat(getNuclearAttachedFieldsAttachedData<14>(n), std::tie(get<"m">(d)),
+                                           get<ConservedFields>(d)),
+                            std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
+            }
+        }
+        else if (n.numSpecies == 86)
+        {
+            if (d.g != 0.0)
+            {
+                domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
+                                std::tuple_cat(getNuclearAttachedFieldsAttachedData<86>(n), get<ConservedFields>(d)),
+                                std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
+            }
+            else
+            {
+                domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
+                            std::tuple_cat(getNuclearAttachedFieldsAttachedData<86>(n), std::tie(get<"m">(d)),
+                                           get<ConservedFields>(d)),
+                            std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
+            }
+        }
+        else if (n.numSpecies == 87)
+        {
+            if (d.g != 0.0)
+            {
+                domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
+                                std::tuple_cat(getNuclearAttachedFieldsAttachedData<87>(n), get<ConservedFields>(d)),
+                                std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
+            }
+            else
+            {
+                domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
+                            std::tuple_cat(getNuclearAttachedFieldsAttachedData<87>(n), std::tie(get<"m">(d)),
+                                           get<ConservedFields>(d)),
+                            std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
+            }
         }
         else
         {
-            domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                        std::tuple_cat(std::tie(get<"node_id">(n), get<"particle_id">(n)), std::tie(get<"m">(d)),
-                                       get<ConservedFields>(d)),
-                        std::tuple_cat(get<DependentFields>(d),
-                                       std::tie(get<"nuclear_node_id">(n), get<"nuclear_particle_id">(n)),
-                                       get<NuclearDependentFields>(n)));
+            throw std::runtime_error("not able to synchronize attached data for " + std::to_string(numSpecies) +
+                                     " nuclear species !");
         }
     }
 
@@ -289,6 +357,24 @@ public:
     }
 
 private:
+    auto getNuclearAttachedFieldsDetachedData(DataType::NuclearData& n)
+    {
+        return get<FieldList<"node_id", "particle_id">>(n);
+    }
+    template<int numSpecies>
+    auto getNuclearAttachedFieldsAttachedData(DataType::NuclearData& n)
+    {
+        if (numSpecies != 14)
+        {
+            throw std::runtime_error("not able to synchronize attached data for " + std::to_string(numSpecies) +
+                                     " nuclear species !");
+        }
+        return get<FieldList<"m", "dt", "Y0", "Y1", "Y2", "Y3", "Y4", "Y5", "Y6", "Y7", "Y8", "Y9", "Y10", "Y11", "Y12",
+                             "Y13">>(n);
+
+        // return get<enumerateFieldNames<"Y", numSpecies>()>(n);
+    }
+
     void hydroBeforeEOS(DomainType& domain, DataType& simData)
     {
         auto& d = simData.hydro;
@@ -297,6 +383,7 @@ private:
         size_t domain_size = domain.nParticlesWithHalos();
         d.resize(domain_size);
         n.resizeAttached(domain_size);
+        if (useAttached) { n.resize(domain_size); }
 
         resizeNeighbors(d, domain.nParticles() * ngmax_);
         size_t first = domain.startIndex();
@@ -315,20 +402,36 @@ private:
 
     void synchronizeNuclearPartition(DomainType& domain, DataType& simData)
     {
-        size_t first = domain.startIndex();
-        size_t last  = domain.endIndex();
+        if (!useAttached)
+        {
+            size_t first = domain.startIndex();
+            size_t last  = domain.endIndex();
 
-        sphnnet::computeNuclearPartition(first, last, simData);
-        timer.step("sphnnet::computeNuclearPartition");
+            sphnnet::computeNuclearPartition(first, last, simData);
+            timer.step("sphnnet::computeNuclearPartition");
+        }
     }
 
     void nuclearSyncBeforeEOS(DomainType& domain, DataType& simData)
     {
+        auto&  d                   = simData.hydro;
         auto&  n                   = simData.nuclearData;
         size_t n_nuclear_particles = n.Y[0].size();
 
-        sphnnet::syncHydroToNuclear(simData, {"rho", "temp"});
-        timer.step("sphnnet::syncHydroToNuclear");
+        if (!useAttached)
+        {
+            sphnnet::syncHydroToNuclear(simData, {"rho", "temp"});
+            timer.step("sphnnet::syncHydroToNuclear");
+        }
+        else
+        {
+            size_t first = domain.startIndex();
+            size_t last  = domain.endIndex();
+
+            std::copy(d.rho.begin() + first, d.rho.begin() + last, n.rho.begin() + first);
+            std::copy(d.temp.begin() + first, d.temp.begin() + last, n.temp.begin() + first);
+            timer.step("std::copy");
+        }
 
         sphexa::transferToDevice(n, 0, n_nuclear_particles, {"rho", "temp"});
         timer.step("transferToDevice");
@@ -339,7 +442,14 @@ private:
         auto&  n                   = simData.nuclearData;
         size_t n_nuclear_particles = n.Y[0].size();
 
-        sphnnet::computeHelmEOS(n, 0, n_nuclear_particles, Z);
+        if (!useAttached) { sphnnet::computeHelmEOS(n, 0, n_nuclear_particles, Z); }
+        else
+        {
+            size_t first = domain.startIndex();
+            size_t last  = domain.endIndex();
+
+            sphnnet::computeHelmEOS(n, first, last, Z);
+        }
         timer.step("sphnnet::computeHelmEOS");
     }
 
@@ -355,14 +465,29 @@ private:
 
     void nuclearSyncAfterEOS(DomainType& domain, DataType& simData)
     {
+        auto&  d                   = simData.hydro;
         auto&  n                   = simData.nuclearData;
         size_t n_nuclear_particles = n.Y[0].size();
 
         sphexa::transferToHost(n, 0, n_nuclear_particles, {"c", "p", "cv", "u" /*, "dpdT", TODO */});
         timer.step("transferToHost");
 
-        sphnnet::syncNuclearToHydro(simData, {"c", "p", "cv", "u" /*, "dpdT", TODO */});
-        timer.step("sphnnet::syncNuclearToHydro");
+        if (!useAttached)
+        {
+            sphnnet::syncNuclearToHydro(simData, {"c", "p", "cv", "u" /*, "dpdT", TODO */});
+            timer.step("sphnnet::syncNuclearToHydro");
+        }
+        else
+        {
+            size_t first = domain.startIndex();
+            size_t last  = domain.endIndex();
+
+            std::copy(n.c.begin() + first, n.c.begin() + last, d.c.begin() + first);
+            std::copy(n.p.begin() + first, n.p.begin() + last, d.p.begin() + first);
+            std::copy(n.cv.begin() + first, n.cv.begin() + last, d.cv.begin() + first);
+            std::copy(n.u.begin() + first, n.u.begin() + last, d.u.begin() + first);
+            timer.step("std::copy");
+        }
     }
 
     void hydroAfterEOS(DomainType& domain, DataType& simData)
@@ -403,12 +528,25 @@ private:
 
     void syncBeforeNuclearReactions(DomainType& domain, DataType& simData)
     {
+        auto&  d                   = simData.hydro;
         auto&  n                   = simData.nuclearData;
         size_t n_nuclear_particles = n.Y[0].size();
 
-        if (useHelm) { sphnnet::syncHydroToNuclear(simData, {"temp"}); }
-        else { sphnnet::syncHydroToNuclear(simData, {"temp", "rho"}); }
-        timer.step("sphnnet::syncHydroToNuclear");
+        if (!useAttached)
+        {
+            if (useHelm) { sphnnet::syncHydroToNuclear(simData, {"temp"}); }
+            else { sphnnet::syncHydroToNuclear(simData, {"temp", "rho"}); }
+            timer.step("sphnnet::syncHydroToNuclear");
+        }
+        else
+        {
+            size_t first = domain.startIndex();
+            size_t last  = domain.endIndex();
+
+            std::copy(d.temp.begin() + first, d.temp.begin() + last, n.temp.begin() + first);
+            if (!useHelm) { std::copy(d.rho.begin() + first, d.rho.begin() + last, n.rho.begin() + first); }
+            timer.step("std::copy");
+        }
 
         if (useHelm) { sphexa::transferToDevice(n, 0, n_nuclear_particles, {"temp"}); }
         else { sphexa::transferToDevice(n, 0, n_nuclear_particles, {"temp", "rho"}); }
@@ -421,22 +559,45 @@ private:
         auto&  n                   = simData.nuclearData;
         size_t n_nuclear_particles = n.Y[0].size();
 
-        sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt, *reactions, *construct_rates_BE,
-                                         *eos,
-                                         /*considering expansion:*/ false);
+        if (!useAttached)
+        {
+            sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt, *reactions,
+                                             *construct_rates_BE, *eos,
+                                             /*considering expansion:*/ false);
+        }
+        else
+        {
+            size_t first = domain.startIndex();
+            size_t last  = domain.endIndex();
+
+            sphnnet::computeNuclearReactions(n, first, last, d.minDt, d.minDt, *reactions, *construct_rates_BE, *eos,
+                                             /*considering expansion:*/ false);
+        }
         timer.step("sphnnet::computeNuclearReactions");
     }
 
     void syncAfterNuclearReactions(DomainType& domain, DataType& simData)
     {
+        auto&  d                   = simData.hydro;
         auto&  n                   = simData.nuclearData;
         size_t n_nuclear_particles = n.Y[0].size();
 
         sphexa::transferToHost(n, 0, n_nuclear_particles, {"temp"});
         timer.step("transferToHost");
 
-        sphnnet::syncNuclearToHydro(simData, {"temp"});
-        timer.step("sphnnet::syncNuclearToHydro");
+        if (!useAttached)
+        {
+            sphnnet::syncNuclearToHydro(simData, {"temp"});
+            timer.step("sphnnet::syncNuclearToHydro");
+        }
+        else
+        {
+            size_t first = domain.startIndex();
+            size_t last  = domain.endIndex();
+
+            std::copy(n.temp.begin() + first, n.temp.begin() + last, d.temp.begin() + first);
+            timer.step("std::copy");
+        }
     }
 };
 

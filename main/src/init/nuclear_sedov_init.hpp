@@ -59,10 +59,12 @@ class NuclearSedovGlass : public ISimInitializer<Dataset>
 {
     std::string                   glassBlock;
     std::map<std::string, double> constants_;
+    bool                          useAttached;
 
 public:
-    NuclearSedovGlass(std::string initBlock)
+    NuclearSedovGlass(std::string initBlock, bool attached)
         : glassBlock(initBlock)
+        , useAttached(attached)
     {
         constants_ = nuclearSedovConstants();
     }
@@ -143,14 +145,33 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
-        sphnnet::initializeNuclearPointers(0, last_first, simData);
-        sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
+        if (!useAttached)
+        {
+            sphnnet::initializeNuclearPointers(0, last_first, simData);
+            sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
+
+            // intialize m for nuclear energy
+            sphnnet::syncHydroToNuclear(simData, {"m"});
+        }
+        else
+        {
+            // resize nuclear data
+            n.resize(last_first);
+
+// intialize nuclear data
+#pragma omp parallel for firstprivate(Y0_87) schedule(dynamic)
+            for (size_t i = 0; i < last_first; ++i)
+            {
+                for (int j = 0; j < n.numSpecies; ++j)
+                    n.Y[j][i] = Y0_87[j];
+            }
+
+            // intialize m for nuclear energy
+            std::copy(d.m.begin(), d.m.begin() + last_first, n.m.begin());
+        }
 
         // initialize dt
         std::fill(n.dt.begin(), n.dt.end(), nnet::constants::initialDt);
-
-        // intialize m for nuclear energy
-        sphnnet::syncHydroToNuclear(simData, {"m"});
 
         return globalBox;
     }
