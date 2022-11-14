@@ -85,11 +85,11 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     bool useHelm;
 
     //! @brief nuclear network reaction list
-    nnet::reaction_list const* reactions;
+    nnet::ReactionList const* reactions;
     //! @brief nuclear network parameterization
-    nnet::compute_reaction_rates_functor<T> const* construct_rates_BE;
+    nnet::ComputeReactionRatesFunctor<T> const* construct_rates_BE;
     //! @brief eos
-    nnet::eos_functor<T> const* eos;
+    nnet::EosFunctor<T> const* eos;
     //! @brief Z
     std::vector<T> Z;
 
@@ -122,20 +122,20 @@ public:
 
         if (numSpecies == 14)
         {
-            reactions          = &nnet::net14::reaction_list;
-            construct_rates_BE = &nnet::net14::compute_reaction_rates;
+            reactions          = &nnet::net14::reactionList;
+            construct_rates_BE = &nnet::net14::computeReactionRates;
             std::copy_n(nnet::net14::constants::Z.begin(), numSpecies, Z.begin());
         }
         else if (numSpecies == 86)
         {
-            reactions          = &nnet::net86::reaction_list;
-            construct_rates_BE = &nnet::net86::compute_reaction_rates;
+            reactions          = &nnet::net86::reactionList;
+            construct_rates_BE = &nnet::net86::computeReactionRates;
             std::copy_n(nnet::net86::constants::Z.begin(), numSpecies, Z.begin());
         }
         else if (numSpecies == 87)
         {
-            reactions          = &nnet::net87::reaction_list;
-            construct_rates_BE = &nnet::net87::compute_reaction_rates;
+            reactions          = &nnet::net87::reactionList;
+            construct_rates_BE = &nnet::net87::computeReactionRates;
             std::copy_n(nnet::net87::constants::Z.begin(), numSpecies, Z.begin());
         }
         else
@@ -144,8 +144,8 @@ public:
                                      " nuclear species !");
         }
 
-        if (useHelm) { eos = new nnet::eos::helmholtz_functor<T>(Z); }
-        else { eos = new nnet::eos::ideal_gas_functor<T>(10.0); }
+        if (useHelm) { eos = new nnet::eos::HelmholtzFunctor<T>(Z); }
+        else { eos = new nnet::eos::IdealGasFunctor<T>(10.0); }
     }
 
     std::vector<std::string> conservedFields() const override
@@ -268,7 +268,7 @@ private:
         fill(get<"m">(d), 0, first, d.m[first]);
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
-        sphexa::sphnnet::syncHydroToNuclear(simData, {"m"});
+        sphnnet::syncHydroToNuclear(simData, {"m"});
 
         findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.keys, d.neighbors, d.nc, domain.box());
         timer.step("FindNeighbors");
@@ -285,10 +285,10 @@ private:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        sphexa::sphnnet::computeNuclearPartition(first, last, simData);
+        sphnnet::computeNuclearPartition(first, last, simData);
         timer.step("sphnnet::computeNuclearPartition");
 
-        sphexa::sphnnet::syncHydroToNuclear(simData, {"rho" /*, "temp", */ /* TODO */});
+        sphnnet::syncHydroToNuclear(simData, {"rho" /*, "temp", */ /* TODO */});
         timer.step("sphnnet::syncHydroToNuclear");
     }
 
@@ -301,22 +301,22 @@ private:
         sphexa::transferToDevice(n, 0, n_nuclear_particles, {/*"rho_m1", "rho", "temp"*/});
         timer.step("transferToDevice");
 
-        sphexa::sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt_m1, *reactions,
-                                                 *construct_rates_BE, *eos,
-                                                 /*considering expansion:*/ false);
+        sphnnet::computeNuclearReactions(n, 0, n_nuclear_particles, d.minDt, d.minDt_m1, *reactions,
+                                         *construct_rates_BE, *eos,
+                                         /*considering expansion:*/ false);
         timer.step("sphnnet::computeNuclearReactions");
 
         if (useHelm)
         {
-            sphexa::sphnnet::computeHelmEOS(n, 0, n_nuclear_particles, Z);
+            sphnnet::computeHelmEOS(n, 0, n_nuclear_particles, Z);
             timer.step("sphnnet::computeHelmEOS");
         }
     }
 
     void nuclear_sync_after(DomainType& domain, DataType& simData)
     {
-        sphexa::sphnnet::syncNuclearToHydro(simData, {/*, "temp", */ /* TODO */});
-        if (useHelm) { sphexa::sphnnet::syncNuclearToHydro(simData, {"u", "c", "p" /*, "cv", "dpdT"*/}); }
+        sphnnet::syncNuclearToHydro(simData, {/*, "temp", */ /* TODO */});
+        if (useHelm) { sphnnet::syncNuclearToHydro(simData, {"u", "c", "p" /*, "cv", "dpdT"*/}); }
         timer.step("sphnnet::syncNuclearToHydro");
     }
 

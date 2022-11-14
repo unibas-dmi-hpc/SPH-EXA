@@ -49,7 +49,7 @@
 #include "nuclear_data_gpu.cuh"
 #endif
 
-namespace sphexa::sphnnet
+namespace sphnnet
 {
 
 /*! @brief nuclear data class for nuclear network */
@@ -197,4 +197,4 @@ private:
     }
 };
 
-} // namespace sphexa::sphnnet
+} // namespace sphnnet

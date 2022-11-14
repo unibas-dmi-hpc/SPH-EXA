@@ -109,36 +109,35 @@ void printHelp(char* name, int rank);
 // mockup of the step function
 template<class Zvector, typename Float, typename KeyType, class AccType>
 void step(int rank, size_t firstIndex, size_t lastIndex, sphexa::SimulationData<Float, KeyType, AccType>& d,
-          const double dt, const nnet::reaction_list& reactions,
-          const nnet::compute_reaction_rates_functor<Float>& construct_rates_BE, const nnet::eos_functor<Float>& eos,
+          const double dt, const nnet::ReactionList& reactions,
+          const nnet::ComputeReactionRatesFunctor<Float>& construct_rates_BE, const nnet::EosFunctor<Float>& eos,
           const Float* BE, const Zvector& Z)
 {
     size_t n_nuclear_particles = d.nuclearData.temp.size();
 
     // domain redecomposition
 
-    sphexa::sphnnet::computeNuclearPartition(firstIndex, lastIndex, d);
+    sphnnet::computeNuclearPartition(firstIndex, lastIndex, d);
 
     // do hydro stuff
 
     std::swap(d.nuclearData.rho, d.nuclearData.rho_m1);
-    sphexa::sphnnet::syncHydroToNuclear(d, {"rho", "temp"});
+    sphnnet::syncHydroToNuclear(d, {"rho", "temp"});
     sphexa::transferToDevice(d.nuclearData, 0, n_nuclear_particles, {"rho_m1", "rho", "temp"});
 
-    sphexa::sphnnet::computeNuclearReactions(d.nuclearData, 0, n_nuclear_particles, dt, dt, reactions,
-                                             construct_rates_BE, eos,
-                                             /*considering expansion:*/ true);
-    sphexa::sphnnet::computeHelmEOS(d.nuclearData, 0, n_nuclear_particles, Z);
+    sphnnet::computeNuclearReactions(d.nuclearData, 0, n_nuclear_particles, dt, dt, reactions, construct_rates_BE, eos,
+                                     /*considering expansion:*/ true);
+    sphnnet::computeHelmEOS(d.nuclearData, 0, n_nuclear_particles, Z);
 
     sphexa::transferToHost(d.nuclearData, 0, n_nuclear_particles, {"temp", "c", "p", "cv", "u"});
-    sphexa::sphnnet::syncNuclearToHydro(d, {"temp"});
+    sphnnet::syncNuclearToHydro(d, {"temp"});
 
     // do hydro stuff
 
     /* !! needed for now !! */
     sphexa::transferToHost(d.nuclearData, 0, n_nuclear_particles, {"Y"});
     // print total nuclear energy
-    Float total_nuclear_energy  = sphexa::sphnnet::totalNuclearEnergy(d.nuclearData, BE, MPI_COMM_WORLD);
+    Float total_nuclear_energy  = sphnnet::totalNuclearEnergy(d.nuclearData, BE, MPI_COMM_WORLD);
     Float total_internal_energy = totalInternalEnergy(d.nuclearData);
     if (rank == 0)
         std::cout << "etot=" << total_nuclear_energy + total_internal_energy << " (nuclear=" << total_nuclear_energy
@@ -194,11 +193,11 @@ int main(int argc, char* argv[])
 
         if (test_case == "C-O-burning")
         {
-            X_87[nnet::net86::constants::net14_species_order[1]] = 0.5;
-            X_87[nnet::net86::constants::net14_species_order[2]] = 0.5;
+            X_87[nnet::net86::constants::net14SpeciesOrder[1]] = 0.5;
+            X_87[nnet::net86::constants::net14SpeciesOrder[2]] = 0.5;
         }
-        else if (test_case == "He-burning") { X_87[nnet::net86::constants::net14_species_order[0]] = 1; }
-        else if (test_case == "Si-burning") { X_87[nnet::net86::constants::net14_species_order[5]] = 1; }
+        else if (test_case == "He-burning") { X_87[nnet::net86::constants::net14SpeciesOrder[0]] = 1; }
+        else if (test_case == "Si-burning") { X_87[nnet::net86::constants::net14SpeciesOrder[5]] = 1; }
         else
         {
             printHelp(argv[0], rank);
@@ -260,11 +259,11 @@ int main(int argc, char* argv[])
     }
 
     //! @brief nuclear network reaction list
-    nnet::reaction_list const* reactions;
+    nnet::ReactionList const* reactions;
     //! @brief nuclear network parameterization
-    nnet::compute_reaction_rates_functor<double> const* construct_rates_BE;
+    nnet::ComputeReactionRatesFunctor<double> const* construct_rates_BE;
     //! @brief eos
-    nnet::eos_functor<double>* eos;
+    nnet::EosFunctor<double>* eos;
     //! @brief BE
     double const* BE;
     //!@brief Z
@@ -272,8 +271,8 @@ int main(int argc, char* argv[])
 
     if (use_net87)
     {
-        reactions          = &nnet::net87::reaction_list;
-        construct_rates_BE = &nnet::net87::compute_reaction_rates;
+        reactions          = &nnet::net87::reactionList;
+        construct_rates_BE = &nnet::net87::computeReactionRates;
         BE                 = nnet::net87::BE.data();
 
         Z.resize(87);
@@ -281,8 +280,8 @@ int main(int argc, char* argv[])
     }
     else if (use_net86)
     {
-        reactions          = &nnet::net86::reaction_list;
-        construct_rates_BE = &nnet::net86::compute_reaction_rates;
+        reactions          = &nnet::net86::reactionList;
+        construct_rates_BE = &nnet::net86::computeReactionRates;
         BE                 = nnet::net86::BE.data();
 
         Z.resize(86);
@@ -290,22 +289,22 @@ int main(int argc, char* argv[])
     }
     else
     {
-        reactions          = &nnet::net14::reaction_list;
-        construct_rates_BE = &nnet::net14::compute_reaction_rates;
+        reactions          = &nnet::net14::reactionList;
+        construct_rates_BE = &nnet::net14::computeReactionRates;
         BE                 = nnet::net14::BE.data();
 
         Z.resize(14);
         std::copy(nnet::net14::constants::Z.begin(), nnet::net14::constants::Z.begin() + 14, Z.begin());
     }
 
-    if (idealGas) { eos = new nnet::eos::ideal_gas_functor<double>(isotherm ? 1e-20 : 10.0); }
-    else { eos = new nnet::eos::helmholtz_functor<double>(Z); }
+    if (idealGas) { eos = new nnet::eos::IdealGasFunctor<double>(isotherm ? 1e-20 : 10.0); }
+    else { eos = new nnet::eos::HelmholtzFunctor<double>(Z); }
 
     /* !!!!!!!!!!!!
     initialize nuclear data
     !!!!!!!!!!!! */
 
-    sphexa::sphnnet::initializeNuclearPointers(first, last, particle_data);
+    sphnnet::initializeNuclearPointers(first, last, particle_data);
 
     if (use_net87)
     {
@@ -317,7 +316,7 @@ int main(int argc, char* argv[])
             particle_data.nuclearData.devData.setDependent("Y" + std::to_string(i));
         }
 
-        sphexa::sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_87);
+        sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_87);
     }
     else if (use_net86)
     {
@@ -329,7 +328,7 @@ int main(int argc, char* argv[])
             particle_data.nuclearData.devData.setDependent("Y" + std::to_string(i));
         }
 
-        sphexa::sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_87);
+        sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_87);
     }
     else
     {
@@ -341,11 +340,11 @@ int main(int argc, char* argv[])
             particle_data.nuclearData.devData.setDependent("Y" + std::to_string(i));
         }
 
-        sphexa::sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_14);
+        sphnnet::initNuclearDataFromConst(first, last, particle_data, Y0_14);
     }
 
     // initialize dt
-    std::fill(particle_data.nuclearData.dt.begin(), particle_data.nuclearData.dt.end(), nnet::constants::initial_dt);
+    std::fill(particle_data.nuclearData.dt.begin(), particle_data.nuclearData.dt.end(), nnet::constants::initialDt);
 
     size_t n_nuclear_particles = particle_data.nuclearData.temp.size();
     for (int i = 0; i < particle_data.nuclearData.numSpecies; ++i)

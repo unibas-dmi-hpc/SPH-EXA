@@ -29,12 +29,12 @@
  * @author Joseph Touzet <joseph.touzet@ens-paris-saclay.fr>
  */
 
-#include "sedov_init.hpp"
-
 #include "sphnnet/initializers.hpp"
 
 #include "nnet/parameterization/net87/net87.hpp"
 #include "nnet/parameterization/net14/net14.hpp"
+
+#include "sedov_init.hpp"
 
 namespace sphexa
 {
@@ -122,8 +122,8 @@ public:
         }
         else if (n.numSpecies == 86 || n.numSpecies == 87)
         {
-            X_87[nnet::net86::constants::net14_species_order[1]] = 0.5;
-            X_87[nnet::net86::constants::net14_species_order[2]] = 0.5;
+            X_87[nnet::net86::constants::net14SpeciesOrder[1]] = 0.5;
+            X_87[nnet::net86::constants::net14SpeciesOrder[2]] = 0.5;
 
             for (int i = 0; i < 86; ++i)
             {
@@ -135,11 +135,11 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
-        sphexa::sphnnet::initializeNuclearPointers(0, last_first, simData);
-        sphexa::sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
+        sphnnet::initializeNuclearPointers(0, last_first, simData);
+        sphnnet::initNuclearDataFromConst(0, last_first, simData, Y0_87);
 
         // initialize dt
-        std::fill(n.dt.begin(), n.dt.end(), nnet::constants::initial_dt);
+        std::fill(n.dt.begin(), n.dt.end(), nnet::constants::initialDt);
 
         // initialize temp
         size_t n_nuclear_particles = n.Y[0].size();

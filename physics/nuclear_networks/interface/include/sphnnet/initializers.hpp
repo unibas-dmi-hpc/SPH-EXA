@@ -37,7 +37,7 @@
 #include "mpi/mpi_wrapper.hpp"
 #include "nuclear_net.hpp"
 
-namespace sphexa::sphnnet
+namespace sphnnet
 {
 /*! @brief intialize nuclear data, from a function of positions. Also initializes the partition correleating attached
  * and detached data.
@@ -56,7 +56,7 @@ void initNuclearDataFromPos(size_t firstIndex, size_t lastIndex, ParticlesDataTy
     const int dimension = n.numSpecies;
     using Float         = typename std::remove_reference<decltype(n.Y[0][0])>::type;
 
-    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n, comm);
+    sphnnet::computePartition(firstIndex, lastIndex, n, comm);
 
     const size_t local_nuclear_n_particles = n.partition.recv_disp.back();
 
@@ -65,9 +65,9 @@ void initNuclearDataFromPos(size_t firstIndex, size_t lastIndex, ParticlesDataTy
 
     // receiv position for initializer
     std::vector<Float> x(local_nuclear_n_particles), y(local_nuclear_n_particles), z(local_nuclear_n_particles);
-    sphexa::sphnnet::syncDataToStaticPartition(n.partition, d.x.data(), x.data(), d.comm);
-    sphexa::sphnnet::syncDataToStaticPartition(n.partition, d.y.data(), y.data(), d.comm);
-    sphexa::sphnnet::syncDataToStaticPartition(n.partition, d.z.data(), z.data(), d.comm);
+    sphnnet::syncDataToStaticPartition(n.partition, d.x.data(), x.data(), d.comm);
+    sphnnet::syncDataToStaticPartition(n.partition, d.y.data(), y.data(), d.comm);
+    sphnnet::syncDataToStaticPartition(n.partition, d.z.data(), z.data(), d.comm);
 
     std::vector<Float> Y(dimension);
 
@@ -98,7 +98,7 @@ void initNuclearDataFromRadius(size_t firstIndex, size_t lastIndex, ParticlesDat
     const int dimension = n.numSpecies;
     using Float         = typename std::remove_reference<decltype(n.Y[0][0])>::type;
 
-    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n, comm);
+    sphnnet::computePartition(firstIndex, lastIndex, n, comm);
 
     const size_t local_nuclear_n_particles = n.partition.recv_disp.back();
     const size_t local_n_particles         = d.x.size();
@@ -110,7 +110,7 @@ void initNuclearDataFromRadius(size_t firstIndex, size_t lastIndex, ParticlesDat
     for (size_t i = 0; i < local_n_particles; ++i)
         send_r[i] = std::sqrt(d.x[i] * d.x[i] + d.y[i] * d.y[i] + d.z[i] * d.z[i]);
 
-    sphexa::sphnnet::syncDataToStaticPartition(n.partition, send_r.data(), r.data(), d.comm);
+    sphnnet::syncDataToStaticPartition(n.partition, send_r.data(), r.data(), d.comm);
 
     std::vector<Float> Y(dimension);
 
@@ -141,13 +141,13 @@ void initNuclearDataFromRho(size_t firstIndex, size_t lastIndex, ParticlesDataTy
     const int dimension = n.numSpecies;
     using Float         = typename std::remove_reference<decltype(n.Y[0][0])>::type;
 
-    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n, comm);
+    sphnnet::computePartition(firstIndex, lastIndex, n, comm);
 
     const size_t local_nuclear_n_particles = n.partition.recv_disp.back();
 
     // share the initial rho
     n.resize(local_nuclear_n_particles);
-    sphexa::sphnnet::syncDataToStaticPartition(n.partition, d.rho.data(), n.rho.data(), d.comm);
+    sphnnet::syncDataToStaticPartition(n.partition, d.rho.data(), n.rho.data(), d.comm);
 
     std::vector<Float> Y(dimension);
 
@@ -177,7 +177,7 @@ void initNuclearDataFromConst(size_t firstIndex, size_t lastIndex, ParticlesData
 {
     const int dimension = n.numSpecies;
 
-    sphexa::sphnnet::computePartition(firstIndex, lastIndex, n, comm);
+    sphnnet::computePartition(firstIndex, lastIndex, n, comm);
 
     const size_t local_nuclear_n_particles = n.partition.recv_disp.back();
 
@@ -248,4 +248,4 @@ void inline initNuclearDataFromConst(size_t firstIndex, size_t lastIndex, Partic
 {
     initNuclearDataFromConst(firstIndex, lastIndex, d.hydro, d.nuclearData, Y0, d.comm);
 }
-} // namespace sphexa::sphnnet
+} // namespace sphnnet

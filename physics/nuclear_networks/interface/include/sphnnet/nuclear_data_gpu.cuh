@@ -35,15 +35,14 @@
 #include <array>
 #include <memory>
 
+#include <thrust/device_vector.h>
+
 #include "cstone/fields/field_states.hpp"
 #include "cstone/fields/enumerate.hpp"
-
 #include "cstone/util/reallocate.hpp"
 #include "cstone/util/array.hpp"
 
-#include <thrust/device_vector.h>
-
-namespace sphexa::sphnnet
+namespace sphnnet
 {
 /*! @brief device nuclear data class for nuclear network */
 template<typename RealType_, typename KeyType_, typename Tmass_>
@@ -157,4 +156,4 @@ private:
     }
 };
 
-} // namespace sphexa::sphnnet
+} // namespace sphnnet
