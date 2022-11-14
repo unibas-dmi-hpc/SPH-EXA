@@ -30,7 +30,7 @@ function(enableNuclearNetworks exename)
     if (SPH_EXA_WITH_NNET)
         target_include_directories(${exename} PRIVATE ${NNET_DIR})
         target_compile_definitions(${exename} PRIVATE USE_MPI USE_NUCLEAR_NETWORKS)
-        target_link_libraries(${exename} PRIVATE nuclear)
+        target_link_libraries(${exename} PRIVATE nuclear nuclear_parallel)
     endif()
 endfunction()
 
