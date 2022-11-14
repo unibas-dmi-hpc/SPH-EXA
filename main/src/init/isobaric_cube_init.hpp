@@ -36,6 +36,7 @@
 #include <algorithm>
 
 #include "cstone/sfc/box.hpp"
+#include "sph/eos.hpp"
 
 #include "io/file_utils.hpp"
 #include "isim_init.hpp"
@@ -43,6 +44,13 @@
 
 namespace sphexa
 {
+
+std::map<std::string, double> IsobaricCubeConstants()
+{
+    return {{"r", .25},         {"rDelta", .25},         {"dim", 3},         {"gamma", 5.0 / 3.0},
+            {"rhoExt", 1.},     {"rhoInt", 8.},          {"pIsobaric", 2.5}, {"firstTimeStep", 1e-4},
+            {"epsilon", 1e-15}, {"pairInstability", 0.}, {"mui", 10.0}};
+}
 
 template<class Dataset>
 void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& constants, double massPart)
@@ -66,13 +74,20 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
     T firstTimeStep = constants.at("firstTimeStep");
     T epsilon       = constants.at("epsilon");
 
-    std::fill(d.m.begin(), d.m.end(), massPart);
-    std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
-    std::fill(d.mui.begin(), d.mui.end(), 10.0);
-    std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-
+    d.gamma    = constants.at("gamma");
+    d.muiConst = constants.at("mui");
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;
+
+    auto cv = sph::idealGasCv(d.muiConst);
+
+    std::fill(d.m.begin(), d.m.end(), massPart);
+    std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
+    std::fill(d.mui.begin(), d.mui.end(), d.muiConst);
+    std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
+    std::fill(d.vx.begin(), d.vx.end(), 0.0);
+    std::fill(d.vy.begin(), d.vy.end(), 0.0);
+    std::fill(d.vz.begin(), d.vz.end(), 0.0);
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
@@ -95,36 +110,18 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
                 d.h[i] = hInt * (1 - dist / (2 * hExt)) + hExt * dist / (2 * hExt);
             }
 
-            d.u[i] = uExt;
+            d.temp[i] = uExt / cv;
         }
         else
         {
-            d.h[i] = hInt;
-            d.u[i] = uInt;
+            d.h[i]    = hInt;
+            d.temp[i] = uInt / cv;
         }
-
-        d.vx[i] = 0.;
-        d.vy[i] = 0.;
-        d.vz[i] = 0.;
 
         d.x_m1[i] = d.vx[i] * firstTimeStep;
         d.y_m1[i] = d.vy[i] * firstTimeStep;
         d.z_m1[i] = d.vz[i] * firstTimeStep;
     }
-}
-
-std::map<std::string, double> IsobaricCubeConstants()
-{
-    return {{"r", .25},
-            {"rDelta", .25},
-            {"dim", 3},
-            {"gamma", 5.0 / 3.0},
-            {"rhoExt", 1.},
-            {"rhoInt", 8.},
-            {"pIsobaric", 2.5}, // pIsobaric = (gamma − 1.) * rho * u
-            {"firstTimeStep", 1e-4},
-            {"epsilon", 1e-15},
-            {"pairInstability", 0.}}; // 1e-6}};
 }
 
 /*! @brief compute the shift factor towards the center for point X in a capped pyramid

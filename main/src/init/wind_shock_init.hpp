@@ -39,6 +39,7 @@
 #include <algorithm>
 
 #include "cstone/sfc/box.hpp"
+#include "sph/eos.hpp"
 
 #include "io/file_utils.hpp"
 #include "isim_init.hpp"
@@ -46,6 +47,23 @@
 
 namespace sphexa
 {
+
+std::map<std::string, double> WindShockConstants()
+{
+    return {{"r", .125},
+            {"rSphere", .025},
+            {"rhoInt", 10.},
+            {"rhoExt", 1.},
+            {"uExt", 3. / 2.},
+            {"vxExt", 2.7},
+            {"vyExt", .0},
+            {"vzExt", .0},
+            {"dim", 3},
+            {"gamma", 5. / 3.},
+            {"firstTimeStep", 1e-10},
+            {"epsilon", 0.},
+            {"mui", 10.}};
+}
 
 template<class Dataset>
 void initWindShockFields(Dataset& d, const std::map<std::string, double>& constants, double massPart)
@@ -67,13 +85,17 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
     T      hInt = 0.5 * std::cbrt(3. * ng0 * massPart / 4. / M_PI / rhoInt);
     T      hExt = 0.5 * std::cbrt(3. * ng0 * massPart / 4. / M_PI / rhoExt);
 
-    std::fill(d.m.begin(), d.m.end(), massPart);
-    std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
-    std::fill(d.mui.begin(), d.mui.end(), 10.0);
-    std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-
+    d.gamma    = constants.at("gamma");
+    d.muiConst = constants.at("mui");
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;
+
+    auto cv = sph::idealGasCv(d.muiConst);
+
+    std::fill(d.m.begin(), d.m.end(), massPart);
+    std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
+    std::fill(d.mui.begin(), d.mui.end(), d.muiConst);
+    std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
 
     T uInt = uExt / (rhoInt / rhoExt);
 
@@ -101,40 +123,24 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
                 d.h[i] = hInt + 0.5 * (hExt - hInt) * (1. + std::tanh(k * (rPos - rSphere - hExt)));
             }
 
-            d.u[i]  = uExt;
-            d.vx[i] = vxExt;
-            d.vy[i] = vyExt;
-            d.vz[i] = vzExt;
+            d.temp[i] = uExt / cv;
+            d.vx[i]   = vxExt;
+            d.vy[i]   = vyExt;
+            d.vz[i]   = vzExt;
         }
         else
         {
-            d.h[i]  = hInt;
-            d.u[i]  = uInt;
-            d.vx[i] = 0.;
-            d.vy[i] = 0.;
-            d.vz[i] = 0.;
+            d.h[i]    = hInt;
+            d.temp[i] = uInt / cv;
+            d.vx[i]   = 0.;
+            d.vy[i]   = 0.;
+            d.vz[i]   = 0.;
         }
 
         d.x_m1[i] = d.vx[i] * firstTimeStep;
         d.y_m1[i] = d.vy[i] * firstTimeStep;
         d.z_m1[i] = d.vz[i] * firstTimeStep;
     }
-}
-
-std::map<std::string, double> WindShockConstants()
-{
-    return {{"r", .125},
-            {"rSphere", .025},
-            {"rhoInt", 10.},
-            {"rhoExt", 1.},
-            {"uExt", 3. / 2.},
-            {"vxExt", 2.7},
-            {"vyExt", .0},
-            {"vzExt", .0},
-            {"dim", 3},
-            {"gamma", 5. / 3.},
-            {"firstTimeStep", 1e-10},
-            {"epsilon", 0.}};
 }
 
 template<class Dataset>
