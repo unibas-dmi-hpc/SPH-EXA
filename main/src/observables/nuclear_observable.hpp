@@ -57,9 +57,10 @@ public:
 
     void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
-        auto&  d                   = simData.hydro;
-        auto&  n                   = simData.nuclearData;
-        size_t n_nuclear_particles = n.Y[0].size();
+        auto&  d     = simData.hydro;
+        auto&  n     = simData.nuclearData;
+        size_t first = useAttached ? firstIndex : 0;
+        size_t last  = useAttached ? lastIndex : n.Y[0].size();
 
         int rank;
         MPI_Comm_rank(simData.comm, &rank);
@@ -72,11 +73,11 @@ public:
         else if (n.numSpecies == 87) { BE = nnet::net87::BE.data(); }
         else
         {
-            throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
+            throw std::runtime_error("not able to compute nuclear energy " + std::to_string(n.numSpecies) +
+                                     " nuclear species !");
         }
 
-        if (!useAttached) { n.enuclear = sphnnet::totalNuclearEnergy(0, n_nuclear_particles, n, BE, simData.comm); }
-        else { n.enuclear = sphnnet::totalNuclearEnergy(firstIndex, lastIndex, n, BE, simData.comm); }
+        n.enuclear = sphnnet::totalNuclearEnergy(first, last, n, BE, simData.comm);
         d.etot += n.enuclear;
 
         if (rank == 0)
