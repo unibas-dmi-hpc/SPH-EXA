@@ -341,8 +341,9 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::Loc
             pos_i[i]    = {x[bodyIdx], y[bodyIdx], z[bodyIdx], Tc(2) * h[bodyIdx]};
         }
 
-        Vec3<Tc> Xmin = makeVec3(pos_i[0]);
-        Vec3<Tc> Xmax = makeVec3(pos_i[0]);
+        Tc r0 = pos_i[0][3];
+        Vec3<Tc> Xmin{pos_i[0][0] - r0, pos_i[0][1] - r0, pos_i[0][2] - r0};
+        Vec3<Tc> Xmax{pos_i[0][0] + r0, pos_i[0][1] + r0, pos_i[0][2] + r0};
         for (int i = 1; i < TravConfig::nwt; i++)
         {
             Tc ri = pos_i[i][3];
