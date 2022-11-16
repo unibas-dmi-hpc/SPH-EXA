@@ -63,20 +63,22 @@ __device__ __forceinline__ int ringAddr(const int i) { return i & (TravConfig::m
 
 /*! @brief count neighbors within a cutoff
  *
- * @tparam       T            float or double
- * @param[in]    sourceBody   source body x,y,z
- * @param[in]    pos_i        target body x,y,z,h
- * @param[inout] nc_i         target neighbor count to add to
+ * @tparam       T             float or double
+ * @param[in]    sourceBody    source body x,y,z
+ * @param[in]    validLaneMask bit-mask to indicate which lanes contain valid source bodies
+ * @param[in]    pos_i         target body x,y,z,h
+ * @param[inout] nc_i          target neighbor count to add to
  *
  * Number of computed particle-particle pairs per call is GpuConfig::warpSize^2 * TravConfig::nwt
  */
 template<class Tc>
 __device__ void neighborCount(Vec3<Tc> sourceBody,
+                              int numLanesValid,
                               const Vec4<Tc> pos_i[TravConfig::nwt],
                               const Box<Tc>& box,
                               unsigned nc_i[TravConfig::nwt])
 {
-    for (int j = 0; j < GpuConfig::warpSize; j++)
+    for (int j = 0; j < numLanesValid; j++)
     {
         Vec3<Tc> pos_j{shflSync(sourceBody[0], j), shflSync(sourceBody[1], j), shflSync(sourceBody[2], j)};
 
@@ -204,7 +206,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
             {
                 // Load source body coordinates
                 const Vec3<Tc> sourceBody = {x[bodyIdx], y[bodyIdx], z[bodyIdx]};
-                neighborCount(sourceBody, pos_i, box, nc_i);
+                neighborCount(sourceBody, GpuConfig::warpSize, pos_i, box, nc_i);
                 numBodiesWarp -= GpuConfig::warpSize;
                 numBodiesLane -= GpuConfig::warpSize;
                 p2pCounter += GpuConfig::warpSize;
@@ -220,7 +222,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
                 {
                     // Load source body coordinates
                     const Vec3<Tc> sourceBody = {x[bodyQueue], y[bodyQueue], z[bodyQueue]};
-                    neighborCount(sourceBody, pos_i, box, nc_i);
+                    neighborCount(sourceBody, GpuConfig::warpSize, pos_i, box, nc_i);
                     bdyFillLevel -= GpuConfig::warpSize;
                     // bodyQueue is now empty; put body indices that spilled into the queue
                     bodyQueue = shflDownSync(bodyIdx, numBodiesWarp - bdyFillLevel);
@@ -241,11 +243,11 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
 
     if (bdyFillLevel > 0) // If there are leftover direct bodies
     {
-        const int bodyIdx = laneIdx < bdyFillLevel ? bodyQueue : -1;
+        const bool laneHasBody = laneIdx < bdyFillLevel;
         // Load position of source bodies, with padding for invalid lanes
         const Vec3<Tc> sourceBody =
-            bodyIdx >= 0 ? Vec3<Tc>{x[bodyIdx], y[bodyIdx], z[bodyIdx]} : Vec3<Tc>{Tc(1e10), Tc(1e10), Tc(1e10)};
-        neighborCount(sourceBody, pos_i, box, nc_i);
+            laneHasBody ? Vec3<Tc>{x[bodyQueue], y[bodyQueue], z[bodyQueue]} : Vec3<Tc>{Tc(0), Tc(0), Tc(0)};
+        neighborCount(sourceBody, bdyFillLevel, pos_i, box, nc_i);
         p2pCounter += bdyFillLevel;
     }
 
