@@ -41,10 +41,20 @@ namespace sphexa
 
 std::map<std::string, double> nuclearSedovConstants()
 {
-    std::map<std::string, double> ret{{"dim", 3},     {"gamma", 5. / 3.},      {"omega", 0.},     {"r0", 0.},
-                                      {"r1", 0.5},    {"mTotal", 1e9},         {"ener0", 1.5e10}, {"u0", 1.5e10},
-                                      {"width", 0.2}, {"rho0", 1e9},           {"p0", 0.},        {"vr0", 0.},
-                                      {"cs0", 0.},    {"firstTimeStep", 2e-9}, {"mui", 1e7}};
+    std::map<std::string, double> ret{{"dim", 3},
+                                      {"gamma", 5. / 3.},
+                                      {"omega", 0.},
+                                      {"r0", 0.},
+                                      {"r1", 0.5},
+                                      {"mTotal", 1e9},
+                                      {"ener0", 2e10},
+                                      {"u0", 1e10},
+                                      {"width", 0.1},
+                                      {"p0", 0.},
+                                      {"vr0", 0.},
+                                      {"cs0", 0.},
+                                      {"firstTimeStep", 2e-9},
+                                      {"mui", 1e7 /* computed via nuclear abundances if mui == 0 */}};
 
     // original relation between ret["ener0"] and ret["energyTotal"]:
     // ret["ener0"] = ret["energyTotal"] / std::pow(M_PI, 1.5) / 1. / std::pow(ret["width"], 3.0);
@@ -57,9 +67,9 @@ std::map<std::string, double> nuclearSedovConstants()
 template<class Dataset>
 class NuclearSedovGlass : public ISimInitializer<Dataset>
 {
-    std::string                   glassBlock;
-    std::map<std::string, double> constants_;
-    bool                          useAttached;
+    std::string                           glassBlock;
+    mutable std::map<std::string, double> constants_;
+    bool                                  useAttached;
 
 public:
     NuclearSedovGlass(std::string initBlock, bool attached)
@@ -88,6 +98,47 @@ public:
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
+        /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+        /* nuclear composition initialization */
+        /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+
+        util::array<double, 87> Y0_87, X0_87;
+        double                  mui = 0;
+        for (int i = 0; i < 86; ++i)
+        {
+            X0_87[i] = 0.0;
+        }
+        Y0_87[86] = 1.0;
+
+        if (n.numSpecies == 14)
+        {
+            X0_87[1] = 0.5;
+            X0_87[2] = 0.5;
+
+            for (int i = 0; i < 14; ++i)
+            {
+                Y0_87[i] = X0_87[i] / nnet::net14::constants::A[i];
+                mui += Y0_87[i] * nnet::net14::BE[i] / nnet::net14::constants::MevToErg;
+            }
+        }
+        else if (n.numSpecies == 86 || n.numSpecies == 87)
+        {
+            X0_87[nnet::net86::constants::net14SpeciesOrder[1]] = 0.5;
+            X0_87[nnet::net86::constants::net14SpeciesOrder[2]] = 0.5;
+
+            for (int i = 0; i < 86; ++i)
+                Y0_87[i] = X0_87[i] / nnet::net86::constants::A[i];
+
+            for (int i = 0; i < n.numSpecies; ++i)
+                mui += Y0_87[i] * nnet::net87::BE[i] / nnet::net14::constants::MevToErg;
+        }
+        else
+        {
+            throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
+        }
+
+        if (constants_.at("mui") == 0.0) { constants_["mui"] = mui; }
+
         /* !!!!!!!!!!!!!!!!!!!! */
         /* hydro initialization */
         /* !!!!!!!!!!!!!!!!!!!! */
@@ -112,38 +163,6 @@ public:
         /* !!!!!!!!!!!!!!!!!!!!!! */
         /* nuclear initialization */
         /* !!!!!!!!!!!!!!!!!!!!!! */
-
-        util::array<double, 87> Y0_87, X0_87;
-        for (int i = 0; i < 86; ++i)
-        {
-            X0_87[i] = 0.0;
-        }
-        Y0_87[86] = 1.0;
-
-        if (n.numSpecies == 14)
-        {
-            X0_87[1] = 0.5;
-            X0_87[2] = 0.5;
-
-            for (int i = 0; i < 14; ++i)
-            {
-                Y0_87[i] = X0_87[i] / nnet::net14::constants::A[i];
-            }
-        }
-        else if (n.numSpecies == 86 || n.numSpecies == 87)
-        {
-            X0_87[nnet::net86::constants::net14SpeciesOrder[1]] = 0.5;
-            X0_87[nnet::net86::constants::net14SpeciesOrder[2]] = 0.5;
-
-            for (int i = 0; i < 86; ++i)
-            {
-                Y0_87[i] = X0_87[i] / nnet::net86::constants::A[i];
-            }
-        }
-        else
-        {
-            throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
-        }
 
         if (!useAttached)
         {
