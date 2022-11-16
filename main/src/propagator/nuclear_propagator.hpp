@@ -249,54 +249,26 @@ public:
                                            get<NuclearDependentFields>(n)));
             }
         }
-        else if (n.numSpecies == 14)
-        {
-            if (d.g != 0.0)
-            {
-                domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                                std::tuple_cat(getNuclearAttachedFieldsAttachedDataNet14(n), get<ConservedFields>(d)),
-                                std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
-            }
-            else
-            {
-                domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                            std::tuple_cat(getNuclearAttachedFieldsAttachedDataNet14(n), std::tie(get<"m">(d)),
-                                           get<ConservedFields>(d)),
-                            std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
-            }
-        }
-        else if (n.numSpecies == 86)
-        {
-            if (d.g != 0.0)
-            {
-                domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                                std::tuple_cat(getNuclearAttachedFieldsAttachedDataNet86(n), get<ConservedFields>(d)),
-                                std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
-            }
-            else
-            {
-                domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                            std::tuple_cat(getNuclearAttachedFieldsAttachedDataNet86(n), std::tie(get<"m">(d)),
-                                           get<ConservedFields>(d)),
-                            std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
-            }
-        }
-        else if (n.numSpecies == 87)
-        {
-            if (d.g != 0.0)
-            {
-                domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                                std::tuple_cat(getNuclearAttachedFieldsAttachedDataNet87(n), get<ConservedFields>(d)),
-                                std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
-            }
-            else
-            {
-                domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                            std::tuple_cat(getNuclearAttachedFieldsAttachedDataNet87(n), std::tie(get<"m">(d)),
-                                           get<ConservedFields>(d)),
-                            std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));
-            }
-        }
+
+#define ATTACHED_SYNC(num_species)                                                                                     \
+    if (d.g != 0.0)                                                                                                    \
+    {                                                                                                                  \
+        domain.syncGrav(                                                                                               \
+            get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),                           \
+            std::tuple_cat(getNuclearAttachedFieldsAttachedDataNet##num_species(n), get<ConservedFields>(d)),          \
+            std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));                                  \
+    }                                                                                                                  \
+    else                                                                                                               \
+    {                                                                                                                  \
+        domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),                                \
+                    std::tuple_cat(getNuclearAttachedFieldsAttachedDataNet##num_species(n), std::tie(get<"m">(d)),     \
+                                   get<ConservedFields>(d)),                                                           \
+                    std::tuple_cat(get<DependentFields>(d), get<NuclearDependentFields>(n)));                          \
+    }
+
+        else if (n.numSpecies == 14) { ATTACHED_SYNC(14) }
+        else if (n.numSpecies == 86) { ATTACHED_SYNC(86) }
+        else if (n.numSpecies == 87) { ATTACHED_SYNC(87) }
         else
         {
             throw std::runtime_error("not able to synchronize attached data for " + std::to_string(numSpecies) +
