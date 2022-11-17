@@ -34,6 +34,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/warpscan.cuh"
 
 using namespace cstone;
@@ -88,7 +89,7 @@ __global__ void testScan(int* values)
 TEST(WarpScan, inclusiveInt)
 {
     thrust::device_vector<int> d_values(2 * GpuConfig::warpSize);
-    testScan<<<1, 2 * GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    testScan<<<1, 2 * GpuConfig::warpSize>>>(rawPtr(d_values));
     thrust::host_vector<int> h_values = d_values;
 
     for (int i = 0; i < 2 * GpuConfig::warpSize; ++i)
@@ -106,7 +107,7 @@ __global__ void testScanBool(int* result)
 TEST(WarpScan, bools)
 {
     thrust::device_vector<int> d_values(2 * GpuConfig::warpSize);
-    testScanBool<<<1, 2 * GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    testScanBool<<<1, 2 * GpuConfig::warpSize>>>(rawPtr(d_values));
     thrust::host_vector<int> h_values = d_values;
 
     for (int i = 0; i < 2 * GpuConfig::warpSize; ++i)
@@ -133,7 +134,7 @@ __global__ void testSegScan(int* values)
 TEST(WarpScan, inclusiveSegInt)
 {
     thrust::device_vector<int> d_values(GpuConfig::warpSize);
-    testSegScan<<<1, GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    testSegScan<<<1, GpuConfig::warpSize>>>(rawPtr(d_values));
     thrust::host_vector<int> h_values = d_values;
 
     //                         carry is one, first segment starts with offset of 1
@@ -163,7 +164,7 @@ __global__ void streamCompactTest(int* result)
 TEST(WarpScan, streamCompact)
 {
     thrust::device_vector<int> d_values(GpuConfig::warpSize);
-    streamCompactTest<<<1, GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    streamCompactTest<<<1, GpuConfig::warpSize>>>(rawPtr(d_values));
     thrust::host_vector<int> h_values = d_values;
 
     for (int i = 0; i < GpuConfig::warpSize / 2; ++i)

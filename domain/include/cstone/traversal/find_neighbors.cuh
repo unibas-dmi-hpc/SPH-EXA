@@ -34,6 +34,7 @@
 #include <algorithm>
 
 #include "cstone/cuda/gpu_config.cuh"
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/warpscan.cuh"
 #include "cstone/tree/definitions.h"
 
@@ -524,7 +525,7 @@ auto findNeighborsBT(size_t firstBody,
     auto t0 = std::chrono::high_resolution_clock::now();
     traverseBT<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, {1, 9}, x, y, z, h, childOffsets,
                                                       internalToLeaf, layout, centers, sizes, box, nc, nidx, ngmax,
-                                                      rawPtr(globalPool.data()));
+                                                      rawPtr(globalPool));
     kernelSuccess("traverseBT");
 
     auto t1   = std::chrono::high_resolution_clock::now();
