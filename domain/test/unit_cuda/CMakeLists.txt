@@ -1,14 +1,16 @@
 include(cstone_add_test)
 
-if(CMAKE_HIP_COMPILER)
-    set_source_files_properties(btree.cu octree.cu octree_internal.cu PROPERTY LANGUAGE HIP)
-endif()
+if (CMAKE_HIP_COMPILER)
+    set_source_files_properties(domain/domaindecomp_gpu.cu primitives/primitives_gpu.cu primitives/warpscan.cu
+            btree.cu octree.cu octree_internal.cu PROPERTY LANGUAGE HIP)
+endif ()
 
 if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     set(testname component_units_cuda)
     add_executable(${testname}
             domain/domaindecomp_gpu.cu
             primitives/primitives_gpu.cu
+            primitives/warpscan.cu
             btree.cu
             octree.cu
             octree_internal.cu

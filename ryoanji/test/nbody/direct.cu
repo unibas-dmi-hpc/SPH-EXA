@@ -34,12 +34,14 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
+#include "cstone/cuda/gpu_config.cuh"
+
 #include "dataset.hpp"
-#include "ryoanji/nbody/gpu_config.cuh"
 #include "ryoanji/nbody/direct.cuh"
 #include "ryoanji/nbody/traversal_cpu.hpp"
 
 using namespace ryoanji;
+using cstone::rawPtr;
 
 TEST(DirectSum, MatchCpu)
 {

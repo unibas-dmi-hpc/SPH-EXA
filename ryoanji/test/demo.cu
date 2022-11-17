@@ -30,15 +30,19 @@
 #include <hip/hip_runtime.h>
 #endif
 
+#include <thrust/host_vector.h>
+
+#include "cstone/cuda/gpu_config.cuh"
+
 #include "nbody/dataset.hpp"
 #include "ryoanji/interface/treebuilder.cuh"
-#include "ryoanji/nbody/gpu_config.cuh"
 #include "ryoanji/nbody/types.h"
 #include "ryoanji/nbody/traversal.cuh"
 #include "ryoanji/nbody/direct.cuh"
 #include "ryoanji/nbody/upwardpass.cuh"
 
 using namespace ryoanji;
+using cstone::rawPtr;
 
 int main(int argc, char** argv)
 {

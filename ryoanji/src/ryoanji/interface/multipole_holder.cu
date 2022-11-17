@@ -31,16 +31,18 @@
 
 #include <thrust/device_vector.h>
 
+#include "cstone/cuda/gpu_config.cuh"
 #include "cstone/util/reallocate.hpp"
-#include "multipole_holder.cuh"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
-#include "ryoanji/nbody/gpu_config.cuh"
 #include "ryoanji/nbody/upwardpass.cuh"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
 #include "ryoanji/nbody/traversal.cuh"
+#include "multipole_holder.cuh"
 
 namespace ryoanji
 {
+
+using cstone::rawPtr;
 
 template<class T>
 void memcpy(T* dest, const T* src, size_t n, cudaMemcpyKind kind)
@@ -128,7 +130,7 @@ public:
     {
         resetTraversalCounters<<<1, 1>>>();
 
-        constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
+        constexpr int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
 
         LocalIndex numBodies = lastBody - firstBody;
 

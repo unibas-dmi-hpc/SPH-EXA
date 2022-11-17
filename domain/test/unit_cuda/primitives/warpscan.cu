@@ -34,9 +34,9 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-#include "ryoanji/nbody/warpscan.cuh"
+#include "cstone/primitives/warpscan.cuh"
 
-using namespace ryoanji;
+using namespace cstone;
 
 __global__ void testMin(int* values)
 {

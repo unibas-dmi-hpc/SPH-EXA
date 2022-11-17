@@ -39,7 +39,6 @@ if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     set(testname ryoanji_unit_tests)
     add_executable(${testname}
             nbody/direct.cu
-            nbody/warpscan.cu
             test_main.cpp)
     target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/src)
     target_link_libraries(${testname} PUBLIC OpenMP::OpenMP_CXX cstone_tree GTest::gtest_main)
