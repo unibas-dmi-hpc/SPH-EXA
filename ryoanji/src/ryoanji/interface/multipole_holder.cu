@@ -42,12 +42,6 @@
 namespace ryoanji
 {
 
-template<class T>
-void memcpy(T* dest, const T* src, size_t n, cudaMemcpyKind kind)
-{
-    cudaMemcpy(dest, src, sizeof(T) * n, kind);
-}
-
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
 class MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::Impl
 {
@@ -67,19 +61,17 @@ public:
         auto centers       = focusTree.expansionCenters();
         auto globalCenters = focusTree.globalExpansionCenters();
 
-        // H2D leafToInternal, internalToLeaf, layout, centers, childOffsets
-
         const TreeNodeIndex* leafToInternal = octree.internalOrder().data();
-        memcpy(rawPtr(leafToInternal_), leafToInternal, numLeaves, cudaMemcpyHostToDevice);
+        memcpyH2D(leafToInternal, numLeaves, rawPtr(leafToInternal_));
 
         const TreeNodeIndex* internalToLeaf = octree.toLeafOrder().data();
-        memcpy(rawPtr(internalToLeaf_), internalToLeaf, internalToLeaf_.size(), cudaMemcpyHostToDevice);
+        memcpyH2D(internalToLeaf, internalToLeaf_.size(), rawPtr(internalToLeaf_));
 
         const TreeNodeIndex* childOffsets = octree.childOffsets().data();
-        memcpy(rawPtr(childOffsets_), octree.childOffsets().data(), childOffsets_.size(), cudaMemcpyHostToDevice);
+        memcpyH2D(childOffsets, childOffsets_.size(), rawPtr(childOffsets_));
 
-        memcpy(rawPtr(layout_), layout, layout_.size(), cudaMemcpyHostToDevice);
-        memcpy(rawPtr(centers_), centers.data(), centers.size(), cudaMemcpyHostToDevice);
+        memcpyH2D(layout, layout_.size(), rawPtr(layout_));
+        memcpyH2D(centers.data(), centers.size(), rawPtr(centers_));
 
         computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(
             x, y, z, m, rawPtr(leafToInternal_), numLeaves, rawPtr(layout_), rawPtr(centers_), rawPtr(multipoles_));
@@ -95,8 +87,7 @@ public:
                                                          rawPtr(childOffsets_), rawPtr(centers_), rawPtr(multipoles_));
         }
 
-        // D2H multipoles
-        memcpy(multipoles, rawPtr(multipoles_), multipoles_.size(), cudaMemcpyDeviceToHost);
+        memcpyD2H(rawPtr(multipoles_), multipoles_.size(), multipoles);
 
         auto ryUpsweep = [](auto levelRange, auto childOffsets, auto M, auto centers)
         { upsweepMultipoles(levelRange, childOffsets, centers, M); };
@@ -107,7 +98,7 @@ public:
         focusTree.peerExchange(multipoleSpan, static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);
 
         // H2D multipoles
-        memcpy(rawPtr(multipoles_), multipoles, multipoles_.size(), cudaMemcpyHostToDevice);
+        memcpyH2D(multipoles, multipoles_.size(), rawPtr(multipoles_));
 
         //! second upsweep with leaf data from peer and global ranks in place
         for (int level = numLevels - 1; level >= 0; level--)
