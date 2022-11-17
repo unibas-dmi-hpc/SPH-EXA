@@ -75,7 +75,7 @@ __device__ __forceinline__ int ringAddr(const int i) { return i & (TravConfig::m
  *
  * Number of computed particle-particle pairs per call is GpuConfig::warpSize^2 * TravConfig::nwt
  */
-template<class Tc>
+template<bool UsePbc, class Tc, std::enable_if_t<UsePbc, int> = 0>
 __device__ void neighborCount(Vec3<Tc> sourceBody,
                               int numLanesValid,
                               const Vec4<Tc> pos_i[TravConfig::nwt],
@@ -108,6 +108,60 @@ __device__ void neighborCount(Vec3<Tc> sourceBody,
     }
 }
 
+//! @brief see specialization for UsePbc == true
+template<bool UsePbc, class Tc, std::enable_if_t<!UsePbc, int> = 0>
+__device__ void neighborCount(Vec3<Tc> sourceBody,
+                              int numLanesValid,
+                              const Vec4<Tc> pos_i[TravConfig::nwt],
+                              const Box<Tc>& /*box*/,
+                              cstone::LocalIndex sourceBodyIdx,
+                              unsigned ngmax,
+                              unsigned nc_i[TravConfig::nwt],
+                              unsigned* nidx_i)
+{
+    const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
+
+    for (int j = 0; j < numLanesValid; j++)
+    {
+        Vec3<Tc> pos_j{shflSync(sourceBody[0], j), shflSync(sourceBody[1], j), shflSync(sourceBody[2], j)};
+        cstone::LocalIndex idx_j = shflSync(sourceBodyIdx, j);
+
+#pragma unroll
+        for (int k = 0; k < TravConfig::nwt; k++)
+        {
+            Tc d2 = distancesq(pos_j[0], pos_j[1], pos_j[2], pos_i[k][0], pos_i[k][1], pos_i[k][2]);
+            if (d2 < pos_i[k][3] * pos_i[k][3] && d2 > Tc(0.0))
+            {
+                if (nc_i[k] < ngmax)
+                {
+                    nidx_i[nc_i[k] * TravConfig::targetSize + laneIdx + k * GpuConfig::warpSize] = idx_j;
+                }
+                nc_i[k]++;
+            }
+        }
+    }
+}
+
+template<bool UsePbc, class T, std::enable_if_t<UsePbc, int> = 0>
+__device__ __forceinline__ bool cellOverlap(const Vec3<T>& curSrcCenter,
+                                            const Vec3<T>& curSrcSize,
+                                            const Vec3<T>& targetCenter,
+                                            const Vec3<T>& targetSize,
+                                            const Box<T>& box)
+{
+    return norm2(minDistance(curSrcCenter, curSrcSize, targetCenter, targetSize, box)) < T(1e-10);
+}
+
+template<bool UsePbc, class T, std::enable_if_t<!UsePbc, int> = 0>
+__device__ __forceinline__ bool cellOverlap(const Vec3<T>& curSrcCenter,
+                                            const Vec3<T>& curSrcSize,
+                                            const Vec3<T>& targetCenter,
+                                            const Vec3<T>& targetSize,
+                                            const Box<T>& /*box*/)
+{
+    return norm2(minDistance(curSrcCenter, curSrcSize, targetCenter, targetSize)) < T(1e-10);
+}
+
 /*! @brief traverse one warp with up to 64 target bodies down the tree
  *
  * @param[inout] acc_i          acceleration of target to add to, TravConfig::nwt Vec4 per lane
@@ -131,7 +185,7 @@ __device__ void neighborCount(Vec3<Tc> sourceBody,
  * Constant input pointers are additionally marked __restrict__ to indicate to the compiler that loads
  * can be routed through the read-only/texture cache.
  */
-template<class Tc, class Th, class Tf>
+template<bool UsePbc, class Tc, class Th, class Tf>
 __device__ unsigned traverseWarp(unsigned* nc_i,
                                  unsigned* nidx_i,
                                  unsigned ngmax,
@@ -179,7 +233,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
         const Vec3<Tf> curSrcSize   = sizes[sourceQueue];                          // Current source cell center
         const int childBegin        = childOffsets[sourceQueue];                   // First child cell
         const bool isNode           = childBegin;
-        const bool isClose  = norm2(minDistance(curSrcCenter, curSrcSize, targetCenter, targetSize, box)) < Tc(1e-10);
+        const bool isClose  = cellOverlap<UsePbc>(curSrcCenter, curSrcSize, targetCenter, targetSize, box);
         const bool isSource = sourceIdx < numSources; // Source index is within bounds
         const bool isDirect = isClose && !isNode && isSource;
         const int leafIdx   = (isDirect) ? internalToLeaf[sourceQueue] : 0; // the cstone leaf index
@@ -222,7 +276,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
             {
                 // Load source body coordinates
                 const Vec3<Tc> sourceBody = {x[bodyIdx], y[bodyIdx], z[bodyIdx]};
-                neighborCount(sourceBody, GpuConfig::warpSize, pos_i, box, bodyIdx, ngmax, nc_i, nidx_i);
+                neighborCount<UsePbc>(sourceBody, GpuConfig::warpSize, pos_i, box, bodyIdx, ngmax, nc_i, nidx_i);
                 numBodiesWarp -= GpuConfig::warpSize;
                 numBodiesLane -= GpuConfig::warpSize;
                 p2pCounter += GpuConfig::warpSize;
@@ -238,7 +292,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
                 {
                     // Load source body coordinates
                     const Vec3<Tc> sourceBody = {x[bodyQueue], y[bodyQueue], z[bodyQueue]};
-                    neighborCount(sourceBody, GpuConfig::warpSize, pos_i, box, bodyQueue, ngmax, nc_i, nidx_i);
+                    neighborCount<UsePbc>(sourceBody, GpuConfig::warpSize, pos_i, box, bodyQueue, ngmax, nc_i, nidx_i);
                     bdyFillLevel -= GpuConfig::warpSize;
                     // bodyQueue is now empty; put body indices that spilled into the queue
                     bodyQueue = shflDownSync(bodyIdx, numBodiesWarp - bdyFillLevel);
@@ -263,7 +317,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
         // Load position of source bodies, with padding for invalid lanes
         const Vec3<Tc> sourceBody =
             laneHasBody ? Vec3<Tc>{x[bodyQueue], y[bodyQueue], z[bodyQueue]} : Vec3<Tc>{Tc(0), Tc(0), Tc(0)};
-        neighborCount(sourceBody, bdyFillLevel, pos_i, box, bodyQueue, ngmax, nc_i, nidx_i);
+        neighborCount<UsePbc>(sourceBody, bdyFillLevel, pos_i, box, bodyQueue, ngmax, nc_i, nidx_i);
         p2pCounter += bdyFillLevel;
     }
 
@@ -376,8 +430,12 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::Loc
         Xmin = {warpMin(Xmin[0]), warpMin(Xmin[1]), warpMin(Xmin[2])};
         Xmax = {warpMax(Xmax[0]), warpMax(Xmax[1]), warpMax(Xmax[2])};
 
-        Vec3<Tf>       targetCenter = (Xmax + Xmin) * Tf(0.5);
+        const Vec3<Tf> targetCenter = (Xmax + Xmin) * Tf(0.5);
         const Vec3<Tf> targetSize   = (Xmax - Xmin) * Tf(0.5);
+
+        auto pbc    = BoundaryType::periodic;
+        bool anyPbc = box.boundaryX() == pbc || box.boundaryY() == pbc || box.boundaryZ() == pbc;
+        bool usePbc = anyPbc && !insideBox(targetCenter, targetSize, box);
 
         unsigned nc_i[TravConfig::nwt];
         for (int i = 0; i < TravConfig::nwt; i++)
@@ -386,8 +444,19 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::Loc
         }
 
         unsigned* warpNidx = nidx + targetIdx * TravConfig::targetSize * ngmax;
-        unsigned numP2P = traverseWarp(nc_i, warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, childOffsets,
-                                       internalToLeaf, layout, centers, sizes, rootRange, box, tempQueue, cellQueue);
+        unsigned numP2P;
+        if (usePbc)
+        {
+            numP2P =
+                traverseWarp<true>(nc_i, warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, childOffsets,
+                                   internalToLeaf, layout, centers, sizes, rootRange, box, tempQueue, cellQueue);
+        }
+        else
+        {
+            numP2P =
+                traverseWarp<false>(nc_i, warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, childOffsets,
+                                    internalToLeaf, layout, centers, sizes, rootRange, box, tempQueue, cellQueue);
+        }
         assert(numP2P != 0xFFFFFFFF);
 
         const cstone::LocalIndex bodyIdxLane = bodyBegin + laneIdx;

@@ -219,6 +219,18 @@ HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, co
 //! @brief returns the smallest distance vector between two boxes, 0 if they overlap
 template<class T>
 HOST_DEVICE_FUN Vec3<T> minDistance(
+    const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter, const Vec3<T>& bSize)
+{
+    Vec3<T> dX = abs(bCenter - aCenter) - aSize - bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    return dX;
+}
+
+//! @brief returns the smallest periodic distance vector between two boxes, 0 if they overlap
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(
     const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter, const Vec3<T>& bSize, const Box<T>& box)
 {
     Vec3<T> dX = bCenter - aCenter;
