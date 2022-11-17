@@ -47,7 +47,7 @@ __global__ void testMin(int* values)
 
 TEST(WarpScan, min)
 {
-    thrust::host_vector<int>   h_v(GpuConfig::warpSize);
+    thrust::host_vector<int> h_v(GpuConfig::warpSize);
     thrust::device_vector<int> d_v = h_v;
 
     testMin<<<1, GpuConfig::warpSize>>>(thrust::raw_pointer_cast(d_v.data()));
@@ -67,7 +67,7 @@ __global__ void testMax(int* values)
 
 TEST(WarpScan, max)
 {
-    thrust::host_vector<int>   h_v(GpuConfig::warpSize);
+    thrust::host_vector<int> h_v(GpuConfig::warpSize);
     thrust::device_vector<int> d_v = h_v;
 
     testMax<<<1, GpuConfig::warpSize>>>(thrust::raw_pointer_cast(d_v.data()));
@@ -153,9 +153,9 @@ __global__ void streamCompactTest(int* result)
 {
     __shared__ int exchange[GpuConfig::warpSize];
 
-    int  val     = threadIdx.x;
-    bool keep    = threadIdx.x % 2 == 0;
-    int  numKeep = streamCompact(&val, keep, exchange);
+    int val     = threadIdx.x;
+    bool keep   = threadIdx.x % 2 == 0;
+    int numKeep = streamCompact(&val, keep, exchange);
 
     result[threadIdx.x] = val;
 }

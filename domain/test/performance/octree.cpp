@@ -43,15 +43,15 @@
 using namespace cstone;
 
 template<class KeyType>
-std::tuple<std::vector<KeyType>, std::vector<unsigned>> build_tree(const KeyType* firstCode, const KeyType* lastCode,
-                                                                   unsigned bucketSize)
+std::tuple<std::vector<KeyType>, std::vector<unsigned>>
+build_tree(const KeyType* firstCode, const KeyType* lastCode, unsigned bucketSize)
 {
     std::vector<KeyType> tree;
     std::vector<unsigned> counts;
 
-    auto tp0 = std::chrono::high_resolution_clock::now();
+    auto tp0               = std::chrono::high_resolution_clock::now();
     std::tie(tree, counts) = computeOctree(firstCode, lastCode, bucketSize);
-    auto tp1 = std::chrono::high_resolution_clock::now();
+    auto tp1               = std::chrono::high_resolution_clock::now();
 
     double t0 = std::chrono::duration<double>(tp1 - tp0).count();
     std::cout << "build time from scratch " << t0 << " nNodes(tree): " << nNodes(tree)

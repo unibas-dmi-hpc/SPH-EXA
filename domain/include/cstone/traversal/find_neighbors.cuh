@@ -210,7 +210,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
 
     unsigned p2pCounter = 0;
 
-    int bodyQueue;   // warp queue for source body indices
+    int bodyQueue; // warp queue for source body indices
 
     // populate initial cell queue
     for (int root = rootRange.x; root < rootRange.y; root += GpuConfig::warpSize)
@@ -233,33 +233,33 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
         const Vec3<Tf> curSrcSize   = sizes[sourceQueue];                          // Current source cell center
         const int childBegin        = childOffsets[sourceQueue];                   // First child cell
         const bool isNode           = childBegin;
-        const bool isClose  = cellOverlap<UsePbc>(curSrcCenter, curSrcSize, targetCenter, targetSize, box);
-        const bool isSource = sourceIdx < numSources; // Source index is within bounds
-        const bool isDirect = isClose && !isNode && isSource;
-        const int leafIdx   = (isDirect) ? internalToLeaf[sourceQueue] : 0; // the cstone leaf index
+        const bool isClose          = cellOverlap<UsePbc>(curSrcCenter, curSrcSize, targetCenter, targetSize, box);
+        const bool isSource         = sourceIdx < numSources; // Source index is within bounds
+        const bool isDirect         = isClose && !isNode && isSource;
+        const int leafIdx           = (isDirect) ? internalToLeaf[sourceQueue] : 0; // the cstone leaf index
 
         // Split
-        const bool isSplit      = isNode && isClose && isSource; // Source cell must be split
-        const int  numChild     = 8 & -int(isSplit);             // Number of child cells (masked by split flag)
-        const int  numChildScan = inclusiveScanInt(numChild);    // Inclusive scan of numChild
-        const int  numChildLane = numChildScan - numChild;       // Exclusive scan of numChild
-        const int  numChildWarp = shflSync(numChildScan, GpuConfig::warpSize - 1); // Total numChild of current warp
-        sourceOffset += imin(GpuConfig::warpSize, numSources - sourceOffset);  // advance current level stack pointer
-        if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp) // If cell queue overflows
-            return 0xFFFFFFFF;                                                 // Exit kernel
-        int childIdx = oldSources + numSources + newSources + numChildLane;    // Child index of current lane
-        for (int i = 0; i < numChild; i++)                                     // Loop over child cells for each lane
-            cellQueue[ringAddr(childIdx + i)] = childBegin + i;                // Queue child cells for next level
+        const bool isSplit     = isNode && isClose && isSource; // Source cell must be split
+        const int numChild     = 8 & -int(isSplit);             // Number of child cells (masked by split flag)
+        const int numChildScan = inclusiveScanInt(numChild);    // Inclusive scan of numChild
+        const int numChildLane = numChildScan - numChild;       // Exclusive scan of numChild
+        const int numChildWarp = shflSync(numChildScan, GpuConfig::warpSize - 1); // Total numChild of current warp
+        sourceOffset += imin(GpuConfig::warpSize, numSources - sourceOffset);     // advance current level stack pointer
+        if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp)    // If cell queue overflows
+            return 0xFFFFFFFF;                                                    // Exit kernel
+        int childIdx = oldSources + numSources + newSources + numChildLane;       // Child index of current lane
+        for (int i = 0; i < numChild; i++)                                        // Loop over child cells for each lane
+            cellQueue[ringAddr(childIdx + i)] = childBegin + i;                   // Queue child cells for next level
         newSources += numChildWarp; //  Increment source cell count for next loop
 
         // Direct
         const int firstBody     = layout[leafIdx];
         const int numBodies     = (layout[leafIdx + 1] - firstBody) & -int(isDirect); // Number of bodies in cell
-        bool      directTodo    = numBodies;
-        const int numBodiesScan = inclusiveScanInt(numBodies);                        // Inclusive scan of numBodies
-        int       numBodiesLane = numBodiesScan - numBodies;                          // Exclusive scan of numBodies
-        int       numBodiesWarp = shflSync(numBodiesScan, GpuConfig::warpSize - 1);   // Total numBodies of current warp
-        int       prevBodyIdx   = 0;
+        bool directTodo         = numBodies;
+        const int numBodiesScan = inclusiveScanInt(numBodies);                      // Inclusive scan of numBodies
+        int numBodiesLane       = numBodiesScan - numBodies;                        // Exclusive scan of numBodies
+        int numBodiesWarp       = shflSync(numBodiesScan, GpuConfig::warpSize - 1); // Total numBodies of current warp
+        int prevBodyIdx         = 0;
         while (numBodiesWarp > 0) // While there are bodies to process from current source cell set
         {
             tempQueue[laneIdx] = 1; // Default scan input is 1, such that consecutive lanes load consecutive bodies
@@ -334,7 +334,7 @@ __global__ void resetTraversalCounters()
     sumP2PGlob = 0;
     maxP2PGlob = 0;
 
-    targetCounterGlob  = 0;
+    targetCounterGlob = 0;
 }
 
 /*! @brief Neighbor search for bodies within the specified range
@@ -471,10 +471,7 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::Loc
         for (int i = 0; i < TravConfig::nwt; i++)
         {
             const cstone::LocalIndex bodyIdx = bodyIdxLane + i * GpuConfig::warpSize;
-            if (bodyIdx < bodyEnd)
-            {
-                nc[bodyIdx] = nc_i[i];
-            }
+            if (bodyIdx < bodyEnd) { nc[bodyIdx] = nc_i[i]; }
         }
     }
 }
@@ -520,7 +517,7 @@ auto findNeighborsBT(size_t firstBody,
 
     printf("launching %d blocks\n", numBlocks);
 
-    const int                  poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
+    const int poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
     thrust::device_vector<int> globalPool(poolSize);
 
     resetTraversalCounters<<<1, 1>>>();
@@ -530,7 +527,7 @@ auto findNeighborsBT(size_t firstBody,
                                                       rawPtr(globalPool.data()));
     kernelSuccess("traverseBT");
 
-    auto   t1 = std::chrono::high_resolution_clock::now();
+    auto t1   = std::chrono::high_resolution_clock::now();
     double dt = std::chrono::duration<double>(t1 - t0).count();
 
     uint64_t sumP2P;

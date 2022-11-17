@@ -189,8 +189,8 @@ HOST_DEVICE_FUN bool insideBox(const Vec3<T>& center, const Vec3<T>& size, const
     Vec3<T> globalMax{box.xmax(), box.ymax(), box.zmax()};
     Vec3<T> boxMin = center - size;
     Vec3<T> boxMax = center + size;
-    return boxMin[0] >= globalMin[0] && boxMin[1] >= globalMin[1] && boxMin[2] >= globalMin[2]
-           &&  boxMax[0] <= globalMax[0] && boxMax[1] <= globalMax[1] && boxMax[2] <= globalMax[2];
+    return boxMin[0] >= globalMin[0] && boxMin[1] >= globalMin[1] && boxMin[2] >= globalMin[2] &&
+           boxMax[0] <= globalMax[0] && boxMax[1] <= globalMax[1] && boxMax[2] <= globalMax[2];
 }
 
 //! @brief returns the smallest distance vector of point X to box b, 0 if X is in b
@@ -218,8 +218,8 @@ HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, co
 
 //! @brief returns the smallest distance vector between two boxes, 0 if they overlap
 template<class T>
-HOST_DEVICE_FUN Vec3<T> minDistance(
-    const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter, const Vec3<T>& bSize)
+HOST_DEVICE_FUN Vec3<T>
+minDistance(const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter, const Vec3<T>& bSize)
 {
     Vec3<T> dX = abs(bCenter - aCenter) - aSize - bSize;
     dX += abs(dX);

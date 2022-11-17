@@ -431,10 +431,10 @@ void nodeFpCenters(gsl::span<const typename KeyType::ValueType> prefixes,
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < prefixes.size(); ++i)
     {
-        KeyInt prefix                  = prefixes[i];
-        KeyInt startKey                = decodePlaceholderBit(prefix);
-        unsigned level                 = decodePrefixLength(prefix) / 3;
-        auto nodeBox                   = sfcIBox(KeyType(startKey), level);
+        KeyInt prefix                   = prefixes[i];
+        KeyInt startKey                 = decodePlaceholderBit(prefix);
+        unsigned level                  = decodePrefixLength(prefix) / 3;
+        auto nodeBox                    = sfcIBox(KeyType(startKey), level);
         util::tie(centers[i], sizes[i]) = centerAndSize<KeyInt>(nodeBox, box);
     }
 }
