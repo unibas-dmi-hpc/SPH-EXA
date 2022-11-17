@@ -76,7 +76,7 @@ int main(int argc, char** argv)
     cstone::Box<T> box(-boxSize, boxSize);
 
     TreeBuilder<uint64_t> treeBuilder;
-    int numSources = treeBuilder.update(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), numBodies, box);
+    int                   numSources = treeBuilder.update(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), numBodies, box);
 
     std::vector<int2> levelRange(treeBuilder.maxTreeLevel() + 1);
     int               highestLevel = treeBuilder.extract(levelRange.data());
