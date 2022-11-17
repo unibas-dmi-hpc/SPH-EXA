@@ -553,8 +553,8 @@ auto computeAcceleration(size_t firstBody, size_t lastBody, const Tc* x, const T
     auto t0 = std::chrono::high_resolution_clock::now();
     traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, {levelRange[1].x, levelRange[1].y}, x, y, z, m,
                                                     h, childOffsets, internalToLeaf, layout, sourceCenter, Multipole, G,
-                                                    p, ax, ay, az, cstone::rawPtr(globalPool.data()));
-    cstone::kernelSuccess("traverse");
+                                                    p, ax, ay, az, rawPtr(globalPool));
+    kernelSuccess("traverse");
 
     auto   t1 = std::chrono::high_resolution_clock::now();
     double dt = std::chrono::duration<double>(t1 - t0).count();
