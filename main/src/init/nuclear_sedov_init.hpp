@@ -47,20 +47,16 @@ std::map<std::string, double> nuclearSedovConstants()
                                       {"r0", 0.},
                                       {"r1", 0.5},
                                       {"mTotal", 1e9},
-                                      {"ener0", 2e10},
-                                      {"u0", 1e10},
-                                      {"width", 0.1},
+                                      {"temp0", 1.0e9},
+                                      {"T0", 1.0e9},
+                                      {"width", 0.2},
                                       {"p0", 0.},
                                       {"vr0", 0.},
                                       {"cs0", 0.},
-                                      {"firstTimeStep", 2e-9},
-                                      {"mui", 1e7 /* computed via nuclear abundances if mui == 0 */}};
-
-    // original relation between ret["ener0"] and ret["energyTotal"]:
-    // ret["ener0"] = ret["energyTotal"] / std::pow(M_PI, 1.5) / 1. / std::pow(ret["width"], 3.0);
-    //
-    // inversed relation between ret["ener0"] and ret["energyTotal"] (proably useless):
-    ret["energyTotal"] = ret["ener0"] * std::pow(M_PI, 1.5) * std::pow(ret["width"], 3.0);
+                                      {"firstTimeStep", 1e-8},
+                                      {"mui", 1e7 /* computed via nuclear abundances if mui == 0 */},
+                                      {"ener0", 0 /* computed using temp0 if ener0 == 0 */},
+                                      {"u0", 0 /* computed using T0 if u0 == 0 */}};
     return ret;
 }
 
@@ -137,7 +133,14 @@ public:
             throw std::runtime_error("not able to initialize " + std::to_string(n.numSpecies) + " nuclear species !");
         }
 
+        // if mui == 0 overwrite with the value computed from nuclear abundances
         if (constants_.at("mui") == 0.0) { constants_["mui"] = mui; }
+
+        // cv computed according to mui
+        auto cv = sph::idealGasCv(constants_.at("mui"));
+        // if energies are 0 overwrite with values computed from temperatures
+        if (constants_.at("ener0") == 0.0) { constants_["ener0"] = cv * constants_["temp0"]; }
+        if (constants_.at("u0") == 0.0) { constants_["u0"] = cv * constants_["T0"]; }
 
         /* !!!!!!!!!!!!!!!!!!!! */
         /* hydro initialization */
