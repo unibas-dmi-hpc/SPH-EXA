@@ -65,9 +65,13 @@ __device__ __forceinline__ int ringAddr(const int i) { return i & (TravConfig::m
  *
  * @tparam       T             float or double
  * @param[in]    sourceBody    source body x,y,z
- * @param[in]    validLaneMask bit-mask to indicate which lanes contain valid source bodies
+ * @param[in]    validLaneMask number of lanes that contain valid source bodies
  * @param[in]    pos_i         target body x,y,z,h
+ * @param[in]    box           global coordinate bounding box
+ * @param[in]    sourceBodyIdx index of source body of each lane
+ * @param[in]    ngmax         maximum number of neighbors to store
  * @param[inout] nc_i          target neighbor count to add to
+ * @param[out]   nidx_i        indices of neighbors of the target body to store
  *
  * Number of computed particle-particle pairs per call is GpuConfig::warpSize^2 * TravConfig::nwt
  */
@@ -76,11 +80,17 @@ __device__ void neighborCount(Vec3<Tc> sourceBody,
                               int numLanesValid,
                               const Vec4<Tc> pos_i[TravConfig::nwt],
                               const Box<Tc>& box,
-                              unsigned nc_i[TravConfig::nwt])
+                              cstone::LocalIndex sourceBodyIdx,
+                              unsigned ngmax,
+                              unsigned nc_i[TravConfig::nwt],
+                              unsigned* nidx_i)
 {
+    const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
+
     for (int j = 0; j < numLanesValid; j++)
     {
         Vec3<Tc> pos_j{shflSync(sourceBody[0], j), shflSync(sourceBody[1], j), shflSync(sourceBody[2], j)};
+        cstone::LocalIndex idx_j = shflSync(sourceBodyIdx, j);
 
 #pragma unroll
         for (int k = 0; k < TravConfig::nwt; k++)
@@ -88,6 +98,10 @@ __device__ void neighborCount(Vec3<Tc> sourceBody,
             Tc d2 = distanceSqPbc(pos_j[0], pos_j[1], pos_j[2], pos_i[k][0], pos_i[k][1], pos_i[k][2], box);
             if (d2 < pos_i[k][3] * pos_i[k][3] && d2 > Tc(0.0))
             {
+                if (nc_i[k] < ngmax)
+                {
+                    nidx_i[nc_i[k] * TravConfig::targetSize + laneIdx + k * GpuConfig::warpSize] = idx_j;
+                }
                 nc_i[k]++;
             }
         }
@@ -119,6 +133,8 @@ __device__ void neighborCount(Vec3<Tc> sourceBody,
  */
 template<class Tc, class Th, class Tf>
 __device__ unsigned traverseWarp(unsigned* nc_i,
+                                 unsigned* nidx_i,
+                                 unsigned ngmax,
                                  const Vec4<Tc> pos_i[TravConfig::nwt],
                                  const Vec3<Tf> targetCenter,
                                  const Vec3<Tf> targetSize,
@@ -183,9 +199,9 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
         newSources += numChildWarp; //  Increment source cell count for next loop
 
         // Direct
-        bool      directTodo    = isDirect;
         const int firstBody     = layout[leafIdx];
         const int numBodies     = (layout[leafIdx + 1] - firstBody) & -int(isDirect); // Number of bodies in cell
+        bool      directTodo    = numBodies;
         const int numBodiesScan = inclusiveScanInt(numBodies);                        // Inclusive scan of numBodies
         int       numBodiesLane = numBodiesScan - numBodies;                          // Exclusive scan of numBodies
         int       numBodiesWarp = shflSync(numBodiesScan, GpuConfig::warpSize - 1);   // Total numBodies of current warp
@@ -206,7 +222,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
             {
                 // Load source body coordinates
                 const Vec3<Tc> sourceBody = {x[bodyIdx], y[bodyIdx], z[bodyIdx]};
-                neighborCount(sourceBody, GpuConfig::warpSize, pos_i, box, nc_i);
+                neighborCount(sourceBody, GpuConfig::warpSize, pos_i, box, bodyIdx, ngmax, nc_i, nidx_i);
                 numBodiesWarp -= GpuConfig::warpSize;
                 numBodiesLane -= GpuConfig::warpSize;
                 p2pCounter += GpuConfig::warpSize;
@@ -222,7 +238,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
                 {
                     // Load source body coordinates
                     const Vec3<Tc> sourceBody = {x[bodyQueue], y[bodyQueue], z[bodyQueue]};
-                    neighborCount(sourceBody, GpuConfig::warpSize, pos_i, box, nc_i);
+                    neighborCount(sourceBody, GpuConfig::warpSize, pos_i, box, bodyQueue, ngmax, nc_i, nidx_i);
                     bdyFillLevel -= GpuConfig::warpSize;
                     // bodyQueue is now empty; put body indices that spilled into the queue
                     bodyQueue = shflDownSync(bodyIdx, numBodiesWarp - bdyFillLevel);
@@ -247,7 +263,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
         // Load position of source bodies, with padding for invalid lanes
         const Vec3<Tc> sourceBody =
             laneHasBody ? Vec3<Tc>{x[bodyQueue], y[bodyQueue], z[bodyQueue]} : Vec3<Tc>{Tc(0), Tc(0), Tc(0)};
-        neighborCount(sourceBody, bdyFillLevel, pos_i, box, nc_i);
+        neighborCount(sourceBody, bdyFillLevel, pos_i, box, bodyQueue, ngmax, nc_i, nidx_i);
         p2pCounter += bdyFillLevel;
     }
 
@@ -300,6 +316,8 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::Loc
                                                                      const Vec3<Tf>* __restrict__ sizes,
                                                                      const Box<Tc> box,
                                                                      unsigned* nc,
+                                                                     unsigned* nidx,
+                                                                     unsigned ngmax,
                                                                      int* globalPool)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
@@ -367,9 +385,9 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::Loc
             nc_i[i] = 0;
         }
 
-        unsigned numP2P =
-            traverseWarp(nc_i, pos_i, targetCenter, targetSize, x, y, z, h, childOffsets, internalToLeaf, layout,
-                         centers, sizes, rootRange, box, tempQueue, cellQueue);
+        unsigned* warpNidx = nidx + targetIdx * TravConfig::targetSize * ngmax;
+        unsigned numP2P = traverseWarp(nc_i, warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, childOffsets,
+                                       internalToLeaf, layout, centers, sizes, rootRange, box, tempQueue, cellQueue);
         assert(numP2P != 0xFFFFFFFF);
 
         const cstone::LocalIndex bodyIdxLane = bodyBegin + laneIdx;
@@ -418,7 +436,9 @@ auto findNeighborsBT(size_t firstBody,
                      const Vec3<Tf>* centers,
                      const Vec3<Tf>* sizes,
                      const Box<Tc>& box,
-                     unsigned* nc)
+                     unsigned* nc,
+                     unsigned* nidx,
+                     unsigned ngmax)
 {
     constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
@@ -436,8 +456,8 @@ auto findNeighborsBT(size_t firstBody,
 
     resetTraversalCounters<<<1, 1>>>();
     auto t0 = std::chrono::high_resolution_clock::now();
-    traverseBT<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, {1, 9}, x, y, z,
-                                                      h, childOffsets, internalToLeaf, layout, centers, sizes, box, nc,
+    traverseBT<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, {1, 9}, x, y, z, h, childOffsets,
+                                                      internalToLeaf, layout, centers, sizes, box, nc, nidx, ngmax,
                                                       rawPtr(globalPool.data()));
     kernelSuccess("traverseBT");
 

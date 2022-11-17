@@ -464,49 +464,64 @@ HOST_DEVICE_FUN void findNeighborsT(LocalIndex i,
     Vec3<T> particle{xi, yi, zi};
     unsigned numNeighbors = 0;
 
-    auto overlaps = [particle, radiusSq, centers, sizes, &box](TreeNodeIndex idx)
+    auto pbc    = BoundaryType::periodic;
+    bool anyPbc = box.boundaryX() == pbc || box.boundaryY() == pbc || box.boundaryZ() == pbc;
+    bool usePbc = anyPbc && !insideBox(particle, {2.0 * hi, 2.0 * hi, 2.0 * hi}, box);
+
+    auto overlapsPbc = [particle, radiusSq, centers, sizes, &box](TreeNodeIndex idx)
     {
         auto nodeCenter = centers[idx];
         auto nodeSize   = sizes[idx];
         return norm2(minDistance(particle, nodeCenter, nodeSize, box)) < radiusSq;
     };
 
-    auto searchBox = [i, particle, radiusSq, layout, toLeafOrder, centers, sizes, x, y, z, ngmax, neighbors,
-                      &numNeighbors, &box](TreeNodeIndex idx)
+    auto overlaps = [particle, radiusSq, centers, sizes](TreeNodeIndex idx)
+    {
+        auto nodeCenter = centers[idx];
+        auto nodeSize   = sizes[idx];
+        return norm2(minDistance(particle, nodeCenter, nodeSize)) < radiusSq;
+    };
+
+    auto searchBoxPbc = [i, particle, radiusSq, layout, toLeafOrder, centers, sizes, x, y, z, ngmax, neighbors,
+                         &numNeighbors, &box](TreeNodeIndex idx)
     {
         TreeNodeIndex leafIdx    = toLeafOrder[idx];
         LocalIndex firstParticle = layout[leafIdx];
         LocalIndex lastParticle  = layout[leafIdx + 1];
 
-        if (needPbc(particle, centers[idx], sizes[idx], box))
+        for (LocalIndex j = firstParticle; j < lastParticle; ++j)
         {
-            for (LocalIndex j = firstParticle; j < lastParticle; ++j)
+            if (j == i) { continue; }
+            if (distanceSqPbc(x[j], y[j], z[j], particle[0], particle[1], particle[2], box) < radiusSq)
             {
-                if (j == i) { continue; }
-                if (distanceSqPbc(x[j], y[j], z[j], particle[0], particle[1], particle[2], box) < radiusSq)
-                {
-                    if (numNeighbors < ngmax) { neighbors[numNeighbors] = j; }
-                    numNeighbors++;
-                }
-            }
-        }
-        else
-        {
-            for (LocalIndex j = firstParticle; j < lastParticle; ++j)
-            {
-                if (j == i) { continue; }
-                if (distancesq(x[j], y[j], z[j], particle[0], particle[1], particle[2]) < radiusSq)
-                {
-                    if (numNeighbors < ngmax) { neighbors[numNeighbors] = j; }
-                    numNeighbors++;
-                }
+                if (numNeighbors < ngmax) { neighbors[numNeighbors] = j; }
+                numNeighbors++;
             }
         }
     };
 
-    singleTraversal(childOffsets, overlaps, searchBox);
+    auto searchBox = [i, particle, radiusSq, layout, toLeafOrder, centers, sizes, x, y, z, ngmax, neighbors,
+                      &numNeighbors](TreeNodeIndex idx)
+    {
+        TreeNodeIndex leafIdx    = toLeafOrder[idx];
+        LocalIndex firstParticle = layout[leafIdx];
+        LocalIndex lastParticle  = layout[leafIdx + 1];
 
-    nc[i] = numNeighbors;
+        for (LocalIndex j = firstParticle; j < lastParticle; ++j)
+        {
+            if (j == i) { continue; }
+            if (distancesq(x[j], y[j], z[j], particle[0], particle[1], particle[2]) < radiusSq)
+            {
+                if (numNeighbors < ngmax) { neighbors[numNeighbors] = j; }
+                numNeighbors++;
+            }
+        }
+    };
+
+    if (usePbc) { singleTraversal(childOffsets, overlapsPbc, searchBoxPbc); }
+    else { singleTraversal(childOffsets, overlaps, searchBox); }
+
+    *nc = numNeighbors;
 }
 
 } // namespace cstone

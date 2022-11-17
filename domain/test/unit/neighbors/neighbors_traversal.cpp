@@ -83,7 +83,7 @@ static void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box
     {
         findNeighborsT(idx, coords.x().data(), coords.y().data(), coords.z().data(), h.data(),
                        octree.childOffsets().data(), octree.toLeafOrder().data(), layout.data(), centers.data(),
-                       sizes.data(), box, ngmax, neighbors.data() + idx * ngmax, nc.data());
+                       sizes.data(), box, ngmax, neighbors.data() + idx * ngmax, nc.data() + idx);
     }
     sortNeighbors(neighbors.data(), nc.data(), numParticles, ngmax);
 

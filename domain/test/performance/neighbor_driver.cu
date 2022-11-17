@@ -29,13 +29,16 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 
 #include <thrust/device_vector.h>
 
-#include "cstone/findneighbors.hpp"
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/findneighbors.hpp"
+
+#include "cstone/traversal/find_neighbors.cuh"
 
 #include "../coord_samples/random.hpp"
 #include "timing.cuh"
@@ -85,7 +88,7 @@ __global__ void findNeighborsTKernel(const T* x,
     if (id >= lastId) { return; }
 
     findNeighborsT(id, x, y, z, h, childOffsets, toLeafOrder, layout, centers, sizes, box, ngmax,
-                   neighbors + tid * ngmax, neighborsCount);
+                   neighbors + tid * ngmax, neighborsCount + id);
 }
 
 template<class T, class KeyType>
@@ -128,19 +131,21 @@ void benchmarkGpu()
 #pragma omp parallel for
         for (LocalIndex i = 0; i < n; ++i)
         {
+            //findNeighbors(i, x, y, z, h.data(), box, sfcKindPointer(codes), neighborsCPU.data() + i * ngmax,
+            //              neighborsCountCPU.data() + i, n, ngmax);
             findNeighborsT(i, x, y, z, h.data(), childOffsets, toLeafOrder, layout.data(), centers.data(), sizes.data(),
-                           box, ngmax, neighborsCPU.data() + i * ngmax, neighborsCountCPU.data());
+                           box, ngmax, neighborsCPU.data() + i * ngmax, neighborsCountCPU.data() + i);
         }
     };
 
     float cpuTime = timeCpu(findNeighborsCpu);
 
     std::cout << "CPU time " << cpuTime << " s" << std::endl;
-    std::copy(neighborsCountCPU.data(), neighborsCountCPU.data() + 10, std::ostream_iterator<int>(std::cout, " "));
+    std::copy(neighborsCountCPU.data(), neighborsCountCPU.data() + 64, std::ostream_iterator<int>(std::cout, " "));
     std::cout << std::endl;
 
-    std::vector<int> neighborsGPU(ngmax * n);
-    std::vector<int> neighborsCountGPU(n);
+    std::vector<cstone::LocalIndex> neighborsGPU(ngmax * n);
+    std::vector<unsigned> neighborsCountGPU(n);
 
     thrust::device_vector<T> d_x(coords.x().begin(), coords.x().end());
     thrust::device_vector<T> d_y(coords.y().begin(), coords.y().end());
@@ -162,29 +167,92 @@ void benchmarkGpu()
     {
         //findNeighborsKernel<<<iceil(n, 256), 256>>>(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_h), 0, n, n, box,
         //                                            deviceKeys, rawPtr(d_neighbors), rawPtr(d_neighborsCount), ngmax);
-        findNeighborsTKernel<<<iceil(n, 128), 128>>>(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_h),
-                                                     rawPtr(d_childOffsets), rawPtr(d_toLeafOrder), rawPtr(d_layout),
-                                                     rawPtr(d_centers), rawPtr(d_sizes), box, 0, n, ngmax,
-                                                     rawPtr(d_neighbors), rawPtr(d_neighborsCount));
+        //findNeighborsTKernel<<<iceil(n, 128), 128>>>(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_h),
+        //                                             rawPtr(d_childOffsets), rawPtr(d_toLeafOrder), rawPtr(d_layout),
+        //                                             rawPtr(d_centers), rawPtr(d_sizes), box, 0, n, ngmax,
+        //                                             rawPtr(d_neighbors), rawPtr(d_neighborsCount));
+
+        findNeighborsBT(0, n, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_h), rawPtr(d_childOffsets),
+                        rawPtr(d_toLeafOrder), rawPtr(d_layout), rawPtr(d_centers), rawPtr(d_sizes), box,
+                        rawPtr(d_neighborsCount), rawPtr(d_neighbors), ngmax);
     };
 
     float gpuTime = timeGpu(findNeighborsLambda);
 
     thrust::copy(d_neighborsCount.begin(), d_neighborsCount.end(), neighborsCountGPU.begin());
+    thrust::copy(d_neighbors.begin(), d_neighbors.end(), neighborsGPU.begin());
 
     std::cout << "GPU time " << gpuTime / 1000 << " s" << std::endl;
-    std::copy(neighborsCountGPU.data(), neighborsCountGPU.data() + 10, std::ostream_iterator<int>(std::cout, " "));
+    std::copy(neighborsCountGPU.data(), neighborsCountGPU.data() + 64, std::ostream_iterator<int>(std::cout, " "));
     std::cout << std::endl;
+
+    if (false)
+    {
+        cstone::LocalIndex i = 1300235;
+        std::sort(neighborsCPU.data() + i * ngmax, neighborsCPU.data() + i * ngmax + neighborsCountCPU[i]);
+        std::copy(neighborsCPU.data() + i * ngmax, neighborsCPU.data() + i * ngmax + neighborsCountCPU[i],
+                  std::ostream_iterator<int>(std::cout, " "));
+        std::cout << std::endl;
+
+        std::vector<cstone::LocalIndex> nilist(neighborsCountGPU[i]);
+        for (unsigned j = 0; j < neighborsCountGPU[i]; ++j)
+        {
+            size_t warpOffset = (i / TravConfig::targetSize) * TravConfig::targetSize * ngmax;
+            size_t laneOffset = i % TravConfig::targetSize;
+            nilist[j]         = neighborsGPU[warpOffset + TravConfig::targetSize * j + laneOffset];
+        }
+        std::sort(nilist.begin(), nilist.end());
+        std::copy(nilist.begin(), nilist.end(), std::ostream_iterator<int>(std::cout, " "));
+        std::cout << std::endl;
+
+        Vec3<T> ip{x[i], y[i], z[i]};
+        std::cout << "px: " << x[i] << " " << y[i] << " " << z[i] << std::endl;
+        {
+            int j1 = 1300236;
+            Vec3<T> jp{x[j1], y[j1], z[j1]};
+            std::cout << "d " << j1 << " " << x[j1] << " " << y[j1] << " " << z[j1] << ": " << std::sqrt(norm2(ip - jp))
+                      << std::endl;
+        }
+    }
+
+    int numFails = 0;
+    int numFailsList = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        std::sort(neighborsCPU.data() + i * ngmax, neighborsCPU.data() + i * ngmax + neighborsCountCPU[i]);
+
+        std::vector<cstone::LocalIndex> nilist(neighborsCountGPU[i]);
+        for (unsigned j = 0; j < neighborsCountGPU[i]; ++j)
+        {
+            size_t warpOffset = (i / TravConfig::targetSize) * TravConfig::targetSize * ngmax;
+            size_t laneOffset = i % TravConfig::targetSize;
+            nilist[j] = neighborsGPU[warpOffset + TravConfig::targetSize * j + laneOffset];
+        }
+        std::sort(nilist.begin(), nilist.end());
+
+        if (neighborsCountGPU[i] != neighborsCountCPU[i])
+        {
+            std::cout << i << " " << neighborsCountGPU[i] << " " << neighborsCountCPU[i] << std::endl;
+            numFails++;
+        }
+
+        if (! std::equal(begin(nilist), end(nilist), neighborsCPU.begin() + i * ngmax))
+        {
+            numFailsList++;
+        }
+    }
 
     bool allEqual = std::equal(begin(neighborsCountGPU), end(neighborsCountGPU), begin(neighborsCountCPU));
     if (allEqual)
         std::cout << "Neighbor counts: PASS\n";
     else
-        std::cout << "Neighbor counts: FAIL\n";
+        std::cout << "Neighbor counts: FAIL " << numFails << std::endl;
+
+    std::cout << "numFailsList " << numFailsList << std::endl;
 }
 
 int main()
 {
-    benchmarkGpu<double, MortonKey<uint64_t>>();
+    //benchmarkGpu<double, MortonKey<uint64_t>>();
     benchmarkGpu<double, HilbertKey<uint64_t>>();
 }

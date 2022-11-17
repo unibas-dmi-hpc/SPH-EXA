@@ -314,28 +314,24 @@ TEST(BoxOverlap, excludeRangeContainedIn)
     excludeRangeContainedIn<uint64_t>();
 }
 
-TEST(BoxOverlap, needPbc)
+TEST(BoxOverlap, insideBox)
 {
     using T = double;
-
-    Box<T> boxOpen(0, 1, BoundaryType::open);
-    Box<T> box(0, 1, BoundaryType::periodic);
-
+    Box<T> box(0, 1);
     {
         Vec3<T> bcenter{0.75, 0.25, 0.25};
         Vec3<T> bsize{0.25, 0.25, 0.25};
-
-        EXPECT_TRUE(needPbc({0.251, 0.25, 0.25}, bcenter, bsize, box));
-        EXPECT_TRUE(needPbc({0.499, 0.25, 0.25}, bcenter, bsize, box));
-        EXPECT_TRUE(needPbc({0.001, 0.99, 0.99}, bcenter, bsize, box));
-        EXPECT_FALSE(needPbc({0.001, 0.99, 0.99}, bcenter, bsize, boxOpen));
+        EXPECT_TRUE(insideBox(bcenter, bsize, box));
     }
     {
-        Vec3<T> bcenter{0.125, 0.125, 0.125};
-        Vec3<T> bsize{0.125, 0.125, 0.125};
-
-        EXPECT_FALSE(needPbc({0.49, 0.49, 0.49}, bcenter, bsize, box));
-        EXPECT_TRUE(needPbc({0.51, 0.51, 0.51}, bcenter, bsize, box));
+        Vec3<T> bcenter{0.75, 0.25, 0.25};
+        Vec3<T> bsize{0.26, 0.25, 0.25};
+        EXPECT_FALSE(insideBox(bcenter, bsize, box));
+    }
+    {
+        Vec3<T> bcenter{0.1, 0.1, 0.1};
+        Vec3<T> bsize{0.1, 0.11, 0.1};
+        EXPECT_FALSE(insideBox(bcenter, bsize, box));
     }
 }
 

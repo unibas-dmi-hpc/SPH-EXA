@@ -15,4 +15,6 @@ if(CMAKE_CUDA_COMPILER)
     cstone_add_cuda_performance_test(neighbor_driver.cu neighbors_test_gpu)
     cstone_add_cuda_performance_test(octree.cu octree_perf_gpu)
     cstone_add_cuda_performance_test(hilbert.cu hilbert_perf_gpu)
+
+    set_source_files_properties(octree.cu PROPERTIES COMPILE_OPTIONS --expt-relaxed-constexpr)
 endif()
