@@ -30,8 +30,10 @@
  */
 
 #include <vector>
-#include <thrust/sequence.h>
+
+#include <thrust/host_vector.h>
 #include <thrust/gather.h>
+#include <thrust/sequence.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/sfc/sfc_gpu.h"
