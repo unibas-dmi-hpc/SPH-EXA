@@ -36,7 +36,7 @@
 #include <limits>
 
 #include "cstone/cuda/cuda_utils.cuh"
-#include "cstone/tree/octree_gpu.h"
+#include "cstone/tree/csarray_gpu.h"
 #include "csarray.hpp"
 
 namespace cstone

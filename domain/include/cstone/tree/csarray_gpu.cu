@@ -39,7 +39,7 @@
 #include "cstone/util/util.hpp"
 #include "csarray.hpp"
 
-#include "octree_gpu.h"
+#include "csarray_gpu.h"
 
 namespace cstone
 {

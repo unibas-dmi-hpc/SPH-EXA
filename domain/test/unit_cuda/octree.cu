@@ -37,7 +37,7 @@
 
 #include "coord_samples/random.hpp"
 #include "cstone/tree/csarray.hpp"
-#include "cstone/tree/octree_gpu.h"
+#include "cstone/tree/csarray_gpu.h"
 #include "cstone/tree/octree_util.hpp"
 #include "cstone/tree/update_gpu.cuh"
 
