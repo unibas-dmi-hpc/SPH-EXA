@@ -210,6 +210,33 @@ void buildInternalOctreeCpu(const KeyType* cstoneTree,
     linkTreeCpu(prefixes, numInternalNodes, leafToInternal, levelRange, childOffsets, parents);
 }
 
+//! @brief locate with @p nodeKey given in Warren-Salmon placeholder-bit format
+template<class KeyType>
+HOST_DEVICE_FUN TreeNodeIndex locateNode(KeyType nodeKey, const KeyType* prefixes, const TreeNodeIndex* levelRange)
+{
+    TreeNodeIndex numNodes = levelRange[maxTreeLevel<KeyType>{} + 1];
+    unsigned level         = decodePrefixLength(nodeKey) / 3;
+    auto it                = stl::lower_bound(prefixes + levelRange[level], prefixes + levelRange[level + 1], nodeKey);
+    if (it != prefixes + numNodes && *it == nodeKey) { return it - prefixes; }
+    else { return numNodes; }
+}
+
+/*! @brief finds the index of the node with SFC key range [startKey:endKey]
+ *
+ * @param startKey   lower SFC key
+ * @param endKey     upper SFC key
+ * @return           The index i of the node that satisfies codeStart(i) == startKey
+ *                   and codeEnd(i) == endKey, or numTreeNodes() if no such node exists.
+ */
+template<class KeyType>
+HOST_DEVICE_FUN TreeNodeIndex
+locateNode(KeyType startKey, KeyType endKey, const KeyType* prefixes, const TreeNodeIndex* levelRange)
+{
+    //! prefixLength is 3 * treeLevel(endKey - startKey)
+    unsigned prefixLength = countLeadingZeros(endKey - startKey - 1) - unusedBits<KeyType>{};
+    return locateNode(encodePlaceholderBit(startKey, prefixLength), prefixes, levelRange);
+}
+
 template<class KeyType>
 struct CombinedUpdate;
 
@@ -286,9 +313,6 @@ public:
      */
     inline bool isLeaf(TreeNodeIndex node) const { return childOffsets_[node] == 0; }
 
-    //! @brief check if node is the root node
-    inline bool isRoot(TreeNodeIndex node) const { return node == levelRange_[0]; }
-
     /*! @brief return child node index
      *
      * @param[in] node    node index, range [0:numInternalNodes()]
@@ -349,29 +373,6 @@ public:
     {
         assert(size_t(node) < internalToLeaf_.size());
         return internalToLeaf_[node];
-    }
-
-    /*! @brief finds the index of the node with SFC key range [startKey:endKey]
-     *
-     * @param startKey   lower SFC key
-     * @param endKey     upper SFC key
-     * @return           The index i of the node that satisfies codeStart(i) == startKey
-     *                   and codeEnd(i) == endKey, or numTreeNodes() if no such node exists.
-     */
-    TreeNodeIndex locate(KeyType startKey, KeyType endKey) const
-    {
-        //! prefixLength is 3 * treeLevel(endKey - startKey)
-        unsigned prefixLength = countLeadingZeros(endKey - startKey - 1) - unusedBits<KeyType>{};
-        return locate(encodePlaceholderBit(startKey, prefixLength));
-    }
-
-    TreeNodeIndex locate(KeyType nodeKey) const
-    {
-        unsigned level = decodePrefixLength(nodeKey) / 3;
-        auto it = std::lower_bound(prefixes_.begin() + levelRange_[level], prefixes_.begin() + levelRange_[level + 1],
-                                   nodeKey);
-        if (it != prefixes_.end() && *it == nodeKey) { return it - prefixes_.begin(); }
-        else { return numTreeNodes(); }
     }
 
 private:

@@ -231,10 +231,14 @@ public:
         assert(globalLeaves[firstGlobalIdx] == prevFocusStart);
         assert(globalLeaves[lastGlobalIdx] == prevFocusEnd);
 
+        const KeyType* nodeKeys = tree_.nodeKeys().data();
+        const TreeNodeIndex* levelRange = tree_.levelRange().data();
+
 #pragma omp parallel for schedule(static)
         for (TreeNodeIndex globalIdx = firstGlobalIdx; globalIdx < lastGlobalIdx; ++globalIdx)
         {
-            TreeNodeIndex localIdx = tree_.locate(globalLeaves[globalIdx], globalLeaves[globalIdx + 1]);
+            TreeNodeIndex localIdx =
+                locateNode(globalLeaves[globalIdx], globalLeaves[globalIdx + 1], nodeKeys, levelRange);
             if (localIdx == tree_.numTreeNodes())
             {
                 // If the global tree is fully converged, but the locally focused tree is just being built up
@@ -256,7 +260,8 @@ public:
      * @param[out] localQuantities   local tree cell properties
      */
     template<class T>
-    void extractGlobal(const Octree<KeyType>& globalTree,
+    void extractGlobal(const KeyType* globalNodeKeys,
+                       const TreeNodeIndex* globalLevelRange,
                        gsl::span<const T> globalQuantities,
                        gsl::span<T> localQuantities) const
     {
@@ -268,7 +273,8 @@ public:
             //! from global tree, pull in missing elements into locally focused tree
             for (TreeNodeIndex i = range.start(); i < range.end(); ++i)
             {
-                TreeNodeIndex globalIndex    = globalTree.locate(localLeaves[i], localLeaves[i + 1]);
+                TreeNodeIndex globalIndex =
+                    locateNode(localLeaves[i], localLeaves[i + 1], globalNodeKeys, globalLevelRange);
                 TreeNodeIndex internalIdx    = tree_.toInternal(i);
                 localQuantities[internalIdx] = globalQuantities[globalIndex];
             }
@@ -340,7 +346,8 @@ public:
         mpiAllreduce(MPI_IN_PLACE, globalLeafCenters.data(), globalLeafCenters.size(), MPI_SUM);
         scatter(globalTree.internalOrder(), globalLeafCenters.data(), globalCenters_.data());
         upsweep(globalTree.levelRange(), globalTree.childOffsets(), globalCenters_.data(), CombineSourceCenter<T>{});
-        extractGlobal<SourceCenterType<T>>(globalTree, globalCenters_, centers_);
+        extractGlobal<SourceCenterType<T>>(globalTree.nodeKeys().data(), globalTree.levelRange().data(), globalCenters_,
+                                           centers_);
 
         //! upsweep with all (leaf) data in place
         upsweep(tree_.levelRange(), tree_.childOffsets(), centers_.data(), CombineSourceCenter<T>{});
@@ -535,7 +542,8 @@ void globalFocusExchange(const Octree<KeyType>& globalOctree,
     upsweepFunction(globalOctree.levelRange(), globalOctree.childOffsets(), globalQuantities.data(), upsweepArgs...);
 
     //! from the global tree, extract the part that the executing rank was missing
-    focusTree.template extractGlobal<Q>(globalOctree, globalQuantities, quantities);
+    focusTree.template extractGlobal<Q>(globalOctree.nodeKeys().data(), globalOctree.levelRange().data(),
+                                        globalQuantities, quantities);
 }
 
 } // namespace cstone

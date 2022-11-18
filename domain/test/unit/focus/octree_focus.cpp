@@ -60,7 +60,8 @@ static auto computeNodeOps(const Octree<KeyType>& octree,
         auto [keyStub, level, value] = t;
 
         KeyType keyStart  = pad(KeyType(keyStub), 3 * level);
-        TreeNodeIndex idx = octree.locate(keyStart, keyStart + nodeRange<KeyType>(level));
+        TreeNodeIndex idx = locateNode(keyStart, keyStart + nodeRange<KeyType>(level), octree.nodeKeys().data(),
+                                       octree.levelRange().data());
         macs[idx]         = value;
     }
 

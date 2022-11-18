@@ -43,8 +43,6 @@ using namespace cstone;
 template<class KeyType>
 void checkConnectivity(const Octree<KeyType>& fullTree)
 {
-    ASSERT_TRUE(fullTree.isRoot(0));
-
     // check all internal nodes
     for (TreeNodeIndex nodeIdx = 0; nodeIdx < fullTree.numTreeNodes(); ++nodeIdx)
     {
@@ -61,7 +59,7 @@ void checkConnectivity(const Octree<KeyType>& fullTree)
                 EXPECT_EQ(prefix + octant * nodeRange<KeyType>(level + 1), fullTree.codeStart(child));
             }
 
-            if (!fullTree.isRoot(nodeIdx))
+            if (nodeIdx > 0)
             {
                 TreeNodeIndex parent = fullTree.parent(nodeIdx);
                 EXPECT_EQ(fullTree.level(parent), level - 1);
@@ -270,7 +268,7 @@ static void locate()
             KeyType key1 = fullTree.codeStart(i);
             KeyType key2 = fullTree.codeEnd(i);
 
-            EXPECT_EQ(i, fullTree.locate(key1, key2));
+            EXPECT_EQ(i, locateNode(key1, key2, fullTree.nodeKeys().data(), fullTree.levelRange().data()));
         }
     }
     {
@@ -283,7 +281,7 @@ static void locate()
             KeyType key1 = fullTree.codeStart(i);
             KeyType key2 = fullTree.codeEnd(i);
 
-            EXPECT_EQ(i, fullTree.locate(key1, key2));
+            EXPECT_EQ(i, locateNode(key1, key2, fullTree.nodeKeys().data(), fullTree.levelRange().data()));
         }
     }
 }
