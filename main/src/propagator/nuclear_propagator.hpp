@@ -148,9 +148,7 @@ public:
         else { eos = std::make_unique<nnet::eos::IdealGasFunctor<T>>(10.0); }
     }
 
-    ~NuclearProp() {
-        delete eos.release();
-    }
+    ~NuclearProp() { delete eos.release(); }
 
     std::vector<std::string> conservedFields() const override
     {
