@@ -43,7 +43,7 @@ namespace cstone
 
 //! Octree GPU data view for use in kernel code
 template<class KeyType>
-struct OctreeGpuDataView
+struct OctreeView
 {
     TreeNodeIndex numLeafNodes;
     TreeNodeIndex numInternalNodes;
@@ -66,7 +66,7 @@ struct OctreeGpuDataView
  * This does not allocate memory on the GPU, (except thrust temp buffers for scans and sorting)
  */
 template<class KeyType>
-extern void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType> d);
+extern void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeView<KeyType> d);
 
 //! @brief provides a place to live for GPU resident octree data
 template<class KeyType>
@@ -89,7 +89,7 @@ public:
         reallocateDestructive(levelRange, maxTreeLevel<KeyType>{} + 2, 1.01);
     }
 
-    OctreeGpuDataView<KeyType> getData()
+    OctreeView<KeyType> getData()
     {
         return {numLeafNodes,    numInternalNodes,   rawPtr(prefixes),       rawPtr(childOffsets),
                 rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};

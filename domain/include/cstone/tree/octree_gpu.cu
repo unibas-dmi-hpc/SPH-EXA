@@ -131,28 +131,20 @@ __global__ void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, T
     levelRange[level] = TreeNodeIndex(it - nodeKeys);
 }
 
-//! @brief computes the inverse of the permutation given by @p order
-__global__ void invertOrder(const TreeNodeIndex* order, TreeNodeIndex* inverseOrder, TreeNodeIndex numNodes)
+//! @brief computes the inverse of the permutation given by @p order and then subtract @p numInternalNodes from it
+__global__ void
+invertOrder(TreeNodeIndex* order, TreeNodeIndex* inverseOrder, TreeNodeIndex numNodes, TreeNodeIndex numInternalNodes)
 {
     int tid = int(blockDim.x * blockIdx.x + threadIdx.x);
-    if (tid < numNodes) { inverseOrder[order[tid]] = tid; }
+    if (tid < numNodes)
+    {
+        inverseOrder[order[tid]] = tid;
+        order[tid] -= numInternalNodes;
+    }
 }
 
-namespace detail
-{
-struct Minus
-{
-    TreeNodeIndex shift;
-    Minus(TreeNodeIndex s)
-        : shift(s)
-    {
-    }
-    __host__ __device__ TreeNodeIndex operator()(TreeNodeIndex i) { return i - shift; }
-};
-} // namespace detail
-
 template<class KeyType>
-void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType> d)
+void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeView<KeyType> d)
 {
     constexpr unsigned numThreads = 256;
 
@@ -162,9 +154,8 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
 
     thrust::sort_by_key(thrust::device, d.prefixes, d.prefixes + numNodes, d.internalToLeaf);
 
-    invertOrder<<<iceil(numNodes, numThreads), numThreads>>>(d.internalToLeaf, d.leafToInternal, numNodes);
-    thrust::transform(thrust::device, d.internalToLeaf, d.internalToLeaf + numNodes, d.internalToLeaf,
-                      detail::Minus(d.numInternalNodes));
+    invertOrder<<<iceil(numNodes, numThreads), numThreads>>>(d.internalToLeaf, d.leafToInternal, numNodes,
+                                                             d.numInternalNodes);
     getLevelRange<<<maxTreeLevel<KeyType>{} + 2, 1>>>(d.prefixes, numNodes, d.levelRange);
 
     thrust::fill(thrust::device, d.childOffsets, d.childOffsets + numNodes, 0);
@@ -172,7 +163,7 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
                                                                     d.levelRange, d.childOffsets, d.parents);
 }
 
-template void buildInternalOctreeGpu(const uint32_t*, OctreeGpuDataView<uint32_t>);
-template void buildInternalOctreeGpu(const uint64_t*, OctreeGpuDataView<uint64_t>);
+template void buildInternalOctreeGpu(const uint32_t*, OctreeView<uint32_t>);
+template void buildInternalOctreeGpu(const uint64_t*, OctreeView<uint64_t>);
 
 } // namespace cstone
