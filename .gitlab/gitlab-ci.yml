@@ -134,6 +134,7 @@ sph:build:cuda:1:
     - /usr/local/sbin/unit/component_units_omp
     - /usr/local/sbin/performance/peers_perf
   variables:
+    USE_MPI: 'NO'
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
@@ -157,6 +158,7 @@ sph:build:cuda:2:
     - /usr/local/sbin/integration_mpi/globaloctree
     # - /usr/local/sbin/integration_mpi/exchange_halos_gpu # needs 2 gpus
   variables:
+    USE_MPI: 'YES'
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 2
@@ -177,6 +179,7 @@ sph:build:cuda:2:
 #     - /usr/local/sbin/integration_mpi/domain_gpu
 #     - /usr/local/sbin/integration_mpi/exchange_domain_gpu
 #   variables:
+#     USE_MPI: 'YES'
 #     SLURM_CONSTRAINT: 'gpu'
 #     SLURM_JOB_NUM_NODES: 2
 #     SLURM_NTASKS: 2
@@ -202,6 +205,7 @@ sph:build:cuda:5:
     - /usr/local/sbin/integration_mpi/exchange_keys
     - /usr/local/sbin/ryoanji/global_upsweep_cpu
   variables:
+    USE_MPI: 'YES'
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 5
@@ -228,6 +232,7 @@ sph:build:cuda:p100:
     - /usr/local/sbin/ryoanji/global_upsweep_gpu
     - /usr/local/sbin/ryoanji/ryoanji_demo/ryoanji_demo 
   variables:
+    USE_MPI: 'NO'
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
@@ -252,6 +257,7 @@ sph:build:cuda:sphexa:cpu:
     - echo "noh:cpu"
     - /usr/local/bin/sphexa --init noh -s 1 -n 50 
   variables:
+    USE_MPI: 'YES'
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
@@ -284,12 +290,11 @@ sph:build:cuda:sphexa:gpu:
     - echo "# --- rpt:"
     - cat /scratch/sedov.rpt
     - cat /scratch/noh.rpt
-    # - cp /sources/.gitlab/rfm.py /usr/local/games/rfm.py
     - pwd
     - ls -la
-    - cp .gitlab/rfm.py /usr/local/games/rfm.py
     - reframe -c /usr/local/games/rfm.py -r -S rpt_path=/scratch
   variables:
+    USE_MPI: 'YES'
     SLURM_CONSTRAINT: 'gpu'
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
