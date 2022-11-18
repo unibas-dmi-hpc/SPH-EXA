@@ -36,8 +36,9 @@
 #include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/domain/assignment.hpp"
 #ifdef USE_CUDA
-#include "cstone/primitives/gather.cuh"
 #include "cstone/domain/assignment_gpu.cuh"
+#include "cstone/primitives/gather.cuh"
+#include "cstone/tree/octree_gpu.cuh"
 #endif
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
@@ -58,6 +59,9 @@ namespace cstone
 
 template<class KeyType, class T>
 class GlobalAssignmentGpu;
+
+template<class KeyType>
+class OctreeGpuData;
 
 template<class IndexType, class BufferType>
 class GpuSfcSorter;
@@ -216,6 +220,8 @@ public:
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
 
+        uploadOctree();
+
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
                         rawPtr(h), std::get<0>(scratch));
@@ -273,6 +279,8 @@ public:
         focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.assignment(), global_.octree(),
                                  box(), std::get<0>(scratch), std::get<1>(scratch));
         focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
+
+        uploadOctree();
 
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
         halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
@@ -414,6 +422,23 @@ private:
         }
     }
 
+    void uploadOctree()
+    {
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            auto& octree = focusTree_.octree();
+            octreeGpu_.resize(octree.numLeafNodes());
+
+            memcpyH2D(octree.nodeKeys().data(), octree.numTreeNodes(), rawPtr(octreeGpu_.prefixes));
+            memcpyH2D(octree.childOffsets().data(), octree.numTreeNodes(), rawPtr(octreeGpu_.childOffsets));
+            memcpyH2D(octree.parents().data(), octree.parents().size(), rawPtr(octreeGpu_.parents));
+            memcpyH2D(octree.levelRange().data(), octree.levelRange().size(), rawPtr(octreeGpu_.levelRange));
+            memcpyH2D(octree.toLeafOrder().data(), octree.toLeafOrder().size(), rawPtr(octreeGpu_.internalToLeaf));
+            memcpyH2D(octree.internalOrder().data(), octree.numLeafNodes(),
+                      rawPtr(octreeGpu_.leafToInternal) + octree.numInternalNodes());
+        }
+    }
+
     template<class Reord, class KeyVec, class... Arrays1, class... Arrays2, class... Arrays3>
     void updateLayout(Reord& reorderFunctor,
                       LocalIndex exchangeStart,
@@ -545,6 +570,9 @@ private:
     using Distributor_t =
         typename AccelSwitchType<Accelerator, GlobalAssignment, GlobalAssignmentGpu>::template type<KeyType, T>;
     Distributor_t global_;
+
+    using OctreeGpu_t = typename AccelSwitchType<Accelerator, std::vector, OctreeGpuData>::template type<KeyType>;
+    OctreeGpu_t octreeGpu_;
 
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalIndex> layout_;

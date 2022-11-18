@@ -67,8 +67,7 @@ int main()
 
     auto fullBuild = [&]()
     {
-        while (!updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-                                thrust::raw_pointer_cast(particleCodes.data() + numParticles), bucketSize, tree, counts,
+        while (!updateOctreeGpu(rawPtr(particleCodes), rawPtr(particleCodes) + numParticles, bucketSize, tree, counts,
                                 tmpTree, workArray))
             ;
     };
@@ -79,9 +78,8 @@ int main()
 
     auto updateTree = [&]()
     {
-        updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-                        thrust::raw_pointer_cast(particleCodes.data() + numParticles), bucketSize, tree, counts,
-                        tmpTree, workArray);
+        updateOctreeGpu(rawPtr(particleCodes), rawPtr(particleCodes) + numParticles, bucketSize, tree, counts, tmpTree,
+                        workArray);
     };
 
     float updateTime = timeGpu(updateTree);
@@ -92,7 +90,7 @@ int main()
 
     OctreeGpuData<KeyType> octree;
     octree.resize(nNodes(tree));
-    auto buildInternal = [&]() { buildInternalOctreeGpu(thrust::raw_pointer_cast(tree.data()), octree.getData()); };
+    auto buildInternal = [&]() { buildInternalOctreeGpu(rawPtr(tree), octree.getData()); };
 
     float internalBuildTime                   = timeGpu(buildInternal);
     thrust::host_vector<TreeNodeIndex> ranges = octree.levelRange;
