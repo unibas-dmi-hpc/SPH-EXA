@@ -40,3 +40,13 @@ inline void checkErr(cudaError_t err, const char* filename, int lineno, const ch
 }
 
 #define checkGpuErrors(errcode) checkErr((errcode), __FILE__, __LINE__, #errcode);
+
+static void kernelSuccess(const char kernel[] = "kernel")
+{
+    cudaError_t err = cudaDeviceSynchronize();
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "%s launch failed: %s\n", kernel, cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+}

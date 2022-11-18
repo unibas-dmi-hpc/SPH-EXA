@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Binary radix tree traversal tests with naive all-to-all collisions as reference
+ * @brief Octree traversal tests with naive all-to-all collisions as reference
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -64,9 +64,11 @@ static void generalCollisionTest(const std::vector<KeyType>& tree, const std::ve
         T radius     = haloRadii[leafIdx];
         IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx + 1], radius, box);
 
-        auto storeCollisions = [&collisionList = collisions[leafIdx]](TreeNodeIndex i) { collisionList.push_back(i); };
+        auto storeCollisions = [&collisionList = collisions[leafIdx], toLeaf = octree.toLeafOrder()](TreeNodeIndex i)
+        { collisionList.push_back(toLeaf[i]); };
 
-        findCollisions(octree, storeCollisions, haloBox, KeyType(0), KeyType(0));
+        findCollisions(octree.nodeKeys().data(), octree.childOffsets().data(), storeCollisions, haloBox, KeyType(0),
+                       KeyType(0));
     }
 
     // naive all-to-all algorithm

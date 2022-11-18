@@ -33,7 +33,6 @@
 #include <iostream>
 #include <numeric>
 
-#include "cstone/halos/discovery.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/octree.hpp"
 #include "cstone/tree/octree_internal.hpp"
@@ -44,15 +43,15 @@
 using namespace cstone;
 
 template<class KeyType>
-std::tuple<std::vector<KeyType>, std::vector<unsigned>> build_tree(const KeyType* firstCode, const KeyType* lastCode,
-                                                                   unsigned bucketSize)
+std::tuple<std::vector<KeyType>, std::vector<unsigned>>
+build_tree(const KeyType* firstCode, const KeyType* lastCode, unsigned bucketSize)
 {
     std::vector<KeyType> tree;
     std::vector<unsigned> counts;
 
-    auto tp0 = std::chrono::high_resolution_clock::now();
+    auto tp0               = std::chrono::high_resolution_clock::now();
     std::tie(tree, counts) = computeOctree(firstCode, lastCode, bucketSize);
-    auto tp1 = std::chrono::high_resolution_clock::now();
+    auto tp1               = std::chrono::high_resolution_clock::now();
 
     double t0 = std::chrono::duration<double>(tp1 - tp0).count();
     std::cout << "build time from scratch " << t0 << " nNodes(tree): " << nNodes(tree)
@@ -80,29 +79,16 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
     TreeNodeIndex lowerNode = 0;
     TreeNodeIndex upperNode = nNodes(tree) / 4;
     {
-        std::vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
-        createBinaryTree(tree.data(), nNodes(tree), binaryTree.data());
-        std::vector<int> collisionFlags(nNodes(tree), 0);
-
-        auto tp0 = std::chrono::high_resolution_clock::now();
-        findHalos(tree.data(), binaryTree.data(), haloRadii.data(), box, lowerNode, upperNode, collisionFlags.data());
-        auto tp1 = std::chrono::high_resolution_clock::now();
-
-        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-        std::cout << "binary tree halo discovery: " << t2
-                  << " collidingNodes: " << std::accumulate(begin(collisionFlags), end(collisionFlags), 0) << std::endl;
-    }
-    {
         Octree<KeyType> octree;
         auto u0 = std::chrono::high_resolution_clock::now();
         octree.update(tree.data(), nNodes(tree));
         auto u1 = std::chrono::high_resolution_clock::now();
-        std::cout << "first td-update: " << std::chrono::duration<double>(u1 - u0).count() << std::endl;
+        std::cout << "first octree update: " << std::chrono::duration<double>(u1 - u0).count() << std::endl;
 
         auto u2 = std::chrono::high_resolution_clock::now();
         octree.update(tree.data(), nNodes(tree));
         auto u3 = std::chrono::high_resolution_clock::now();
-        std::cout << "second td-update: " << std::chrono::duration<double>(u3 - u2).count() << std::endl;
+        std::cout << "second octree update: " << std::chrono::duration<double>(u3 - u2).count() << std::endl;
 
         std::vector<int> collisionFlags(nNodes(tree), 0);
 
@@ -111,9 +97,8 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
         auto tp1 = std::chrono::high_resolution_clock::now();
 
         double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-        std::cout << "td-octree halo discovery: " << t2
+        std::cout << "octree halo discovery: " << t2
                   << " collidingNodes: " << std::accumulate(begin(collisionFlags), end(collisionFlags), 0) << std::endl;
-
     }
 }
 

@@ -3,9 +3,10 @@ set(UNIT_TESTS
         domain/domaindecomp.cpp
         domain/index_ranges.cpp
         domain/layout.cpp
-        findneighbors.cpp
         focus/octree_focus.cpp
         focus/source_center.cpp
+        neighbors/findneighbors.cpp
+        neighbors/neighbors_traversal.cpp
         primitives/clz.cpp
         primitives/gather.cpp
         sfc/box.cpp
@@ -28,7 +29,7 @@ set(UNIT_TESTS
         util/util.cpp
         test_main.cpp)
 
-add_executable(component_units ${UNIT_TESTS})
+add_executable(component_units ${UNIT_TESTS} neighbors/all_to_all.hpp neighbors/neighbors_traversal.cpp)
 target_compile_options(component_units PRIVATE -Wall -Wextra -Wno-unknown-pragmas)
 
 target_include_directories(component_units PRIVATE ../../include)

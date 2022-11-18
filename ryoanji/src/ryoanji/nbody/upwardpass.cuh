@@ -34,6 +34,8 @@
 
 #include <chrono>
 
+#include "cstone/cuda/gpu_config.cuh"
+
 #include "kernel_wrapper.hpp"
 #include "kernel.hpp"
 
@@ -197,7 +199,7 @@ void upsweep(int numSources, int numLeaves, int numLevels, T theta, const int2* 
     constexpr int numThreads = UpsweepConfig::numThreads;
 
     thrust::device_vector<Vec4<T>> d_cellXminmax(2 * numSources);
-    Vec4<T>*                       cellXmin = rawPtr(d_cellXminmax.data());
+    Vec4<T>*                       cellXmin = rawPtr(d_cellXminmax);
     Vec4<T>*                       cellXmax = cellXmin + numSources;
 
     auto t0 = std::chrono::high_resolution_clock::now();

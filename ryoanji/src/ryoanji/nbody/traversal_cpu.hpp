@@ -130,15 +130,17 @@ void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& 
      * and the leaf failed the MAC w.r.t to the target box. In that case, direct particle-particle
      * interactions need to be computed.
      */
-    auto leafP2P = [groupIdx, layout, firstTarget, lastTarget, x, y, z, h, m, G, ax, ay, az, ugrav](TreeNodeIndex idx)
+    auto leafP2P = [groupIdx, toLeaf = octree.toLeafOrder(), layout, firstTarget, lastTarget, x, y, z, h, m, G, ax, ay,
+                    az, ugrav](TreeNodeIndex idx)
     {
-        LocalIndex numTargets = lastTarget - firstTarget;
+        TreeNodeIndex lidx       = toLeaf[idx];
+        LocalIndex    numTargets = lastTarget - firstTarget;
 
-        LocalIndex firstSource = layout[idx];
-        LocalIndex lastSource  = layout[idx + 1];
+        LocalIndex firstSource = layout[lidx];
+        LocalIndex lastSource  = layout[lidx + 1];
         LocalIndex numSources  = lastSource - firstSource;
 
-        if (groupIdx != idx)
+        if (groupIdx != lidx)
         {
             // source node != target node
             for (LocalIndex t = 0; t < numTargets; ++t)
@@ -176,7 +178,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& 
         }
     };
 
-    singleTraversal(octree, descendOrM2P, leafP2P);
+    cstone::singleTraversal(octree.childOffsets().data(), descendOrM2P, leafP2P);
 }
 
 //! @brief repeats computeGravityGroup for all leaf node indices specified

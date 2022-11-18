@@ -106,7 +106,7 @@ void directSum(std::size_t numBodies, const T* x, const T* y, const T* z, const 
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
     directKernel<<<numBlock, numThreads>>>(numBodies, x, y, z, m, h, p, ax, ay, az);
-    ryoanji::kernelSuccess("direct sum");
+    kernelSuccess("direct sum");
 }
 
 } // namespace ryoanji
