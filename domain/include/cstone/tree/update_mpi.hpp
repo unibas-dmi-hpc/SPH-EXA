@@ -34,7 +34,7 @@
 #include <mpi.h>
 
 #include "cstone/primitives/mpi_wrappers.hpp"
-#include "cstone/tree/octree.hpp"
+#include "cstone/tree/csarray.hpp"
 #include "cstone/tree/octree_internal.hpp"
 
 namespace cstone

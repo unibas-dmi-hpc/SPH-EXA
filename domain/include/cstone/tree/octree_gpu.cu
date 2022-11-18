@@ -37,7 +37,7 @@
 
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/util/util.hpp"
-#include "octree.hpp"
+#include "csarray.hpp"
 
 #include "octree_gpu.h"
 

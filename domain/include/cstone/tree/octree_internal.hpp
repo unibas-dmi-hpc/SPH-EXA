@@ -45,7 +45,7 @@
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/primitives/gather.hpp"
 #include "cstone/sfc/sfc.hpp"
-#include "cstone/tree/octree.hpp"
+#include "cstone/tree/csarray.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
 namespace cstone

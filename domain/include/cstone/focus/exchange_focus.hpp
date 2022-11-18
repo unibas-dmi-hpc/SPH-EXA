@@ -48,7 +48,7 @@
 #include "cstone/domain/index_ranges.hpp"
 #include "cstone/primitives/gather.hpp"
 #include "cstone/primitives/mpi_wrappers.hpp"
-#include "cstone/tree/octree.hpp"
+#include "cstone/tree/csarray.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
 namespace cstone

@@ -35,7 +35,7 @@
 
 #include <limits>
 
-#include "octree.hpp"
+#include "csarray.hpp"
 
 namespace cstone
 {

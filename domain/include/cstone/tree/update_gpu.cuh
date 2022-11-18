@@ -37,7 +37,7 @@
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/tree/octree_gpu.h"
-#include "octree.hpp"
+#include "csarray.hpp"
 
 namespace cstone
 {

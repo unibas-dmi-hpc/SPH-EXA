@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree.hpp"
+#include "cstone/tree/csarray.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "coord_samples/random.hpp"

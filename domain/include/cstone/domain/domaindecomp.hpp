@@ -39,7 +39,7 @@
 #include <vector>
 
 #include "cstone/primitives/gather.hpp"
-#include "cstone/tree/octree.hpp"
+#include "cstone/tree/csarray.hpp"
 #include "index_ranges.hpp"
 #include "cstone/util/gsl-lite.hpp"
 

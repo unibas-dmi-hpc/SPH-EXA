@@ -22,7 +22,7 @@ set(UNIT_TESTS
         traversal/peers.cpp
         traversal/traversal.cpp
         tree/btree.cpp
-        tree/octree.cpp
+        tree/csarray.cpp
         tree/octree_internal.cpp
         tree/octree_util.cpp
         util/array.cpp

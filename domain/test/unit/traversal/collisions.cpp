@@ -34,7 +34,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/traversal/collisions.hpp"
-#include "cstone/tree/octree.hpp"
+#include "cstone/tree/csarray.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;
