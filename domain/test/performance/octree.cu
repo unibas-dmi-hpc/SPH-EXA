@@ -36,7 +36,7 @@
 
 #include "cstone/traversal/collisions.cuh"
 #include "cstone/tree/update_gpu.cuh"
-#include "cstone/tree/octree_internal_gpu.cuh"
+#include "cstone/tree/octree_gpu.cuh"
 
 #include "coord_samples/random.hpp"
 

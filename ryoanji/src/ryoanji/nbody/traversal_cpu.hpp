@@ -33,7 +33,7 @@
 
 #include "cstone/traversal/traversal.hpp"
 #include "cstone/traversal/macs.hpp"
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree.hpp"
 #include "cstone/focus/source_center.hpp"
 #include "cartesian_qpole.hpp"
 

@@ -33,7 +33,7 @@
 
 #include "cstone/domain/domaindecomp_mpi.hpp"
 #include "cstone/domain/layout.hpp"
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree.hpp"
 #include "cstone/tree/update_mpi.hpp"
 #include "cstone/sfc/box_mpi.hpp"
 #include "cstone/sfc/sfc.hpp"

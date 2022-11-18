@@ -32,7 +32,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/traversal/peers.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 #include "coord_samples/random.hpp"
 

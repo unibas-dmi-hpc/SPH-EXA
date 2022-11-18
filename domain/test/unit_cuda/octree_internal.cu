@@ -35,9 +35,9 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_internal_gpu.cuh"
-#include "cstone/tree/octree_internal.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/octree_gpu.cuh"
+#include "cstone/tree/octree.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 using namespace cstone;
 

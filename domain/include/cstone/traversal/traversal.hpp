@@ -35,7 +35,7 @@
 #pragma once
 
 #include "boxoverlap.hpp"
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree.hpp"
 
 namespace cstone
 {

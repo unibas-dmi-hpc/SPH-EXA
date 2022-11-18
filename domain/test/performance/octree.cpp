@@ -35,7 +35,7 @@
 
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/csarray.hpp"
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree.hpp"
 
 #include "coord_samples/random.hpp"
 #include "coord_samples/plummer.hpp"

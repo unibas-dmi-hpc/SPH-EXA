@@ -35,7 +35,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree.hpp"
 
 namespace cstone
 {

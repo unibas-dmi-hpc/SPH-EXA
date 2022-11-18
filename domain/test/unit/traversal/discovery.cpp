@@ -32,7 +32,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/traversal/collisions.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 #include "collisions_a2a.hpp"
 

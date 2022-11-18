@@ -32,7 +32,7 @@
 #pragma once
 
 #include "cstone/util/array.hpp"
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree.hpp"
 #include "cstone/traversal/macs.hpp"
 
 namespace cstone

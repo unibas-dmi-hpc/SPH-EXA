@@ -33,7 +33,7 @@
 
 #include "cstone/focus/source_center.hpp"
 #include "cstone/traversal/macs.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 #include "coord_samples/random.hpp"
 

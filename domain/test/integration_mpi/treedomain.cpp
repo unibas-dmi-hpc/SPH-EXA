@@ -36,7 +36,7 @@
 #include "cstone/domain/layout.hpp"
 #include "cstone/domain/domaindecomp_mpi.hpp"
 #include "cstone/tree/update_mpi.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 #include "cstone/util/reallocate.hpp"
 
 using namespace cstone;

@@ -33,7 +33,7 @@
 
 #include "cstone/tree/btree.hpp"
 #include "cstone/tree/csarray.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 /*! @brief @file tests for binary tree generation
  */

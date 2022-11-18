@@ -49,7 +49,7 @@
 #include "cstone/domain/index_ranges.hpp"
 
 #include "cstone/traversal/macs.hpp"
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree.hpp"
 #include "cstone/traversal/traversal.hpp"
 
 namespace cstone

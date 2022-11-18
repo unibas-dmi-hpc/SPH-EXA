@@ -36,7 +36,7 @@
 
 #include "boxoverlap.hpp"
 #include "cstone/traversal/traversal.hpp"
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree.hpp"
 
 namespace cstone
 {

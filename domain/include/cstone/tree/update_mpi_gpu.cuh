@@ -35,7 +35,7 @@
 
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/tree/csarray_gpu.h"
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree.hpp"
 
 namespace cstone
 {
