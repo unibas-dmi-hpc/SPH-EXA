@@ -81,7 +81,7 @@ private:
     thrust::device_vector<KeyType>               tmpTree_;
     thrust::device_vector<cstone::TreeNodeIndex> workArray_;
 
-    cstone::OctreeGpuDataAnchor<KeyType>      octreeGpuData_;
+    cstone::OctreeGpuData<KeyType>            octreeGpuData_;
     thrust::device_vector<cstone::LocalIndex> d_layout_;
 };
 

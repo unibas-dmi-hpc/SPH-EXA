@@ -70,7 +70,7 @@ extern void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<
 
 //! @brief provides a place to live for GPU resident octree data
 template<class KeyType>
-class OctreeGpuDataAnchor
+class OctreeGpuData
 {
 public:
     void resize(TreeNodeIndex numCsLeafNodes)

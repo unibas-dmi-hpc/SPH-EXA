@@ -90,7 +90,7 @@ int main()
 
     // internal tree benchmark
 
-    OctreeGpuDataAnchor<KeyType> octree;
+    OctreeGpuData<KeyType> octree;
     octree.resize(nNodes(tree));
     auto buildInternal = [&]() { buildInternalOctreeGpu(thrust::raw_pointer_cast(tree.data()), octree.getData()); };
 
