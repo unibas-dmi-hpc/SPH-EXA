@@ -39,6 +39,9 @@
 #include "time_energies.hpp"
 #include "gravitational_waves.hpp"
 #include "wind_bubble_fraction.hpp"
+#ifdef USE_NUCLEAR_NETWORKS
+#include "nuclear_observable.hpp"
+#endif
 
 namespace sphexa
 {
@@ -131,6 +134,13 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
         double bubbleMass   = bubbleVolume * rhoInt;
         return std::make_unique<WindBubble<Dataset>>(constantsFile, rhoInt, uExt, bubbleMass);
     }
+
+#ifdef USE_NUCLEAR_NETWORKS
+    if (testCase == "sedov-nuclear" || testCase == "sedov-nuclear-attached")
+    {
+        return std::make_unique<NuclearEnergy<Dataset>>(constantsFile, testCase == "sedov-nuclear-attached");
+    }
+#endif
 
     return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
 }

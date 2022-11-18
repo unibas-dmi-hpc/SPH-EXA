@@ -46,6 +46,9 @@
 #include "wind_shock_init.hpp"
 #include "turbulence_init.hpp"
 #endif
+#ifdef USE_NUCLEAR_NETWORKS
+#include "nuclear_sedov_init.hpp"
+#endif
 
 namespace sphexa
 {
@@ -60,6 +63,15 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         else { return std::make_unique<SedovGlass<Dataset>>(glassBlock); }
 #endif
     }
+#ifdef USE_NUCLEAR_NETWORKS
+    if (testCase == "sedov-nuclear" || testCase == "sedov-nuclear-attached")
+    {
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for nuclear sedov test case\n"); }
+#ifdef SPH_EXA_HAVE_H5PART
+        else { return std::make_unique<NuclearSedovGlass<Dataset>>(glassBlock, testCase == "sedov-nuclear-attached"); }
+#endif
+    }
+#endif
     if (testCase == "noh")
     {
         if (glassBlock.empty()) { return std::make_unique<NohGrid<Dataset>>(); }

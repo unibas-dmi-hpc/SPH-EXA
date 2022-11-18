@@ -40,6 +40,9 @@
 #ifdef SPH_EXA_HAVE_H5PART
 #include "turb_ve.hpp"
 #endif
+#ifdef USE_NUCLEAR_NETWORKS
+#include "nuclear_propagator.hpp"
+#endif
 
 namespace sphexa
 {
@@ -59,6 +62,12 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
         return std::make_unique<TurbVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
 #endif
     }
+#if defined(USE_NUCLEAR_NETWORKS) && defined(SPH_EXA_HAVE_H5PART)
+    if (NuclearProp<DomainType, ParticleDataType>::isNuclear(choice))
+    {
+        return std::make_unique<NuclearProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank, choice);
+    }
+#endif
 
     throw std::runtime_error("Unknown propagator choice: " + choice);
 }

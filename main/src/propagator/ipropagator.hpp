@@ -78,10 +78,14 @@ public:
     void printIterationTimings(const DomainType& domain, const ParticleDataType& simData)
     {
         const auto& d = simData.hydro;
+        const auto& n = simData.nuclearData;
         if (rank_ == 0)
         {
-            printCheck(d.ttot, d.minDt, d.etot, d.eint, d.ecin, d.egrav, domain.box(), d.numParticlesGlobal,
-                       domain.nParticles(), domain.globalTree().numLeafNodes(),
+            double nuclearEnergy       = 0.0;
+            size_t n_nuclear_particles = n_nuclear_particles = n.Y[0].size();
+
+            printCheck(d.ttot, d.minDt, d.etot, d.eint, d.ecin, d.egrav, n.enuclear, domain.box(), n_nuclear_particles,
+                       d.numParticlesGlobal, domain.nParticles(), domain.globalTree().numLeafNodes(),
                        domain.nParticlesWithHalos() - domain.nParticles(), d.totalNeighbors);
 
             std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().octree().numLeafNodes() << std::endl;
@@ -106,11 +110,13 @@ protected:
 
     template<class Box>
     void printCheck(double totalTime, double minTimeStep, double totalEnergy, double internalEnergy,
-                    double kineticEnergy, double gravitationalEnergy, const Box& box, size_t totalParticleCount,
-                    size_t particleCount, size_t nodeCount, size_t haloCount, size_t totalNeighbors)
+                    double kineticEnergy, double gravitationalEnergy, double nuclearEnergy, const Box& box,
+                    size_t numNuclearParticles, size_t totalParticleCount, size_t particleCount, size_t nodeCount,
+                    size_t haloCount, size_t totalNeighbors)
     {
         out << "### Check ### Global Tree Nodes: " << nodeCount << ", Particles: " << particleCount
-            << ", Halos: " << haloCount << std::endl;
+            << ", Halos: " << haloCount;
+        out << ", Nuclear particles: " << numNuclearParticles << std::endl;
         out << "### Check ### Computational domain: " << box.xmin() << " " << box.xmax() << " " << box.ymin() << " "
             << box.ymax() << " " << box.zmin() << " " << box.zmax() << std::endl;
         out << "### Check ### Total Neighbors: " << totalNeighbors
@@ -119,6 +125,7 @@ protected:
         out << "### Check ### Total energy: " << totalEnergy << ", (internal: " << internalEnergy
             << ", kinetic: " << kineticEnergy;
         out << ", gravitational: " << gravitationalEnergy;
+        out << ", nuclear: " << nuclearEnergy;
         out << ")" << std::endl;
     }
 };
