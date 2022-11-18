@@ -95,7 +95,7 @@ class NuclearProp final : public Propagator<DomainType, DataType>
     //! @brief nuclear network parameterization
     nnet::ComputeReactionRatesFunctor<T> const* construct_rates_BE;
     //! @brief eos
-    nnet::EosFunctor<T> const* eos;
+    std::unique_ptr<const nnet::EosFunctor<T>> eos;
     //! @brief Z
     std::vector<T> Z;
 
@@ -174,9 +174,11 @@ public:
                                      " nuclear species !");
         }
 
-        if (useHelm) { eos = new nnet::eos::HelmholtzFunctor<T>(Z); }
-        else { eos = new nnet::eos::IdealGasFunctor<T>(10.0); }
+        if (useHelm) { eos = std::make_unique<nnet::eos::HelmholtzFunctor<T>>(Z); }
+        else { eos = std::make_unique<nnet::eos::IdealGasFunctor<T>>(10.0); }
     }
+
+    ~NuclearProp() { delete eos.release(); }
 
     std::vector<std::string> conservedFields() const override
     {
