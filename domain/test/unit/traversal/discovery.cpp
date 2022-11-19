@@ -71,7 +71,8 @@ void findHalosFlags()
 
     {
         std::vector<int> collisionFlags(nNodes(tree), 0);
-        findHalos(octree, interactionRadii.data(), box, 0, 32, collisionFlags.data());
+        findHalos(octree.nodeKeys().data(), octree.childOffsets().data(), octree.toLeafOrder().data(), tree.data(),
+                  interactionRadii.data(), box, 0, 32, collisionFlags.data());
 
         std::vector<int> reference = findHalosAll2All<KeyType>(tree, interactionRadii, box, 0, 32);
 
@@ -81,7 +82,8 @@ void findHalosFlags()
     }
     {
         std::vector<int> collisionFlags(nNodes(tree), 0);
-        findHalos(octree, interactionRadii.data(), box, 32, 64, collisionFlags.data());
+        findHalos(octree.nodeKeys().data(), octree.childOffsets().data(), octree.toLeafOrder().data(), tree.data(),
+                  interactionRadii.data(), box, 32, 64, collisionFlags.data());
 
         std::vector<int> reference = findHalosAll2All<KeyType>(tree, interactionRadii, box, 32, 64);
 

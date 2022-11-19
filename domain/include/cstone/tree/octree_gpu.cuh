@@ -35,26 +35,11 @@
 #include <thrust/device_vector.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
-#include "cstone/tree/definitions.h"
 #include "cstone/util/reallocate.hpp"
+#include "cstone/tree/octree.hpp"
 
 namespace cstone
 {
-
-//! Octree GPU data view for use in kernel code
-template<class KeyType>
-struct OctreeView
-{
-    TreeNodeIndex numLeafNodes;
-    TreeNodeIndex numInternalNodes;
-
-    KeyType* prefixes;
-    TreeNodeIndex* childOffsets;
-    TreeNodeIndex* parents;
-    TreeNodeIndex* levelRange;
-    TreeNodeIndex* internalToLeaf;
-    TreeNodeIndex* leafToInternal;
-};
 
 /*! @brief construct the internal octree part of a given octree leaf cell array on the GPU
  *

@@ -237,6 +237,22 @@ locateNode(KeyType startKey, KeyType endKey, const KeyType* prefixes, const Tree
     return locateNode(encodePlaceholderBit(startKey, prefixLength), prefixes, levelRange);
 }
 
+//! Octree data view, compatible with GPU data
+template<class KeyType>
+struct OctreeView
+{
+    using NodeType = std::conditional_t<std::is_const_v<KeyType>, const TreeNodeIndex, TreeNodeIndex>;
+    TreeNodeIndex numLeafNodes;
+    TreeNodeIndex numInternalNodes;
+
+    KeyType* prefixes;
+    NodeType* childOffsets;
+    NodeType* parents;
+    NodeType* levelRange;
+    NodeType* internalToLeaf;
+    NodeType* leafToInternal;
+};
+
 template<class KeyType>
 struct CombinedUpdate;
 
@@ -276,6 +292,18 @@ public:
 
         updateInternalTree();
         return converged;
+    }
+
+    OctreeView<KeyType> getData()
+    {
+        return {numLeafNodes_,    numInternalNodes_,   prefixes_.data(), childOffsets_.data(),
+                parents_.data(), levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data()};
+    }
+
+    OctreeView<const KeyType> getData() const
+    {
+        return {numLeafNodes_,    numInternalNodes_,   prefixes_.data(), childOffsets_.data(),
+                parents_.data(), levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data()};
     }
 
     //! @brief return a const view of the cstone leaf array

@@ -32,7 +32,6 @@
 
 #include "cstone/sfc/common.hpp"
 #include "cstone/tree/octree_gpu.cuh"
-#include "cstone/tree/octree.hpp"
 
 namespace cstone
 {

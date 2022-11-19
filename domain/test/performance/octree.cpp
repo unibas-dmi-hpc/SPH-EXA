@@ -92,8 +92,10 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
 
         std::vector<int> collisionFlags(nNodes(tree), 0);
 
-        auto tp0 = std::chrono::high_resolution_clock::now();
-        findHalos(octree, haloRadii.data(), box, lowerNode, upperNode, collisionFlags.data());
+        OctreeView<KeyType> o = octree.getData();
+        auto tp0              = std::chrono::high_resolution_clock::now();
+        findHalos(o.prefixes, o.childOffsets, o.internalToLeaf, tree.data(), haloRadii.data(), box, lowerNode,
+                  upperNode, collisionFlags.data());
         auto tp1 = std::chrono::high_resolution_clock::now();
 
         double t2 = std::chrono::duration<double>(tp1 - tp0).count();

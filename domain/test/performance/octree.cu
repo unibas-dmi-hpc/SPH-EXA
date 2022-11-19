@@ -127,8 +127,13 @@ int main()
         thrust::host_vector<float> radii = haloRadii;
         std::vector<int> h_flags(nNodes(tree), 0);
 
+        OctreeView<KeyType> o = h_octree.getData();
+
         auto findHalosCpuLambda = [&]()
-        { findHalos(h_octree, radii.data(), box, 0, nNodes(tree) / 4, h_flags.data()); };
+        {
+            findHalos(o.prefixes, o.childOffsets, o.internalToLeaf, h_tree.data(), radii.data(), box, 0,
+                      nNodes(tree) / 4, h_flags.data());
+        };
         float findTimeCpu = timeCpu(findHalosCpuLambda);
         std::cout << "CPU halo discovery " << findTimeCpu << " nNodes(tree): " << nNodes(h_tree)
                   << " count: " << thrust::reduce(h_flags.begin(), h_flags.end(), 0) << std::endl;

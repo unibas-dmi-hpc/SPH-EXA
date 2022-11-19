@@ -222,9 +222,13 @@ public:
 
         uploadOctree();
 
+        auto octreeView = focusTree_.octree().getData();
+        const KeyType* focusLeaves = focusTree_.treeLeaves().data();
+
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
-        halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
-                        rawPtr(h), std::get<0>(scratch));
+        halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
+                        focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(), rawPtr(h),
+                        std::get<0>(scratch));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
         updateLayout(reorderer, exchangeStart, keyView, particleKeys, std::tie(h),
@@ -282,9 +286,13 @@ public:
 
         uploadOctree();
 
+        auto octreeView = focusTree_.octree().getData();
+        const KeyType* focusLeaves = focusTree_.treeLeaves().data();
+
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
-        halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
-                        rawPtr(h), std::get<0>(scratch));
+        halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
+                        focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(), rawPtr(h),
+                        std::get<0>(scratch));
         focusTree_.addMacs(halos_.haloFlags());
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 

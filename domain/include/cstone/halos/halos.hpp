@@ -133,7 +133,10 @@ public:
      * @param[-]  scratchBuffer    host or device buffer for temporary use
      */
     template<class T, class Th, class Vector>
-    void discover(const Octree<KeyType>& focusedTree,
+    void discover(const KeyType* prefixes,
+                  const TreeNodeIndex* childOffsets,
+                  const TreeNodeIndex* internalToLeaf,
+                  const KeyType* leaves,
                   gsl::span<const unsigned> counts,
                   gsl::span<const TreeIndexPair> focusAssignment,
                   gsl::span<LocalIndex> layout,
@@ -141,13 +144,12 @@ public:
                   const Th* h,
                   Vector& scratch)
     {
-        gsl::span<const KeyType> leaves = focusedTree.treeLeaves();
-        TreeNodeIndex firstNode         = focusAssignment[myRank_].start();
-        TreeNodeIndex lastNode          = focusAssignment[myRank_].end();
-        TreeNodeIndex numNodes          = lastNode - firstNode;
+        TreeNodeIndex firstNode = focusAssignment[myRank_].start();
+        TreeNodeIndex lastNode  = focusAssignment[myRank_].end();
+        TreeNodeIndex numNodes  = lastNode - firstNode;
 
         std::exclusive_scan(counts.begin() + firstNode, counts.begin() + lastNode + 1, layout.begin(), 0);
-        std::vector<float> haloRadii(nNodes(leaves), 0.0f);
+        std::vector<float> haloRadii(counts.size(), 0.0f);
 
         if constexpr (HaveGpu<Accelerator>{})
         {
@@ -179,9 +181,10 @@ public:
             }
         }
 
-        reallocate(nNodes(leaves), haloFlags_);
+        reallocate(counts.size(), haloFlags_);
         std::fill(begin(haloFlags_), end(haloFlags_), 0);
-        findHalos(focusedTree, haloRadii.data(), box, firstNode, lastNode, haloFlags_.data());
+        findHalos(prefixes, childOffsets, internalToLeaf, leaves, haloRadii.data(), box, firstNode, lastNode,
+                  haloFlags_.data());
     }
 
     /*! @brief Compute particle offsets of each tree node and determine halo send/receive indices
