@@ -71,6 +71,11 @@ class Domain
 {
     static_assert(std::is_unsigned<KeyType>{}, "SFC key type needs to be an unsigned integer\n");
 
+    //! @brief A vector template that resides on the hardware specified as Accelerator
+    template<class ValueType>
+    using AccVector =
+        typename AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<ValueType>;
+
 public:
     /*! @brief construct empty Domain
      *
@@ -434,16 +439,23 @@ private:
     {
         if constexpr (HaveGpu<Accelerator>{})
         {
-            auto& octree = focusTree_.octree();
-            octreeGpu_.resize(octree.numLeafNodes());
+            auto& octree               = focusTree_.octree();
+            TreeNodeIndex numLeafNodes = octree.numLeafNodes();
+            TreeNodeIndex numNodes     = octree.numTreeNodes();
 
-            memcpyH2D(octree.nodeKeys().data(), octree.numTreeNodes(), rawPtr(octreeGpu_.prefixes));
-            memcpyH2D(octree.childOffsets().data(), octree.numTreeNodes(), rawPtr(octreeGpu_.childOffsets));
+            octreeGpu_.resize(numLeafNodes);
+            reallocateDestructive(accFocusLeaves_, numLeafNodes + 1, 1.01);
+
+            memcpyH2D(octree.nodeKeys().data(), numNodes, rawPtr(octreeGpu_.prefixes));
+            memcpyH2D(octree.childOffsets().data(), numNodes, rawPtr(octreeGpu_.childOffsets));
             memcpyH2D(octree.parents().data(), octree.parents().size(), rawPtr(octreeGpu_.parents));
             memcpyH2D(octree.levelRange().data(), octree.levelRange().size(), rawPtr(octreeGpu_.levelRange));
-            memcpyH2D(octree.toLeafOrder().data(), octree.toLeafOrder().size(), rawPtr(octreeGpu_.internalToLeaf));
-            memcpyH2D(octree.internalOrder().data(), octree.numLeafNodes(),
+            memcpyH2D(octree.toLeafOrder().data(), numNodes, rawPtr(octreeGpu_.internalToLeaf));
+            memcpyH2D(octree.internalOrder().data(), numLeafNodes,
                       rawPtr(octreeGpu_.leafToInternal) + octree.numInternalNodes());
+
+            const auto& leaves = focusTree_.treeLeaves().data();
+            memcpyH2D(leaves, numLeafNodes + 1, rawPtr(accFocusLeaves_));
         }
     }
 
@@ -581,6 +593,9 @@ private:
 
     using OctreeGpu_t = typename AccelSwitchType<Accelerator, std::vector, OctreeGpuData>::template type<KeyType>;
     OctreeGpu_t octreeGpu_;
+
+    AccVector<KeyType> accFocusLeaves_;
+    AccVector<unsigned> accFocusCounts_;
 
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalIndex> layout_;

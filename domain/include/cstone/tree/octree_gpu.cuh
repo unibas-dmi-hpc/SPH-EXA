@@ -80,6 +80,12 @@ public:
                 rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
     }
 
+    OctreeView<const KeyType> getData() const
+    {
+        return {numLeafNodes,    numInternalNodes,   rawPtr(prefixes),       rawPtr(childOffsets),
+                rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
+    }
+
     TreeNodeIndex numLeafNodes{0};
     TreeNodeIndex numInternalNodes{0};
 

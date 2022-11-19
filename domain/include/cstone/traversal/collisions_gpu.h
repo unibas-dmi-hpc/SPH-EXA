@@ -41,10 +41,9 @@ namespace cstone
  * @tparam KeyType               32- or 64-bit unsigned integer
  * @tparam RadiusType            float or double, float is sufficient for 64-bit codes or less
  * @tparam T                     float or double
- * @param[in]  nodePrefixes      Warren-Salmon node keys of the octree, length = numTreeNodes
+ * @param[in]  prefixes          Warren-Salmon node keys of the octree, length = numTreeNodes
  * @param[in]  childOffsets      child offsets array, length = numTreeNodes
- * @param[in]  toInternalOrder   map cstone leaf node indices to fully linked format
- * @param[in]  toLeafOrder       map leaf node indices of fully linked format to cornerstone order
+ * @param[in]  internalToLeaf    map leaf node indices of fully linked format to cornerstone order
  * @param[in]  leaves            cstone array of leaf node keys
  * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
  * @param[in]  box               coordinate bounding box
@@ -57,52 +56,14 @@ namespace cstone
  *                               should be zero-initialized prior to calling this function.
  */
 template<class KeyType, class RadiusType, class T>
-__global__ void findHalosKernel(const KeyType* nodePrefixes,
-                                const TreeNodeIndex* childOffsets,
-                                const TreeNodeIndex* internalToLeaf,
-                                const KeyType* leaves,
-                                const RadiusType* interactionRadii,
-                                const Box<T> box,
-                                TreeNodeIndex firstNode,
-                                TreeNodeIndex lastNode,
-                                int* collisionFlags)
-{
-    unsigned leafIdx = blockIdx.x * blockDim.x + threadIdx.x + firstNode;
-
-    auto markCollisions = [collisionFlags, internalToLeaf](TreeNodeIndex i) { collisionFlags[internalToLeaf[i]] = 1; };
-
-    if (leafIdx < lastNode)
-    {
-        RadiusType radius  = interactionRadii[leafIdx];
-        IBox haloBox       = makeHaloBox(leaves[leafIdx], leaves[leafIdx + 1], radius, box);
-        KeyType lowestKey  = leaves[firstNode];
-        KeyType highestKey = leaves[lastNode];
-
-        // if the halo box is fully inside the assigned SFC range, we skip collision detection
-        if (containedIn(lowestKey, highestKey, haloBox)) { return; }
-
-        // mark all colliding node indices outside [lowestKey:highestKey]
-        findCollisions(nodePrefixes, childOffsets, markCollisions, haloBox, lowestKey, highestKey);
-    }
-}
-
-//! @brief convenience kernel wrapper
-template<class KeyType, class RadiusType, class T>
-void findHalosGpu(const KeyType* prefixes,
-                  const TreeNodeIndex* childOffsets,
-                  const TreeNodeIndex* internalToLeaf,
-                  const KeyType* leaves,
-                  const RadiusType* interactionRadii,
-                  const Box<T>& box,
-                  TreeNodeIndex firstNode,
-                  TreeNodeIndex lastNode,
-                  int* collisionFlags)
-{
-    constexpr unsigned numThreads = 128;
-    unsigned numBlocks            = iceil(lastNode - firstNode, numThreads);
-
-    findHalosKernel<<<numBlocks, numThreads>>>(prefixes, childOffsets, internalToLeaf, leaves, interactionRadii, box,
-                                               firstNode, lastNode, collisionFlags);
-}
+extern void findHalosGpu(const KeyType* prefixes,
+                         const TreeNodeIndex* childOffsets,
+                         const TreeNodeIndex* internalToLeaf,
+                         const KeyType* leaves,
+                         const RadiusType* interactionRadii,
+                         const Box<T>& box,
+                         TreeNodeIndex firstNode,
+                         TreeNodeIndex lastNode,
+                         int* collisionFlags);
 
 } // namespace cstone
