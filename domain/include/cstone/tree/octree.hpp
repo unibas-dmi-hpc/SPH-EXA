@@ -182,15 +182,15 @@ void getLevelRangeCpu(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeI
  * @param[in]    cstoneTree  GPU buffer with the SFC leaf cell keys
  */
 template<class KeyType>
-void buildInternalOctreeCpu(const KeyType* cstoneTree,
-                            TreeNodeIndex numLeafNodes,
-                            TreeNodeIndex numInternalNodes,
-                            KeyType* prefixes,
-                            TreeNodeIndex* childOffsets,
-                            TreeNodeIndex* parents,
-                            TreeNodeIndex* levelRange,
-                            TreeNodeIndex* internalToLeaf,
-                            TreeNodeIndex* leafToInternal)
+void buildOctreeCpu(const KeyType* cstoneTree,
+                    TreeNodeIndex numLeafNodes,
+                    TreeNodeIndex numInternalNodes,
+                    KeyType* prefixes,
+                    TreeNodeIndex* childOffsets,
+                    TreeNodeIndex* parents,
+                    TreeNodeIndex* levelRange,
+                    TreeNodeIndex* internalToLeaf,
+                    TreeNodeIndex* leafToInternal)
 {
     TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
     createUnsortedLayoutCpu(cstoneTree, numInternalNodes, numLeafNodes, prefixes, internalToLeaf);
@@ -331,9 +331,8 @@ public:
     void updateInternalTree()
     {
         resize(nNodes(cstoneTree_));
-        buildInternalOctreeCpu(cstoneTree_.data(), numLeafNodes_, numInternalNodes_, prefixes_.data(),
-                               childOffsets_.data(), parents_.data(), levelRange_.data(), internalToLeaf_.data(),
-                               leafToInternal_.data());
+        buildOctreeCpu(cstoneTree_.data(), numLeafNodes_, numInternalNodes_, prefixes_.data(), childOffsets_.data(),
+                       parents_.data(), levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data());
     }
 
     //! @brief rebalance based on leaf counts only, optimized version that avoids unnecessary allocations

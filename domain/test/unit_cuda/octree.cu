@@ -35,7 +35,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_gpu.cuh"
+#include "cstone/tree/octree_gpu.h"
 #include "cstone/tree/octree.hpp"
 #include "cstone/tree/cs_util.hpp"
 

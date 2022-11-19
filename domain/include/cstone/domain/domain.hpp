@@ -38,7 +38,6 @@
 #ifdef USE_CUDA
 #include "cstone/domain/assignment_gpu.cuh"
 #include "cstone/primitives/gather.cuh"
-#include "cstone/tree/octree_gpu.cuh"
 #endif
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
