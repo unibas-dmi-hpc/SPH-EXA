@@ -45,6 +45,7 @@ namespace cstone
  * @param[in]  childOffsets      child offsets array, length = numTreeNodes
  * @param[in]  toInternalOrder   map cstone leaf node indices to fully linked format
  * @param[in]  toLeafOrder       map leaf node indices of fully linked format to cornerstone order
+ * @param[in]  leaves            cstone array of leaf node keys
  * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
  * @param[in]  box               coordinate bounding box
  * @param[in]  firstNode         first cstone leaf node index to consider as local
@@ -58,8 +59,8 @@ namespace cstone
 template<class KeyType, class RadiusType, class T>
 __global__ void findHalosKernel(const KeyType* nodePrefixes,
                                 const TreeNodeIndex* childOffsets,
-                                const TreeNodeIndex* toInternalOrder,
-                                const TreeNodeIndex* toLeafOrder,
+                                const TreeNodeIndex* internalToLeaf,
+                                const KeyType* leaves,
                                 const RadiusType* interactionRadii,
                                 const Box<T> box,
                                 TreeNodeIndex firstNode,
@@ -68,20 +69,14 @@ __global__ void findHalosKernel(const KeyType* nodePrefixes,
 {
     unsigned leafIdx = blockIdx.x * blockDim.x + threadIdx.x + firstNode;
 
-    auto markCollisions = [collisionFlags, toLeafOrder](TreeNodeIndex i) { collisionFlags[toLeafOrder[i]] = 1; };
+    auto markCollisions = [collisionFlags, internalToLeaf](TreeNodeIndex i) { collisionFlags[internalToLeaf[i]] = 1; };
 
     if (leafIdx < lastNode)
     {
-        RadiusType radius      = interactionRadii[leafIdx];
-        TreeNodeIndex idx      = toInternalOrder[leafIdx];
-        KeyType lowerTargetKey = decodePlaceholderBit(nodePrefixes[idx]);
-        KeyType upperTargetKey = lowerTargetKey + nodeRange<KeyType>(decodePrefixLength(nodePrefixes[idx]) / 3);
-        IBox haloBox           = makeHaloBox(lowerTargetKey, upperTargetKey, radius, box);
-
-        KeyType firstPrefix = nodePrefixes[toInternalOrder[firstNode]];
-        KeyType lastPrefix  = nodePrefixes[toInternalOrder[lastNode - 1]];
-        KeyType lowestKey   = decodePlaceholderBit(firstPrefix);
-        KeyType highestKey  = decodePlaceholderBit(lastPrefix) + nodeRange<KeyType>(decodePrefixLength(lastPrefix) / 3);
+        RadiusType radius  = interactionRadii[leafIdx];
+        IBox haloBox       = makeHaloBox(leaves[leafIdx], leaves[leafIdx + 1], radius, box);
+        KeyType lowestKey  = leaves[firstNode];
+        KeyType highestKey = leaves[lastNode];
 
         // if the halo box is fully inside the assigned SFC range, we skip collision detection
         if (containedIn(lowestKey, highestKey, haloBox)) { return; }
@@ -93,10 +88,10 @@ __global__ void findHalosKernel(const KeyType* nodePrefixes,
 
 //! @brief convenience kernel wrapper
 template<class KeyType, class RadiusType, class T>
-void findHalosGpu(const KeyType* nodePrefixes,
+void findHalosGpu(const KeyType* prefixes,
                   const TreeNodeIndex* childOffsets,
-                  const TreeNodeIndex* toInternalOrder,
-                  const TreeNodeIndex* toLeafOrder,
+                  const TreeNodeIndex* internalToLeaf,
+                  const KeyType* leaves,
                   const RadiusType* interactionRadii,
                   const Box<T>& box,
                   TreeNodeIndex firstNode,
@@ -106,8 +101,8 @@ void findHalosGpu(const KeyType* nodePrefixes,
     constexpr unsigned numThreads = 128;
     unsigned numBlocks            = iceil(lastNode - firstNode, numThreads);
 
-    findHalosKernel<<<numBlocks, numThreads>>>(nodePrefixes, childOffsets, toInternalOrder, toLeafOrder,
-                                               interactionRadii, box, firstNode, lastNode, collisionFlags);
+    findHalosKernel<<<numBlocks, numThreads>>>(prefixes, childOffsets, internalToLeaf, leaves, interactionRadii, box,
+                                               firstNode, lastNode, collisionFlags);
 }
 
 } // namespace cstone

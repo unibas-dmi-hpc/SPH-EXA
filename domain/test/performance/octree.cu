@@ -106,10 +106,10 @@ int main()
     thrust::device_vector<int> flags(nNodes(tree), 0);
 
     auto octreeView      = octree.getData();
-    auto findHalosLambda = [octree = octreeView, &box, &haloRadii, &flags]()
+    auto findHalosLambda = [octree = octreeView, &box, &tree, &haloRadii, &flags]()
     {
-        findHalosGpu(octree.prefixes, octree.childOffsets, octree.leafToInternal + octree.numInternalNodes,
-                     octree.internalToLeaf, rawPtr(haloRadii), box, 0, octree.numLeafNodes / 4, rawPtr(flags));
+        findHalosGpu(octree.prefixes, octree.childOffsets, octree.internalToLeaf, rawPtr(tree), rawPtr(haloRadii), box,
+                     0, octree.numLeafNodes / 4, rawPtr(flags));
     };
 
     float findTime = timeGpu(findHalosLambda);
