@@ -32,10 +32,6 @@
 
 #pragma once
 
-#include <thrust/device_vector.h>
-
-#include "cstone/cuda/cuda_utils.cuh"
-#include "cstone/util/reallocate.hpp"
 #include "cstone/tree/octree.hpp"
 
 namespace cstone
@@ -51,57 +47,6 @@ namespace cstone
  * This does not allocate memory on the GPU, (except thrust temp buffers for scans and sorting)
  */
 template<class KeyType>
-extern void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeView<KeyType> d);
-
-//! @brief provides a place to live for GPU resident octree data
-template<class KeyType>
-class OctreeGpuData
-{
-public:
-    void resize(TreeNodeIndex numCsLeafNodes)
-    {
-        numLeafNodes           = numCsLeafNodes;
-        numInternalNodes       = (numLeafNodes - 1) / 7;
-        TreeNodeIndex numNodes = numLeafNodes + numInternalNodes;
-
-        lowMemReallocate(numNodes, 1.01, {}, std::tie(prefixes, internalToLeaf, leafToInternal, childOffsets));
-        // +1 to accommodate nodeOffsets in FocusedOctreeCore::update when numNodes == 1
-        reallocate(childOffsets, numNodes + 1, 1.01);
-
-        reallocateDestructive(parents, (numNodes - 1) / 8, 1.01);
-
-        //+1 due to level 0 and +1 due to the upper bound for the last level
-        reallocateDestructive(levelRange, maxTreeLevel<KeyType>{} + 2, 1.01);
-    }
-
-    OctreeView<KeyType> getData()
-    {
-        return {numLeafNodes,    numInternalNodes,   rawPtr(prefixes),       rawPtr(childOffsets),
-                rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
-    }
-
-    OctreeView<const KeyType> getData() const
-    {
-        return {numLeafNodes,    numInternalNodes,   rawPtr(prefixes),       rawPtr(childOffsets),
-                rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
-    }
-
-    TreeNodeIndex numLeafNodes{0};
-    TreeNodeIndex numInternalNodes{0};
-
-    //! @brief the SFC key and level of each node (Warren-Salmon placeholder-bit), length = numNodes
-    thrust::device_vector<KeyType> prefixes;
-    //! @brief the index of the first child of each node, a value of 0 indicates a leaf, length = numNodes
-    thrust::device_vector<TreeNodeIndex> childOffsets;
-    //! @brief stores the parent index for every group of 8 sibling nodes, length the (numNodes - 1) / 8
-    thrust::device_vector<TreeNodeIndex> parents;
-    //! @brief store the first node index of every tree level, length = maxTreeLevel + 2
-    thrust::device_vector<TreeNodeIndex> levelRange;
-
-    //! @brief maps internal to leaf (cstone) order
-    thrust::device_vector<TreeNodeIndex> internalToLeaf;
-    //! @brief maps leaf (cstone) order to internal level-sorted order
-    thrust::device_vector<TreeNodeIndex> leafToInternal;
-};
+extern void buildOctreeGpu(const KeyType* cstoneTree, OctreeView<KeyType> d);
 
 } // namespace cstone

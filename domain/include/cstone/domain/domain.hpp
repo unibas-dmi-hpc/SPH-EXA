@@ -60,9 +60,6 @@ namespace cstone
 template<class KeyType, class T>
 class GlobalAssignmentGpu;
 
-template<class KeyType>
-class OctreeGpuData;
-
 template<class IndexType, class BufferType>
 class GpuSfcSorter;
 
@@ -443,16 +440,16 @@ private:
             TreeNodeIndex numLeafNodes = octree.numLeafNodes();
             TreeNodeIndex numNodes     = octree.numTreeNodes();
 
-            octreeGpu_.resize(numLeafNodes);
+            octreeAcc_.resize(numLeafNodes);
             reallocateDestructive(accFocusLeaves_, numLeafNodes + 1, 1.01);
 
-            memcpyH2D(octree.nodeKeys().data(), numNodes, rawPtr(octreeGpu_.prefixes));
-            memcpyH2D(octree.childOffsets().data(), numNodes, rawPtr(octreeGpu_.childOffsets));
-            memcpyH2D(octree.parents().data(), octree.parents().size(), rawPtr(octreeGpu_.parents));
-            memcpyH2D(octree.levelRange().data(), octree.levelRange().size(), rawPtr(octreeGpu_.levelRange));
-            memcpyH2D(octree.toLeafOrder().data(), numNodes, rawPtr(octreeGpu_.internalToLeaf));
+            memcpyH2D(octree.nodeKeys().data(), numNodes, rawPtr(octreeAcc_.prefixes));
+            memcpyH2D(octree.childOffsets().data(), numNodes, rawPtr(octreeAcc_.childOffsets));
+            memcpyH2D(octree.parents().data(), octree.parents().size(), rawPtr(octreeAcc_.parents));
+            memcpyH2D(octree.levelRange().data(), octree.levelRange().size(), rawPtr(octreeAcc_.levelRange));
+            memcpyH2D(octree.toLeafOrder().data(), numNodes, rawPtr(octreeAcc_.internalToLeaf));
             memcpyH2D(octree.internalOrder().data(), numLeafNodes,
-                      rawPtr(octreeGpu_.leafToInternal) + octree.numInternalNodes());
+                      rawPtr(octreeAcc_.leafToInternal) + octree.numInternalNodes());
 
             const auto& leaves = focusTree_.treeLeaves().data();
             memcpyH2D(leaves, numLeafNodes + 1, rawPtr(accFocusLeaves_));
@@ -591,8 +588,7 @@ private:
         typename AccelSwitchType<Accelerator, GlobalAssignment, GlobalAssignmentGpu>::template type<KeyType, T>;
     Distributor_t global_;
 
-    using OctreeGpu_t = typename AccelSwitchType<Accelerator, std::vector, OctreeGpuData>::template type<KeyType>;
-    OctreeGpu_t octreeGpu_;
+    OctreeData<KeyType, Accelerator> octreeAcc_;
 
     AccVector<KeyType> accFocusLeaves_;
     AccVector<unsigned> accFocusCounts_;

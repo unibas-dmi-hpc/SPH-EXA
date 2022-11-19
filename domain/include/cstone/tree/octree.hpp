@@ -43,8 +43,10 @@
 #include <vector>
 
 #include "cstone/cuda/annotation.hpp"
+#include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/primitives/gather.hpp"
 #include "cstone/sfc/sfc.hpp"
+#include "cstone/tree/accel_switch.hpp"
 #include "cstone/tree/csarray.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
@@ -251,6 +253,60 @@ struct OctreeView
     NodeType* levelRange;
     NodeType* internalToLeaf;
     NodeType* leafToInternal;
+};
+
+template<class KeyType, class Accelerator>
+class OctreeData
+{
+    //! @brief A vector template that resides on the hardware specified as Accelerator
+    template<class ValueType>
+    using AccVector =
+        typename AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<ValueType>;
+public:
+    void resize(TreeNodeIndex numCsLeafNodes)
+    {
+        numLeafNodes           = numCsLeafNodes;
+        numInternalNodes       = (numLeafNodes - 1) / 7;
+        TreeNodeIndex numNodes = numLeafNodes + numInternalNodes;
+
+        lowMemReallocate(numNodes, 1.01, {}, std::tie(prefixes, internalToLeaf, leafToInternal, childOffsets));
+        // +1 to accommodate nodeOffsets in FocusedOctreeCore::update when numNodes == 1
+        reallocate(childOffsets, numNodes + 1, 1.01);
+
+        reallocateDestructive(parents, (numNodes - 1) / 8, 1.01);
+
+        //+1 due to level 0 and +1 due to the upper bound for the last level
+        reallocateDestructive(levelRange, maxTreeLevel<KeyType>{} + 2, 1.01);
+    }
+
+    OctreeView<KeyType> getData()
+    {
+        return {numLeafNodes,    numInternalNodes,   rawPtr(prefixes),       rawPtr(childOffsets),
+                rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
+    }
+
+    OctreeView<const KeyType> getData() const
+    {
+        return {numLeafNodes,    numInternalNodes,   rawPtr(prefixes),       rawPtr(childOffsets),
+                rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
+    }
+
+    TreeNodeIndex numLeafNodes{0};
+    TreeNodeIndex numInternalNodes{0};
+
+    //! @brief the SFC key and level of each node (Warren-Salmon placeholder-bit), length = numNodes
+    AccVector<KeyType> prefixes;
+    //! @brief the index of the first child of each node, a value of 0 indicates a leaf, length = numNodes
+    AccVector<TreeNodeIndex> childOffsets;
+    //! @brief stores the parent index for every group of 8 sibling nodes, length the (numNodes - 1) / 8
+    AccVector<TreeNodeIndex> parents;
+    //! @brief store the first node index of every tree level, length = maxTreeLevel + 2
+    AccVector<TreeNodeIndex> levelRange;
+
+    //! @brief maps internal to leaf (cstone) order
+    AccVector<TreeNodeIndex> internalToLeaf;
+    //! @brief maps leaf (cstone) order to internal level-sorted order
+    AccVector<TreeNodeIndex> leafToInternal;
 };
 
 template<class KeyType>

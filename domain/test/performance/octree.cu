@@ -88,9 +88,9 @@ int main()
 
     // internal tree benchmark
 
-    OctreeGpuData<KeyType> octree;
+    OctreeData<KeyType, GpuTag> octree;
     octree.resize(nNodes(tree));
-    auto buildInternal = [&]() { buildInternalOctreeGpu(rawPtr(tree), octree.getData()); };
+    auto buildInternal = [&]() { buildOctreeGpu(rawPtr(tree), octree.getData()); };
 
     float internalBuildTime                   = timeGpu(buildInternal);
     thrust::host_vector<TreeNodeIndex> ranges = octree.levelRange;

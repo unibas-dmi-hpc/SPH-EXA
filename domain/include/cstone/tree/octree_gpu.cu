@@ -143,7 +143,7 @@ invertOrder(TreeNodeIndex* order, TreeNodeIndex* inverseOrder, TreeNodeIndex num
 }
 
 template<class KeyType>
-void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeView<KeyType> d)
+void buildOctreeGpu(const KeyType* cstoneTree, OctreeView<KeyType> d)
 {
     constexpr unsigned numThreads = 256;
 
@@ -162,7 +162,7 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeView<KeyType> d)
                                                                     d.levelRange, d.childOffsets, d.parents);
 }
 
-template void buildInternalOctreeGpu(const uint32_t*, OctreeView<uint32_t>);
-template void buildInternalOctreeGpu(const uint64_t*, OctreeView<uint64_t>);
+template void buildOctreeGpu(const uint32_t*, OctreeView<uint32_t>);
+template void buildOctreeGpu(const uint64_t*, OctreeView<uint64_t>);
 
 } // namespace cstone

@@ -47,10 +47,10 @@ void compareAgainstCpu(const std::vector<KeyType>& tree)
     // upload cornerstone tree to device
     thrust::device_vector<KeyType> d_leaves = tree;
 
-    OctreeGpuData<KeyType> gpuTree;
+    OctreeData<KeyType, GpuTag> gpuTree;
     gpuTree.resize(nNodes(tree));
 
-    buildInternalOctreeGpu(thrust::raw_pointer_cast(d_leaves.data()), gpuTree.getData());
+    buildOctreeGpu(thrust::raw_pointer_cast(d_leaves.data()), gpuTree.getData());
 
     Octree<KeyType> cpuTree;
     cpuTree.update(tree.data(), nNodes(tree));

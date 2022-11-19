@@ -81,8 +81,8 @@ private:
     thrust::device_vector<KeyType>               tmpTree_;
     thrust::device_vector<cstone::TreeNodeIndex> workArray_;
 
-    cstone::OctreeGpuData<KeyType>            octreeGpuData_;
-    thrust::device_vector<cstone::LocalIndex> d_layout_;
+    cstone::OctreeData<KeyType, cstone::GpuTag> octreeGpuData_;
+    thrust::device_vector<cstone::LocalIndex>   d_layout_;
 };
 
 template<class KeyType>
@@ -130,7 +130,7 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
         ;
 
     octreeGpuData_.resize(cstone::nNodes(d_tree_));
-    cstone::buildInternalOctreeGpu(rawPtr(d_tree_), octreeGpuData_.getData());
+    cstone::buildOctreeGpu(rawPtr(d_tree_), octreeGpuData_.getData());
 
     return octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
 }
