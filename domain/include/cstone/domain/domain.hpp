@@ -226,12 +226,13 @@ public:
 
         auto octreeView            = focusTree_.octree().data();
         const KeyType* focusLeaves = focusTree_.treeLeaves().data();
-        //if constexpr (HaveGpu<Accelerator>{})
-        //{
-        //    octreeView = ((const decltype(octreeAcc_)&)octreeAcc_).data();
-        //}
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            octreeView  = ((const decltype(octreeAcc_)&)octreeAcc_).data();
+            focusLeaves = rawPtr(focusLeavesAcc_);
+        }
 
-        reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
+        reallocate(layout_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
                         focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(), rawPtr(h),
                         std::get<0>(scratch));
@@ -291,8 +292,13 @@ public:
 
         auto octreeView            = focusTree_.octree().data();
         const KeyType* focusLeaves = focusTree_.treeLeaves().data();
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            octreeView  = ((const decltype(octreeAcc_)&)octreeAcc_).data();
+            focusLeaves = rawPtr(focusLeavesAcc_);
+        }
 
-        reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
+        reallocate(layout_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
                         focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(), rawPtr(h),
                         std::get<0>(scratch));
@@ -442,7 +448,7 @@ private:
             TreeNodeIndex numNodes     = octree.numTreeNodes();
 
             octreeAcc_.resize(numLeafNodes);
-            reallocateDestructive(accFocusLeaves_, numLeafNodes + 1, 1.01);
+            reallocateDestructive(focusLeavesAcc_, numLeafNodes + 1, 1.01);
 
             memcpyH2D(octree.nodeKeys().data(), numNodes, rawPtr(octreeAcc_.prefixes));
             memcpyH2D(octree.childOffsets().data(), numNodes, rawPtr(octreeAcc_.childOffsets));
@@ -453,7 +459,7 @@ private:
                       rawPtr(octreeAcc_.leafToInternal) + octree.numInternalNodes());
 
             const auto& leaves = focusTree_.treeLeaves().data();
-            memcpyH2D(leaves, numLeafNodes + 1, rawPtr(accFocusLeaves_));
+            memcpyH2D(leaves, numLeafNodes + 1, rawPtr(focusLeavesAcc_));
         }
     }
 
@@ -591,8 +597,8 @@ private:
 
     OctreeData<KeyType, Accelerator> octreeAcc_;
 
-    AccVector<KeyType> accFocusLeaves_;
-    AccVector<unsigned> accFocusCounts_;
+    AccVector<KeyType> focusLeavesAcc_;
+    AccVector<unsigned> focusCountsAcc_;
 
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalIndex> layout_;

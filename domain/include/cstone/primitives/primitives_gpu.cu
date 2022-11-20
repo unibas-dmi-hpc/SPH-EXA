@@ -51,6 +51,30 @@ void fillGpu(T* first, T* last, T value)
 
 template void fillGpu(double*, double*, double);
 template void fillGpu(float*, float*, float);
+template void fillGpu(int*, int*, int);
+template void fillGpu(unsigned*, unsigned*, unsigned);
+
+template<class T>
+struct ScaleFunctor
+{
+    const T s;
+
+    ScaleFunctor(T s_)
+        : s(s_)
+    {
+    }
+
+    __host__ __device__ T operator()(const T& x) const { return s * x; }
+};
+
+template<class T>
+void scaleGpu(T* first, T* last, T value)
+{
+    thrust::transform(thrust::device, first, last, first, ScaleFunctor<T>(value));
+}
+
+template void scaleGpu(double*, double*, double);
+template void scaleGpu(float*, float*, float);
 
 template<class T, class IndexType>
 __global__ void gatherGpuKernel(const IndexType* map, size_t n, const T* source, T* destination)
