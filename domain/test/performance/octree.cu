@@ -90,7 +90,7 @@ int main()
 
     OctreeData<KeyType, GpuTag> octree;
     octree.resize(nNodes(tree));
-    auto buildInternal = [&]() { buildOctreeGpu(rawPtr(tree), octree.getData()); };
+    auto buildInternal = [&]() { buildOctreeGpu(rawPtr(tree), octree.data()); };
 
     float internalBuildTime                   = timeGpu(buildInternal);
     thrust::host_vector<TreeNodeIndex> ranges = octree.levelRange;
@@ -105,7 +105,7 @@ int main()
     thrust::device_vector<float> haloRadii(nNodes(tree), 0.01);
     thrust::device_vector<int> flags(nNodes(tree), 0);
 
-    auto octreeView      = octree.getData();
+    auto octreeView      = octree.data();
     auto findHalosLambda = [octree = octreeView, &box, &tree, &haloRadii, &flags]()
     {
         findHalosGpu(octree.prefixes, octree.childOffsets, octree.internalToLeaf, rawPtr(tree), rawPtr(haloRadii), box,
@@ -127,7 +127,7 @@ int main()
         thrust::host_vector<float> radii = haloRadii;
         std::vector<int> h_flags(nNodes(tree), 0);
 
-        OctreeView<KeyType> o = h_octree.getData();
+        OctreeView<KeyType> o = h_octree.data();
 
         auto findHalosCpuLambda = [&]()
         {

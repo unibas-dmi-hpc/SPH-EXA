@@ -130,7 +130,7 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
         ;
 
     octreeGpuData_.resize(cstone::nNodes(d_tree_));
-    cstone::buildOctreeGpu(rawPtr(d_tree_), octreeGpuData_.getData());
+    cstone::buildOctreeGpu(rawPtr(d_tree_), octreeGpuData_.data());
 
     return octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
 }

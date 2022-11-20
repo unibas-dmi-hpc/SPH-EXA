@@ -50,7 +50,7 @@ void compareAgainstCpu(const std::vector<KeyType>& tree)
     OctreeData<KeyType, GpuTag> gpuTree;
     gpuTree.resize(nNodes(tree));
 
-    buildOctreeGpu(thrust::raw_pointer_cast(d_leaves.data()), gpuTree.getData());
+    buildOctreeGpu(rawPtr(d_leaves), gpuTree.data());
 
     Octree<KeyType> cpuTree;
     cpuTree.update(tree.data(), nNodes(tree));

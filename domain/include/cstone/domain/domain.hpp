@@ -72,6 +72,10 @@ class Domain
     using AccVector =
         typename AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<ValueType>;
 
+    template<class BufferType>
+    using ReorderFunctor_t =
+        typename AccelSwitchType<Accelerator, SfcSorter, GpuSfcSorter>::template type<LocalIndex, BufferType>;
+
 public:
     /*! @brief construct empty Domain
      *
@@ -197,10 +201,7 @@ public:
     {
         staticChecks<KeyVec, VectorX, VectorH, Vectors1...>(scratchBuffers);
         auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
-        using ReorderFunctor_t =
-            typename AccelSwitchType<Accelerator, SfcSorter,
-                                     GpuSfcSorter>::template type<LocalIndex, std::decay_t<decltype(sfcOrder)>>;
-        ReorderFunctor_t reorderer(sfcOrder);
+        ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> reorderer(sfcOrder);
 
         auto scratch = discardLastElement(scratchBuffers);
 
@@ -223,8 +224,12 @@ public:
 
         uploadOctree();
 
-        auto octreeView = focusTree_.octree().getData();
+        auto octreeView            = focusTree_.octree().data();
         const KeyType* focusLeaves = focusTree_.treeLeaves().data();
+        //if constexpr (HaveGpu<Accelerator>{})
+        //{
+        //    octreeView = ((const decltype(octreeAcc_)&)octreeAcc_).data();
+        //}
 
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
@@ -250,10 +255,7 @@ public:
     {
         staticChecks<KeyVec, VectorX, VectorH, VectorM, Vectors1...>(scratchBuffers);
         auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
-        using ReorderFunctor_t =
-            typename AccelSwitchType<Accelerator, SfcSorter,
-                                     GpuSfcSorter>::template type<LocalIndex, std::decay_t<decltype(sfcOrder)>>;
-        ReorderFunctor_t reorderer(sfcOrder);
+        ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> reorderer(sfcOrder);
 
         auto scratch = discardLastElement(scratchBuffers);
 
@@ -287,7 +289,7 @@ public:
 
         uploadOctree();
 
-        auto octreeView = focusTree_.octree().getData();
+        auto octreeView            = focusTree_.octree().data();
         const KeyType* focusLeaves = focusTree_.treeLeaves().data();
 
         reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);

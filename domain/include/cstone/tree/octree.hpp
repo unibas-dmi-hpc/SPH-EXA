@@ -279,13 +279,13 @@ public:
         reallocateDestructive(levelRange, maxTreeLevel<KeyType>{} + 2, 1.01);
     }
 
-    OctreeView<KeyType> getData()
+    OctreeView<KeyType> data()
     {
         return {numLeafNodes,    numInternalNodes,   rawPtr(prefixes),       rawPtr(childOffsets),
                 rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
     }
 
-    OctreeView<const KeyType> getData() const
+    OctreeView<const KeyType> data() const
     {
         return {numLeafNodes,    numInternalNodes,   rawPtr(prefixes),       rawPtr(childOffsets),
                 rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
@@ -349,13 +349,13 @@ public:
         return converged;
     }
 
-    OctreeView<KeyType> getData()
+    OctreeView<KeyType> data()
     {
         return {numLeafNodes_,    numInternalNodes_,   prefixes_.data(), childOffsets_.data(),
                 parents_.data(), levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data()};
     }
 
-    OctreeView<const KeyType> getData() const
+    OctreeView<const KeyType> data() const
     {
         return {numLeafNodes_,    numInternalNodes_,   prefixes_.data(), childOffsets_.data(),
                 parents_.data(), levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data()};
