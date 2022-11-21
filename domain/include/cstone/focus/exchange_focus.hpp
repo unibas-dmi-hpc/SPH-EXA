@@ -49,6 +49,7 @@
 #include "cstone/primitives/gather.hpp"
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/tree/csarray.hpp"
+#include "cstone/tree/octree.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
@@ -190,7 +191,7 @@ template<class T, class KeyType>
 void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
                             const std::vector<std::vector<KeyType>>& peerTrees,
                             gsl::span<const IndexPair<TreeNodeIndex>> focusAssignment,
-                            gsl::span<const KeyType> octree,
+                            gsl::span<const KeyType> prefixes,
                             gsl::span<const TreeNodeIndex> levelRange,
                             gsl::span<const TreeNodeIndex> csToInternalMap,
                             gsl::span<T> quantities,
@@ -210,16 +211,8 @@ void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
 
         for (TreeNodeIndex i = 0; i < treeletSize; ++i)
         {
-            KeyType nodeStart = treelet[i];
-            KeyType nodeEnd   = treelet[i + 1];
-            unsigned level    = treeLevel(nodeEnd - nodeStart);
-            KeyType prefix    = encodePlaceholderBit(nodeStart, 3 * level);
-
-            TreeNodeIndex internalIdx =
-                stl::lower_bound(octree.data() + levelRange[level], octree.data() + levelRange[level + 1], prefix) -
-                octree.data();
+            TreeNodeIndex internalIdx = locateNode(treelet[i], treelet[i + 1], prefixes.data(), levelRange.data());
             assert(prefix == octree[internalIdx]);
-
             buffer[i] = quantities[internalIdx];
         }
 
