@@ -222,15 +222,8 @@ public:
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
 
-        uploadOctree();
-
-        auto octreeView            = focusTree_.octree().data();
-        const KeyType* focusLeaves = focusTree_.treeLeaves().data();
-        if constexpr (HaveGpu<Accelerator>{})
-        {
-            octreeView  = ((const decltype(octreeAcc_)&)octreeAcc_).data();
-            focusLeaves = rawPtr(focusLeavesAcc_);
-        }
+        auto octreeView            = focusTree_.octreeViewAcc();
+        const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
 
         reallocate(layout_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
@@ -288,15 +281,8 @@ public:
                                  box(), std::get<0>(scratch), std::get<1>(scratch));
         focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
 
-        uploadOctree();
-
-        auto octreeView            = focusTree_.octree().data();
-        const KeyType* focusLeaves = focusTree_.treeLeaves().data();
-        if constexpr (HaveGpu<Accelerator>{})
-        {
-            octreeView  = ((const decltype(octreeAcc_)&)octreeAcc_).data();
-            focusLeaves = rawPtr(focusLeavesAcc_);
-        }
+        auto octreeView            = focusTree_.octreeViewAcc();
+        const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
 
         reallocate(layout_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
@@ -439,30 +425,6 @@ private:
         }
     }
 
-    void uploadOctree()
-    {
-        if constexpr (HaveGpu<Accelerator>{})
-        {
-            auto& octree               = focusTree_.octree();
-            TreeNodeIndex numLeafNodes = octree.numLeafNodes();
-            TreeNodeIndex numNodes     = octree.numTreeNodes();
-
-            octreeAcc_.resize(numLeafNodes);
-            reallocateDestructive(focusLeavesAcc_, numLeafNodes + 1, 1.01);
-
-            memcpyH2D(octree.nodeKeys().data(), numNodes, rawPtr(octreeAcc_.prefixes));
-            memcpyH2D(octree.childOffsets().data(), numNodes, rawPtr(octreeAcc_.childOffsets));
-            memcpyH2D(octree.parents().data(), octree.parents().size(), rawPtr(octreeAcc_.parents));
-            memcpyH2D(octree.levelRange().data(), octree.levelRange().size(), rawPtr(octreeAcc_.levelRange));
-            memcpyH2D(octree.toLeafOrder().data(), numNodes, rawPtr(octreeAcc_.internalToLeaf));
-            memcpyH2D(octree.internalOrder().data(), numLeafNodes,
-                      rawPtr(octreeAcc_.leafToInternal) + octree.numInternalNodes());
-
-            const auto& leaves = focusTree_.treeLeaves().data();
-            memcpyH2D(leaves, numLeafNodes + 1, rawPtr(focusLeavesAcc_));
-        }
-    }
-
     template<class Reord, class KeyVec, class... Arrays1, class... Arrays2, class... Arrays3>
     void updateLayout(Reord& reorderFunctor,
                       LocalIndex exchangeStart,
@@ -594,11 +556,6 @@ private:
     using Distributor_t =
         typename AccelSwitchType<Accelerator, GlobalAssignment, GlobalAssignmentGpu>::template type<KeyType, T>;
     Distributor_t global_;
-
-    OctreeData<KeyType, Accelerator> octreeAcc_;
-
-    AccVector<KeyType> focusLeavesAcc_;
-    AccVector<unsigned> focusCountsAcc_;
 
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalIndex> layout_;

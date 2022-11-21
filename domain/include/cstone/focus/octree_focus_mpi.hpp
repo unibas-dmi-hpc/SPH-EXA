@@ -48,6 +48,11 @@ namespace cstone
 template<class KeyType, class RealType, class Accelerator = CpuTag>
 class FocusedOctree
 {
+    //! @brief A vector template that resides on the hardware specified as Accelerator
+    template<class ValueType>
+    using AccVector =
+        typename AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<ValueType>;
+
 public:
     /*! @brief constructor
      *
@@ -119,6 +124,8 @@ public:
         bool converged = CombinedUpdate<KeyType>::updateFocus(tree_, bucketSize_, focusStart, focusEnd, enforcedKeys,
                                                               counts_, macs_);
         translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peers_, myRank_, assignment_);
+
+        uploadOctree();
 
         prevFocusStart   = focusStart;
         prevFocusEnd     = focusEnd;
@@ -443,6 +450,20 @@ public:
     //! brief particle counts per focus tree leaf cell
     gsl::span<const unsigned> leafCounts() const { return leafCounts_; }
 
+    //! @brief return a view to the octree on the active accelerator
+    OctreeView<const KeyType> octreeViewAcc() const
+    {
+        if constexpr (HaveGpu<Accelerator>{}) { return ((const decltype(octreeAcc_)&)octreeAcc_).data(); }
+        else { return tree_.data(); }
+    }
+
+    //! @brief the cornerstone leaf cell array on the accelerator
+    gsl::span<const KeyType> treeLeavesAcc() const
+    {
+        if constexpr (HaveGpu<Accelerator>{}) { return {rawPtr(leavesAcc_), leavesAcc_.size()}; }
+        else { return tree_.treeLeaves(); }
+    }
+
     void addMacs(gsl::span<int> haloFlags) const
     {
 #pragma omp parallel for schedule(static)
@@ -454,6 +475,30 @@ public:
     }
 
 private:
+    void uploadOctree()
+    {
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            auto& octree               = tree_;
+            TreeNodeIndex numLeafNodes = octree.numLeafNodes();
+            TreeNodeIndex numNodes     = octree.numTreeNodes();
+
+            octreeAcc_.resize(numLeafNodes);
+            reallocateDestructive(leavesAcc_, numLeafNodes + 1, 1.01);
+
+            memcpyH2D(octree.nodeKeys().data(), numNodes, rawPtr(octreeAcc_.prefixes));
+            memcpyH2D(octree.childOffsets().data(), numNodes, rawPtr(octreeAcc_.childOffsets));
+            memcpyH2D(octree.parents().data(), octree.parents().size(), rawPtr(octreeAcc_.parents));
+            memcpyH2D(octree.levelRange().data(), octree.levelRange().size(), rawPtr(octreeAcc_.levelRange));
+            memcpyH2D(octree.toLeafOrder().data(), numNodes, rawPtr(octreeAcc_.internalToLeaf));
+            memcpyH2D(octree.internalOrder().data(), numLeafNodes,
+                      rawPtr(octreeAcc_.leafToInternal) + octree.numInternalNodes());
+
+            const auto& leaves = tree_.treeLeaves().data();
+            memcpyH2D(leaves, numLeafNodes + 1, rawPtr(leavesAcc_));
+        }
+    }
+
     enum Status : int
     {
         invalid         = 0,
@@ -479,6 +524,11 @@ private:
     std::vector<std::vector<KeyType>> treelets_;
 
     Octree<KeyType> tree_;
+
+    //! @brief GPU resident octree data
+    OctreeData<KeyType, Accelerator> octreeAcc_;
+    AccVector<KeyType> leavesAcc_;
+    AccVector<unsigned> leafCountsAcc_;
 
     //! @brief previous iteration focus start
     KeyType prevFocusStart = 0;
