@@ -148,8 +148,10 @@ public:
                       DeviceVector&& scratch = std::vector<KeyType>{})
     {
         gsl::span<const KeyType> leaves = treeLeaves();
-        leafCounts_.resize(nNodes(leaves));
+        std::vector<MPI_Request> treeletRequests;
+        exchangeTreelets(peers_, assignment_, leaves, treelets_, treeletRequests);
 
+        leafCounts_.resize(nNodes(leaves));
         if constexpr (HaveGpu<Accelerator>{})
         {
             static_assert(IsDeviceVector<std::decay_t<DeviceVector>>{});
@@ -176,11 +178,10 @@ public:
                               particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
         }
 
-        // counts from neighboring peers
-        std::vector<MPI_Request> treeletRequests;
-        exchangeTreelets(peers_, assignment_, leaves, treelets_, treeletRequests);
-        exchangeTreeletCounts(peers_, treelets_, assignment_, leaves, leafCounts_, treeletRequests);
-        MPI_Waitall(int(peers_.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
+        // 1st upswee with local data
+        counts_.resize(tree_.numTreeNodes());
+        scatter(tree_.internalOrder(), leafCounts_.data(), counts_.data());
+        upsweep(tree_.levelRange(), tree_.childOffsets(), counts_.data(), SumCombination<unsigned>{});
 
         // global counts
         auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves));
@@ -190,16 +191,21 @@ public:
         //   Node index ranges listed in requestIndices got assigned counts from peer ranks.
         //   All remaining indices need to get their counts from the global tree.
         //   They are stored in globalCountIndices.
-
         for (auto ip : globalCountIndices)
         {
             countRequestParticles(globalTreeLeaves, globalCounts, leaves.subspan(ip.start(), ip.count() + 1),
-                                  gsl::span<unsigned>(leafCounts_.data() + ip.start(), ip.count()));
+                                  tree_.nodeKeys(), tree_.levelRange(), gsl::span<unsigned>(counts_));
         }
 
-        counts_.resize(tree_.numTreeNodes());
-        scatter(tree_.internalOrder(), leafCounts_.data(), counts_.data());
+        // counts from neighboring peers
+        MPI_Waitall(int(peers_.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
+        constexpr int countTag = static_cast<int>(P2pTags::focusPeerCounts) + 1;
+        exchangeTreeletGeneral(peers_, treelets_, assignment_, tree_.nodeKeys(), tree_.levelRange(),
+                               tree_.internalOrder(), gsl::span<unsigned>(counts_), countTag);
+
+        // 2nd upsweep with peer and global data present
         upsweep(tree_.levelRange(), tree_.childOffsets(), counts_.data(), SumCombination<unsigned>{});
+        gather(tree_.internalOrder(), counts_.data(), leafCounts_.data());
 
         rebalanceStatus_ |= countsCriterion;
     }
@@ -231,7 +237,7 @@ public:
         assert(globalLeaves[firstGlobalIdx] == prevFocusStart);
         assert(globalLeaves[lastGlobalIdx] == prevFocusEnd);
 
-        const KeyType* nodeKeys = tree_.nodeKeys().data();
+        const KeyType* nodeKeys         = tree_.nodeKeys().data();
         const TreeNodeIndex* levelRange = tree_.levelRange().data();
 
 #pragma omp parallel for schedule(static)
