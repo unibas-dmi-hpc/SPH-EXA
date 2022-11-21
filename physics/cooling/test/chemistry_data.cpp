@@ -57,5 +57,5 @@ TEST(ChemistryData, test1a)
     EXPECT_EQ(data.fields[2].size(), 0);
 
     // fields can also be accessed based on names
-    EXPECT_EQ(get<"Y0">(data).data(), data.fields[0].data());
+    EXPECT_EQ(get<"HI_fraction">(data).data(), data.fields[0].data());
 }

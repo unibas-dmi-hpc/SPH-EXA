@@ -95,6 +95,23 @@ TEST(cooling_grackle, test1a)
     EXPECT_NEAR(HI_fraction[0], 0.630705, 1e-6);
     EXPECT_NEAR(u[0], 2.95159e+35, 1e30);
 
+    /*constexpr Real R = 8.317e7;
+    constexpr Real mui = 1.21;
+    constexpr Real conv = Real(1.5) * R / mui;
+
+    gr_float grackle_conv = 1./get_temperature_units(&cd.global_values.units);
+    double grackle_R = grackle_conv * mui * 1.5;
+    std::cout << grackle_R << std::endl;
+    double gamma;
+    calculate_gamma(&cd.global_values.units, &cd.global_values.data, &gamma);
+
+    std::cout << gamma << std::endl; */
+
+
+   /* get_temperature_units();
+    calculate_gamma();
+    calculate_pressure();
+    calculate_temperature();*/
     //cleanGrackle();
 }
 //This test just produces a table of cooling values for different choices of rho and u
