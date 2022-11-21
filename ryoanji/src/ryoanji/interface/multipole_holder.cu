@@ -66,7 +66,8 @@ public:
         memcpyH2D(centers.data(), centers.size(), rawPtr(centers_));
 
         computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(
-            x, y, z, m, octree_.leafToInternal, numLeaves, rawPtr(layout_), rawPtr(centers_), rawPtr(multipoles_));
+            x, y, z, m, octree_.leafToInternal + octree_.numInternalNodes, numLeaves, rawPtr(layout_), rawPtr(centers_),
+            rawPtr(multipoles_));
 
         std::vector<TreeNodeIndex> levelRange(cstone::maxTreeLevel<KeyType>{} + 2);
         memcpyD2H(octree_.levelRange, levelRange.size(), levelRange.data());
