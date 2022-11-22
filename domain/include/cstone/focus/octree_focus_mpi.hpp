@@ -39,6 +39,7 @@
 #include "cstone/focus/octree_focus.hpp"
 #include "cstone/focus/source_center.hpp"
 #include "cstone/focus/source_center_gpu.h"
+#include "cstone/primitives/primitives_gpu.h"
 #include "cstone/tree/accel_switch.hpp"
 
 namespace cstone
@@ -205,6 +206,13 @@ public:
         upsweep(tree_.levelRange(), tree_.childOffsets(), counts_.data(), SumCombination<unsigned>{});
         gather(tree_.internalOrder(), counts_.data(), leafCounts_.data());
 
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            memcpyH2D(leafCounts_.data(), assignment_[myRank_].start(), rawPtr(leafCountsAcc_));
+            memcpyH2D(leafCounts_.data() + assignment_[myRank_].end(), leafCounts_.size() - assignment_[myRank_].end(),
+                      rawPtr(leafCountsAcc_) + assignment_[myRank_].end());
+        }
+
         rebalanceStatus_ |= countsCriterion;
     }
 
@@ -296,34 +304,31 @@ public:
                        DeviceVector&& scratch1 = std::vector<LocalIndex>{},
                        DeviceVector&& scratch2 = std::vector<LocalIndex>{})
     {
-        //! compute temporary pre-halo exchange particle layout for local particles only
-        std::vector<LocalIndex> layout(leafCounts_.size() + 1, 0);
         TreeNodeIndex firstIdx = assignment_[myRank_].start();
         TreeNodeIndex lastIdx  = assignment_[myRank_].end();
-        std::exclusive_scan(leafCounts_.begin() + firstIdx, leafCounts_.begin() + lastIdx + 1,
-                            layout.begin() + firstIdx, 0);
 
         globalCenters_.resize(globalTree.numTreeNodes());
         centers_.resize(tree_.numTreeNodes());
 
-        auto intOrd = tree_.internalOrder();
+        OctreeView<const KeyType> octree = octreeViewAcc();
+
         if constexpr (HaveGpu<Accelerator>{})
         {
             static_assert(IsDeviceVector<std::decay_t<DeviceVector>>{});
 
-            size_t bytesOrd    = round_up(intOrd.size() * sizeof(TreeNodeIndex), 128);
-            size_t bytesLayout = layout.size() * sizeof(LocalIndex);
-            size_t osz1        = reallocateBytes(scratch1, bytesOrd + bytesLayout);
-            auto* d_intOrd     = reinterpret_cast<TreeNodeIndex*>(rawPtr(scratch1));
-            auto* d_layout     = reinterpret_cast<LocalIndex*>(rawPtr(scratch1)) + bytesOrd / sizeof(LocalIndex);
+            size_t bytesLayout = (octree.numLeafNodes + 1) * sizeof(LocalIndex);
+            size_t osz1        = reallocateBytes(scratch1, bytesLayout);
+            auto* d_layout     = reinterpret_cast<LocalIndex*>(rawPtr(scratch1));
 
             using CType     = SourceCenterType<RealType>;
             size_t osz2     = reallocateBytes(scratch2, centers_.size() * sizeof(CType));
             auto* d_centers = reinterpret_cast<CType*>(rawPtr(scratch2));
 
-            memcpyH2D(intOrd.data(), intOrd.size(), d_intOrd);
-            memcpyH2D(layout.data(), layout.size(), d_layout);
-            computeLeafSourceCenterGpu(x, y, z, m, d_intOrd, tree_.numLeafNodes(), d_layout, d_centers);
+            fillGpu(d_layout, d_layout + octree.numLeafNodes + 1, LocalIndex(0));
+            exclusiveScanGpu(rawPtr(leafCountsAcc_) + firstIdx, rawPtr(leafCountsAcc_) + lastIdx + 1,
+                             d_layout + firstIdx);
+            computeLeafSourceCenterGpu(x, y, z, m, octree.leafToInternal + octree.numInternalNodes, octree.numLeafNodes,
+                                       d_layout, d_centers);
             memcpyD2H(d_centers, centers_.size(), centers_.data());
 
             reallocateDevice(scratch1, osz1, 1.0);
@@ -331,11 +336,15 @@ public:
         }
         else
         {
+            //! compute temporary pre-halo exchange particle layout for local particles only
+            std::vector<LocalIndex> layout(leafCounts_.size() + 1, 0);
+            std::exclusive_scan(leafCounts_.begin() + firstIdx, leafCounts_.begin() + lastIdx + 1,
+                                layout.begin() + firstIdx, 0);
 #pragma omp parallel for schedule(static)
             for (TreeNodeIndex leafIdx = 0; leafIdx < tree_.numLeafNodes(); ++leafIdx)
             {
                 //! prepare local leaf centers
-                TreeNodeIndex nodeIdx = intOrd[leafIdx];
+                TreeNodeIndex nodeIdx = octree.leafToInternal[octree.numInternalNodes + leafIdx];
                 centers_[nodeIdx]     = massCenter<RealType>(x, y, z, m, layout[leafIdx], layout[leafIdx + 1]);
             }
         }
