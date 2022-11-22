@@ -304,35 +304,30 @@ public:
                        DeviceVector&& scratch1 = std::vector<LocalIndex>{},
                        DeviceVector&& scratch2 = std::vector<LocalIndex>{})
     {
-        TreeNodeIndex firstIdx = assignment_[myRank_].start();
-        TreeNodeIndex lastIdx  = assignment_[myRank_].end();
+        TreeNodeIndex firstIdx           = assignment_[myRank_].start();
+        TreeNodeIndex lastIdx            = assignment_[myRank_].end();
+        OctreeView<const KeyType> octree = octreeViewAcc();
+        TreeNodeIndex numNodes           = octree.numInternalNodes + octree.numLeafNodes;
 
         globalCenters_.resize(globalTree.numTreeNodes());
-        centers_.resize(tree_.numTreeNodes());
-
-        OctreeView<const KeyType> octree = octreeViewAcc();
+        centers_.resize(numNodes);
+        reallocateDestructive(centersAcc_, centers_.size(), 1.01);
 
         if constexpr (HaveGpu<Accelerator>{})
         {
             static_assert(IsDeviceVector<std::decay_t<DeviceVector>>{});
-
             size_t bytesLayout = (octree.numLeafNodes + 1) * sizeof(LocalIndex);
             size_t osz1        = reallocateBytes(scratch1, bytesLayout);
             auto* d_layout     = reinterpret_cast<LocalIndex*>(rawPtr(scratch1));
-
-            using CType     = SourceCenterType<RealType>;
-            size_t osz2     = reallocateBytes(scratch2, centers_.size() * sizeof(CType));
-            auto* d_centers = reinterpret_cast<CType*>(rawPtr(scratch2));
 
             fillGpu(d_layout, d_layout + octree.numLeafNodes + 1, LocalIndex(0));
             exclusiveScanGpu(rawPtr(leafCountsAcc_) + firstIdx, rawPtr(leafCountsAcc_) + lastIdx + 1,
                              d_layout + firstIdx);
             computeLeafSourceCenterGpu(x, y, z, m, octree.leafToInternal + octree.numInternalNodes, octree.numLeafNodes,
-                                       d_layout, d_centers);
-            memcpyD2H(d_centers, centers_.size(), centers_.data());
+                                       d_layout, rawPtr(centersAcc_));
+            memcpyD2H(rawPtr(centersAcc_), numNodes, centers_.data());
 
             reallocateDevice(scratch1, osz1, 1.0);
-            reallocateDevice(scratch2, osz2, 1.0);
         }
         else
         {
@@ -366,6 +361,9 @@ public:
         upsweep(tree_.levelRange(), tree_.childOffsets(), centers_.data(), CombineSourceCenter<T>{});
         //! calculate mac radius for each cell based on location of expansion centers
         setMac<T>(tree_.nodeKeys(), centers_, 1.0 / theta_, box);
+
+        if constexpr (HaveGpu<Accelerator>{}) { memcpyH2D(centers_.data(), centers_.size(), rawPtr(centersAcc_)); }
+        // else { omp_copy(centers_.begin(), centers_.end(), centersAcc_.begin()); }
     }
 
     /*! @brief Update the MAC criteria based on a min distance MAC
@@ -443,10 +441,12 @@ public:
     gsl::span<const TreeIndexPair> assignment() const { return assignment_; }
     //! @brief Expansion (com) centers of each cell
     gsl::span<const SourceCenterType<RealType>> expansionCenters() const { return centers_; }
+    gsl::span<const SourceCenterType<RealType>> expansionCentersAcc() const
+    {
+        return {rawPtr(centersAcc_), centersAcc_.size()};
+    }
     //! @brief Expansion (com) centers of each global cell
     gsl::span<const SourceCenterType<RealType>> globalExpansionCenters() const { return globalCenters_; }
-    //! @brief access multipole acceptance status of each cell
-    gsl::span<const char> macs() const { return macs_; }
     //! brief particle counts per focus tree leaf cell
     gsl::span<const unsigned> leafCounts() const { return leafCounts_; }
 
@@ -536,6 +536,7 @@ private:
     OctreeData<KeyType, Accelerator> octreeAcc_;
     AccVector<KeyType> leavesAcc_;
     AccVector<unsigned> leafCountsAcc_;
+    AccVector<SourceCenterType<RealType>> centersAcc_;
 
     //! @brief previous iteration focus start
     KeyType prevFocusStart = 0;

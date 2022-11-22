@@ -174,7 +174,7 @@ void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
         for (TreeNodeIndex i = 0; i < treeletSize; ++i)
         {
             TreeNodeIndex internalIdx = locateNode(treelet[i], treelet[i + 1], prefixes.data(), levelRange.data());
-            assert(prefix == octree[internalIdx]);
+            assert(treelet[i] == decodePlaceholderBit(prefixes[internalIdx]));
             buffer[i] = quantities[internalIdx];
         }
 

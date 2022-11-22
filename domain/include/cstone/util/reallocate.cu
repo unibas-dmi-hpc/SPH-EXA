@@ -30,6 +30,8 @@
 #include <thrust/copy.h>
 #include <thrust/device_vector.h>
 
+#include "cstone/util/array.hpp"
+
 //! @brief resizes a vector with a determined growth rate upon reallocation
 template<class Vector>
 void reallocateDevice(Vector& vector, size_t size, double growthRate)
@@ -58,6 +60,11 @@ template void reallocateDevice(thrust::device_vector<unsigned>&, size_t, double)
 template void reallocateDevice(thrust::device_vector<unsigned long>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<unsigned long long>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<char>&, size_t, double);
+
+template void reallocateDevice(thrust::device_vector<util::array<float, 3>>&, size_t, double);
+template void reallocateDevice(thrust::device_vector<util::array<double, 3>>&, size_t, double);
+template void reallocateDevice(thrust::device_vector<util::array<float, 4>>&, size_t, double);
+template void reallocateDevice(thrust::device_vector<util::array<double, 4>>&, size_t, double);
 
 template<class Vector>
 void reallocateDeviceShrink(Vector& vector, size_t size, double growthRate, double shrinkThresh)

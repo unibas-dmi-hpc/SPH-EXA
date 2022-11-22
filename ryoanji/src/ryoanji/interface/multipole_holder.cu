@@ -59,14 +59,13 @@ public:
         TreeNodeIndex numLeaves = octree_.numLeafNodes;
         resize(numLeaves);
 
-        auto centers       = focusTree.expansionCenters();
         auto globalCenters = focusTree.globalExpansionCenters();
 
         layout_ = layout;
-        memcpyH2D(centers.data(), centers.size(), rawPtr(centers_));
+        centers_ = focusTree.expansionCentersAcc().data();
 
         computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(
-            x, y, z, m, octree_.leafToInternal + octree_.numInternalNodes, numLeaves, layout_, rawPtr(centers_),
+            x, y, z, m, octree_.leafToInternal + octree_.numInternalNodes, numLeaves, layout_, centers_,
             rawPtr(multipoles_));
 
         std::vector<TreeNodeIndex> levelRange(cstone::maxTreeLevel<KeyType>{} + 2);
@@ -81,8 +80,7 @@ public:
             if (numCellsLevel)
             {
                 upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level], levelRange[level + 1],
-                                                             octree_.childOffsets, rawPtr(centers_),
-                                                             rawPtr(multipoles_));
+                                                             octree_.childOffsets, centers_, rawPtr(multipoles_));
             }
         }
 
@@ -107,8 +105,7 @@ public:
             if (numCellsLevel)
             {
                 upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level], levelRange[level + 1],
-                                                             octree_.childOffsets, rawPtr(centers_),
-                                                             rawPtr(multipoles_));
+                                                             octree_.childOffsets, centers_, rawPtr(multipoles_));
             }
         }
     }
@@ -132,7 +129,7 @@ public:
         reallocateGeneric(globalPool_, poolSize, 1.05);
         traverse<<<numBlocks, TravConfig::numThreads>>>(
             firstBody, lastBody, {1, 9}, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_,
-            rawPtr(centers_), rawPtr(multipoles_), G, (int*)(nullptr), ax, ay, az, rawPtr(globalPool_));
+            centers_, rawPtr(multipoles_), G, (int*)(nullptr), ax, ay, az, rawPtr(globalPool_));
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
 
@@ -153,21 +150,19 @@ private:
             v.shrink_to_fit();
         };
 
-        if (numLeaves > centers_.capacity())
+        if (numLeaves > multipoles_.capacity())
         {
-            dealloc(centers_);
             dealloc(multipoles_);
         }
 
-        reallocateGeneric(centers_, numNodes, growthRate);
         reallocateGeneric(multipoles_, numNodes, growthRate);
     }
 
     cstone::OctreeView<const KeyType> octree_;
 
-    const LocalIndex*               layout_;
-    thrust::device_vector<Vec4<Tf>> centers_;
-    thrust::device_vector<MType>    multipoles_;
+    const LocalIndex*            layout_;
+    const Vec4<Tf>*              centers_;
+    thrust::device_vector<MType> multipoles_;
 
     thrust::device_vector<int> globalPool_;
 };
