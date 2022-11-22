@@ -205,4 +205,14 @@ template void sortByKeyGpu(unsigned*, unsigned*, int*);
 template void sortByKeyGpu(uint64_t*, uint64_t*, unsigned*);
 template void sortByKeyGpu(uint64_t*, uint64_t*, int*);
 
+template<class IndexType, class SumType>
+void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* output)
+{
+    thrust::exclusive_scan(thrust::device, first, last, output, SumType(0));
+}
+
+template void exclusiveScanGpu(const int*, const int*, int*);
+template void exclusiveScanGpu(const int*, const int*, unsigned*);
+template void exclusiveScanGpu(const unsigned*, const unsigned*, unsigned*);
+
 } // namespace cstone

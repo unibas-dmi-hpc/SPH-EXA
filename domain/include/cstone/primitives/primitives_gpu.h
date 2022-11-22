@@ -79,4 +79,7 @@ extern void sequenceGpu(IndexType* input, size_t numElements, IndexType init);
 template<class KeyType, class ValueType>
 extern void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values);
 
+template<class IndexType, class SumType>
+extern void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* output);
+
 } // namespace cstone
