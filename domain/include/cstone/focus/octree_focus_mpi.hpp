@@ -76,6 +76,10 @@ public:
     {
         std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
         tree_.update(init.data(), nNodes(init));
+
+        leaves_ = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
+        treeData_.resize(nNodes(leaves_));
+        updateInternalTree<KeyType>(leaves_, treeData_.data());
     }
 
     /*! @brief Update the tree structure according to previously calculated criteria (MAC and particle counts)
@@ -114,26 +118,18 @@ public:
         std::vector<KeyType> enforcedKeys;
         enforcedKeys.reserve(peers_.size() * 2);
 
-        focusTransfer(tree_.treeLeaves(), leafCounts_, bucketSize_, myRank_, prevFocusStart, prevFocusEnd, focusStart,
-                      focusEnd, enforcedKeys);
+        focusTransfer<KeyType>(leaves_, leafCounts_, bucketSize_, myRank_, prevFocusStart, prevFocusEnd, focusStart,
+                               focusEnd, enforcedKeys);
         for (int peer : peers_)
         {
             enforcedKeys.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
             enforcedKeys.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
         }
 
-        leaves_.resize(tree_.treeLeaves().size());
-        std::copy(tree_.treeLeaves().begin(), tree_.treeLeaves().end(), leaves_.begin());
-
-        OctreeData<KeyType, CpuTag> treedata;
-        treedata.resize(nNodes(leaves_));
-        updateInternalTree<KeyType>(leaves_, treedata.data());
-
-        bool converged = CombinedUpdate<KeyType>::updateFocus(treedata, leaves_, bucketSize_, focusStart, focusEnd,
+        bool converged = CombinedUpdate<KeyType>::updateFocus(treeData_, leaves_, bucketSize_, focusStart, focusEnd,
                                                               enforcedKeys, counts_, macs_);
+        translateAssignment<KeyType>(assignment, globalTreeLeaves, leaves_, peers_, myRank_, assignment_);
         tree_.update(leaves_.data(), nNodes(leaves_));
-
-        translateAssignment(assignment, globalTreeLeaves, tree_.treeLeaves(), peers_, myRank_, assignment_);
 
         uploadOctree();
 
@@ -546,6 +542,8 @@ private:
     AccVector<KeyType> leavesAcc_;
     AccVector<unsigned> leafCountsAcc_;
     AccVector<SourceCenterType<RealType>> centersAcc_;
+
+    OctreeData<KeyType, CpuTag> treeData_;
     //! @brief leaves in cstone format for tree_
     std::vector<KeyType> leaves_;
 
