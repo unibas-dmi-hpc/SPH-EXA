@@ -407,7 +407,7 @@ public:
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
 
         macs_.resize(tree_.numTreeNodes());
-        markMacs(tree_, centers_.data(), box, focusStart, focusEnd, macs_.data());
+        markMacs(tree_.data(), centers_.data(), box, focusStart, focusEnd, macs_.data());
 
         rebalanceStatus_ |= macCriterion;
     }
