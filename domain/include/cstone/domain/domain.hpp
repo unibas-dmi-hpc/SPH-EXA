@@ -226,9 +226,10 @@ public:
         const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
 
         reallocateDestructive(layout_, octreeView.numLeafNodes + 1, 1.01);
+        reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
-                        focusTree_.leafCountsAcc(), focusTree_.assignment(), layout_, box(), rawPtr(h),
-                        std::get<0>(scratch));
+                        focusTree_.leafCountsAcc(), focusTree_.assignment(), {rawPtr(layoutAcc_), layoutAcc_.size()},
+                        box(), rawPtr(h), std::get<0>(scratch));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
         updateLayout(reorderer, exchangeStart, keyView, particleKeys, std::tie(h),
@@ -285,9 +286,10 @@ public:
         const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
 
         reallocateDestructive(layout_, octreeView.numLeafNodes + 1, 1.01);
+        reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
-                        focusTree_.leafCountsAcc(), focusTree_.assignment(), layout_, box(), rawPtr(h),
-                        std::get<0>(scratch));
+                        focusTree_.leafCountsAcc(), focusTree_.assignment(), {rawPtr(layoutAcc_), layoutAcc_.size()},
+                        box(), rawPtr(h), std::get<0>(scratch));
         focusTree_.addMacs(halos_.haloFlags());
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
@@ -324,7 +326,7 @@ public:
     //! @brief the index of the last locally assigned cell in focusTree()
     TreeNodeIndex endCell() const { return focusTree_.assignment()[myRank_].end(); }
     //! @brief particle offsets of each focus tree leaf cell
-    gsl::span<const LocalIndex> layout() const { return layout_; }
+    gsl::span<const LocalIndex> layout() const { return {rawPtr(layoutAcc_), layoutAcc_.size()}; }
     //! @brief return the coordinate bounding box from the previous sync call
     const Box<T>& box() const { return global_.box(); }
 
@@ -442,6 +444,7 @@ private:
         // re-locate particle SFC keys
         if constexpr (IsDeviceVector<KeyVec>{})
         {
+            memcpyH2D(layout_.data(), layout_.size(), rawPtr(layoutAcc_));
             auto& swapSpace = std::get<0>(scratchBuffers);
             size_t origSize = reallocateBytes(swapSpace, keyView.size() * sizeof(KeyType));
 
@@ -454,6 +457,7 @@ private:
         }
         else
         {
+            omp_copy(layout_.begin(), layout_.end(), layoutAcc_.begin());
             reallocate(swapKeys_, newBufDesc.size, 1.01);
             omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);
             swap(keys, swapKeys_);

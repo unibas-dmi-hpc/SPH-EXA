@@ -62,18 +62,18 @@ public:
         auto centers       = focusTree.expansionCenters();
         auto globalCenters = focusTree.globalExpansionCenters();
 
-        memcpyH2D(layout, layout_.size(), rawPtr(layout_));
+        layout_ = layout;
         memcpyH2D(centers.data(), centers.size(), rawPtr(centers_));
 
         computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(
-            x, y, z, m, octree_.leafToInternal + octree_.numInternalNodes, numLeaves, rawPtr(layout_), rawPtr(centers_),
+            x, y, z, m, octree_.leafToInternal + octree_.numInternalNodes, numLeaves, layout_, rawPtr(centers_),
             rawPtr(multipoles_));
 
         std::vector<TreeNodeIndex> levelRange(cstone::maxTreeLevel<KeyType>{} + 2);
         memcpyD2H(octree_.levelRange, levelRange.size(), levelRange.data());
 
         //! first upsweep with local data, start at lowest possible level - 1, lowest level can only be leaves
-        int  numLevels  = cstone::maxTreeLevel<KeyType>{};
+        int numLevels = cstone::maxTreeLevel<KeyType>{};
         for (int level = numLevels - 1; level >= 0; level--)
         {
             int numCellsLevel = levelRange[level + 1] - levelRange[level];
@@ -131,7 +131,7 @@ public:
 
         reallocateGeneric(globalPool_, poolSize, 1.05);
         traverse<<<numBlocks, TravConfig::numThreads>>>(
-            firstBody, lastBody, {1, 9}, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, rawPtr(layout_),
+            firstBody, lastBody, {1, 9}, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_,
             rawPtr(centers_), rawPtr(multipoles_), G, (int*)(nullptr), ax, ay, az, rawPtr(globalPool_));
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
@@ -155,21 +155,19 @@ private:
 
         if (numLeaves > centers_.capacity())
         {
-            dealloc(layout_);
             dealloc(centers_);
             dealloc(multipoles_);
         }
 
-        reallocateGeneric(layout_, numLeaves + 1, growthRate);
         reallocateGeneric(centers_, numNodes, growthRate);
         reallocateGeneric(multipoles_, numNodes, growthRate);
     }
 
     cstone::OctreeView<const KeyType> octree_;
 
-    thrust::device_vector<LocalIndex> layout_;
-    thrust::device_vector<Vec4<Tf>>   centers_;
-    thrust::device_vector<MType>      multipoles_;
+    const LocalIndex*               layout_;
+    thrust::device_vector<Vec4<Tf>> centers_;
+    thrust::device_vector<MType>    multipoles_;
 
     thrust::device_vector<int> globalPool_;
 };

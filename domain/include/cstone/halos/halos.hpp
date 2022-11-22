@@ -155,20 +155,18 @@ public:
         if constexpr (HaveGpu<Accelerator>{})
         {
             // round up to multiple of 128 such that the radii pointer will be aligned
-            size_t segBytes   = round_up((numLeafNodes + 1) * sizeof(LocalIndex), 128);
+            size_t flagBytes  = round_up((numLeafNodes + 1) * sizeof(int), 128);
             size_t radiiBytes = numLeafNodes * sizeof(float);
-            size_t origSize   = reallocateBytes(scratch, segBytes + radiiBytes);
+            size_t origSize   = reallocateBytes(scratch, flagBytes + radiiBytes);
 
-            auto* d_segments = reinterpret_cast<LocalIndex*>(rawPtr(scratch));
-            auto* d_radii    = reinterpret_cast<float*>(rawPtr(scratch)) + segBytes / sizeof(float);
+            auto* d_flags = reinterpret_cast<int*>(rawPtr(scratch));
+            auto* d_radii = reinterpret_cast<float*>(rawPtr(scratch)) + flagBytes / sizeof(float);
 
-            exclusiveScanGpu(counts.data() + firstNode, counts.data() + lastNode + 1, d_segments + firstNode);
-            segmentMax(h, d_segments + firstNode, numNodesSearch, d_radii + firstNode);
+            exclusiveScanGpu(counts.data() + firstNode, counts.data() + lastNode + 1, layout.data() + firstNode);
+            segmentMax(h, layout.data() + firstNode, numNodesSearch, d_radii + firstNode);
             // SPH convention: interaction radius = 2 * h
             scaleGpu(d_radii, d_radii + numLeafNodes, 2.0f);
 
-            static_assert(sizeof(LocalIndex) == sizeof(int));
-            auto* d_flags = (int*)d_segments;
             fillGpu(d_flags, d_flags + numLeafNodes, 0);
             findHalosGpu(prefixes, childOffsets, internalToLeaf, leaves, d_radii, box, firstNode, lastNode, d_flags);
             memcpyD2H(d_flags, numLeafNodes, haloFlags_.data());
