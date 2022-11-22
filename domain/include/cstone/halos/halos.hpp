@@ -150,7 +150,6 @@ public:
         TreeNodeIndex numNodesSearch = lastNode - firstNode;
         TreeNodeIndex numLeafNodes   = counts.size();
 
-        std::exclusive_scan(counts.begin() + firstNode, counts.begin() + lastNode + 1, layout.begin(), 0);
         reallocate(numLeafNodes, haloFlags_);
 
         if constexpr (HaveGpu<Accelerator>{})
@@ -163,7 +162,7 @@ public:
             auto* d_segments = reinterpret_cast<LocalIndex*>(rawPtr(scratch));
             auto* d_radii    = reinterpret_cast<float*>(rawPtr(scratch)) + segBytes / sizeof(float);
 
-            memcpyH2D(layout.data(), numNodesSearch + 1, d_segments + firstNode);
+            exclusiveScanGpu(counts.data() + firstNode, counts.data() + lastNode + 1, d_segments + firstNode);
             segmentMax(h, d_segments + firstNode, numNodesSearch, d_radii + firstNode);
             // SPH convention: interaction radius = 2 * h
             scaleGpu(d_radii, d_radii + numLeafNodes, 2.0f);
@@ -178,6 +177,7 @@ public:
         }
         else
         {
+            std::exclusive_scan(counts.begin() + firstNode, counts.begin() + lastNode + 1, layout.begin(), 0);
             std::vector<float> haloRadii(counts.size(), 0.0f);
 #pragma omp parallel for schedule(static)
             for (TreeNodeIndex i = 0; i < numNodesSearch; ++i)

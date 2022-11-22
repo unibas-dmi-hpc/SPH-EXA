@@ -227,7 +227,7 @@ public:
 
         reallocateDestructive(layout_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
-                        focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(), rawPtr(h),
+                        focusTree_.leafCountsAcc(), focusTree_.assignment(), layout_, box(), rawPtr(h),
                         std::get<0>(scratch));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
@@ -286,7 +286,7 @@ public:
 
         reallocateDestructive(layout_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
-                        focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(), rawPtr(h),
+                        focusTree_.leafCountsAcc(), focusTree_.assignment(), layout_, box(), rawPtr(h),
                         std::get<0>(scratch));
         focusTree_.addMacs(halos_.haloFlags());
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
