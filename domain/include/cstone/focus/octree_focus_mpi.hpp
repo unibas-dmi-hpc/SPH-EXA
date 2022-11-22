@@ -152,7 +152,7 @@ public:
     void updateCounts(gsl::span<const KeyType> particleKeys,
                       gsl::span<const KeyType> globalTreeLeaves,
                       gsl::span<const unsigned> globalCounts,
-                      DeviceVector&& scratch = std::vector<KeyType>{})
+                      DeviceVector&& /*scratch*/ = std::vector<KeyType>{})
     {
         gsl::span<const KeyType> leaves = treeLeaves();
         std::vector<MPI_Request> treeletRequests;
@@ -161,21 +161,12 @@ public:
         leafCounts_.resize(nNodes(leaves));
         if constexpr (HaveGpu<Accelerator>{})
         {
-            static_assert(IsDeviceVector<std::decay_t<DeviceVector>>{});
+            reallocateDestructive(leafCountsAcc_, nNodes(leavesAcc_), 1.01);
             TreeNodeIndex numNodes = tree_.numLeafNodes();
 
-            size_t bytesTree  = round_up((numNodes + 1) * sizeof(KeyType), 128);
-            size_t bytesCount = numNodes * sizeof(unsigned);
-            size_t origSize   = reallocateBytes(scratch, bytesTree + bytesCount);
-            auto* d_csTree    = reinterpret_cast<KeyType*>(rawPtr(scratch));
-            auto* d_counts    = reinterpret_cast<unsigned*>(rawPtr(scratch)) + bytesTree / sizeof(unsigned);
-
-            memcpyH2D(leaves.data(), leaves.size(), d_csTree);
-            computeNodeCountsGpu(d_csTree, d_counts, numNodes, particleKeys.begin(), particleKeys.end(),
-                                 std::numeric_limits<unsigned>::max(), false);
-            memcpyD2H(d_counts, numNodes, leafCounts_.data());
-
-            reallocateDevice(scratch, origSize, 1.0);
+            computeNodeCountsGpu(rawPtr(leavesAcc_), rawPtr(leafCountsAcc_), numNodes, particleKeys.begin(),
+                                 particleKeys.end(), std::numeric_limits<unsigned>::max(), false);
+            memcpyD2H(rawPtr(leafCountsAcc_), numNodes, leafCounts_.data());
         }
         else
         {
@@ -185,7 +176,7 @@ public:
                               particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
         }
 
-        // 1st upswee with local data
+        // 1st upsweep with local data
         counts_.resize(tree_.numTreeNodes());
         scatter(tree_.internalOrder(), leafCounts_.data(), counts_.data());
         upsweep(tree_.levelRange(), tree_.childOffsets(), counts_.data(), SumCombination<unsigned>{});
@@ -462,6 +453,13 @@ public:
     {
         if constexpr (HaveGpu<Accelerator>{}) { return {rawPtr(leavesAcc_), leavesAcc_.size()}; }
         else { return tree_.treeLeaves(); }
+    }
+
+    //! @brief the cornerstone leaf cell particle counts
+    gsl::span<const unsigned> leafCountsAcc() const
+    {
+        if constexpr (HaveGpu<Accelerator>{}) { return {rawPtr(leafCountsAcc_), leafCountsAcc_.size()}; }
+        else { return leafCounts_; }
     }
 
     void addMacs(gsl::span<int> haloFlags) const

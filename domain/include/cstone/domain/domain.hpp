@@ -225,7 +225,7 @@ public:
         auto octreeView            = focusTree_.octreeViewAcc();
         const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
 
-        reallocate(layout_, octreeView.numLeafNodes + 1, 1.01);
+        reallocateDestructive(layout_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
                         focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(), rawPtr(h),
                         std::get<0>(scratch));
@@ -284,7 +284,7 @@ public:
         auto octreeView            = focusTree_.octreeViewAcc();
         const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
 
-        reallocate(layout_, octreeView.numLeafNodes + 1, 1.01);
+        reallocateDestructive(layout_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
                         focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(), rawPtr(h),
                         std::get<0>(scratch));
@@ -553,12 +553,13 @@ private:
      */
     FocusedOctree<KeyType, T, Accelerator> focusTree_;
 
+    //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
+    AccVector<LocalIndex> layoutAcc_;
+    std::vector<LocalIndex> layout_;
+
     using Distributor_t =
         typename AccelSwitchType<Accelerator, GlobalAssignment, GlobalAssignmentGpu>::template type<KeyType, T>;
     Distributor_t global_;
-
-    //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
-    std::vector<LocalIndex> layout_;
 
     Halos<KeyType, Accelerator> halos_{myRank_};
 
