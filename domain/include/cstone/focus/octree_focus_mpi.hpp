@@ -114,7 +114,7 @@ public:
         std::vector<KeyType> enforcedKeys;
         enforcedKeys.reserve(peers_.size() * 2);
 
-        focusTransfer(treeLeaves(), leafCounts(), bucketSize_, myRank_, prevFocusStart, prevFocusEnd, focusStart,
+        focusTransfer(tree_.treeLeaves(), leafCounts_, bucketSize_, myRank_, prevFocusStart, prevFocusEnd, focusStart,
                       focusEnd, enforcedKeys);
         for (int peer : peers_)
         {
@@ -122,9 +122,18 @@ public:
             enforcedKeys.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
         }
 
-        bool converged = CombinedUpdate<KeyType>::updateFocus(tree_, bucketSize_, focusStart, focusEnd, enforcedKeys,
-                                                              counts_, macs_);
-        translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peers_, myRank_, assignment_);
+        leaves_.resize(tree_.treeLeaves().size());
+        std::copy(tree_.treeLeaves().begin(), tree_.treeLeaves().end(), leaves_.begin());
+
+        OctreeData<KeyType, CpuTag> treedata;
+        treedata.resize(nNodes(leaves_));
+        updateInternalTree<KeyType>(leaves_, treedata.data());
+
+        bool converged = CombinedUpdate<KeyType>::updateFocus(treedata, leaves_, bucketSize_, focusStart, focusEnd,
+                                                              enforcedKeys, counts_, macs_);
+        tree_.update(leaves_.data(), nNodes(leaves_));
+
+        translateAssignment(assignment, globalTreeLeaves, tree_.treeLeaves(), peers_, myRank_, assignment_);
 
         uploadOctree();
 
@@ -537,6 +546,8 @@ private:
     AccVector<KeyType> leavesAcc_;
     AccVector<unsigned> leafCountsAcc_;
     AccVector<SourceCenterType<RealType>> centersAcc_;
+    //! @brief leaves in cstone format for tree_
+    std::vector<KeyType> leaves_;
 
     //! @brief previous iteration focus start
     KeyType prevFocusStart = 0;

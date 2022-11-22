@@ -262,12 +262,13 @@ class OctreeData
     template<class ValueType>
     using AccVector =
         typename AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<ValueType>;
+
 public:
     void resize(TreeNodeIndex numCsLeafNodes)
     {
-        numLeafNodes           = numCsLeafNodes;
-        numInternalNodes       = (numLeafNodes - 1) / 7;
-        TreeNodeIndex numNodes = numLeafNodes + numInternalNodes;
+        numLeafNodes     = numCsLeafNodes;
+        numInternalNodes = (numLeafNodes - 1) / 7;
+        numNodes         = numLeafNodes + numInternalNodes;
 
         lowMemReallocate(numNodes, 1.01, {}, std::tie(prefixes, internalToLeaf, leafToInternal, childOffsets));
         // +1 to accommodate nodeOffsets in FocusedOctreeCore::update when numNodes == 1
@@ -291,6 +292,7 @@ public:
                 rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
     }
 
+    TreeNodeIndex numNodes{0};
     TreeNodeIndex numLeafNodes{0};
     TreeNodeIndex numInternalNodes{0};
 
@@ -308,6 +310,14 @@ public:
     //! @brief maps leaf (cstone) order to internal level-sorted order
     AccVector<TreeNodeIndex> leafToInternal;
 };
+
+template<class KeyType>
+void updateInternalTree(gsl::span<const KeyType> leaves, OctreeView<KeyType> o)
+{
+    assert(octree.numLeafNodes == nNodes(leaves));
+    buildOctreeCpu(leaves.data(), o.numLeafNodes, o.numInternalNodes, o.prefixes, o.childOffsets, o.parents,
+                   o.levelRange, o.internalToLeaf, o.leafToInternal);
+}
 
 template<class KeyType>
 struct CombinedUpdate;
@@ -351,13 +361,13 @@ public:
 
     OctreeView<KeyType> data()
     {
-        return {numLeafNodes_,    numInternalNodes_,   prefixes_.data(), childOffsets_.data(),
+        return {numLeafNodes_,   numInternalNodes_,  prefixes_.data(),       childOffsets_.data(),
                 parents_.data(), levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data()};
     }
 
     OctreeView<const KeyType> data() const
     {
-        return {numLeafNodes_,    numInternalNodes_,   prefixes_.data(), childOffsets_.data(),
+        return {numLeafNodes_,   numInternalNodes_,  prefixes_.data(),       childOffsets_.data(),
                 parents_.data(), levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data()};
     }
 
