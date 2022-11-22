@@ -201,6 +201,20 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     // set number of particles that each rank will write
     H5PartSetNumParticles(h5_file, h5_num_particles);
 
+    bool outputU = std::count(d.outputFieldNames.begin(), d.outputFieldNames.end(), "u") == 1;
+    bool uInUse = d.isAllocated(std::find(d.fieldNames.begin(), d.fieldNames.end(), "u") - d.fieldNames.begin());
+
+    if( outputU && !uInUse)
+    {
+        d.release("c22");
+        d.acquire("u");
+        T cv = sph::idealGasCv(d.muiConst);
+#pragma omp parallel for schedule(static)
+        for(size_t i = firstIndex; i < lastIndex; ++i)
+        {
+            d.u[i] = d.temp[i] * cv;
+        }
+    }
     auto fieldPointers = getOutputArrays(d);
     for (size_t fidx = 0; fidx < fieldPointers.size(); ++fidx)
     {

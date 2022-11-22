@@ -91,17 +91,19 @@ void initXm1(H5PartFile* h5_file, int rank, Dataset& d)
 }
 
 template<class Dataset>
-h5part_int64_t initUTemp(H5PartFile* h5_file, Dataset& d)
+h5part_int64_t initUTemp(H5PartFile* h5_file, int rank, Dataset& d)
 {
     auto datasets = fileutils::datasetNames(h5_file);
     bool hasTemp  = std::count(datasets.begin(), datasets.end(), "temp") == 1;
     bool hasU  = std::count(datasets.begin(), datasets.end(), "u") == 1;
     if(hasTemp)
     {
+        if(rank == 0) std::cout << "loading temperature from file\n";
         fileutils::readH5PartField(h5_file, "temp", d.temp.data());
     }
     else if(hasU)
     {
+        if(rank == 0) std::cout << "loading internal energy from file\n";
         fileutils::readH5PartField(h5_file, "u", d.temp.data());
         auto cv = sph::idealGasCv(d.muiConst);
 #pragma omp parallel for schedule(static)
@@ -160,7 +162,7 @@ cstone::Box<typename HydroData::RealType> restoreHydroData(const std::string& h5
     errors |= fileutils::readH5PartField(h5_file, "z", d.z.data());
     errors |= fileutils::readH5PartField(h5_file, "h", d.h.data());
     errors |= fileutils::readH5PartField(h5_file, "m", d.m.data());
-    errors |= initUTemp(h5_file, d);
+    errors |= initUTemp(h5_file, rank,d);
 
     if (errors != H5PART_SUCCESS) { throw std::runtime_error("Could not read essential fields x,y,z,h,m,temp/u\n"); }
 
