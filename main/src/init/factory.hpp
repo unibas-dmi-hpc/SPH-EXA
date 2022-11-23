@@ -97,7 +97,7 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         else { return std::make_unique<TurbulenceGlass<Dataset>>(glassBlock); }
     }
 #ifdef SPH_EXA_HAVE_GRACKLE
-    if (testCase == "evrard_cooling")
+    if (testCase == "evrard-cooling")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for evrard\n"); }
         return std::make_unique<EvrardGlassSphereCooling<Dataset>>(glassBlock);

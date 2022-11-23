@@ -78,6 +78,12 @@ class HydroGrackleProp final : public Propagator<DomainType, DataType>
     using DependentFields =
         FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
 
+    using CoolingFields =
+        FieldList<"HI_fraction", "HII_fraction", "HM_fraction", "HeI_fraction", "HeII_fraction",
+            "HeIII_fraction", "H2I_fraction", "H2II_fraction", "DI_fraction", "DII_fraction",
+            "HDI_fraction", "e_fraction", "metal_fraction", "volumetric_heating_rate",
+            "specific_heating_rate", "RT_heating_rate", "RT_HI_ionization_rate", "RT_HeI_ionization_rate",
+            "RT_HeII_ionization_rate", "RT_H2_dissociation_rate", "H2_self_shielding_length">;
 
 public:
     HydroGrackleProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
@@ -101,12 +107,12 @@ public:
         d.setDependent("keys");
         std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
         std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
+        std::apply([&simData](auto... f) { simData.chem.setConserved(f.value...); }, make_tuple(CoolingFields{}));
 
         d.devData.setConserved("x", "y", "z", "h", "m");
         d.devData.setDependent("keys");
         std::apply([&d](auto... f) { d.devData.setConserved(f.value...); }, make_tuple(ConservedFields{}));
         std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
-        simData.chem.setConserved(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
     }
 
     void sync(DomainType& domain, DataType& simData) override
@@ -114,63 +120,18 @@ public:
         auto& d = simData.hydro;
         if (d.g != 0.0)
         {
-            using cooling_fields = FieldList<
-                    "HI_fraction",
-                    "HII_fraction",
-                    "HM_fraction",
-                    "HeI_fraction",
-                    "HeII_fraction",
-                    "HeIII_fraction",
-                    "H2I_fraction",
-                    "H2II_fraction",
-                    "DI_fraction",
-                    "DII_fraction",
-                    "HDI_fraction",
-                    "e_fraction",
-                    "metal_fraction",
-                    "volumetric_heating_rate",
-                    "specific_heating_rate",
-                    "RT_heating_rate",
-                    "RT_HI_ionization_rate",
-                    "RT_HeI_ionization_rate",
-                    "RT_HeII_ionization_rate",
-                    "RT_H2_dissociation_rate",
-                    "H2_self_shielding_length"
-            >;
-            std::cout << "sizes: " << get<"x">(d).size() << "\t" << get<"HI_fraction">(simData.chem).size() << std::endl;
+            std::cout << "sizes: " << get<"x">(d).size() << "\t" << get<"HI_fraction">(simData.chem).size()
+                      << std::endl;
             domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                            std::tuple_cat(get<ConservedFields>(d), get<cooling_fields>(simData.chem)), get<DependentFields>(d));
-
-
+                            std::tuple_cat(get<ConservedFields>(d), get<CoolingFields>(simData.chem)),
+                            get<DependentFields>(d));
         }
         else
         {
-            using cooling_fields = FieldList<
-                    "HI_fraction",
-                    "HII_fraction",
-                    "HM_fraction",
-                    "HeI_fraction",
-                    "HeII_fraction",
-                    "HeIII_fraction",
-                    "H2I_fraction",
-                    "H2II_fraction",
-                    "DI_fraction",
-                    "DII_fraction",
-                    "HDI_fraction",
-                    "e_fraction",
-                    "metal_fraction",
-                    "volumetric_heating_rate",
-                    "specific_heating_rate",
-                    "RT_heating_rate",
-                    "RT_HI_ionization_rate",
-                    "RT_HeI_ionization_rate",
-                    "RT_HeII_ionization_rate",
-                    "RT_H2_dissociation_rate",
-                    "H2_self_shielding_length"
-            >;
-            domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d), get<cooling_fields>(simData.chem)), get<DependentFields>(d));
-
+            domain.sync(
+                get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
+                std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d), get<CoolingFields>(simData.chem)),
+                get<DependentFields>(d));
         }
     }
     void step(DomainType& domain, DataType& simData) override
@@ -181,7 +142,6 @@ public:
 
         auto& d = simData.hydro;
         d.resize(domain.nParticlesWithHalos());
-        //simData.chem.resize(domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * ngmax_);
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
@@ -224,33 +184,24 @@ public:
         timer.step("Timestep");
 
 #pragma omp parallel for schedule(static)
-        for (size_t i = first; i < last; i++) {
+        for (size_t i = first; i < last; i++)
+        {
             T u_cool = d.u[i];
-            cooling::cool_particle(simData.chem.cooling_data.global_values,
-                                   d.minDt,
-                                   d.rho[i],
-                                   u_cool,
-                                   cstone::get<"HI_fraction">(simData.chem)[i],
-                                   cstone::get<"HII_fraction">(simData.chem)[i],
-                                   cstone::get<"HM_fraction">(simData.chem)[i],
-                                   cstone::get<"HeI_fraction">(simData.chem)[i],
-                                   cstone::get<"HeII_fraction">(simData.chem)[i],
-                                   cstone::get<"HeIII_fraction">(simData.chem)[i],
-                                   cstone::get<"H2I_fraction">(simData.chem)[i],
-                                   cstone::get<"H2II_fraction">(simData.chem)[i],
-                                   cstone::get<"DI_fraction">(simData.chem)[i],
-                                   cstone::get<"DII_fraction">(simData.chem)[i],
-                                   cstone::get<"HDI_fraction">(simData.chem)[i],
-                                   cstone::get<"e_fraction">(simData.chem)[i],
-                                   cstone::get<"metal_fraction">(simData.chem)[i],
-                                   cstone::get<"volumetric_heating_rate">(simData.chem)[i],
-                                   cstone::get<"specific_heating_rate">(simData.chem)[i],
-                                   cstone::get<"RT_heating_rate">(simData.chem)[i],
-                                   cstone::get<"RT_HI_ionization_rate">(simData.chem)[i],
-                                   cstone::get<"RT_HeI_ionization_rate">(simData.chem)[i],
-                                   cstone::get<"RT_HeII_ionization_rate">(simData.chem)[i],
-                                   cstone::get<"RT_H2_dissociation_rate">(simData.chem)[i],
-                                   cstone::get<"H2_self_shielding_length">(simData.chem)[i]);
+            cooling::cool_particle(
+                simData.chem.cooling_data.global_values, d.minDt, d.rho[i], u_cool,
+                cstone::get<"HI_fraction">(simData.chem)[i], cstone::get<"HII_fraction">(simData.chem)[i],
+                cstone::get<"HM_fraction">(simData.chem)[i], cstone::get<"HeI_fraction">(simData.chem)[i],
+                cstone::get<"HeII_fraction">(simData.chem)[i], cstone::get<"HeIII_fraction">(simData.chem)[i],
+                cstone::get<"H2I_fraction">(simData.chem)[i], cstone::get<"H2II_fraction">(simData.chem)[i],
+                cstone::get<"DI_fraction">(simData.chem)[i], cstone::get<"DII_fraction">(simData.chem)[i],
+                cstone::get<"HDI_fraction">(simData.chem)[i], cstone::get<"e_fraction">(simData.chem)[i],
+                cstone::get<"metal_fraction">(simData.chem)[i], cstone::get<"volumetric_heating_rate">(simData.chem)[i],
+                cstone::get<"specific_heating_rate">(simData.chem)[i], cstone::get<"RT_heating_rate">(simData.chem)[i],
+                cstone::get<"RT_HI_ionization_rate">(simData.chem)[i],
+                cstone::get<"RT_HeI_ionization_rate">(simData.chem)[i],
+                cstone::get<"RT_HeII_ionization_rate">(simData.chem)[i],
+                cstone::get<"RT_H2_dissociation_rate">(simData.chem)[i],
+                cstone::get<"H2_self_shielding_length">(simData.chem)[i]);
             const T du = (u_cool - d.u[i]) / d.minDt;
             d.du[i] += du;
         }
