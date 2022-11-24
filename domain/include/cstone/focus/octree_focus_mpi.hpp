@@ -74,9 +74,6 @@ public:
         , counts_{bucketSize + 1}
         , macs_{1}
     {
-        std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
-        tree_.update(init.data(), nNodes(init));
-
         leaves_ = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
         treeData_.resize(nNodes(leaves_));
         updateInternalTree<KeyType>(leaves_, treeData_.data());
@@ -129,8 +126,6 @@ public:
         bool converged = CombinedUpdate<KeyType>::updateFocus(treeData_, leaves_, bucketSize_, focusStart, focusEnd,
                                                               enforcedKeys, counts_, macs_);
         translateAssignment<KeyType>(assignment, globalTreeLeaves, leaves_, peers_, myRank_, assignment_);
-        tree_.update(leaves_.data(), nNodes(leaves_));
-
         uploadOctree();
 
         prevFocusStart   = focusStart;
@@ -368,7 +363,7 @@ public:
         //! upsweep with all (leaf) data in place
         upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<T>{});
         //! calculate mac radius for each cell based on location of expansion centers
-        setMac<T>(tree_.nodeKeys(), centers_, 1.0 / theta_, box);
+        setMac<T, KeyType>(treeData_.prefixes, centers_, 1.0 / theta_, box);
 
         if constexpr (HaveGpu<Accelerator>{}) { memcpyH2D(centers_.data(), centers_.size(), rawPtr(centersAcc_)); }
         // else { omp_copy(centers_.begin(), centers_.end(), centersAcc_.begin()); }
@@ -493,23 +488,20 @@ private:
     {
         if constexpr (HaveGpu<Accelerator>{})
         {
-            auto& octree               = tree_;
-            TreeNodeIndex numLeafNodes = octree.numLeafNodes();
-            TreeNodeIndex numNodes     = octree.numTreeNodes();
+            TreeNodeIndex numLeafNodes = treeData_.numLeafNodes;
+            TreeNodeIndex numNodes     = treeData_.numNodes;
 
             octreeAcc_.resize(numLeafNodes);
             reallocateDestructive(leavesAcc_, numLeafNodes + 1, 1.01);
 
-            memcpyH2D(octree.nodeKeys().data(), numNodes, rawPtr(octreeAcc_.prefixes));
-            memcpyH2D(octree.childOffsets().data(), numNodes, rawPtr(octreeAcc_.childOffsets));
-            memcpyH2D(octree.parents().data(), octree.parents().size(), rawPtr(octreeAcc_.parents));
-            memcpyH2D(octree.levelRange().data(), octree.levelRange().size(), rawPtr(octreeAcc_.levelRange));
-            memcpyH2D(octree.toLeafOrder().data(), numNodes, rawPtr(octreeAcc_.internalToLeaf));
-            memcpyH2D(octree.internalOrder().data(), numLeafNodes,
-                      rawPtr(octreeAcc_.leafToInternal) + octree.numInternalNodes());
+            memcpyH2D(treeData_.prefixes.data(), numNodes, rawPtr(octreeAcc_.prefixes));
+            memcpyH2D(treeData_.childOffsets.data(), numNodes, rawPtr(octreeAcc_.childOffsets));
+            memcpyH2D(treeData_.parents.data(), treeData_.parents.size(), rawPtr(octreeAcc_.parents));
+            memcpyH2D(treeData_.levelRange.data(), treeData_.levelRange.size(), rawPtr(octreeAcc_.levelRange));
+            memcpyH2D(treeData_.internalToLeaf.data(), numNodes, rawPtr(octreeAcc_.internalToLeaf));
+            memcpyH2D(treeData_.leafToInternal.data(), numNodes, rawPtr(octreeAcc_.leafToInternal));
 
-            const auto& leaves = tree_.treeLeaves().data();
-            memcpyH2D(leaves, numLeafNodes + 1, rawPtr(leavesAcc_));
+            memcpyH2D(leaves_.data(), numLeafNodes + 1, rawPtr(leavesAcc_));
         }
     }
 
@@ -536,8 +528,6 @@ private:
     std::vector<int> peers_;
     //! @brief the tree structures that the peers have for the domain of the executing rank (myRank_)
     std::vector<std::vector<KeyType>> treelets_;
-
-    Octree<KeyType> tree_;
 
     //! @brief GPU resident octree data
     OctreeData<KeyType, Accelerator> octreeAcc_;
