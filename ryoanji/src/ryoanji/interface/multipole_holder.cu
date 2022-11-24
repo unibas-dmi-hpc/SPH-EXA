@@ -85,7 +85,7 @@ public:
         memcpyD2H(rawPtr(multipoles_), multipoles_.size(), multipoles);
 
         auto ryUpsweep = [](auto levelRange, auto childOffsets, auto M, auto centers)
-        { upsweepMultipoles(levelRange, childOffsets, centers, M); };
+        { upsweepMultipoles(levelRange, childOffsets.data(), centers, M); };
 
         gsl::span multipoleSpan{multipoles, size_t(octree_.numNodes)};
         cstone::globalFocusExchange(globalOctree, focusTree, multipoleSpan, ryUpsweep, globalCenters.data());

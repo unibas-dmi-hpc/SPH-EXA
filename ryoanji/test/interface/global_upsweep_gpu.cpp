@@ -88,22 +88,22 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
     const cstone::FocusedOctree<KeyType, T, cstone::GpuTag>& focusTree = domain.focusTree();
     //! the focused octree, structure only
-    const cstone::Octree<KeyType>&               octree  = focusTree.octree();
+    auto                                         octree  = focusTree.octreeViewAcc();
     gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
 
-    std::vector<MultipoleType> multipoles(octree.numTreeNodes());
+    std::vector<MultipoleType> multipoles(octree.numNodes);
     multipoleHolder.upsweep(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), domain.globalTree(), domain.focusTree(),
                             domain.layout().data(), multipoles.data());
 
     auto devM = thrust::device_pointer_cast(multipoleHolder.deviceMultipoles());
     thrust::copy(devM, devM + multipoles.size(), multipoles.data());
 
-    MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];
+    MultipoleType globalRootMultipole = multipoles[0];
 
     // compute reference root cell multipole from global particle data
     MultipoleType reference;
     particle2Multipole(coords.x().data(), coords.y().data(), coords.z().data(), globalMasses.data(), 0,
-                       numParticles * numRanks, makeVec3(centers[octree.levelOffset(0)]), reference);
+                       numParticles * numRanks, makeVec3(centers[0]), reference);
 
     double maxDiff = max(abs(reference - globalRootMultipole));
 

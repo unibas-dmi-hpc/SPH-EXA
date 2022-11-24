@@ -84,7 +84,8 @@ public:
                        domain.nParticles(), domain.globalTree().numLeafNodes(),
                        domain.nParticlesWithHalos() - domain.nParticles(), d.totalNeighbors);
 
-            std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().octree().numLeafNodes() << std::endl;
+            std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().octreeViewAcc().numLeafNodes
+                      << std::endl;
             printTotalIterationTime(d.iteration, timer.duration());
         }
     }

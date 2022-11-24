@@ -240,7 +240,7 @@ public:
                         gsl::span<const T> localQuantities,
                         gsl::span<T> globalQuantities) const
     {
-        assert(localQuantities.size() == octree().numTreeNodes());
+        assert(localQuantities.size() == treeData_.numNodes);
 
         TreeNodeIndex firstGlobalIdx = findNodeAbove(globalLeaves, prevFocusStart);
         TreeNodeIndex lastGlobalIdx  = findNodeAbove(globalLeaves, prevFocusEnd);
@@ -441,8 +441,6 @@ public:
         }
     }
 
-    //! @brief the fully linked traversable octree
-    const Octree<KeyType>& octree() const { return tree_; }
     //! @brief the cornerstone leaf cell array
     gsl::span<const KeyType> treeLeaves() const { return leaves_; }
     //! @brief the assignment of the focus tree leaves to peer ranks

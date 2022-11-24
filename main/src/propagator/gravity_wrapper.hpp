@@ -50,11 +50,8 @@ public:
     {
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const auto& focusTree = domain.focusTree();
-        //! the focused octree, structure only
-        const cstone::Octree<KeyType>& octree = focusTree.octree();
 
-        reallocate(multipoles_, octree.numTreeNodes(), 1.05);
-
+        reallocate(multipoles_, focusTree.octreeViewAcc().numNodes, 1.05);
         ryoanji::computeGlobalMultipoles(d.x.data(), d.y.data(), d.z.data(), d.m.data(), d.x.size(),
                                          domain.globalTree(), domain.focusTree(), domain.layout().data(),
                                          multipoles_.data());
@@ -91,11 +88,8 @@ public:
     {
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const auto& focusTree = domain.focusTree();
-        //! the focused octree, structure only
-        const cstone::Octree<KeyType>& octree = focusTree.octree();
 
-        reallocate(multipoles_, octree.numTreeNodes(), 1.05);
-
+        reallocate(multipoles_, focusTree.octreeViewAcc().numNodes, 1.05);
         mHolder_.upsweep(rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.m),
                          domain.globalTree(), domain.focusTree(), domain.layout().data(), multipoles_.data());
     }
