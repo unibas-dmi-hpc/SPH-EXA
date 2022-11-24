@@ -66,12 +66,12 @@ public:
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const auto& focusTree = domain.focusTree();
         //! the focused octree, structure only
-        const cstone::Octree<KeyType>& octree = focusTree.octree();
+        cstone::OctreeView<const KeyType> octree = focusTree.octreeViewAcc();
 
-        d.egrav = ryoanji::computeGravity(octree, focusTree.expansionCenters().data(), multipoles_.data(),
-                                          domain.layout().data(), domain.startCell(), domain.endCell(), d.x.data(),
-                                          d.y.data(), d.z.data(), d.h.data(), d.m.data(), d.g, d.ax.data(), d.ay.data(),
-                                          d.az.data());
+        d.egrav = ryoanji::computeGravity(
+            octree.childOffsets, octree.internalToLeaf, octree.numLeafNodes, focusTree.expansionCenters().data(),
+            multipoles_.data(), domain.layout().data(), domain.startCell(), domain.endCell(), d.x.data(), d.y.data(),
+            d.z.data(), d.h.data(), d.m.data(), d.g, d.ax.data(), d.ay.data(), d.az.data());
     }
 
     const MType* multipoles() const { return multipoles_.data(); }
