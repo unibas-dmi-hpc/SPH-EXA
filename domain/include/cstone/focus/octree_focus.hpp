@@ -297,7 +297,7 @@ struct CombinedUpdate
         [[maybe_unused]] TreeNodeIndex numNodes = tree.numLeafNodes + tree.numInternalNodes;
         assert(TreeNodeIndex(counts.size()) == numNodes);
         assert(TreeNodeIndex(macs.size()) == numNodes);
-        assert(TreeNodeIndex(tree.internalToLeaf_.size()) >= numNodes);
+        assert(TreeNodeIndex(tree.internalToLeaf.size()) >= numNodes);
 
         // take op decision per node
         gsl::span<TreeNodeIndex> nodeOpsAll(tree.internalToLeaf);
@@ -306,7 +306,7 @@ struct CombinedUpdate
                                                              focusStart, focusEnd, bucketSize, nodeOpsAll.data());
 
         // extract leaf decision, using childOffsets at temp storage
-        assert(tree.childOffsets_.size() >= size_t(tree.numLeafNodes() + 1));
+        assert(tree.childOffsets.size() >= size_t(tree.numLeafNodes + 1));
         gsl::span<TreeNodeIndex> nodeOps(tree.childOffsets.data(), tree.numLeafNodes + 1);
         gsl::span<const TreeNodeIndex> leafToInternal{tree.leafToInternal.data() + tree.numInternalNodes,
                                                       size_t(tree.numLeafNodes)};
@@ -392,13 +392,8 @@ public:
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
         counts_.resize(tree_.numNodes);
-        gsl::span<const TreeNodeIndex> leafToInternal{tree_.leafToInternal.data() + tree_.numInternalNodes,
-                                                      size_t(tree_.numLeafNodes)};
-        scatter(leafToInternal, leafCounts_.data(), counts_.data());
-
-        gsl::span<const TreeNodeIndex> levelRange(tree_.levelRange.data(), tree_.levelRange.size());
-        gsl::span<const TreeNodeIndex> childOffsets(tree_.childOffsets.data(), tree_.childOffsets.size());
-        upsweep(levelRange, childOffsets, counts_.data(), SumCombination<unsigned>{});
+        scatter(leafToInternal(tree_), leafCounts_.data(), counts_.data());
+        upsweep(tree_.levelRange, tree_.childOffsets, counts_.data(), SumCombination<unsigned>{});
 
         return converged;
     }

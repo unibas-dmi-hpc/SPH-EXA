@@ -55,17 +55,15 @@ public:
         constexpr int numThreads = UpsweepConfig::numThreads;
         octree_                  = focusTree.octreeViewAcc();
 
-        TreeNodeIndex numNodes  = octree_.numInternalNodes + octree_.numLeafNodes;
-        TreeNodeIndex numLeaves = octree_.numLeafNodes;
-        resize(numLeaves);
+        resize(octree_.numLeafNodes);
 
         auto globalCenters = focusTree.globalExpansionCenters();
 
-        layout_ = layout;
+        layout_  = layout;
         centers_ = focusTree.expansionCentersAcc().data();
 
-        computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(
-            x, y, z, m, octree_.leafToInternal + octree_.numInternalNodes, numLeaves, layout_, centers_,
+        computeLeafMultipoles<<<(octree_.numLeafNodes - 1) / numThreads + 1, numThreads>>>(
+            x, y, z, m, octree_.leafToInternal + octree_.numInternalNodes, octree_.numLeafNodes, layout_, centers_,
             rawPtr(multipoles_));
 
         std::vector<TreeNodeIndex> levelRange(cstone::maxTreeLevel<KeyType>{} + 2);
@@ -89,7 +87,7 @@ public:
         auto ryUpsweep = [](auto levelRange, auto childOffsets, auto M, auto centers)
         { upsweepMultipoles(levelRange, childOffsets, centers, M); };
 
-        gsl::span multipoleSpan{multipoles, size_t(numNodes)};
+        gsl::span multipoleSpan{multipoles, size_t(octree_.numNodes)};
         cstone::globalFocusExchange(globalOctree, focusTree, multipoleSpan, ryUpsweep, globalCenters.data());
 
         focusTree.peerExchange(multipoleSpan, static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);

@@ -246,6 +246,7 @@ struct OctreeView
     using NodeType = std::conditional_t<std::is_const_v<KeyType>, const TreeNodeIndex, TreeNodeIndex>;
     TreeNodeIndex numLeafNodes;
     TreeNodeIndex numInternalNodes;
+    TreeNodeIndex numNodes;
 
     KeyType* prefixes;
     NodeType* childOffsets;
@@ -282,14 +283,16 @@ public:
 
     OctreeView<KeyType> data()
     {
-        return {numLeafNodes,    numInternalNodes,   rawPtr(prefixes),       rawPtr(childOffsets),
-                rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
+        return {numLeafNodes,       numInternalNodes,       numNodes,
+                rawPtr(prefixes),   rawPtr(childOffsets),   rawPtr(parents),
+                rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
     }
 
     OctreeView<const KeyType> data() const
     {
-        return {numLeafNodes,    numInternalNodes,   rawPtr(prefixes),       rawPtr(childOffsets),
-                rawPtr(parents), rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
+        return {numLeafNodes,       numInternalNodes,       numNodes,
+                rawPtr(prefixes),   rawPtr(childOffsets),   rawPtr(parents),
+                rawPtr(levelRange), rawPtr(internalToLeaf), rawPtr(leafToInternal)};
     }
 
     TreeNodeIndex numNodes{0};
@@ -314,9 +317,15 @@ public:
 template<class KeyType>
 void updateInternalTree(gsl::span<const KeyType> leaves, OctreeView<KeyType> o)
 {
-    assert(octree.numLeafNodes == nNodes(leaves));
+    assert(size_t(o.numLeafNodes) == nNodes(leaves));
     buildOctreeCpu(leaves.data(), o.numLeafNodes, o.numInternalNodes, o.prefixes, o.childOffsets, o.parents,
                    o.levelRange, o.internalToLeaf, o.leafToInternal);
+}
+
+template<class KeyType, class Accelerator>
+gsl::span<const TreeNodeIndex> leafToInternal(const OctreeData<KeyType, Accelerator>& octree)
+{
+    return {octree.leafToInternal.data() + octree.numInternalNodes, size_t(octree.numLeafNodes)};
 }
 
 template<class KeyType>
@@ -361,14 +370,16 @@ public:
 
     OctreeView<KeyType> data()
     {
-        return {numLeafNodes_,   numInternalNodes_,  prefixes_.data(),       childOffsets_.data(),
-                parents_.data(), levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data()};
+        return {numLeafNodes_,      numInternalNodes_,      levelRange_.back(),
+                prefixes_.data(),   childOffsets_.data(),   parents_.data(),
+                levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data()};
     }
 
     OctreeView<const KeyType> data() const
     {
-        return {numLeafNodes_,   numInternalNodes_,  prefixes_.data(),       childOffsets_.data(),
-                parents_.data(), levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data()};
+        return {numLeafNodes_,      numInternalNodes_,      levelRange_.back(),
+                prefixes_.data(),   childOffsets_.data(),   parents_.data(),
+                levelRange_.data(), internalToLeaf_.data(), leafToInternal_.data()};
     }
 
     //! @brief return a const view of the cstone leaf array

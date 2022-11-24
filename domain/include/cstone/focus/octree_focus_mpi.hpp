@@ -160,35 +160,35 @@ public:
                       gsl::span<const unsigned> globalCounts,
                       DeviceVector&& /*scratch*/ = std::vector<KeyType>{})
     {
-        gsl::span<const KeyType> leaves = treeLeaves();
+        gsl::span<const KeyType> leaves(leaves_);
         std::vector<MPI_Request> treeletRequests;
         exchangeTreelets(peers_, assignment_, leaves, treelets_, treeletRequests);
 
-        leafCounts_.resize(nNodes(leaves));
+        leafCounts_.resize(nNodes(leaves_));
         if constexpr (HaveGpu<Accelerator>{})
         {
             reallocateDestructive(leafCountsAcc_, nNodes(leavesAcc_), 1.01);
-            TreeNodeIndex numNodes = tree_.numLeafNodes();
+            TreeNodeIndex numLeafNodes = treeData_.numLeafNodes;
 
-            computeNodeCountsGpu(rawPtr(leavesAcc_), rawPtr(leafCountsAcc_), numNodes, particleKeys.begin(),
+            computeNodeCountsGpu(rawPtr(leavesAcc_), rawPtr(leafCountsAcc_), numLeafNodes, particleKeys.begin(),
                                  particleKeys.end(), std::numeric_limits<unsigned>::max(), false);
-            memcpyD2H(rawPtr(leafCountsAcc_), numNodes, leafCounts_.data());
+            memcpyD2H(rawPtr(leafCountsAcc_), numLeafNodes, leafCounts_.data());
         }
         else
         {
             // local node counts
             assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
-            computeNodeCounts(leaves.data(), leafCounts_.data(), nNodes(leaves), particleKeys.data(),
+            computeNodeCounts(leaves_.data(), leafCounts_.data(), nNodes(leaves_), particleKeys.data(),
                               particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
         }
 
         // 1st upsweep with local data
-        counts_.resize(tree_.numTreeNodes());
-        scatter(tree_.internalOrder(), leafCounts_.data(), counts_.data());
-        upsweep(tree_.levelRange(), tree_.childOffsets(), counts_.data(), SumCombination<unsigned>{});
+        counts_.resize(treeData_.numNodes);
+        scatter<TreeNodeIndex>(leafToInternal(treeData_), leafCounts_.data(), counts_.data());
+        upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), SumCombination<unsigned>{});
 
         // global counts
-        auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves));
+        auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves_));
 
         // particle counts for leaf nodes in treeLeaves() / leafCounts():
         //   Node indices [firstFocusNode:lastFocusNode] got assigned counts from local particles.
@@ -197,19 +197,19 @@ public:
         //   They are stored in globalCountIndices.
         for (auto ip : globalCountIndices)
         {
-            countRequestParticles(globalTreeLeaves, globalCounts, leaves.subspan(ip.start(), ip.count() + 1),
-                                  tree_.nodeKeys(), tree_.levelRange(), gsl::span<unsigned>(counts_));
+            countRequestParticles<KeyType>(globalTreeLeaves, globalCounts, leaves.subspan(ip.start(), ip.count() + 1),
+                                           treeData_.prefixes, treeData_.levelRange, gsl::span<unsigned>(counts_));
         }
 
         // counts from neighboring peers
         MPI_Waitall(int(peers_.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
         constexpr int countTag = static_cast<int>(P2pTags::focusPeerCounts) + 1;
-        exchangeTreeletGeneral(peers_, treelets_, assignment_, tree_.nodeKeys(), tree_.levelRange(),
-                               tree_.internalOrder(), gsl::span<unsigned>(counts_), countTag);
+        exchangeTreeletGeneral(peers_, treelets_, assignment_, gsl::span<const KeyType>(treeData_.prefixes),
+                               treeData_.levelRange, leafToInternal(treeData_), gsl::span<unsigned>(counts_), countTag);
 
         // 2nd upsweep with peer and global data present
-        upsweep(tree_.levelRange(), tree_.childOffsets(), counts_.data(), SumCombination<unsigned>{});
-        gather(tree_.internalOrder(), counts_.data(), leafCounts_.data());
+        upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), SumCombination<unsigned>{});
+        gather(leafToInternal(treeData_), counts_.data(), leafCounts_.data());
 
         if constexpr (HaveGpu<Accelerator>{})
         {
@@ -224,8 +224,8 @@ public:
     template<class T>
     void peerExchange(gsl::span<T> quantities, int commTag) const
     {
-        exchangeTreeletGeneral<T>(peers_, treelets_, assignment_, tree_.nodeKeys(), tree_.levelRange(),
-                                  tree_.internalOrder(), quantities, commTag);
+        exchangeTreeletGeneral<T>(peers_, treelets_, assignment_, gsl::span<const KeyType>(treeData_.prefixes),
+                                  treeData_.levelRange, leafToInternal(treeData_), quantities, commTag);
     }
 
     /*! @brief transfer quantities of leaf cells inside the focus into a global array
@@ -248,23 +248,24 @@ public:
         assert(globalLeaves[firstGlobalIdx] == prevFocusStart);
         assert(globalLeaves[lastGlobalIdx] == prevFocusEnd);
 
-        const KeyType* nodeKeys         = tree_.nodeKeys().data();
-        const TreeNodeIndex* levelRange = tree_.levelRange().data();
+        const KeyType* nodeKeys         = treeData_.prefixes.data();
+        const TreeNodeIndex* levelRange = treeData_.levelRange.data();
 
 #pragma omp parallel for schedule(static)
         for (TreeNodeIndex globalIdx = firstGlobalIdx; globalIdx < lastGlobalIdx; ++globalIdx)
         {
             TreeNodeIndex localIdx =
                 locateNode(globalLeaves[globalIdx], globalLeaves[globalIdx + 1], nodeKeys, levelRange);
-            if (localIdx == tree_.numTreeNodes())
+            if (localIdx == treeData_.numNodes)
             {
                 // If the global tree is fully converged, but the locally focused tree is just being built up
                 // for the first time, it's possible that the global tree has a higher resolution than
                 // the focused tree.
                 continue;
             }
-            assert(octree().codeStart(localIdx) == globalLeaves[globalIdx]);
-            assert(octree().codeEnd(localIdx) == globalLeaves[globalIdx + 1]);
+            assert(decodePlaceholderBit(nodeKeys[localIdx]) == globalLeaves[globalIdx]);
+            assert(decodePrefixLength(nodeKeys[localIdx]) ==
+                   3 * treeLevel(globalLeaves[globalIdx + 1] - globalLeaves[globalIdx]));
             globalQuantities[globalIdx] = localQuantities[localIdx];
         }
     }
@@ -282,17 +283,19 @@ public:
                        gsl::span<const T> globalQuantities,
                        gsl::span<T> localQuantities) const
     {
-        gsl::span<const KeyType> localLeaves = treeLeaves();
+        const KeyType* localLeaves = leaves_.data();
+        const TreeNodeIndex* toInternal = leafToInternal(treeData_).data();
         //! requestIndices: range of leaf cell indices in the locally focused tree that need global information
-        auto requestIndices = invertRanges(0, assignment_, tree_.numLeafNodes());
+        auto requestIndices = invertRanges(0, assignment_, treeData_.numLeafNodes);
         for (auto range : requestIndices)
         {
             //! from global tree, pull in missing elements into locally focused tree
+#pragma omp parallel for schedule(static)
             for (TreeNodeIndex i = range.start(); i < range.end(); ++i)
             {
                 TreeNodeIndex globalIndex =
                     locateNode(localLeaves[i], localLeaves[i + 1], globalNodeKeys, globalLevelRange);
-                TreeNodeIndex internalIdx    = tree_.toInternal(i);
+                TreeNodeIndex internalIdx    = toInternal[i];
                 localQuantities[internalIdx] = globalQuantities[globalIndex];
             }
         }
@@ -341,7 +344,7 @@ public:
             std::exclusive_scan(leafCounts_.begin() + firstIdx, leafCounts_.begin() + lastIdx + 1,
                                 layout.begin() + firstIdx, 0);
 #pragma omp parallel for schedule(static)
-            for (TreeNodeIndex leafIdx = 0; leafIdx < tree_.numLeafNodes(); ++leafIdx)
+            for (TreeNodeIndex leafIdx = 0; leafIdx < treeData_.numLeafNodes; ++leafIdx)
             {
                 //! prepare local leaf centers
                 TreeNodeIndex nodeIdx = octree.leafToInternal[octree.numInternalNodes + leafIdx];
@@ -350,7 +353,7 @@ public:
         }
 
         //! upsweep with local data in place
-        upsweep(tree_.levelRange(), tree_.childOffsets(), centers_.data(), CombineSourceCenter<T>{});
+        upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<T>{});
         //! exchange information with peer close to focus
         peerExchange<SourceCenterType<T>>(centers_, static_cast<int>(P2pTags::focusPeerCenters));
         //! global exchange for the top nodes that are bigger than local domains
@@ -363,7 +366,7 @@ public:
                                            centers_);
 
         //! upsweep with all (leaf) data in place
-        upsweep(tree_.levelRange(), tree_.childOffsets(), centers_.data(), CombineSourceCenter<T>{});
+        upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<T>{});
         //! calculate mac radius for each cell based on location of expansion centers
         setMac<T>(tree_.nodeKeys(), centers_, 1.0 / theta_, box);
 
@@ -384,11 +387,11 @@ public:
                       gsl::span<const KeyType> globalTreeLeaves,
                       float invThetaEff)
     {
-        centers_.resize(tree_.numTreeNodes());
-        auto nodeKeys = tree_.nodeKeys();
+        centers_.resize(treeData_.numNodes);
+        const KeyType* nodeKeys = treeData_.prefixes.data();
 
 #pragma omp parallel for schedule(static)
-        for (size_t i = 0; i < nodeKeys.size(); ++i)
+        for (size_t i = 0; i < treeData_.numNodes; ++i)
         {
             //! set centers to geometric centers for min dist Mac
             centers_[i] = computeMinMacR2(nodeKeys[i], invThetaEff, box);
@@ -411,8 +414,8 @@ public:
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
 
-        macs_.resize(tree_.numTreeNodes());
-        markMacs(tree_.data(), centers_.data(), box, focusStart, focusEnd, macs_.data());
+        macs_.resize(treeData_.numNodes);
+        markMacs(treeData_.data(), centers_.data(), box, focusStart, focusEnd, macs_.data());
 
         rebalanceStatus_ |= macCriterion;
     }
@@ -441,7 +444,7 @@ public:
     //! @brief the fully linked traversable octree
     const Octree<KeyType>& octree() const { return tree_; }
     //! @brief the cornerstone leaf cell array
-    gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
+    gsl::span<const KeyType> treeLeaves() const { return leaves_; }
     //! @brief the assignment of the focus tree leaves to peer ranks
     gsl::span<const TreeIndexPair> assignment() const { return assignment_; }
     //! @brief Expansion (com) centers of each cell
@@ -459,14 +462,14 @@ public:
     OctreeView<const KeyType> octreeViewAcc() const
     {
         if constexpr (HaveGpu<Accelerator>{}) { return ((const decltype(octreeAcc_)&)octreeAcc_).data(); }
-        else { return tree_.data(); }
+        else { return treeData_.data(); }
     }
 
     //! @brief the cornerstone leaf cell array on the accelerator
     gsl::span<const KeyType> treeLeavesAcc() const
     {
         if constexpr (HaveGpu<Accelerator>{}) { return {rawPtr(leavesAcc_), leavesAcc_.size()}; }
-        else { return tree_.treeLeaves(); }
+        else { return leaves_; }
     }
 
     //! @brief the cornerstone leaf cell particle counts
@@ -478,10 +481,11 @@ public:
 
     void addMacs(gsl::span<int> haloFlags) const
     {
+        const TreeNodeIndex* toInternal = leafToInternal(treeData_).data();
 #pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = 0; i < haloFlags.ssize(); ++i)
         {
-            size_t iIdx = tree_.toInternal(i);
+            size_t iIdx = toInternal[i];
             if (macs_[iIdx] && !haloFlags[i]) { haloFlags[i] = 1; }
         }
     }
