@@ -95,29 +95,32 @@ struct CombineSourceCenter
     }
 };
 
-template<class T1, class T2, class T3, class KeyType>
+/*! @brief compute mass center coordinates for leaf nodes
+ *
+ * @param x                 source body x coordinates
+ * @param y                 source body y coordinates
+ * @param z                 source body z coordinates
+ * @param m                 source body masses
+ * @param leafToInternal    translation map from cornerstone leaf cell array indices to node indices of the full
+ *                          octree
+ * @param layout            array of length numLeafNodes + 1, the i-th element contains the index to of the first
+ *                          particle in x,y,z,m contained in the i-th leaf node of the octree
+ * @param sourceCenter      array of length numNodes of the full octree
+ */
+template<class T1, class T2, class T3>
 void computeLeafMassCenter(gsl::span<const T1> x,
                            gsl::span<const T1> y,
                            gsl::span<const T1> z,
                            gsl::span<const T2> m,
-                           gsl::span<const KeyType> particleKeys,
-                           const Octree<KeyType>& octree,
-                           gsl::span<SourceCenterType<T3>> sourceCenter)
+                           gsl::span<const TreeNodeIndex> leafToInternal,
+                           const LocalIndex* layout,
+                           SourceCenterType<T3>* sourceCenter)
 {
 #pragma omp parallel for
-    for (TreeNodeIndex nodeIdx = 0; nodeIdx < octree.numTreeNodes(); ++nodeIdx)
+    for (size_t leafIdx = 0; leafIdx < leafToInternal.size(); ++leafIdx)
     {
-        if (octree.isLeaf(nodeIdx))
-        {
-            KeyType nodeStart = octree.codeStart(nodeIdx);
-            KeyType nodeEnd   = octree.codeEnd(nodeIdx);
-
-            // find elements belonging to particles in node i
-            LocalIndex first = findNodeAbove(particleKeys, nodeStart);
-            LocalIndex last  = findNodeAbove(particleKeys, nodeEnd);
-
-            sourceCenter[nodeIdx] = massCenter<T3>(x.data(), y.data(), z.data(), m.data(), first, last);
-        }
+        TreeNodeIndex i = leafToInternal[leafIdx];
+        sourceCenter[i] = massCenter<T3>(x.data(), y.data(), z.data(), m.data(), layout[leafIdx], layout[leafIdx + 1]);
     }
 }
 

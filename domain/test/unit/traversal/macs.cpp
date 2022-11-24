@@ -105,14 +105,14 @@ TEST(Macs, minVecMacMutual)
 }
 
 template<class KeyType, class T>
-static std::vector<char> markVecMacAll2All(const Octree<KeyType>& octree,
+static std::vector<char> markVecMacAll2All(const KeyType* leaves,
+                                           gsl::span<const KeyType> prefixes,
                                            const Vec4<T>* centers,
                                            TreeNodeIndex firstLeaf,
                                            TreeNodeIndex lastLeaf,
                                            const Box<T>& box)
 {
-    gsl::span<const KeyType> leaves = octree.treeLeaves();
-    std::vector<char> markings(octree.numTreeNodes(), 0);
+    std::vector<char> markings(prefixes.size(), 0);
 
     // loop over target cells
     for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
@@ -121,10 +121,12 @@ static std::vector<char> markVecMacAll2All(const Octree<KeyType>& octree,
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(targetBox, box);
 
         // loop over source cells
-        for (TreeNodeIndex j = 0; j < octree.numTreeNodes(); ++j)
+        for (size_t j = 0; j < prefixes.size(); ++j)
         {
             // source cells must not be in target cell range
-            if (leaves[firstLeaf] <= octree.codeStart(j) && octree.codeEnd(j) <= leaves[lastLeaf]) { continue; }
+            KeyType jstart = decodePlaceholderBit(prefixes[j]);
+            KeyType jend   = jstart + nodeRange<KeyType>(decodePrefixLength(prefixes[j]) / 3);
+            if (leaves[firstLeaf] <= jstart && jend <= leaves[lastLeaf]) { continue; }
 
             Vec4<T> center   = centers[j];
             bool violatesMac = evaluateMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
@@ -149,23 +151,30 @@ static void markMacVector()
 
     auto [leaves, counts] = computeOctree(coords.particleKeys().data(),
                                           coords.particleKeys().data() + coords.particleKeys().size(), bucketSize);
-    Octree<KeyType> octree;
-    octree.update(leaves.data(), nNodes(leaves));
+    OctreeData<KeyType, CpuTag> octree;
+    octree.resize(nNodes(leaves));
+    updateInternalTree<KeyType>(leaves, octree.data());
 
-    std::vector<SourceCenterType<T>> centers(octree.numTreeNodes());
-    computeLeafMassCenter<T, T, T, KeyType>(coords.x(), coords.y(), coords.z(), masses, coords.particleKeys(), octree,
-                                            centers);
-    upsweep(octree.levelRange(), octree.childOffsets(), centers.data(), CombineSourceCenter<T>{});
-    setMac<T, KeyType>(octree.nodeKeys(), centers, 1.0 / theta, box);
+    std::vector<LocalIndex> layout(octree.numLeafNodes + 1);
+    stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
-    std::vector<char> markings(octree.numTreeNodes(), 0);
+    auto toInternal = leafToInternal(octree);
+
+    std::vector<SourceCenterType<T>> centers(octree.numNodes);
+    computeLeafMassCenter<T, T, T>(coords.x(), coords.y(), coords.z(), masses, toInternal, layout.data(),
+                                   centers.data());
+    upsweep(octree.levelRange, octree.childOffsets, centers.data(), CombineSourceCenter<T>{});
+    setMac<T, KeyType>(octree.prefixes, centers, 1.0 / theta, box);
+
+    std::vector<char> markings(octree.numNodes, 0);
 
     TreeNodeIndex focusIdxStart = 4;
     TreeNodeIndex focusIdxEnd   = 22;
 
     markMacs(octree.data(), centers.data(), box, leaves[focusIdxStart], leaves[focusIdxEnd], markings.data());
 
-    std::vector<char> reference = markVecMacAll2All<KeyType>(octree, centers.data(), focusIdxStart, focusIdxEnd, box);
+    std::vector<char> reference =
+        markVecMacAll2All<KeyType>(leaves.data(), octree.prefixes, centers.data(), focusIdxStart, focusIdxEnd, box);
 
     EXPECT_EQ(markings, reference);
 }
