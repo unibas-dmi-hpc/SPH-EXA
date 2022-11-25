@@ -93,6 +93,7 @@ void gatherGpu(const IndexType* map, size_t n, const T* source, T* destination)
     gatherGpuKernel<<<numBlocks, numThreads>>>(map, n, source, destination);
 }
 
+template void gatherGpu(const int*, size_t, const int*, int*);
 template void gatherGpu(const unsigned*, size_t, const double*, double*);
 template void gatherGpu(const unsigned*, size_t, const float*, float*);
 template void gatherGpu(const unsigned*, size_t, const char*, char*);

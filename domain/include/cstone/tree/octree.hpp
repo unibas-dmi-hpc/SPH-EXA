@@ -325,7 +325,7 @@ void updateInternalTree(gsl::span<const KeyType> leaves, OctreeView<KeyType> o)
 template<class KeyType, class Accelerator>
 gsl::span<const TreeNodeIndex> leafToInternal(const OctreeData<KeyType, Accelerator>& octree)
 {
-    return {octree.leafToInternal.data() + octree.numInternalNodes, size_t(octree.numLeafNodes)};
+    return {rawPtr(octree.leafToInternal) + octree.numInternalNodes, size_t(octree.numLeafNodes)};
 }
 
 template<class KeyType>
