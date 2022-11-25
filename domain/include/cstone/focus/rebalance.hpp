@@ -154,6 +154,50 @@ enum class ResolutionStatus : int
     failed
 };
 
+template<class KeyType>
+HOST_DEVICE_FUN ResolutionStatus
+enforceKeySingle(const KeyType* leaves, TreeNodeIndex* nodeOps, TreeNodeIndex numLeaves, KeyType key)
+{
+    if (key == 0 || key == nodeRange<KeyType>(0)) { return ResolutionStatus::converged; }
+
+    ResolutionStatus status = ResolutionStatus::converged;
+
+    TreeNodeIndex nodeIdx    = findNodeBelow(leaves, numLeaves + 1, key);
+    auto [siblingIdx, level] = siblingAndLevel(leaves, nodeIdx);
+
+    bool canCancel = siblingIdx > -1;
+    // need to cancel if the closest tree node would be merged or the mandatory key is not there
+    bool needToCancel = nodeOps[nodeIdx] == 0 || leaves[nodeIdx] != key;
+    if (canCancel && needToCancel)
+    {
+        status = ResolutionStatus::cancelMerge;
+        // pointer to sibling-0 nodeOp
+        TreeNodeIndex* g = nodeOps + nodeIdx - siblingIdx;
+        for (int octant = 0; octant < 8; ++octant)
+        {
+            if (g[octant] == 0) { g[octant] = 1; } // cancel node merge
+        }
+    }
+
+    if (leaves[nodeIdx] != key) // mandatory key is not present
+    {
+        int keyPos = lastNzPlace(key);
+
+        // only add 1 level, otherwise nodes can be added in a non-peer area,
+        // exceeding the resolution of the global tree, which will result in a failure to compute
+        // exact particle counts for those nodes
+        constexpr int maxAddLevels = 1;
+        int levelDiff              = keyPos - level;
+        if (levelDiff > maxAddLevels) { status = ResolutionStatus::failed; }
+        else { status = ResolutionStatus::rebalance; }
+
+        levelDiff        = std::min(levelDiff, maxAddLevels);
+        nodeOps[nodeIdx] = std::max(nodeOps[nodeIdx], 1 << (3 * levelDiff));
+    }
+
+    return status;
+}
+
 /*! @brief  modify nodeOps, such that the input tree will contain all mandatory keys after rebalancing
  *
  * @tparam KeyType                32- or 64-bit unsigned integer type
@@ -172,45 +216,12 @@ ResolutionStatus enforceKeys(gsl::span<const KeyType> treeLeaves,
                              gsl::span<const KeyType> mandatoryKeys,
                              gsl::span<TreeNodeIndex> nodeOps)
 {
+    assert(nNodes(treeLeaves) == nodeOps.size());
     ResolutionStatus status = ResolutionStatus::converged;
 
     for (KeyType key : mandatoryKeys)
     {
-        if (key == 0 || key == nodeRange<KeyType>(0)) { continue; }
-
-        TreeNodeIndex nodeIdx = findNodeBelow(treeLeaves.data(), treeLeaves.size(), key);
-
-        auto [siblingIdx, level] = siblingAndLevel(treeLeaves.data(), nodeIdx);
-
-        bool canCancel = siblingIdx > -1;
-        // need to cancel if the closest tree node would be merged or the mandatory key is not there
-        bool needToCancel = nodeOps[nodeIdx] == 0 || treeLeaves[nodeIdx] != key;
-        if (canCancel && needToCancel)
-        {
-            status = std::max(status, ResolutionStatus::cancelMerge);
-            // pointer to sibling-0 nodeOp
-            TreeNodeIndex* g = nodeOps.data() + nodeIdx - siblingIdx;
-            for (int octant = 0; octant < 8; ++octant)
-            {
-                if (g[octant] == 0) { g[octant] = 1; } // cancel node merge
-            }
-        }
-
-        if (treeLeaves[nodeIdx] != key) // mandatory key is not present
-        {
-            int keyPos = lastNzPlace(key);
-
-            // only add 1 level, otherwise nodes can be added in a non-peer area,
-            // exceeding the resolution of the global tree, which will result in a failure to compute
-            // exact particle counts for those nodes
-            constexpr int maxAddLevels = 1;
-            int levelDiff              = keyPos - level;
-            if (levelDiff > maxAddLevels) { status = ResolutionStatus::failed; }
-            else { status = std::max(status, ResolutionStatus::rebalance); }
-
-            levelDiff        = std::min(levelDiff, maxAddLevels);
-            nodeOps[nodeIdx] = std::max(nodeOps[nodeIdx], 1 << (3 * levelDiff));
-        }
+        status = std::max(enforceKeySingle(treeLeaves.data(), nodeOps.data(), nNodes(treeLeaves), key), status);
     }
     return status;
 }
