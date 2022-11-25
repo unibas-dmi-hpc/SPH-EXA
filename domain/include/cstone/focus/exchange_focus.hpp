@@ -79,8 +79,8 @@ void countRequestParticles(gsl::span<const KeyType> leaves,
         KeyType startKey = requestLeaves[i];
         KeyType endKey   = requestLeaves[i + 1];
 
-        size_t startIdx = findNodeBelow(leaves, startKey);
-        size_t endIdx   = findNodeAbove(leaves, endKey);
+        size_t startIdx = findNodeBelow(leaves.data(), leaves.size(), startKey);
+        size_t endIdx   = findNodeAbove(leaves.data(), leaves.size(), endKey);
 
         TreeNodeIndex internalIdx = locateNode(startKey, endKey, prefixes.data(), levelRange.data());
 
@@ -233,8 +233,8 @@ void focusTransfer(gsl::span<const KeyType> cstree,
     if (oldFocusStart < newFocusStart)
     {
         // current rank lost range [oldFocusStart : newFocusStart] to rank below
-        TreeNodeIndex start = findNodeAbove(cstree, oldFocusStart);
-        TreeNodeIndex end   = findNodeAbove(cstree, newFocusStart);
+        TreeNodeIndex start = findNodeAbove(cstree.data(), cstree.size(), oldFocusStart);
+        TreeNodeIndex end   = findNodeAbove(cstree.data(), cstree.size(), newFocusStart);
 
         size_t numNodes = end - start;
         auto treelet    = updateTreelet(gsl::span<const KeyType>(cstree.data() + start, numNodes + 1),
@@ -247,8 +247,8 @@ void focusTransfer(gsl::span<const KeyType> cstree,
     if (newFocusEnd < oldFocusEnd)
     {
         // current rank lost range [newFocusEnd : oldFocusEnd] to rank above
-        TreeNodeIndex start = findNodeAbove(cstree, newFocusEnd);
-        TreeNodeIndex end   = findNodeAbove(cstree, oldFocusEnd);
+        TreeNodeIndex start = findNodeAbove(cstree.data(), cstree.size(), newFocusEnd);
+        TreeNodeIndex end   = findNodeAbove(cstree.data(), cstree.size(), oldFocusEnd);
 
         size_t numNodes = end - start;
         auto treelet    = updateTreelet(gsl::span<const KeyType>(cstree.data() + start, numNodes + 1),

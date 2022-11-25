@@ -86,8 +86,8 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
 
     // locate particles assigned to thisRank
-    auto firstAssignedIndex = findNodeAbove<KeyType>(coords.particleKeys(), focusStart);
-    auto lastAssignedIndex  = findNodeAbove<KeyType>(coords.particleKeys(), focusEnd);
+    auto firstAssignedIndex = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusStart);
+    auto lastAssignedIndex  = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusEnd);
 
     // extract a slice of the common pool, each rank takes a different slice, but all slices together
     // are equal to the common pool
@@ -195,8 +195,8 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
 
     // locate particles assigned to thisRank
-    auto firstAssignedIndex = findNodeAbove<KeyType>(coords.particleKeys(), focusStart);
-    auto lastAssignedIndex  = findNodeAbove<KeyType>(coords.particleKeys(), focusEnd);
+    auto firstAssignedIndex = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusStart);
+    auto lastAssignedIndex  = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusEnd);
 
     // extract a slice of the common pool, each rank takes a different slice, but all slices together
     // are equal to the common pool
@@ -224,8 +224,9 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
             KeyType nodeStart = decodePlaceholderBit(octree.prefixes[i]);
             KeyType nodeEnd   = nodeStart + nodeRange<KeyType>(decodePrefixLength(octree.prefixes[i]) / 3);
 
-            LocalIndex startIndex = findNodeAbove<KeyType>(coords.particleKeys(), nodeStart);
-            LocalIndex endIndex   = findNodeAbove<KeyType>(coords.particleKeys(), nodeEnd);
+            LocalIndex startIndex =
+                findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), nodeStart);
+            LocalIndex endIndex = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), nodeEnd);
 
             SourceCenterType<T> reference = massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(),
                                                           globalMasses.data(), startIndex, endIndex);

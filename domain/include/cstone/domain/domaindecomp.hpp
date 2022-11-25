@@ -229,12 +229,12 @@ void limitBoundaryShifts(gsl::span<const KeyType> oldBoundaries,
         TreeNodeIndex restrictedStart = newAssignment.firstNodeIdx(rank);
         if (newBoundary < doNotGoBelow)
         {
-            restrictedStart = findNodeAbove(newTree, doNotGoBelow);
+            restrictedStart = findNodeAbove(newTree.data(), newTree.size(), doNotGoBelow);
             triggerRecount  = true;
         }
         else if (newBoundary > doNotExceed)
         {
-            restrictedStart = findNodeBelow(newTree, doNotExceed);
+            restrictedStart = findNodeBelow(newTree.data(), newTree.size(), doNotExceed);
             triggerRecount  = true;
         }
         newIndexBoundaries[rank] = restrictedStart;
@@ -284,8 +284,8 @@ void translateAssignment(const SpaceCurveAssignment& assignment,
 
         // Note: start-end range is narrowed down if no exact match is found.
         // the discarded part will not participate in peer/halo exchanges
-        TreeNodeIndex startIndex = findNodeAbove(focusTree, peerSfcStart);
-        TreeNodeIndex endIndex   = findNodeBelow(focusTree, peerSfcEnd);
+        TreeNodeIndex startIndex = findNodeAbove(focusTree.data(), focusTree.size(), peerSfcStart);
+        TreeNodeIndex endIndex   = findNodeBelow(focusTree.data(), focusTree.size(), peerSfcEnd);
 
         if (endIndex < startIndex) { endIndex = startIndex; }
         focusAssignment[peer] = TreeIndexPair(startIndex, endIndex);
@@ -294,8 +294,8 @@ void translateAssignment(const SpaceCurveAssignment& assignment,
     KeyType startKey = domainTree[assignment.firstNodeIdx(myRank)];
     KeyType endKey   = domainTree[assignment.lastNodeIdx(myRank)];
 
-    TreeNodeIndex newStartIndex = findNodeAbove(focusTree, startKey);
-    TreeNodeIndex newEndIndex   = findNodeBelow(focusTree, endKey);
+    TreeNodeIndex newStartIndex = findNodeAbove(focusTree.data(), focusTree.size(), startKey);
+    TreeNodeIndex newEndIndex   = findNodeBelow(focusTree.data(), focusTree.size(), endKey);
     focusAssignment[myRank]     = TreeIndexPair(newStartIndex, newEndIndex);
 }
 

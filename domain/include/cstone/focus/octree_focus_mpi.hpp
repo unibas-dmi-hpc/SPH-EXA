@@ -237,8 +237,8 @@ public:
     {
         assert(localQuantities.size() == treeData_.numNodes);
 
-        TreeNodeIndex firstGlobalIdx = findNodeAbove(globalLeaves, prevFocusStart);
-        TreeNodeIndex lastGlobalIdx  = findNodeAbove(globalLeaves, prevFocusEnd);
+        TreeNodeIndex firstGlobalIdx = findNodeAbove(globalLeaves.data(), globalLeaves.size(), prevFocusStart);
+        TreeNodeIndex lastGlobalIdx  = findNodeAbove(globalLeaves.data(), globalLeaves.size(), prevFocusEnd);
         // make sure that the focus is resolved exactly in the global tree
         assert(globalLeaves[firstGlobalIdx] == prevFocusStart);
         assert(globalLeaves[lastGlobalIdx] == prevFocusEnd);

@@ -48,7 +48,7 @@ static void focusTransfer(int myRank, [[maybe_unused]] int numRanks)
     unsigned bucketSize = 64;
 
     // one of the nodes in the area to be handed over from rank 0 to rank 1 should be split based on counts
-    TreeNodeIndex fullNode = findNodeAbove<KeyType>(treeLeaves, pad(KeyType(032), 6));
+    TreeNodeIndex fullNode = findNodeAbove(treeLeaves.data(), treeLeaves.size(), pad(KeyType(032), 6));
     counts[fullNode]       = bucketSize + 1;
 
     std::vector<KeyType> buffer;

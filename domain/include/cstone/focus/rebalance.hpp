@@ -178,7 +178,7 @@ ResolutionStatus enforceKeys(gsl::span<const KeyType> treeLeaves,
     {
         if (key == 0 || key == nodeRange<KeyType>(0)) { continue; }
 
-        TreeNodeIndex nodeIdx = findNodeBelow(treeLeaves, key);
+        TreeNodeIndex nodeIdx = findNodeBelow(treeLeaves.data(), treeLeaves.size(), key);
 
         auto [siblingIdx, level] = siblingAndLevel(treeLeaves.data(), nodeIdx);
 

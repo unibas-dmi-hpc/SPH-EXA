@@ -69,16 +69,16 @@ namespace cstone
 
 //! @brief return first node that starts at or below (contains) key
 template<class KeyType>
-inline TreeNodeIndex findNodeBelow(gsl::span<const KeyType> tree, KeyType key)
+HOST_DEVICE_FUN inline TreeNodeIndex findNodeBelow(const KeyType* tree, TreeNodeIndex numNodes, KeyType key)
 {
-    return stl::upper_bound(tree.begin(), tree.end(), key) - tree.begin() - 1;
+    return stl::upper_bound(tree, tree + numNodes, key) - tree - 1;
 }
 
 //! @brief return first node that starts at or above key
 template<class KeyType>
-inline TreeNodeIndex findNodeAbove(gsl::span<const KeyType> tree, KeyType key)
+HOST_DEVICE_FUN inline TreeNodeIndex findNodeAbove(const KeyType* tree, TreeNodeIndex numNodes, KeyType key)
 {
-    return stl::lower_bound(tree.begin(), tree.end(), key) - tree.begin();
+    return stl::lower_bound(tree, tree + numNodes, key) - tree;
 }
 
 //! @brief count particles in one tree node
