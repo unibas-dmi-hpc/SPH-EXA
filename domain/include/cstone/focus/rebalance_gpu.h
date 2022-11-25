@@ -47,4 +47,11 @@ extern bool rebalanceDecisionEssentialGpu(const KeyType* prefixes,
                                           TreeNodeIndex* nodeOps,
                                           TreeNodeIndex numNodes);
 
+template<class KeyType>
+extern ResolutionStatus enforceKeysGpu(const KeyType* leaves,
+                                       TreeNodeIndex* nodeOps,
+                                       TreeNodeIndex numLeaves,
+                                       const KeyType* forcedKeys,
+                                       TreeNodeIndex numForcedKeys);
+
 } // namespace cstone

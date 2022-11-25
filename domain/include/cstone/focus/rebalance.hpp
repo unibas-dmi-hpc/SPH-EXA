@@ -191,8 +191,8 @@ enforceKeySingle(const KeyType* leaves, TreeNodeIndex* nodeOps, TreeNodeIndex nu
         if (levelDiff > maxAddLevels) { status = ResolutionStatus::failed; }
         else { status = ResolutionStatus::rebalance; }
 
-        levelDiff        = std::min(levelDiff, maxAddLevels);
-        nodeOps[nodeIdx] = std::max(nodeOps[nodeIdx], 1 << (3 * levelDiff));
+        levelDiff        = stl::min(levelDiff, maxAddLevels);
+        nodeOps[nodeIdx] = stl::max(nodeOps[nodeIdx], 1 << (3 * levelDiff));
     }
 
     return status;

@@ -124,4 +124,43 @@ template bool rebalanceDecisionEssentialGpu(const uint64_t* prefixes,
                                             TreeNodeIndex* nodeOps,
                                             TreeNodeIndex numNodes);
 
+__device__ int enforceKeyStatus_device;
+__global__ void resetEnforceKeyStatus() { enforceKeyStatus_device = static_cast<int>(ResolutionStatus::converged); }
+
+template<class KeyType>
+__global__ void
+enforceKeysKernel(const KeyType* leaves, TreeNodeIndex* nodeOps, TreeNodeIndex numLeaves, const KeyType* forcedKeys)
+{
+    unsigned i       = blockIdx.x;
+    auto statusBlock = enforceKeySingle(leaves, nodeOps, numLeaves, forcedKeys[i]);
+    atomicMax(&enforceKeyStatus_device, static_cast<int>(statusBlock));
+}
+
+template<class KeyType>
+ResolutionStatus enforceKeysGpu(const KeyType* leaves,
+                                TreeNodeIndex* nodeOps,
+                                TreeNodeIndex numLeaves,
+                                const KeyType* forcedKeys,
+                                TreeNodeIndex numForcedKeys)
+{
+    resetEnforceKeyStatus<<<1, 1>>>();
+    enforceKeysKernel<<<numForcedKeys, 1>>>(leaves, nodeOps, numLeaves, forcedKeys);
+
+    int status;
+    checkGpuErrors(cudaMemcpyFromSymbol(&status, enforceKeyStatus_device, sizeof(ResolutionStatus)));
+    return static_cast<ResolutionStatus>(status);
+}
+
+template ResolutionStatus enforceKeysGpu(const uint32_t* leaves,
+                                         TreeNodeIndex* nodeOps,
+                                         TreeNodeIndex numLeaves,
+                                         const uint32_t* forcedKeys,
+                                         TreeNodeIndex numForcedKeys);
+
+template ResolutionStatus enforceKeysGpu(const uint64_t* leaves,
+                                         TreeNodeIndex* nodeOps,
+                                         TreeNodeIndex numLeaves,
+                                         const uint64_t* forcedKeys,
+                                         TreeNodeIndex numForcedKeys);
+
 } // namespace cstone
