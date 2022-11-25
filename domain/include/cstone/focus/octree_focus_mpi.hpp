@@ -74,6 +74,15 @@ public:
         , counts_{bucketSize + 1}
         , macs_{1}
     {
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
+            reallocate(leavesAcc_, init.size(), 1.0);
+            memcpyH2D(init.data(), init.size(), rawPtr(leavesAcc_));
+            octreeAcc_.resize(nNodes(leavesAcc_));
+            buildOctreeGpu(rawPtr(leavesAcc_), octreeAcc_.data());
+        }
+
         leaves_ = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
         treeData_.resize(nNodes(leaves_));
         updateInternalTree<KeyType>(leaves_, treeData_.data());
@@ -123,10 +132,28 @@ public:
             enforcedKeys.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
         }
 
-        bool converged = CombinedUpdate<KeyType>::updateFocus(treeData_, leaves_, bucketSize_, focusStart, focusEnd,
-                                                              enforcedKeys, counts_, macs_);
+        bool converged;
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            // TODO remove allocations
+            AccVector<char> dmacs;
+            reallocate(dmacs, macs_.size(), 1.0);
+            AccVector<unsigned> dcounts;
+            reallocate(dcounts, counts_.size(), 1.0);
+            memcpyH2D(macs_.data(), macs_.size(), rawPtr(dmacs));
+            memcpyH2D(counts_.data(), counts_.size(), rawPtr(dcounts));
+            converged = CombinedUpdate<KeyType>::updateFocusGpu(
+                octreeAcc_, leavesAcc_, bucketSize_, focusStart, focusEnd, enforcedKeys,
+                {rawPtr(dcounts), dcounts.size()}, {rawPtr(dmacs), dmacs.size()});
+        }
+        else
+        {
+            converged = CombinedUpdate<KeyType>::updateFocus(treeData_, leaves_, bucketSize_, focusStart, focusEnd,
+                                                             enforcedKeys, counts_, macs_);
+        }
+        downloadOctree();
+
         translateAssignment<KeyType>(assignment, globalTreeLeaves, leaves_, peers_, myRank_, assignment_);
-        uploadOctree();
 
         prevFocusStart   = focusStart;
         prevFocusEnd     = focusEnd;
@@ -502,6 +529,27 @@ private:
             memcpyH2D(treeData_.leafToInternal.data(), numNodes, rawPtr(octreeAcc_.leafToInternal));
 
             memcpyH2D(leaves_.data(), numLeafNodes + 1, rawPtr(leavesAcc_));
+        }
+    }
+
+    void downloadOctree()
+    {
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            TreeNodeIndex numLeafNodes = octreeAcc_.numLeafNodes;
+            TreeNodeIndex numNodes     = octreeAcc_.numNodes;
+
+            treeData_.resize(numLeafNodes);
+            reallocateDestructive(leaves_, numLeafNodes + 1, 1.01);
+
+            memcpyD2H(rawPtr(octreeAcc_.prefixes), numNodes, treeData_.prefixes.data());
+            memcpyD2H(rawPtr(octreeAcc_.childOffsets), numNodes, treeData_.childOffsets.data());
+            memcpyD2H(rawPtr(octreeAcc_.parents), octreeAcc_.parents.size(), treeData_.parents.data());
+            memcpyD2H(rawPtr(octreeAcc_.levelRange), octreeAcc_.levelRange.size(), treeData_.levelRange.data());
+            memcpyD2H(rawPtr(octreeAcc_.internalToLeaf), numNodes, treeData_.internalToLeaf.data());
+            memcpyD2H(rawPtr(octreeAcc_.leafToInternal), numNodes, treeData_.leafToInternal.data());
+
+            memcpyD2H(rawPtr(leavesAcc_), numLeafNodes + 1, leaves_.data());
         }
     }
 

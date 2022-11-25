@@ -48,8 +48,11 @@
 
 #include "cstone/focus/rebalance.hpp"
 #include "cstone/focus/rebalance_gpu.h"
+#include "cstone/primitives/primitives_gpu.h"
 #include "cstone/traversal/macs.hpp"
+#include "cstone/tree/csarray_gpu.h"
 #include "cstone/tree/octree.hpp"
+#include "cstone/tree/octree_gpu.h"
 #include "cstone/traversal/traversal.hpp"
 
 namespace cstone
@@ -124,6 +127,97 @@ struct CombinedUpdate
         swap(newLeaves, leaves);
         tree.resize(nNodes(leaves));
         updateInternalTree<KeyType>(leaves, tree.data());
+
+        return converged;
+    }
+
+    /*! @brief combined update of a tree based on count-bucketsize in the focus and based on macs outside
+     *
+     * @param[inout] tree         the fully linked octree
+     * @param[inout] leaves       cornerstone leaf cell array for @p tree
+     * @param[in] bucketSize      maximum node particle count inside the focus area
+     * @param[in] focusStart      start of the focus area
+     * @param[in] focusEnd        end of the focus area
+     * @param[in] mandatoryKeys   List of SFC keys that have to be present in the focus tree after this function
+     *                            returns. @p focusStart and @p focusEnd are always mandatory, so they don't need to be
+     *                            specified here. @p mandatoryKeys need not be sorted and can tolerate duplicates.
+     *                            This is used e.g. to guarantee that the assignment boundaries of peer ranks are
+     *                            resolved, even if the update did not converge.
+     * @param[in] counts          node particle counts (including internal nodes), length = tree_.numTreeNodes()
+     * @param[in] macs            MAC pass/fail results for each node, length = tree_.numTreeNodes()
+     * @return                    true if the tree structure did not change
+     */
+    template<class Alloc>
+    static bool updateFocusGpu(OctreeData<KeyType, GpuTag>& tree,
+                               thrust::device_vector<KeyType, Alloc>& leaves,
+                               unsigned bucketSize,
+                               KeyType focusStart,
+                               KeyType focusEnd,
+                               gsl::span<const KeyType> mandatoryKeys,
+                               gsl::span<const unsigned> counts,
+                               gsl::span<const char> macs)
+    {
+        [[maybe_unused]] TreeNodeIndex numNodes = tree.numLeafNodes + tree.numInternalNodes;
+        assert(TreeNodeIndex(counts.size()) == numNodes);
+        assert(TreeNodeIndex(macs.size()) == numNodes);
+        assert(TreeNodeIndex(tree.internalToLeaf.size()) >= numNodes);
+
+        // take op decision per node
+        gsl::span<TreeNodeIndex> nodeOpsAll(rawPtr(tree.internalToLeaf), numNodes);
+        bool converged = rebalanceDecisionEssentialGpu(rawPtr(tree.prefixes), rawPtr(tree.childOffsets),
+                                                       rawPtr(tree.parents), counts.data(), macs.data(), focusStart,
+                                                       focusEnd, bucketSize, nodeOpsAll.data(), numNodes);
+
+        // extract leaf decision, using childOffsets at temp storage
+        assert(tree.childOffsets.size() >= size_t(tree.numLeafNodes + 1));
+        gsl::span<TreeNodeIndex> nodeOps(rawPtr(tree.childOffsets), tree.numLeafNodes + 1);
+        gatherGpu(leafToInternal(tree).data(), nNodes(leaves), nodeOpsAll.data(), nodeOps.data());
+
+        std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
+        std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
+
+        // TODO: remove allocation
+        thrust::device_vector<KeyType, Alloc> d_allMandatoryKeys;
+        reallocate(d_allMandatoryKeys, allMandatoryKeys.size(), 1.0);
+        memcpyH2D(rawPtr(allMandatoryKeys), allMandatoryKeys.size(), rawPtr(d_allMandatoryKeys));
+        auto status = enforceKeysGpu(rawPtr(leaves), nodeOps.data(), tree.numLeafNodes, rawPtr(d_allMandatoryKeys),
+                                     d_allMandatoryKeys.size());
+
+        if (status == ResolutionStatus::cancelMerge)
+        {
+            //converged = std::all_of(nodeOps.begin(), nodeOps.end() - 1, [](TreeNodeIndex i) { return i == 1; });
+            converged = countGpu(nodeOps.begin(), nodeOps.end() - 1, 1) == tree.numLeafNodes;
+        }
+        else if (status == ResolutionStatus::rebalance) { converged = false; }
+
+        // carry out rebalance based on nodeOps
+        auto& newLeaves = tree.prefixes;
+        exclusiveScanGpu(nodeOps.data(), nodeOps.data() + nodeOps.size(), nodeOps.data());
+
+        // download new number of leaf nodes
+        TreeNodeIndex newNumLeafNodes;
+        memcpyD2H(nodeOps.data() + nodeOps.size() - 1, 1, &newNumLeafNodes);
+
+        reallocateDestructive(newLeaves, newNumLeafNodes + 1, 1.01);
+        rebalanceTreeGpu(rawPtr(leaves), nNodes(leaves), newNumLeafNodes, nodeOps.data(), rawPtr(newLeaves));
+
+
+        // if rebalancing couldn't introduce the mandatory keys, we force-inject them now into the tree
+        if (status == ResolutionStatus::failed)
+        {
+            converged = false;
+
+            std::vector<KeyType> hostLeaves(newLeaves.size());
+            memcpyD2H(rawPtr(newLeaves), leaves.size(), hostLeaves.data());
+
+            injectKeys<KeyType>(hostLeaves, allMandatoryKeys);
+            reallocateDestructive(newLeaves, hostLeaves.size(), 1.01);
+            memcpyH2D(hostLeaves.data(), newLeaves.size(), rawPtr(newLeaves));
+        }
+
+        swap(newLeaves, leaves);
+        tree.resize(nNodes(leaves));
+        buildOctreeGpu(rawPtr(leaves), tree.data());
 
         return converged;
     }

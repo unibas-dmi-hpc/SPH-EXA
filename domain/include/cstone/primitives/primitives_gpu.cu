@@ -216,4 +216,13 @@ template void exclusiveScanGpu(const int*, const int*, int*);
 template void exclusiveScanGpu(const int*, const int*, unsigned*);
 template void exclusiveScanGpu(const unsigned*, const unsigned*, unsigned*);
 
+template<class ValueType>
+size_t countGpu(const ValueType* first, const ValueType* last, ValueType v)
+{
+    return thrust::count(thrust::device, first, last, v);
+}
+
+template size_t countGpu(const int* first, const int* last, int v);
+template size_t countGpu(const unsigned* first, const unsigned* last, unsigned v);
+
 } // namespace cstone
