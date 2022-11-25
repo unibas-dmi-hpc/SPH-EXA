@@ -79,7 +79,7 @@ constexpr int clz64(uint64_t x)
  *            for an input value of 0
  */
 HOST_DEVICE_FUN
-constexpr int countLeadingZeros(unsigned x)
+constexpr int countLeadingZeros(uint32_t x)
 {
 #ifdef __CUDA_ARCH__
     return __clz(x);
@@ -91,18 +91,18 @@ constexpr int countLeadingZeros(unsigned x)
     // __builtin_clz(l) is implemented with the LZCNT instruction
     // which returns the number of bits for an input of zero,
     // so this check is not required in that case (flag: -march=haswell)
-    if (x == 0) return 8 * sizeof(unsigned);
+    if (x == 0) return 8 * sizeof(uint32_t);
     return __builtin_clz(x);
 
 #else
-    if (x == 0) return 8 * sizeof(unsigned);
+    if (x == 0) return 8 * sizeof(uint64_t);
     return detail::clz32(x);
 
 #endif
 }
 
 HOST_DEVICE_FUN
-constexpr int countLeadingZeros(unsigned long long x)
+constexpr int countLeadingZeros(uint64_t x)
 {
 #ifdef __CUDA_ARCH__
     return __clzll(x);
@@ -114,14 +114,32 @@ constexpr int countLeadingZeros(unsigned long long x)
     // __builtin_clz(l) is implemented with the LZCNT instruction
     // which returns the number of bits for an input of zero,
     // so this check is not required in that case (flag: -march=haswell)
-    if (x == 0) return 8 * sizeof(unsigned long long);
+    if (x == 0) return 8 * sizeof(uint64_t);
     return __builtin_clzl(x);
 
 #else
-    if (x == 0) return 8 * sizeof(unsigned long long);
+    if (x == 0) return 8 * sizeof(uint64_t);
     return detail::clz64(x);
 #endif
 }
 
+//! @brief returns number of trailing zero-bits, does not handle an input of zero
 HOST_DEVICE_FUN
-constexpr int countLeadingZeros(unsigned long x) { return countLeadingZeros((unsigned long long)x); }
+constexpr int countTrailingZeros(uint32_t x)
+{
+#ifdef __CUDA_ARCH__
+    return __ffs(x) - 1;
+#else
+    return  __builtin_ctz(x);
+#endif
+}
+
+HOST_DEVICE_FUN
+constexpr int countTrailingZeros(uint64_t x)
+{
+#ifdef __CUDA_ARCH__
+    return __ffsll(x) - 1;
+#else
+    return  __builtin_ctzl(x);
+#endif
+}

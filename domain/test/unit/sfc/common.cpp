@@ -320,6 +320,15 @@ TEST(SfcCode, lastNzPlace)
 
     EXPECT_EQ(lastNzPlace(pad(1ul, 3)), 1);
     EXPECT_EQ(lastNzPlace(nodeRange<uint64_t>(0)), 0);
+
+    EXPECT_EQ(lastNzPlace(0u), maxTreeLevel<uint32_t>{});
+    EXPECT_EQ(lastNzPlace(0ul), maxTreeLevel<uint64_t>{});
+    EXPECT_EQ(lastNzPlace(1u), maxTreeLevel<uint32_t>{});
+    EXPECT_EQ(lastNzPlace(1ul), maxTreeLevel<uint64_t>{});
+    EXPECT_EQ(lastNzPlace(4u), maxTreeLevel<uint32_t>{});
+    EXPECT_EQ(lastNzPlace(4ul), maxTreeLevel<uint64_t>{});
+    EXPECT_EQ(lastNzPlace(8u), maxTreeLevel<uint32_t>{} - 1);
+    EXPECT_EQ(lastNzPlace(8ul), maxTreeLevel<uint64_t>{} - 1);
 }
 
 template<class KeyType>
