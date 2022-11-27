@@ -173,34 +173,27 @@ struct CombinedUpdate
         gsl::span<TreeNodeIndex> nodeOps(rawPtr(tree.childOffsets), tree.numLeafNodes + 1);
         gatherGpu(leafToInternal(tree).data(), nNodes(leaves), nodeOpsAll.data(), nodeOps.data());
 
-        std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
-        std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
-
         // TODO: remove allocation
-        thrust::device_vector<KeyType, Alloc> d_allMandatoryKeys;
-        reallocate(d_allMandatoryKeys, allMandatoryKeys.size(), 1.0);
-        memcpyH2D(rawPtr(allMandatoryKeys), allMandatoryKeys.size(), rawPtr(d_allMandatoryKeys));
-        auto status = enforceKeysGpu(rawPtr(leaves), nodeOps.data(), tree.numLeafNodes, rawPtr(d_allMandatoryKeys),
-                                     d_allMandatoryKeys.size());
+        thrust::device_vector<KeyType, Alloc> d_mandatoryKeys;
+        reallocate(d_mandatoryKeys, mandatoryKeys.size(), 1.0);
+        memcpyH2D(mandatoryKeys.data(), mandatoryKeys.size(), rawPtr(d_mandatoryKeys));
+        auto status = enforceKeysGpu(rawPtr(leaves), nodeOps.data(), tree.numLeafNodes, rawPtr(d_mandatoryKeys),
+                                     d_mandatoryKeys.size());
 
         if (status == ResolutionStatus::cancelMerge)
         {
-            //converged = std::all_of(nodeOps.begin(), nodeOps.end() - 1, [](TreeNodeIndex i) { return i == 1; });
             converged = countGpu(nodeOps.begin(), nodeOps.end() - 1, 1) == tree.numLeafNodes;
         }
         else if (status == ResolutionStatus::rebalance) { converged = false; }
 
-        // carry out rebalance based on nodeOps
-        auto& newLeaves = tree.prefixes;
         exclusiveScanGpu(nodeOps.data(), nodeOps.data() + nodeOps.size(), nodeOps.data());
-
-        // download new number of leaf nodes
         TreeNodeIndex newNumLeafNodes;
         memcpyD2H(nodeOps.data() + nodeOps.size() - 1, 1, &newNumLeafNodes);
 
+        // carry out rebalance based on nodeOps
+        auto& newLeaves = tree.prefixes;
         reallocateDestructive(newLeaves, newNumLeafNodes + 1, 1.01);
         rebalanceTreeGpu(rawPtr(leaves), nNodes(leaves), newNumLeafNodes, nodeOps.data(), rawPtr(newLeaves));
-
 
         // if rebalancing couldn't introduce the mandatory keys, we force-inject them now into the tree
         if (status == ResolutionStatus::failed)
@@ -208,9 +201,9 @@ struct CombinedUpdate
             converged = false;
 
             std::vector<KeyType> hostLeaves(newLeaves.size());
-            memcpyD2H(rawPtr(newLeaves), leaves.size(), hostLeaves.data());
+            memcpyD2H(rawPtr(newLeaves), newLeaves.size(), hostLeaves.data());
 
-            injectKeys<KeyType>(hostLeaves, allMandatoryKeys);
+            injectKeys<KeyType>(hostLeaves, mandatoryKeys);
             reallocateDestructive(newLeaves, hostLeaves.size(), 1.01);
             memcpyH2D(hostLeaves.data(), newLeaves.size(), rawPtr(newLeaves));
         }
