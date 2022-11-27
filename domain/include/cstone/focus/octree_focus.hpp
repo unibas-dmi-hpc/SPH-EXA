@@ -173,12 +173,14 @@ struct CombinedUpdate
         gsl::span<TreeNodeIndex> nodeOps(rawPtr(tree.childOffsets), tree.numLeafNodes + 1);
         gatherGpu(leafToInternal(tree).data(), nNodes(leaves), nodeOpsAll.data(), nodeOps.data());
 
-        // TODO: remove allocation
-        thrust::device_vector<KeyType, Alloc> d_mandatoryKeys;
-        reallocate(d_mandatoryKeys, mandatoryKeys.size(), 1.0);
-        memcpyH2D(mandatoryKeys.data(), mandatoryKeys.size(), rawPtr(d_mandatoryKeys));
-        auto status = enforceKeysGpu(rawPtr(leaves), nodeOps.data(), tree.numLeafNodes, rawPtr(d_mandatoryKeys),
-                                     d_mandatoryKeys.size());
+        auto status = ResolutionStatus::converged;
+        {
+            auto& d_mandatoryKeys = tree.prefixes;
+            reallocate(d_mandatoryKeys, mandatoryKeys.size(), 1.0);
+            memcpyH2D(mandatoryKeys.data(), mandatoryKeys.size(), rawPtr(d_mandatoryKeys));
+            status = enforceKeysGpu(rawPtr(leaves), nodeOps.data(), tree.numLeafNodes, rawPtr(d_mandatoryKeys),
+                                    d_mandatoryKeys.size());
+        }
 
         if (status == ResolutionStatus::cancelMerge)
         {
