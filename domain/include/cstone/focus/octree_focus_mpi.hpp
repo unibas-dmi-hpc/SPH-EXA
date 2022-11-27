@@ -81,6 +81,11 @@ public:
             memcpyH2D(init.data(), init.size(), rawPtr(leavesAcc_));
             octreeAcc_.resize(nNodes(leavesAcc_));
             buildOctreeGpu(rawPtr(leavesAcc_), octreeAcc_.data());
+
+            reallocate(countsAcc_, counts_.size(), 1.0);
+            memcpyH2D(counts_.data(), counts_.size(), rawPtr(countsAcc_));
+            reallocate(macsAcc_, macs_.size(), 1.0);
+            memcpyH2D(macs_.data(), macs_.size(), rawPtr(macsAcc_));
         }
 
         leaves_ = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
@@ -135,16 +140,9 @@ public:
         bool converged;
         if constexpr (HaveGpu<Accelerator>{})
         {
-            // TODO remove allocations
-            AccVector<char> dmacs;
-            reallocate(dmacs, macs_.size(), 1.0);
-            AccVector<unsigned> dcounts;
-            reallocate(dcounts, counts_.size(), 1.0);
-            memcpyH2D(macs_.data(), macs_.size(), rawPtr(dmacs));
-            memcpyH2D(counts_.data(), counts_.size(), rawPtr(dcounts));
             converged = CombinedUpdate<KeyType>::updateFocusGpu(
                 octreeAcc_, leavesAcc_, bucketSize_, focusStart, focusEnd, enforcedKeys,
-                {rawPtr(dcounts), dcounts.size()}, {rawPtr(dmacs), dmacs.size()});
+                {rawPtr(countsAcc_), countsAcc_.size()}, {rawPtr(macsAcc_), macsAcc_.size()});
         }
         else
         {
@@ -238,6 +236,8 @@ public:
             memcpyH2D(leafCounts_.data(), assignment_[myRank_].start(), rawPtr(leafCountsAcc_));
             memcpyH2D(leafCounts_.data() + assignment_[myRank_].end(), leafCounts_.size() - assignment_[myRank_].end(),
                       rawPtr(leafCountsAcc_) + assignment_[myRank_].end());
+            reallocateDestructive(countsAcc_, counts_.size(), 1.01);
+            memcpyH2D(counts_.data(), counts_.size(), rawPtr(countsAcc_));
         }
 
         rebalanceStatus_ |= countsCriterion;
@@ -439,6 +439,12 @@ public:
         macs_.resize(treeData_.numNodes);
         markMacs(treeData_.data(), centers_.data(), box, focusStart, focusEnd, macs_.data());
 
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            reallocate(macsAcc_, macs_.size(), 1.01);
+            memcpyH2D(macs_.data(), macs_.size(), rawPtr(macsAcc_));
+        }
+
         rebalanceStatus_ |= macCriterion;
     }
 
@@ -577,11 +583,13 @@ private:
     //! @brief the tree structures that the peers have for the domain of the executing rank (myRank_)
     std::vector<std::vector<KeyType>> treelets_;
 
-    //! @brief GPU resident octree data
+    //! @brief octree data resident on GPU if active
     OctreeData<KeyType, Accelerator> octreeAcc_;
     AccVector<KeyType> leavesAcc_;
     AccVector<unsigned> leafCountsAcc_;
     AccVector<SourceCenterType<RealType>> centersAcc_;
+    AccVector<unsigned> countsAcc_;
+    AccVector<char> macsAcc_;
 
     OctreeData<KeyType, CpuTag> treeData_;
     //! @brief leaves in cstone format for tree_
