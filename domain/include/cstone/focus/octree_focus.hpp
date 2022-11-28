@@ -97,7 +97,7 @@ struct CombinedUpdate
                                                              tree.parents.data(), counts.data(), macs.data(),
                                                              focusStart, focusEnd, bucketSize, nodeOpsAll.data());
 
-        // extract leaf decision, using childOffsets at temp storage
+        // extract leaf decision, using childOffsets at temp storage, require +1 for exclusive scan last element
         assert(tree.childOffsets.size() >= size_t(tree.numLeafNodes + 1));
         gsl::span<TreeNodeIndex> nodeOps(tree.childOffsets.data(), tree.numLeafNodes + 1);
         gather(leafToInternal(tree), nodeOpsAll.data(), nodeOps.data());
@@ -105,7 +105,7 @@ struct CombinedUpdate
         std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
         std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
 
-        auto status = enforceKeys<KeyType>(leaves, allMandatoryKeys, nodeOps);
+        auto status = enforceKeys<KeyType>(leaves, allMandatoryKeys, nodeOps.subspan(0, tree.numLeafNodes));
 
         if (status == ResolutionStatus::cancelMerge)
         {
