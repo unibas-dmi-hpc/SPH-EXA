@@ -73,10 +73,7 @@ __global__ void rebalanceDecisionEssentialKernel(const KeyType* prefixes,
     if (threadIdx.x == 0) { atomicAdd(&nodeOpSum, blockMin); }
 }
 
-__global__ void resetNodeOpSum()
-{
-    nodeOpSum = 0;
-}
+__global__ void resetNodeOpSum() { nodeOpSum = 0; }
 
 template<class KeyType>
 bool rebalanceDecisionEssentialGpu(const KeyType* prefixes,
@@ -90,7 +87,7 @@ bool rebalanceDecisionEssentialGpu(const KeyType* prefixes,
                                    TreeNodeIndex* nodeOps,
                                    TreeNodeIndex numNodes)
 {
-    resetNodeOpSum<<<1,1>>>();
+    resetNodeOpSum<<<1, 1>>>();
 
     constexpr unsigned numThreads = 256;
     rebalanceDecisionEssentialKernel<<<iceil(numNodes, numThreads), numThreads>>>(

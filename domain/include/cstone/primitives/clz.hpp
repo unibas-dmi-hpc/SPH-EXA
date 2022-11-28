@@ -130,7 +130,7 @@ constexpr int countTrailingZeros(uint32_t x)
 #ifdef __CUDA_ARCH__
     return __ffs(x) - 1;
 #else
-    return  __builtin_ctz(x);
+    return __builtin_ctz(x);
 #endif
 }
 
@@ -140,6 +140,6 @@ constexpr int countTrailingZeros(uint64_t x)
 #ifdef __CUDA_ARCH__
     return __ffsll(x) - 1;
 #else
-    return  __builtin_ctzl(x);
+    return __builtin_ctzl(x);
 #endif
 }

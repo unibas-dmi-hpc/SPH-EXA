@@ -305,7 +305,7 @@ public:
                        gsl::span<const T> globalQuantities,
                        gsl::span<T> localQuantities) const
     {
-        const KeyType* localLeaves = leaves_.data();
+        const KeyType* localLeaves      = leaves_.data();
         const TreeNodeIndex* toInternal = leafToInternal(treeData_).data();
         //! requestIndices: range of leaf cell indices in the locally focused tree that need global information
         auto requestIndices = invertRanges(0, assignment_, treeData_.numLeafNodes);

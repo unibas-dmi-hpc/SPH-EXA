@@ -101,8 +101,8 @@ TEST(Gravity, TreeWalk)
 
     auto   t0       = std::chrono::high_resolution_clock::now();
     double egravTot = computeGravity(octree.childOffsets.data(), octree.internalToLeaf.data(), octree.numLeafNodes,
-                                     centers.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y,
-                                     z, h.data(), masses.data(), G, ax.data(), ay.data(), az.data());
+                                     centers.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z,
+                                     h.data(), masses.data(), G, ax.data(), ay.data(), az.data());
     auto   t1       = std::chrono::high_resolution_clock::now();
     double elapsed  = std::chrono::duration<double>(t1 - t0).count();
 
@@ -116,8 +116,8 @@ TEST(Gravity, TreeWalk)
     std::vector<T> potentialReference(numParticles, 0);
 
     t0 = std::chrono::high_resolution_clock::now();
-    directSum(
-        x, y, z, h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(), Az.data(), potentialReference.data());
+    directSum(x, y, z, h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(), Az.data(),
+              potentialReference.data());
     t1      = std::chrono::high_resolution_clock::now();
     elapsed = std::chrono::duration<double>(t1 - t0).count();
 

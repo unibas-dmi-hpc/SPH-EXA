@@ -129,8 +129,8 @@ void computeGravityGroup(TreeNodeIndex groupIdx, const TreeNodeIndex* childOffse
      * and the leaf failed the MAC w.r.t to the target box. In that case, direct particle-particle
      * interactions need to be computed.
      */
-    auto leafP2P = [groupIdx, internalToLeaf, layout, firstTarget, lastTarget, x, y, z, h, m, G, ax, ay,
-                    az, ugrav](TreeNodeIndex idx)
+    auto leafP2P = [groupIdx, internalToLeaf, layout, firstTarget, lastTarget, x, y, z, h, m, G, ax, ay, az,
+                    ugrav](TreeNodeIndex idx)
     {
         TreeNodeIndex lidx       = internalToLeaf[idx];
         LocalIndex    numTargets = lastTarget - firstTarget;

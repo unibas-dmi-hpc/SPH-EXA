@@ -208,8 +208,8 @@ HOST_DEVICE_FUN void markMacPerBox(const Vec3<T>& targetCenter,
         [&targetCenter, &targetSize, prefixes, &box, focusStart, focusEnd, centers, markings](TreeNodeIndex idx)
     {
         KeyType nodePrefix = prefixes[idx];
-        KeyType nodeStart = decodePlaceholderBit(nodePrefix);
-        KeyType nodeEnd   = nodeStart + nodeRange<KeyType>(decodePrefixLength(nodePrefix) / 3);
+        KeyType nodeStart  = decodePlaceholderBit(nodePrefix);
+        KeyType nodeEnd    = nodeStart + nodeRange<KeyType>(decodePrefixLength(nodePrefix) / 3);
         // if the tree node with index idx is fully contained in the focus, we stop traversal
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 

@@ -39,8 +39,11 @@
 using namespace cstone;
 
 template<class KeyType, class T>
-std::vector<int> findHalosAll2All(gsl::span<const KeyType> tree, const std::vector<T>& haloRadii, const Box<T>& box,
-                                  TreeNodeIndex firstNode, TreeNodeIndex lastNode)
+std::vector<int> findHalosAll2All(gsl::span<const KeyType> tree,
+                                  const std::vector<T>& haloRadii,
+                                  const Box<T>& box,
+                                  TreeNodeIndex firstNode,
+                                  TreeNodeIndex lastNode)
 {
     std::vector<int> flags(nNodes(tree));
     auto collisions = findCollisionsAll2all(tree, haloRadii, box);
