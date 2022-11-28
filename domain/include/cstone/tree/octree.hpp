@@ -275,7 +275,8 @@ public:
         // +1 to accommodate nodeOffsets in FocusedOctreeCore::update when numNodes == 1
         reallocate(childOffsets, numNodes + 1, 1.01);
 
-        reallocateDestructive(parents, (numNodes - 1) / 8, 1.01);
+        TreeNodeIndex parentSize = std::max(1, (numNodes - 1) / 8);
+        reallocateDestructive(parents, parentSize, 1.01);
 
         //+1 due to level 0 and +1 due to the upper bound for the last level
         reallocateDestructive(levelRange, maxTreeLevel<KeyType>{} + 2, 1.01);

@@ -126,6 +126,7 @@ static void octree4x4x4()
     EXPECT_EQ(fullTree.numTreeNodes(0), 1);
     EXPECT_EQ(fullTree.numTreeNodes(1), 8);
     EXPECT_EQ(fullTree.numTreeNodes(2), 64);
+    EXPECT_EQ(fullTree.levelRange().back(), 73);
 
     EXPECT_EQ(fullTree.codeEnd(fullTree.toInternal(nNodes(tree) - 1)), nodeRange<KeyType>(0));
 

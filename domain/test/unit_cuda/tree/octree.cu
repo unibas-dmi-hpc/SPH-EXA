@@ -79,10 +79,12 @@ void compareAgainstCpu(const std::vector<KeyType>& tree)
         EXPECT_EQ(h_parents[(i - 1) / 8], cpuTree.parent(i));
     }
 
+    EXPECT_EQ(gpuTree.levelRange.size(), cpuTree.levelRange().size());
+    EXPECT_EQ(gpuTree.levelRange.size(), maxTreeLevel<KeyType>{} + 2);
     thrust::host_vector<TreeNodeIndex> h_levelRange = gpuTree.levelRange;
-    for (unsigned level = 1; level <= maxTreeLevel<KeyType>{}; ++level)
+    for (unsigned level = 0; level < gpuTree.levelRange.size(); ++level)
     {
-        if (cpuTree.numTreeNodes(level - 1) > 0) { EXPECT_EQ(h_levelRange[level], cpuTree.levelOffset(level)); }
+        EXPECT_EQ(h_levelRange[level], cpuTree.levelRange()[level]);
     }
 }
 

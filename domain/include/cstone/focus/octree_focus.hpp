@@ -174,6 +174,7 @@ struct CombinedUpdate
         gatherGpu(leafToInternal(tree).data(), nNodes(leaves), nodeOpsAll.data(), nodeOps.data());
 
         auto status = ResolutionStatus::converged;
+        if (mandatoryKeys.size())
         {
             auto& d_mandatoryKeys = tree.prefixes;
             reallocate(d_mandatoryKeys, mandatoryKeys.size(), 1.0);

@@ -132,6 +132,8 @@ __global__ void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, T
     unsigned level    = blockIdx.x;
     auto it           = stl::lower_bound(nodeKeys, nodeKeys + numNodes, encodePlaceholderBit(KeyType(0), 3 * level));
     levelRange[level] = TreeNodeIndex(it - nodeKeys);
+
+    if (level == maxTreeLevel<KeyType>{} + 1) { levelRange[level] = numNodes; }
 }
 
 //! @brief computes the inverse of the permutation given by @p order and then subtract @p numInternalNodes from it
