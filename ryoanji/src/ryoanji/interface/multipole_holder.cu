@@ -126,8 +126,8 @@ public:
 
         reallocateGeneric(globalPool_, poolSize, 1.05);
         traverse<<<numBlocks, TravConfig::numThreads>>>(
-            firstBody, lastBody, {1, 9}, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_,
-            centers_, rawPtr(multipoles_), G, (int*)(nullptr), ax, ay, az, rawPtr(globalPool_));
+            firstBody, lastBody, {1, 9}, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_, centers_,
+            rawPtr(multipoles_), G, (int*)(nullptr), ax, ay, az, rawPtr(globalPool_));
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
 
@@ -142,17 +142,11 @@ private:
         double growthRate = 1.01;
         size_t numNodes   = numLeaves + (numLeaves - 1) / 7;
 
-        auto dealloc = [](auto& v)
-        {
-            v.clear();
-            v.shrink_to_fit();
-        };
-
         if (numLeaves > multipoles_.capacity())
         {
-            dealloc(multipoles_);
+            multipoles_.clear();
+            multipoles_.shrink_to_fit();
         }
-
         reallocateGeneric(multipoles_, numNodes, growthRate);
     }
 
