@@ -30,6 +30,10 @@
  *
  */
 
+#include <thrust/execution_policy.h>
+#include <thrust/sort.h>
+#include <thrust/fill.h>
+
 #include "cstone/sfc/common.hpp"
 #include "cstone/tree/octree_gpu.h"
 
