@@ -188,7 +188,7 @@ public:
         {
             T u_cool = d.u[i];
             cooling::cool_particle(
-                simData.chem.cooling_data.global_values, d.minDt, d.rho[i], u_cool,
+                simData.chem.cooling_data.get_global_values(), d.minDt, d.rho[i], u_cool,
                 cstone::get<"HI_fraction">(simData.chem)[i], cstone::get<"HII_fraction">(simData.chem)[i],
                 cstone::get<"HM_fraction">(simData.chem)[i], cstone::get<"HeI_fraction">(simData.chem)[i],
                 cstone::get<"HeII_fraction">(simData.chem)[i], cstone::get<"HeIII_fraction">(simData.chem)[i],

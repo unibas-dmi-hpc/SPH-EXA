@@ -61,12 +61,12 @@ struct Cooler
     chemistry_data_ getDefaultChemistryData();
 
 private:
-    class Impl;
+    struct Impl;
     std::unique_ptr<Impl> impl_ptr;
 };
 
-extern template struct Cooler<double>;
-extern template struct Cooler<float>;
+//extern template struct Cooler<double>;
+//extern template struct Cooler<float>;
 
 //! @brief Initialize Grackle chemistry arrays with default data
     template<typename ChemistryData>
