@@ -57,7 +57,7 @@ public:
     using AcceleratorType = cstone::CpuTag;
 
 #ifdef SPH_EXA_HAVE_GRACKLE
-    cooling::CoolingData<T>               cooling_data;
+    cooling::Cooler<T>               cooling_data;
 #endif
     std::array<FieldVector<T>, numFields> fields;
 

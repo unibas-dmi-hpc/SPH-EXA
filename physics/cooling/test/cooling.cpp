@@ -1,5 +1,8 @@
-#include "cooling/cooling.hpp"
+
 #define CONFIG_BFLOAT_8
+
+#include "cooling/cooling.hpp"
+#include "cooling/cooler.h"
 #include <iostream>
 #include <vector>
 
@@ -24,7 +27,7 @@ TEST(cooling_grackle, test1a)
 
     const Real mass_unit = std::pow(length_units, 3.0) * density_units / MSOLG;
 
-    cooling::CoolingData<Real> cd;
+    cooling::Cooler<Real> cd;
     cd.init(mass_unit, 1.0 / KPCCM, 0, std::nullopt, PROJECT_SOURCE_DIR "/physics/cooling/test/test.param", time_units);
 
     constexpr gr_float tiny_number = 1.e-20;
@@ -35,7 +38,7 @@ TEST(cooling_grackle, test1a)
     auto rho = std::vector<Real>{1.0};
     Real temperature_units =
             mh *
-            pow(cd.global_values.units.a_units * cd.global_values.units.length_units / cd.global_values.units.time_units, 2.) /
+            pow(cd.get_global_values().units.a_units * cd.get_global_values().units.length_units / cd.get_global_values().units.time_units, 2.) /
             kboltz;
     auto u                        = std::vector<Real>{1000. / temperature_units};
     auto HI_fraction              = std::vector<Real>{0.76};
@@ -64,8 +67,8 @@ TEST(cooling_grackle, test1a)
     std::cout << HeI_fraction[0] << std::endl;
     std::cout << metal_fraction[0] << std::endl;
 
-    cooling::cool_particle<Real>(cd.global_values,
-                                 dt / cd.global_values.units.time_units,
+    cooling::cool_particle<Real>(cd.get_global_values(),
+                                 dt / cd.get_global_values().units.time_units,
                                  rho[0],
                                  u[0],
                                  HI_fraction[0],
@@ -121,14 +124,14 @@ TEST(cooling_grackle2, test2)
     const std::string writePath{"~/cooling_test1/sphexa.txt"};
 
     using Real = double;
-    cooling::CoolingData<Real> cd;
+    cooling::Cooler<Real> cd;
     auto options = cd.getDefaultChemistryData();
-    options.use_grackle = 1;
-    options.with_radiative_cooling = 1;
-    options.primordial_chemistry = 1;
-    options.dust_chemistry = 0;
-    options.metal_cooling = 0;
-    options.UVbackground = 0;
+    options.content.use_grackle = 1;
+    options.content.with_radiative_cooling = 1;
+    options.content.primordial_chemistry = 1;
+    options.content.dust_chemistry = 0;
+    options.content.metal_cooling = 0;
+    options.content.UVbackground = 0;
     cd.init(1e16, 46400., 0, options, std::nullopt, std::nullopt);
 
     constexpr gr_float tiny_number = 1.e-20;
@@ -180,7 +183,7 @@ TEST(cooling_grackle2, test2)
         auto RT_H2_dissociation_rate  = std::vector<Real>{0.};
         auto H2_self_shielding_length = std::vector<Real>{0.};
 
-        cooling::cool_particle(cd.global_values,
+        cooling::cool_particle(cd.get_global_values(),
                                dt,
                                rho[0],
                                u[0],
