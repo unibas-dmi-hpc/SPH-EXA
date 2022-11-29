@@ -100,6 +100,9 @@ public:
     DevVector<T>        gradh;                        // grad(h) term
     DevVector<KeyType>  keys;                         // Particle space-filling-curve keys
     DevVector<unsigned> nc;                           // number of neighbors of each particle
+    DevVector<T>        dvxdx, dvxdy, dvxdz;          // Velocity gradient components
+    DevVector<T>        dvydx, dvydy, dvydz;
+    DevVector<T>        dvzdx, dvzdy, dvzdz;
 
     DevVector<T> wh;
     DevVector<T> whd;
@@ -110,7 +113,8 @@ public:
     inline static constexpr std::array fieldNames{
         "x",   "y",   "z",   "x_m1", "y_m1", "z_m1", "vx", "vy",    "vz",    "rho",   "u",     "p",    "prho",
         "h",   "m",   "c",   "ax",   "ay",   "az",   "du", "du_m1", "c11",   "c12",   "c13",   "c22",  "c23",
-        "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
+        "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc",
+        "dvxdx", "dvxdy", "dvxdz", "dvydx", "dvydy", "dvydz", "dvzdx", "dvzdy", "dvzdz"};
 
     /*! @brief return a tuple of field references
      *
@@ -120,7 +124,8 @@ public:
     {
         auto ret =
             std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11, c12,
-                     c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc);
+                     c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc,
+                     dvxdx, dvxdy, dvxdz, dvydx, dvydy, dvydz, dvzdx, dvzdy, dvzdz);
 
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
         return ret;

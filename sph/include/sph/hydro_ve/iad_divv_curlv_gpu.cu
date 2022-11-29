@@ -47,7 +47,8 @@ __global__ void iadDivvCurlvGpu(T sincIndex, T K, unsigned ngmax, const cstone::
                                 size_t numParticles, const KeyType* particleKeys, const Tc* x, const Tc* y, const Tc* z,
                                 const T* vx, const T* vy, const T* vz, const T* h, const T* wh, const T* whd,
                                 const T* xm, const T* kx, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33, T* divv,
-                                T* curlv)
+                                T* curlv, T* dvxdx, T* dvxdy, T* dvxdz, T* dvydx, T* dvydy, T* dvydz, T* dvzdx,
+                                T* dvzdy, T* dvzdz)
 {
     cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
     cstone::LocalIndex i   = tid + first;
@@ -69,7 +70,7 @@ __global__ void iadDivvCurlvGpu(T sincIndex, T K, unsigned ngmax, const cstone::
     IADJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22, c23,
              c33);
     divV_curlVJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, c11, c12, c13, c22, c23,
-                    c33, wh, whd, kx, xm, divv, curlv);
+                    c33, wh, whd, kx, xm, divv, curlv, dvxdx, dvxdy, dvxdz, dvydx, dvydy, dvydz, dvzdx, dvzdy, dvzdz);
 }
 
 template<class Dataset>
@@ -89,8 +90,10 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, unsigned ngmax, Dat
         d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.keys), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
         rawPtr(d.devData.h), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx),
-        rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
-        rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.divv), rawPtr(d.devData.curlv));
+        rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22), rawPtr(d.devData.c23),
+        rawPtr(d.devData.c33), rawPtr(d.devData.divv), rawPtr(d.devData.curlv), rawPtr(d.devData.dvxdx),
+        rawPtr(d.devData.dvxdy), rawPtr(d.devData.dvxdz), rawPtr(d.devData.dvydx), rawPtr(d.devData.dvydy),
+        rawPtr(d.devData.dvydz), rawPtr(d.devData.dvzdx), rawPtr(d.devData.dvzdy), rawPtr(d.devData.dvzdz));
     checkGpuErrors(cudaDeviceSynchronize());
 }
 

@@ -58,8 +58,10 @@ __global__ void momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T
                                   const KeyType* particleKeys, const Tc* x, const Tc* y, const Tc* z, const T* vx,
                                   const T* vy, const T* vz, const T* h, const Tm* m, const T* prho, const T* c,
                                   const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
-                                  const T* wh, const T* whd, const T* kx, const T* xm, const T* alpha, T* grad_P_x,
-                                  T* grad_P_y, T* grad_P_z, Tm1* du)
+                                  const T* wh, const T* whd, const T* kx, const T* xm, const T* alpha, const T* dvxdx,
+                                  const T* dvxdy, const T* dvxdz, const T* dvydx, const T* dvydy, const T* dvydz,
+                                  const T* dvzdx, const T* dvzdy, const T* dvzdz,
+                                  T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + first;
@@ -82,8 +84,8 @@ __global__ void momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T
 
         T maxvsignal;
         momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, m, prho, c, c11,
-                               c12, c13, c22, c23, c33, Atmin, Atmax, ramp, wh, whd, kx, xm, alpha, grad_P_x, grad_P_y,
-                               grad_P_z, du, &maxvsignal);
+                               c12, c13, c22, c23, c33, Atmin, Atmax, ramp, wh, whd, kx, xm, alpha, dvxdx, dvxdy, dvxdz,
+                               dvydx, dvydy, dvydz, dvzdx, dvzdy, dvzdz, grad_P_x, grad_P_y, grad_P_z, du, &maxvsignal);
 
         dt_i = tsKCourant(maxvsignal, h[i], c[i], Kcour);
     }
@@ -117,7 +119,9 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, D
         rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.prho),
         rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
         rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.kx),
-        rawPtr(d.devData.xm), rawPtr(d.devData.alpha), rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az),
+        rawPtr(d.devData.xm), rawPtr(d.devData.alpha), rawPtr(d.devData.dvxdx), rawPtr(d.devData.dvxdy), rawPtr(d.devData.dvxdz),
+        rawPtr(d.devData.dvydx), rawPtr(d.devData.dvydy), rawPtr(d.devData.dvydz), rawPtr(d.devData.dvzdx),
+        rawPtr(d.devData.dvzdy), rawPtr(d.devData.dvzdz), rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az),
         rawPtr(d.devData.du));
     checkGpuErrors(cudaGetLastError());
 
@@ -127,7 +131,6 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, D
 }
 
 template void computeMomentumEnergy(size_t, size_t, unsigned,
-                                    sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                     const cstone::Box<double>&);
 template void computeMomentumEnergy(size_t, size_t, unsigned,
                                     sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,

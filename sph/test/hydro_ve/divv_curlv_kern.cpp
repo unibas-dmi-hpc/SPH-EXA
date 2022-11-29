@@ -89,11 +89,21 @@ TEST(Divv_Curlv, JLoop)
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     T divv  = -1;
     T curlv = -1;
+    T dvxdx = -1;
+    T dvxdy = -1;
+    T dvxdz = -1;
+    T dvydx = -1;
+    T dvydy = -1;
+    T dvydz = -1;
+    T dvzdx = -1;
+    T dvzdy = -1;
+    T dvzdz = -1;
 
     // compute gradient for for particle 0
     divV_curlVJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(),
                     vy.data(), vz.data(), h.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(),
-                    c33.data(), wh.data(), whd.data(), kx.data(), xm.data(), &divv, &curlv);
+                    c33.data(), wh.data(), whd.data(), kx.data(), xm.data(), &divv, &curlv, &dvxdx, &dvxdy, &dvxdz,
+                    &dvydx, &dvydy, &dvydz, &dvzdx, &dvzdy, &dvzdz);
 
     EXPECT_NEAR(divv, 2.8368574507652129e-2, 1e-10);
     EXPECT_NEAR(curlv, 6.8649752398e-2, 1e-10);

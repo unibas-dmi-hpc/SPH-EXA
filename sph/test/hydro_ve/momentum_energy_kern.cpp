@@ -81,6 +81,16 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> c23{-0.25, -0.33, -0.14, -0.41, -0.50};
     std::vector<T> c33{0.26, 0.34, 0.15, 0.40, 0.51};
 
+    std::vector<T> dvxdx{0.21, 0.27, 0.10, 0.45, 0.46};
+    std::vector<T> dvxdy{-0.22, -0.29, -0.11, -0.44, -0.47};
+    std::vector<T> dvxdz{-0.23, -0.31, -0.12, -0.43, -0.48};
+    std::vector<T> dvydx{0.24, 0.32, 0.13, 0.42, 0.49};
+    std::vector<T> dvydy{-0.25, -0.33, -0.14, -0.41, -0.50};
+    std::vector<T> dvydz{0.26, 0.34, 0.15, 0.40, 0.51};
+    std::vector<T> dvzdx{0.24, 0.32, 0.13, 0.42, 0.49};
+    std::vector<T> dvzdy{-0.25, -0.33, -0.14, -0.41, -0.50};
+    std::vector<T> dvzdz{0.26, 0.34, 0.15, 0.40, 0.51};
+
     std::vector<T> xm{m[0] / 1.1, m[1] / 1.2, m[2] / 1.3, m[3] / 1.4, m[4] / 1.5};
 
     std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
@@ -114,8 +124,9 @@ TEST(MomentumEnergy, JLoop)
     momentumAndEnergyJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
                            vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(), c.data(), c11.data(),
                            c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), Atmin, Atmax, ramp, wh.data(),
-                           whd.data(), kx.data(), xm.data(), alpha.data(), &grad_Px, &grad_Py, &grad_Pz, &du,
-                           &maxvsignal);
+                           whd.data(), kx.data(), xm.data(), alpha.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(),
+                           dvydx.data(), dvydy.data(), dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(),
+                           &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
 
     EXPECT_NEAR(grad_Px, 4.6852624676440924e-1, 1e-10);
     EXPECT_NEAR(grad_Py, -8.2810161944474575e-2, 1e-10);
