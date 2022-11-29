@@ -53,6 +53,7 @@ template void fillGpu(double*, double*, double);
 template void fillGpu(float*, float*, float);
 template void fillGpu(int*, int*, int);
 template void fillGpu(unsigned*, unsigned*, unsigned);
+template void fillGpu(uint64_t*, uint64_t*, uint64_t);
 
 template<class T>
 struct ScaleFunctor
@@ -101,10 +102,18 @@ template void gatherGpu(const unsigned*, size_t, const int*, int*);
 template void gatherGpu(const unsigned*, size_t, const long*, long*);
 template void gatherGpu(const unsigned*, size_t, const unsigned*, unsigned*);
 template void gatherGpu(const unsigned*, size_t, const unsigned long*, unsigned long*);
+template void gatherGpu(const unsigned*, size_t, const unsigned long long*, unsigned long long*);
 template void gatherGpu(const unsigned*, size_t, const util::array<float, 1>*, util::array<float, 1>*);
 template void gatherGpu(const unsigned*, size_t, const util::array<float, 2>*, util::array<float, 2>*);
 template void gatherGpu(const unsigned*, size_t, const util::array<float, 3>*, util::array<float, 3>*);
 template void gatherGpu(const unsigned*, size_t, const util::array<float, 4>*, util::array<float, 4>*);
+
+template void gatherGpu(const uint64_t*, size_t, const double*, double*);
+template void gatherGpu(const uint64_t*, size_t, const float*, float*);
+template void gatherGpu(const uint64_t*, size_t, const util::array<float, 1>*, util::array<float, 1>*);
+template void gatherGpu(const uint64_t*, size_t, const util::array<float, 2>*, util::array<float, 2>*);
+template void gatherGpu(const uint64_t*, size_t, const util::array<float, 3>*, util::array<float, 3>*);
+template void gatherGpu(const uint64_t*, size_t, const util::array<float, 4>*, util::array<float, 4>*);
 
 template<class T>
 std::tuple<T, T> MinMaxGpu<T>::operator()(const T* first, const T* last)
@@ -176,6 +185,9 @@ void segmentMax(const Tin* input, const IndexType* segments, size_t numSegments,
 template void segmentMax(const float*, const unsigned*, size_t, float*);
 template void segmentMax(const double*, const unsigned*, size_t, float*);
 template void segmentMax(const double*, const unsigned*, size_t, double*);
+template void segmentMax(const float*, const  uint64_t*, size_t, float*);
+template void segmentMax(const double*, const uint64_t*, size_t, float*);
+template void segmentMax(const double*, const uint64_t*, size_t, double*);
 
 template<class Tin, class Tout>
 Tout reduceGpu(const Tin* input, size_t numElements, Tout init)
@@ -193,7 +205,7 @@ void sequenceGpu(IndexType* input, size_t numElements, IndexType init)
 
 template void sequenceGpu(int*, size_t, int);
 template void sequenceGpu(unsigned*, size_t, unsigned);
-template void sequenceGpu(size_t*, size_t, size_t);
+template void sequenceGpu(uint64_t*, uint64_t, uint64_t);
 
 template<class KeyType, class ValueType>
 void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values)
@@ -205,6 +217,7 @@ template void sortByKeyGpu(unsigned*, unsigned*, unsigned*);
 template void sortByKeyGpu(unsigned*, unsigned*, int*);
 template void sortByKeyGpu(uint64_t*, uint64_t*, unsigned*);
 template void sortByKeyGpu(uint64_t*, uint64_t*, int*);
+template void sortByKeyGpu(uint64_t*, uint64_t*, uint64_t*);
 
 template<class IndexType, class SumType>
 void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* output)
@@ -214,7 +227,9 @@ void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* ou
 
 template void exclusiveScanGpu(const int*, const int*, int*);
 template void exclusiveScanGpu(const int*, const int*, unsigned*);
+template void exclusiveScanGpu(const int*, const int*, uint64_t*);
 template void exclusiveScanGpu(const unsigned*, const unsigned*, unsigned*);
+template void exclusiveScanGpu(const unsigned*, const unsigned*, uint64_t*);
 
 template<class ValueType>
 size_t countGpu(const ValueType* first, const ValueType* last, ValueType v)
@@ -224,5 +239,6 @@ size_t countGpu(const ValueType* first, const ValueType* last, ValueType v)
 
 template size_t countGpu(const int* first, const int* last, int v);
 template size_t countGpu(const unsigned* first, const unsigned* last, unsigned v);
+template size_t countGpu(const uint64_t* first, const uint64_t* last, uint64_t v);
 
 } // namespace cstone
