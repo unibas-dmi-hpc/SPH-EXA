@@ -28,7 +28,6 @@
  * @author Noah Kubli <noah.kubli@uzh.ch>
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
-../../../../physics/cooling/include/cooling/chemistry_data.hpp
 #pragma once
 
 #include <array>
