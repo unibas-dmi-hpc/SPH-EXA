@@ -73,7 +73,17 @@ namespace cooling {
         std::unique_ptr<Impl> impl_ptr;
     };
 
-//extern template struct Cooler<double>;
-//extern template struct Cooler<float>;
 
+#ifndef SPH_EXA_HAVE_GRACKLE
+    template<typename T>
+    struct Cooler<T>::Impl {
+    };
+
+    template<typename T>
+    Cooler<T>::Cooler() : impl_ptr(nullptr) {}
+
+    template<typename T>
+    Cooler<T>::~Cooler() {
+    }
+#endif
 } // namespace cooling
