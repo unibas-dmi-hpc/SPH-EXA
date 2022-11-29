@@ -79,7 +79,15 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
     std::fill(d.vy.begin(), d.vy.end(), 0.0);
     std::fill(d.vz.begin(), d.vz.end(), 0.0);
 
+    // general form: d.x_m1[i] = d.vx[i] * firstTimeStep;
+    std::fill(d.x_m1.begin(), d.x_m1.end(), 0.0);
+    std::fill(d.y_m1.begin(), d.y_m1.end(), 0.0);
+    std::fill(d.z_m1.begin(), d.z_m1.end(), 0.0);
+
     auto cv = sph::idealGasCv(d.muiConst);
+
+    // If temperature is not allocated, we can still use this initializer for just the coordinates
+    if (d.temp.empty()) { return; }
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
@@ -91,10 +99,6 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
 
         T ui      = constants.at("ener0") * exp(-(r2 / width2)) + constants.at("u0");
         d.temp[i] = ui / cv;
-
-        d.x_m1[i] = d.vx[i] * firstTimeStep;
-        d.y_m1[i] = d.vy[i] * firstTimeStep;
-        d.z_m1[i] = d.vz[i] * firstTimeStep;
     }
 }
 
