@@ -54,6 +54,8 @@ public:
     float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                   const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az);
 
+    util::array<uint64_t, 4> readStats() const;
+
     const MType* deviceMultipoles() const;
 
 private:

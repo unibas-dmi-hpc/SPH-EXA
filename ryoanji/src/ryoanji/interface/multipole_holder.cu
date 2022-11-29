@@ -134,6 +134,18 @@ public:
         return 0.5f * Tc(G) * totalPotential;
     }
 
+    util::array<uint64_t, 4> readStats() const
+    {
+        uint64_t     sumP2P, sumM2P;
+        unsigned int maxP2P, maxM2P;
+        checkGpuErrors(cudaMemcpyFromSymbol(&sumP2P, sumP2PGlob, sizeof(uint64_t)));
+        checkGpuErrors(cudaMemcpyFromSymbol(&maxP2P, maxP2PGlob, sizeof(unsigned int)));
+        checkGpuErrors(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
+        checkGpuErrors(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
+
+        return {sumP2P, maxP2P, sumM2P, maxM2P};
+    }
+
     const MType* deviceMultipoles() const { return rawPtr(multipoles_); }
 
 private:
@@ -182,6 +194,12 @@ float MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::compute(LocalIndex fi
                                                                    const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az)
 {
     return impl_->compute(firstBody, lastBody, x, y, z, m, h, G, ax, ay, az);
+}
+
+template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
+util::array<uint64_t, 4> MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::readStats() const
+{
+    return impl_->readStats();
 }
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>

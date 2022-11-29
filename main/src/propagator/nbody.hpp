@@ -132,8 +132,25 @@ public:
         MPI_Barrier(MPI_COMM_WORLD);
         timer.step("Upsweep");
         mHolder_.traverse(d, domain);
-        MPI_Barrier(MPI_COMM_WORLD);
+
+        double globalEnergy = 0;
+        int    rootRank     = 0;
+        MPI_Reduce(&d.egrav, &globalEnergy, 1, MpiType<double>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
+        d.egrav = globalEnergy;
+
         timer.step("Gravity");
+
+        auto stats = mHolder_.readStats();
+
+        uint64_t maxP2Pglobal;
+        MPI_Reduce(&stats[1], &maxP2Pglobal, 1, MpiType<uint64_t>{}, MPI_MAX, rootRank, MPI_COMM_WORLD);
+
+        if (domain.startIndex() == 0)
+        {
+            size_t n = last - first;
+            std::cout << "numP2P " << stats[0] / n << " maxP2P " << stats[1] << " numM2P " << stats[2] / n << " maxM2P "
+                      << stats[3] << " maxP2Pglobal " << maxP2Pglobal << std::endl;
+        }
 
         timer.stop();
     }
