@@ -38,7 +38,7 @@
 #include "sph/particles_data.hpp"
 #include "sph/sph.hpp"
 
-#include "cooling/cooling.hpp"
+#include "cooling/cooler.hpp"
 
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"
@@ -72,7 +72,7 @@ class HydroGrackleProp final : public Propagator<DomainType, DataType>
      *
      * x, y, z, h and m are automatically considered conserved and must not be specified in this list
      */
-    using ConservedFields = FieldList<"temp", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1">;
+    using ConservedFields = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1">;
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
     using DependentFields =
@@ -186,9 +186,13 @@ public:
 #pragma omp parallel for schedule(static)
         for (size_t i = first; i < last; i++)
         {
-            T u_cool = d.u[i];
-            cooling::cool_particle(
-                simData.chem.cooling_data.get_global_values(), d.minDt, d.rho[i], u_cool,
+            bool haveMui = !d.mui.empty();
+            T cv = idealGasCv(haveMui ? d.mui[i] : d.muiConst);
+
+            T u_old = cv * d.temp[i];
+            T u_cool = u_old;
+            simData.chem.cooling_data.cool_particle(
+                    d.minDt, d.rho[i], u_cool,
                 cstone::get<"HI_fraction">(simData.chem)[i], cstone::get<"HII_fraction">(simData.chem)[i],
                 cstone::get<"HM_fraction">(simData.chem)[i], cstone::get<"HeI_fraction">(simData.chem)[i],
                 cstone::get<"HeII_fraction">(simData.chem)[i], cstone::get<"HeIII_fraction">(simData.chem)[i],
@@ -202,7 +206,7 @@ public:
                 cstone::get<"RT_HeII_ionization_rate">(simData.chem)[i],
                 cstone::get<"RT_H2_dissociation_rate">(simData.chem)[i],
                 cstone::get<"H2_self_shielding_length">(simData.chem)[i]);
-            const T du = (u_cool - d.u[i]) / d.minDt;
+            const T du = (u_cool - u_old) / d.minDt;
             d.du[i] += du;
         }
         timer.step("GRACKLE chemistry and cooling");

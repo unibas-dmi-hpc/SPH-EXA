@@ -31,9 +31,9 @@
 #pragma once
 
 #include "evrard_init.hpp"
-#include "cooling/cooling.hpp"
-#include "cooling/cooler.h"
+#include "cooling/cooler.hpp"
 
+#include "cooling/init_chemistry.h"
 template<class Dataset>
 class EvrardGlassSphereCooling : public sphexa::EvrardGlassSphere<Dataset>
 {
@@ -48,19 +48,17 @@ public:
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
                                                  Dataset& simData) const override
     {
-        cooling::chemistry_data_ grackleData = simData.chem.cooling_data.getDefaultChemistryData();
+        std::map<std::string, std::any> grackleOptions;
+        grackleOptions["use_grackle"] = 1;
+        grackleOptions["with_radiative_cooling"] = 1;
+        grackleOptions["dust_chemistry"] = 0;
+        grackleOptions["metal_cooling"] = 0;
+        grackleOptions["UVbackground"] = 0;
 
-        grackleData.content.use_grackle            = 1;
-        grackleData.content.with_radiative_cooling = 1;
-        grackleData.content.primordial_chemistry   = 0;
-        grackleData.content.dust_chemistry         = 0;
-        grackleData.content.metal_cooling          = 0;
-        grackleData.content.UVbackground           = 0;
-
-        simData.chem.cooling_data.init(ms_sim, kp_sim, 0, grackleData, std::nullopt, std::nullopt);
+        simData.chem.cooling_data.init(ms_sim, kp_sim, 0, grackleOptions, std::nullopt);
 
         auto box = sphexa::EvrardGlassSphere<Dataset>::init(rank, numRanks, cbrtNumPart, simData);
-        cooling::initGrackleData(simData.chem, simData.hydro.x.size());
+        cooling::initChemistryData(simData.chem, simData.hydro.x.size());
         return box;
     }
 };

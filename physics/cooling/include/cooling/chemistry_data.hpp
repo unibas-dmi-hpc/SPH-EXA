@@ -38,9 +38,9 @@
 #include "cstone/fields/field_states.hpp"
 #include "cstone/fields/particles_get.hpp"
 #include "cstone/util/reallocate.hpp"
-#ifdef SPH_EXA_HAVE_GRACKLE
-#include "cooling/cooling.hpp"
-#endif
+//#ifdef SPH_EXA_HAVE_GRACKLE
+#include "cooling/cooler.hpp"
+//#endif
 
 namespace cooling
 {
@@ -56,9 +56,9 @@ public:
     using RealType        = T;
     using AcceleratorType = cstone::CpuTag;
 
-#ifdef SPH_EXA_HAVE_GRACKLE
+//#ifdef SPH_EXA_HAVE_GRACKLE
     cooling::Cooler<T>               cooling_data;
-#endif
+//#endif
     std::array<FieldVector<T>, numFields> fields;
 
     auto dataTuple() { return dataTuple_helper(std::make_index_sequence<numFields>{}); }

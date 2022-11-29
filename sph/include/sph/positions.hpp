@@ -119,7 +119,6 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
         // To prevent u < 0 (when cooling with GRACKLE is active)
         if (u_new < 0.) { u_new = u_old * std::exp(u_new * dt / u_old); }
         d.temp[i]  = u_new / cv;
-        d.u[i] = u_new;
         d.du_m1[i] = d.du[i];
     }
 }

@@ -1,13 +1,11 @@
 
 #define CONFIG_BFLOAT_8
 
-#include "cooling/cooling.hpp"
-#include "cooling/cooler.h"
+#include "cooling/cooler.hpp"
 #include <iostream>
 #include <vector>
-
+#include <cmath>
 #include "gtest/gtest.h"
-
 
 TEST(cooling_grackle, test1a)
 {
@@ -28,18 +26,30 @@ TEST(cooling_grackle, test1a)
     const Real mass_unit = std::pow(length_units, 3.0) * density_units / MSOLG;
 
     cooling::Cooler<Real> cd;
-    cd.init(mass_unit, 1.0 / KPCCM, 0, std::nullopt, PROJECT_SOURCE_DIR "/physics/cooling/test/test.param", time_units);
+    std::map<std::string, std::any> grackleOptions;
+    grackleOptions["use_grackle"] = 1;
+    grackleOptions["with_radiative_cooling"] = 1;
+    grackleOptions["primordial_chemistry"] = 3;
+    grackleOptions["dust_chemistry"] = 1;
+    grackleOptions["UVbackground"] = 1;
+    grackleOptions["metal_cooling"] = 1;
 
-    constexpr gr_float tiny_number = 1.e-20;
+    cd.init(mass_unit, 1.0 / KPCCM, 0, grackleOptions, time_units);
+
+    constexpr Real tiny_number = 1.e-20;
     constexpr Real     dt          = 3.15e7 * 1e6; // grackle_units.time_units;
     constexpr Real     mh          = 1.67262171e-24;
     constexpr Real     kboltz      = 1.3806504e-16;
 
     auto rho = std::vector<Real>{1.0};
-    Real temperature_units =
+    /*Real temperature_units =
             mh *
             pow(cd.get_global_values().units.a_units * cd.get_global_values().units.length_units / cd.get_global_values().units.time_units, 2.) /
-            kboltz;
+            kboltz;*/
+
+
+    Real temperature_units = mh * std::pow(length_units / time_units, 2.) / kboltz;
+
     auto u                        = std::vector<Real>{1000. / temperature_units};
     auto HI_fraction              = std::vector<Real>{0.76};
     auto HII_fraction             = std::vector<Real>{tiny_number};
@@ -67,8 +77,7 @@ TEST(cooling_grackle, test1a)
     std::cout << HeI_fraction[0] << std::endl;
     std::cout << metal_fraction[0] << std::endl;
 
-    cooling::cool_particle<Real>(cd.get_global_values(),
-                                 dt / cd.get_global_values().units.time_units,
+    cd.cool_particle(dt / time_units,
                                  rho[0],
                                  u[0],
                                  HI_fraction[0],
@@ -125,16 +134,18 @@ TEST(cooling_grackle2, test2)
 
     using Real = double;
     cooling::Cooler<Real> cd;
-    auto options = cd.getDefaultChemistryData();
-    options.content.use_grackle = 1;
-    options.content.with_radiative_cooling = 1;
-    options.content.primordial_chemistry = 1;
-    options.content.dust_chemistry = 0;
-    options.content.metal_cooling = 0;
-    options.content.UVbackground = 0;
-    cd.init(1e16, 46400., 0, options, std::nullopt, std::nullopt);
+    //auto options = cd.getDefaultChemistryData();
+    std::map<std::string, std::any> grackleOptions;
+    grackleOptions["use_grackle"] = 1;
+    grackleOptions["with_radiative_cooling"] = 1;
+    grackleOptions["primordial_chemistry"] = 1;
+    grackleOptions["dust_chemistry"] = 0;
+    grackleOptions["UVbackground"] = 0;
+    grackleOptions["metal_cooling"] = 0;
 
-    constexpr gr_float tiny_number = 1.e-20;
+    cd.init(1e16, 46400., 0, grackleOptions, std::nullopt);
+
+    constexpr Real tiny_number = 1.e-20;
     constexpr Real     dt          = 0.01; // grackle_units.time_units;
 
 
@@ -183,8 +194,7 @@ TEST(cooling_grackle2, test2)
         auto RT_H2_dissociation_rate  = std::vector<Real>{0.};
         auto H2_self_shielding_length = std::vector<Real>{0.};
 
-        cooling::cool_particle(cd.get_global_values(),
-                               dt,
+        cd.cool_particle( dt,
                                rho[0],
                                u[0],
                                HI_fraction[0],
