@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,29 +23,35 @@
  */
 
 /*! @file
- * @brief  Compute the internal part of a cornerstone octree on the GPU
+ * @brief Focused octree rebalance on GPUs
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- *
  */
 
 #pragma once
 
-#include "cstone/tree/octree.hpp"
+#include "cstone/tree/definitions.h"
 
 namespace cstone
 {
 
-/*! @brief construct the internal octree part of a given octree leaf cell array on the GPU
- *
- * @tparam       KeyType     unsigned 32- or 64-bit integer
- * @param[in]    cstoneTree  GPU buffer with the SFC leaf cell keys
- * @param[inout] d           input:  pointers to pre-allocated GPU buffers for octree cells
- *                           output: fully linked octree
- *
- * This does not allocate memory on the GPU, (except thrust temp buffers for scans and sorting)
- */
 template<class KeyType>
-extern void buildOctreeGpu(const KeyType* cstoneTree, OctreeView<KeyType> d);
+extern bool rebalanceDecisionEssentialGpu(const KeyType* prefixes,
+                                          const TreeNodeIndex* childOffsets,
+                                          const TreeNodeIndex* parents,
+                                          const unsigned* counts,
+                                          const char* macs,
+                                          KeyType focusStart,
+                                          KeyType focusEnd,
+                                          unsigned bucketSize,
+                                          TreeNodeIndex* nodeOps,
+                                          TreeNodeIndex numNodes);
+
+template<class KeyType>
+extern ResolutionStatus enforceKeysGpu(const KeyType* leaves,
+                                       TreeNodeIndex* nodeOps,
+                                       TreeNodeIndex numLeaves,
+                                       const KeyType* forcedKeys,
+                                       TreeNodeIndex numForcedKeys);
 
 } // namespace cstone

@@ -38,7 +38,7 @@
 #include <array>
 
 #include "cstone/sfc/common.hpp"
-#include "cstone/tree/octree.hpp"
+#include "cstone/tree/csarray.hpp"
 
 namespace cstone
 {

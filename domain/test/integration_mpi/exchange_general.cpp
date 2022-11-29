@@ -86,8 +86,8 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
 
     // locate particles assigned to thisRank
-    auto firstAssignedIndex = findNodeAbove<KeyType>(coords.particleKeys(), focusStart);
-    auto lastAssignedIndex  = findNodeAbove<KeyType>(coords.particleKeys(), focusEnd);
+    auto firstAssignedIndex = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusStart);
+    auto lastAssignedIndex  = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusEnd);
 
     // extract a slice of the common pool, each rank takes a different slice, but all slices together
     // are equal to the common pool
@@ -102,16 +102,16 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
     focusTree.converge(box, particleKeys, peers, assignment, tree, counts, invThetaEff);
 
-    const Octree<KeyType>& octree = focusTree.octree();
-    std::vector<int> testCounts(octree.numTreeNodes(), -1);
+    auto octree = focusTree.octreeViewAcc();
+    std::vector<int> testCounts(octree.numNodes, -1);
 
-    for (TreeNodeIndex i = 0; i < octree.numTreeNodes(); ++i)
+    for (TreeNodeIndex i = 0; i < octree.numNodes; ++i)
     {
-        KeyType nodeStart = octree.codeStart(i);
-        KeyType nodeEnd   = octree.codeEnd(i);
+        KeyType nodeStart = decodePlaceholderBit(octree.prefixes[i]);
+        KeyType nodeEnd   = nodeStart + nodeRange<KeyType>(decodePrefixLength(octree.prefixes[i]) / 3);
         bool inFocus      = focusStart <= nodeStart && nodeEnd <= focusEnd;
 
-        if (octree.isLeaf(i) && inFocus)
+        if (octree.childOffsets[i] == 0 && inFocus)
         {
             testCounts[i] =
                 calculateNodeCount(nodeStart, nodeEnd, particleKeys.data(), particleKeys.data() + particleKeys.size(),
@@ -119,7 +119,8 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
         }
     }
 
-    upsweep(octree.levelRange(), octree.childOffsets(), testCounts.data(), SumCombination<int>{});
+    upsweep({octree.levelRange, maxTreeLevel<KeyType>{} + 2}, {octree.childOffsets, size_t(octree.numNodes)},
+            testCounts.data(), SumCombination<int>{});
 
     std::vector<int> globalCounts(domainTree.numTreeNodes());
 
@@ -129,13 +130,14 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     { upsweep(levelRange, childOffsets, M, SumCombination<int>{}); };
     globalFocusExchange<int>(domainTree, focusTree, testCounts, upsweepFunction);
 
-    upsweep(octree.levelRange(), octree.childOffsets(), testCounts.data(), SumCombination<int>{});
+    upsweep({octree.levelRange, maxTreeLevel<KeyType>{} + 2}, {octree.childOffsets, size_t(octree.numNodes)},
+            testCounts.data(), SumCombination<int>{});
 
     {
         for (size_t i = 0; i < testCounts.size(); ++i)
         {
-            KeyType nodeStart = octree.codeStart(i);
-            KeyType nodeEnd   = octree.codeEnd(i);
+            KeyType nodeStart = decodePlaceholderBit(octree.prefixes[i]);
+            KeyType nodeEnd   = nodeStart + nodeRange<KeyType>(decodePrefixLength(octree.prefixes[i]) / 3);
 
             unsigned referenceCount = calculateNodeCount(nodeStart, nodeEnd, coords.particleKeys().data(),
                                                          coords.particleKeys().data() + coords.particleKeys().size(),
@@ -193,8 +195,8 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
 
     // locate particles assigned to thisRank
-    auto firstAssignedIndex = findNodeAbove<KeyType>(coords.particleKeys(), focusStart);
-    auto lastAssignedIndex  = findNodeAbove<KeyType>(coords.particleKeys(), focusEnd);
+    auto firstAssignedIndex = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusStart);
+    auto lastAssignedIndex  = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusEnd);
 
     // extract a slice of the common pool, each rank takes a different slice, but all slices together
     // are equal to the common pool
@@ -210,25 +212,26 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
     focusTree.converge(box, particleKeys, peers, assignment, tree, counts, invThetaEff);
 
-    const Octree<KeyType>& octree = focusTree.octree();
+    auto octree = focusTree.octreeViewAcc();
 
     focusTree.updateCenters(x.data(), y.data(), z.data(), m.data(), assignment, domainTree, box);
     auto sourceCenter = focusTree.expansionCenters();
 
     constexpr T tol = std::is_same_v<T, double> ? 1e-10 : 1e-4;
     {
-        for (TreeNodeIndex i = 0; i < octree.numTreeNodes(); ++i)
+        for (TreeNodeIndex i = 0; i < octree.numNodes; ++i)
         {
-            KeyType nodeStart = octree.codeStart(i);
-            KeyType nodeEnd   = octree.codeEnd(i);
+            KeyType nodeStart = decodePlaceholderBit(octree.prefixes[i]);
+            KeyType nodeEnd   = nodeStart + nodeRange<KeyType>(decodePrefixLength(octree.prefixes[i]) / 3);
 
-            LocalIndex startIndex = findNodeAbove<KeyType>(coords.particleKeys(), nodeStart);
-            LocalIndex endIndex   = findNodeAbove<KeyType>(coords.particleKeys(), nodeEnd);
+            LocalIndex startIndex =
+                findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), nodeStart);
+            LocalIndex endIndex = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), nodeEnd);
 
             SourceCenterType<T> reference = massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(),
                                                           globalMasses.data(), startIndex, endIndex);
 
-            T refMac     = computeVecMacR2(octree.nodeKeys()[i], makeVec3(reference), 1.0 / theta, box);
+            T refMac     = computeVecMacR2(octree.prefixes[i], makeVec3(reference), 1.0 / theta, box);
             reference[3] = (reference[3] == T(0)) ? T(0) : refMac;
 
             EXPECT_NEAR(sourceCenter[i][0], reference[0], tol);

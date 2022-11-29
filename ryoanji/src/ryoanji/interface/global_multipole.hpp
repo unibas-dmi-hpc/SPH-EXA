@@ -47,25 +47,28 @@ void computeGlobalMultipoles(const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                              const cstone::FocusedOctree<KeyType, Tf, cstone::CpuTag>& focusTree,
                              const cstone::LocalIndex* layout, MType* multipoles)
 {
-    const cstone::Octree<KeyType>& octree = focusTree.octree();
-
+    auto octree        = focusTree.octreeViewAcc();
     auto centers       = focusTree.expansionCenters();
     auto globalCenters = focusTree.globalExpansionCenters();
 
-    gsl::span multipoleSpan{multipoles, size_t(octree.numTreeNodes())};
-    ryoanji::computeLeafMultipoles(x, y, z, m, octree.internalOrder(), layout, centers.data(), multipoles);
+    gsl::span multipoleSpan{multipoles, size_t(octree.numNodes)};
+    ryoanji::computeLeafMultipoles(x, y, z, m,
+                                   {octree.leafToInternal + octree.numInternalNodes, size_t(octree.numLeafNodes)},
+                                   layout, centers.data(), multipoles);
 
     //! first upsweep with local data
-    ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles);
+    ryoanji::upsweepMultipoles({octree.levelRange, cstone::maxTreeLevel<KeyType>{} + 2}, octree.childOffsets,
+                               centers.data(), multipoles);
 
     auto ryUpsweep = [](auto levelRange, auto childOffsets, auto M, auto centers)
-    { ryoanji::upsweepMultipoles(levelRange, childOffsets, centers, M); };
+    { ryoanji::upsweepMultipoles(levelRange, childOffsets.data(), centers, M); };
     cstone::globalFocusExchange(globalOctree, focusTree, multipoleSpan, ryUpsweep, globalCenters.data());
 
     focusTree.peerExchange(multipoleSpan, static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);
 
     //! second upsweep with leaf data from peer and global ranks in place
-    ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles);
+    ryoanji::upsweepMultipoles({octree.levelRange, cstone::maxTreeLevel<KeyType>{} + 2}, octree.childOffsets,
+                               centers.data(), multipoles);
 }
 
 } // namespace ryoanji

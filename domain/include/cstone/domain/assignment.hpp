@@ -33,7 +33,7 @@
 
 #include "cstone/domain/domaindecomp_mpi.hpp"
 #include "cstone/domain/layout.hpp"
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree.hpp"
 #include "cstone/tree/update_mpi.hpp"
 #include "cstone/sfc/box_mpi.hpp"
 #include "cstone/sfc/sfc.hpp"
@@ -171,7 +171,8 @@ public:
 
         // thanks to the sorting, we now know the exact range of the assigned particles:
         // [newStart + offset, newStart + offset + newNParticlesAssigned]
-        LocalIndex offset = findNodeAbove<KeyType>(keyView, tree_.treeLeaves()[assignment_.firstNodeIdx(myRank_)]);
+        LocalIndex offset =
+            findNodeAbove(keyView.data(), keyView.size(), tree_.treeLeaves()[assignment_.firstNodeIdx(myRank_)]);
         // restrict the reordering to take only the assigned particles into account and ignore the others
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
 

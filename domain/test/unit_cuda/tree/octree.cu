@@ -35,9 +35,9 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_internal_gpu.cuh"
-#include "cstone/tree/octree_internal.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/octree_gpu.h"
+#include "cstone/tree/octree.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 using namespace cstone;
 
@@ -47,10 +47,10 @@ void compareAgainstCpu(const std::vector<KeyType>& tree)
     // upload cornerstone tree to device
     thrust::device_vector<KeyType> d_leaves = tree;
 
-    OctreeGpuDataAnchor<KeyType> gpuTree;
+    OctreeData<KeyType, GpuTag> gpuTree;
     gpuTree.resize(nNodes(tree));
 
-    buildInternalOctreeGpu(thrust::raw_pointer_cast(d_leaves.data()), gpuTree.getData());
+    buildOctreeGpu(rawPtr(d_leaves), gpuTree.data());
 
     Octree<KeyType> cpuTree;
     cpuTree.update(tree.data(), nNodes(tree));
@@ -79,10 +79,12 @@ void compareAgainstCpu(const std::vector<KeyType>& tree)
         EXPECT_EQ(h_parents[(i - 1) / 8], cpuTree.parent(i));
     }
 
+    EXPECT_EQ(gpuTree.levelRange.size(), cpuTree.levelRange().size());
+    EXPECT_EQ(gpuTree.levelRange.size(), maxTreeLevel<KeyType>{} + 2);
     thrust::host_vector<TreeNodeIndex> h_levelRange = gpuTree.levelRange;
-    for (unsigned level = 1; level <= maxTreeLevel<KeyType>{}; ++level)
+    for (unsigned level = 0; level < gpuTree.levelRange.size(); ++level)
     {
-        if (cpuTree.numTreeNodes(level - 1) > 0) { EXPECT_EQ(h_levelRange[level], cpuTree.levelOffset(level)); }
+        EXPECT_EQ(h_levelRange[level], cpuTree.levelRange()[level]);
     }
 }
 
@@ -95,7 +97,7 @@ void octreeIrregularL3()
     compareAgainstCpu(tree);
 }
 
-TEST(InternalOctreeGpu, irregularL3)
+TEST(OctreeGpu, irregularL3)
 {
     octreeIrregularL3<unsigned>();
     octreeIrregularL3<uint64_t>();
@@ -110,7 +112,7 @@ void octreeRegularL6()
     compareAgainstCpu(tree);
 }
 
-TEST(InternalOctreeGpu, regularL6)
+TEST(OctreeGpu, regularL6)
 {
     octreeRegularL6<unsigned>();
     octreeRegularL6<uint64_t>();

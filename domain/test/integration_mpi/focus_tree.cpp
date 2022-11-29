@@ -100,8 +100,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     /*******************************/
 
     // locate particles assigned to thisRank
-    auto firstAssignedIndex = findNodeAbove<KeyType>(coords.particleKeys(), focusStart);
-    auto lastAssignedIndex  = findNodeAbove<KeyType>(coords.particleKeys(), focusEnd);
+    auto firstAssignedIndex = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusStart);
+    auto lastAssignedIndex  = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusEnd);
 
     // extract a slice of the common pool, each rank takes a different slice, but all slices together
     // are equal to the common pool
@@ -140,7 +140,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
         // peer boundaries must always be resolved at any convergence state
         for (auto key : peerBoundaries)
         {
-            LocalIndex idx = findNodeAbove(focusTree.treeLeaves(), key);
+            LocalIndex idx = findNodeAbove(focusTree.treeLeaves().data(), focusTree.treeLeaves().size(), key);
             EXPECT_EQ(key, focusTree.treeLeaves()[idx]);
         }
     }

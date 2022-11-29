@@ -230,23 +230,23 @@ TEST(SfcCode, octalDigit64)
 
 TEST(SfcCode, digitWeight)
 {
-    EXPECT_EQ(digitWeight(0),  0);
+    EXPECT_EQ(digitWeight(0), 0);
     EXPECT_EQ(digitWeight(1), -1);
     EXPECT_EQ(digitWeight(2), -2);
     EXPECT_EQ(digitWeight(3), -3);
-    EXPECT_EQ(digitWeight(4),  3);
-    EXPECT_EQ(digitWeight(5),  2);
-    EXPECT_EQ(digitWeight(6),  1);
-    EXPECT_EQ(digitWeight(7),  0);
+    EXPECT_EQ(digitWeight(4), 3);
+    EXPECT_EQ(digitWeight(5), 2);
+    EXPECT_EQ(digitWeight(6), 1);
+    EXPECT_EQ(digitWeight(7), 0);
 }
 
 TEST(SfcCode, enclosingBoxTrim)
 {
-    std::size_t code = 0x0FF0000000000001;
+    std::size_t code      = 0x0FF0000000000001;
     std::size_t reference = 0x0FC0000000000000;
     EXPECT_EQ(reference, enclosingBoxCode(code, 3));
 
-    unsigned code_u = 0x07F00001;
+    unsigned code_u      = 0x07F00001;
     unsigned reference_u = 0x07E00000;
     EXPECT_EQ(reference_u, enclosingBoxCode(code_u, 3));
 }
@@ -254,7 +254,7 @@ TEST(SfcCode, enclosingBoxTrim)
 TEST(SfcCode, enclosingBoxMaxLevel32)
 {
     using CodeType = unsigned;
-    CodeType code = 0x0FF00001;
+    CodeType code  = 0x0FF00001;
     CodeType probe = enclosingBoxCode(code, maxTreeLevel<CodeType>{});
     EXPECT_EQ(probe, code);
 }
@@ -262,7 +262,7 @@ TEST(SfcCode, enclosingBoxMaxLevel32)
 TEST(SfcCode, enclosingBoxMaxLevel64)
 {
     using CodeType = uint64_t;
-    CodeType code = 0x0FF0000000000001;
+    CodeType code  = 0x0FF0000000000001;
     CodeType probe = enclosingBoxCode(code, maxTreeLevel<CodeType>{});
     EXPECT_EQ(probe, code);
 }
@@ -270,8 +270,8 @@ TEST(SfcCode, enclosingBoxMaxLevel64)
 TEST(SfcCode, smallestCommonBoxEqualCode)
 {
     using CodeType = unsigned;
-    CodeType code = 0;
-    auto [k1, k2] = smallestCommonBox(code, code);
+    CodeType code  = 0;
+    auto [k1, k2]  = smallestCommonBox(code, code);
     util::tuple<CodeType, CodeType> reference{code, code + 1};
     EXPECT_EQ(k1, code);
     EXPECT_EQ(k2, code + 1);
@@ -282,7 +282,7 @@ TEST(SfcCode, smallestCommonBoxL1)
     using CodeType = unsigned;
     CodeType code1 = 0b00001001u << 24u;
     CodeType code2 = 0b00001010u << 24u;
-    auto [k1, k2] = smallestCommonBox(code1, code2);
+    auto [k1, k2]  = smallestCommonBox(code1, code2);
     EXPECT_EQ(k1, 0b00001000u << 24u);
     EXPECT_EQ(k2, 0b000010000u << 24u);
 }
@@ -292,7 +292,7 @@ TEST(SfcCode, smallestCommonBoxL0_32)
     using CodeType = unsigned;
     CodeType code1 = 0b00000001u << 24u;
     CodeType code2 = 0b00001010u << 24u;
-    auto [k1, k2] = smallestCommonBox(code1, code2);
+    auto [k1, k2]  = smallestCommonBox(code1, code2);
     EXPECT_EQ(k1, 0);
     EXPECT_EQ(k2, 0b01u << 30u);
 }
@@ -302,7 +302,7 @@ TEST(SfcCode, smallestCommonBoxL0_64)
     using CodeType = uint64_t;
     CodeType code1 = 0b0000001lu << 57u;
     CodeType code2 = 0b0001010lu << 57u;
-    auto [k1, k2] = smallestCommonBox(code1, code2);
+    auto [k1, k2]  = smallestCommonBox(code1, code2);
     EXPECT_EQ(k1, 0lu);
     EXPECT_EQ(k2, 1lu << 63u);
 }
@@ -320,6 +320,15 @@ TEST(SfcCode, lastNzPlace)
 
     EXPECT_EQ(lastNzPlace(pad(1ul, 3)), 1);
     EXPECT_EQ(lastNzPlace(nodeRange<uint64_t>(0)), 0);
+
+    EXPECT_EQ(lastNzPlace(0u), maxTreeLevel<uint32_t>{});
+    EXPECT_EQ(lastNzPlace(0ul), maxTreeLevel<uint64_t>{});
+    EXPECT_EQ(lastNzPlace(1u), maxTreeLevel<uint32_t>{});
+    EXPECT_EQ(lastNzPlace(1ul), maxTreeLevel<uint64_t>{});
+    EXPECT_EQ(lastNzPlace(4u), maxTreeLevel<uint32_t>{});
+    EXPECT_EQ(lastNzPlace(4ul), maxTreeLevel<uint64_t>{});
+    EXPECT_EQ(lastNzPlace(8u), maxTreeLevel<uint32_t>{} - 1);
+    EXPECT_EQ(lastNzPlace(8ul), maxTreeLevel<uint64_t>{} - 1);
 }
 
 template<class KeyType>

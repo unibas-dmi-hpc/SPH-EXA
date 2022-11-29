@@ -19,11 +19,11 @@ addMpiTest(exchange_keys.cpp exchange_keys GlobalKeyExchange 2)
 addMpiTest(focus_transfer.cpp focus_transfer FocusTransfer 2)
 addMpiTest(domain_2ranks.cpp domain_2ranks GlobalDomain2Ranks 2)
 
-addMpiTest(treedomain.cpp treedomain GlobalDomainTreeIntregration 5)
-addMpiTest(exchange_general.cpp exchange_general GeneralFocusExchange 5)
-addMpiTest(exchange_domain.cpp exchange_domain GlobalDomainExchange 5)
-addMpiTest(focus_tree.cpp focus_tree FocusTreeIntregration 5)
-addMpiTest(domain_nranks.cpp domain_nranks GlobalDomainNRanks 5)
+addMpiTest(treedomain.cpp treedomain GlobalDomainTreeIntregration 12)
+addMpiTest(exchange_general.cpp exchange_general GeneralFocusExchange 12)
+addMpiTest(exchange_domain.cpp exchange_domain GlobalDomainExchange 12)
+addMpiTest(focus_tree.cpp focus_tree FocusTreeIntregration 12)
+addMpiTest(domain_nranks.cpp domain_nranks GlobalDomainNRanks 12)
 
 if (CMAKE_CUDA_COMPILER)
     # workaround for compiling MPI with nvcc on cray systems

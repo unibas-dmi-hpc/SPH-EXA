@@ -36,8 +36,8 @@
 #include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/domain/assignment.hpp"
 #ifdef USE_CUDA
-#include "cstone/primitives/gather.cuh"
 #include "cstone/domain/assignment_gpu.cuh"
+#include "cstone/primitives/gather.cuh"
 #endif
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
@@ -66,6 +66,15 @@ template<class KeyType, class T, class Accelerator = CpuTag>
 class Domain
 {
     static_assert(std::is_unsigned<KeyType>{}, "SFC key type needs to be an unsigned integer\n");
+
+    //! @brief A vector template that resides on the hardware specified as Accelerator
+    template<class ValueType>
+    using AccVector =
+        typename AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<ValueType>;
+
+    template<class BufferType>
+    using ReorderFunctor_t =
+        typename AccelSwitchType<Accelerator, SfcSorter, GpuSfcSorter>::template type<LocalIndex, BufferType>;
 
 public:
     /*! @brief construct empty Domain
@@ -192,10 +201,7 @@ public:
     {
         staticChecks<KeyVec, VectorX, VectorH, Vectors1...>(scratchBuffers);
         auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
-        using ReorderFunctor_t =
-            typename AccelSwitchType<Accelerator, SfcSorter,
-                                     GpuSfcSorter>::template type<LocalIndex, std::decay_t<decltype(sfcOrder)>>;
-        ReorderFunctor_t reorderer(sfcOrder);
+        ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> reorderer(sfcOrder);
 
         auto scratch = discardLastElement(scratchBuffers);
 
@@ -216,9 +222,14 @@ public:
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), invThetaEff);
 
-        reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
-        halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
-                        rawPtr(h), std::get<0>(scratch));
+        auto octreeView            = focusTree_.octreeViewAcc();
+        const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
+
+        reallocateDestructive(layout_, octreeView.numLeafNodes + 1, 1.01);
+        reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, 1.01);
+        halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
+                        focusTree_.leafCountsAcc(), focusTree_.assignment(), {rawPtr(layoutAcc_), layoutAcc_.size()},
+                        box(), rawPtr(h), std::get<0>(scratch));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
         updateLayout(reorderer, exchangeStart, keyView, particleKeys, std::tie(h),
@@ -239,10 +250,7 @@ public:
     {
         staticChecks<KeyVec, VectorX, VectorH, VectorM, Vectors1...>(scratchBuffers);
         auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
-        using ReorderFunctor_t =
-            typename AccelSwitchType<Accelerator, SfcSorter,
-                                     GpuSfcSorter>::template type<LocalIndex, std::decay_t<decltype(sfcOrder)>>;
-        ReorderFunctor_t reorderer(sfcOrder);
+        ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> reorderer(sfcOrder);
 
         auto scratch = discardLastElement(scratchBuffers);
 
@@ -274,9 +282,14 @@ public:
                                  box(), std::get<0>(scratch), std::get<1>(scratch));
         focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
 
-        reallocate(layout_, nNodes(focusTree_.treeLeaves()) + 1, 1.01);
-        halos_.discover(focusTree_.octree(), focusTree_.leafCounts(), focusTree_.assignment(), layout_, box(),
-                        rawPtr(h), std::get<0>(scratch));
+        auto octreeView            = focusTree_.octreeViewAcc();
+        const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
+
+        reallocateDestructive(layout_, octreeView.numLeafNodes + 1, 1.01);
+        reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, 1.01);
+        halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
+                        focusTree_.leafCountsAcc(), focusTree_.assignment(), {rawPtr(layoutAcc_), layoutAcc_.size()},
+                        box(), rawPtr(h), std::get<0>(scratch));
         focusTree_.addMacs(halos_.haloFlags());
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
@@ -313,7 +326,7 @@ public:
     //! @brief the index of the last locally assigned cell in focusTree()
     TreeNodeIndex endCell() const { return focusTree_.assignment()[myRank_].end(); }
     //! @brief particle offsets of each focus tree leaf cell
-    gsl::span<const LocalIndex> layout() const { return layout_; }
+    gsl::span<const LocalIndex> layout() const { return {rawPtr(layoutAcc_), layoutAcc_.size()}; }
     //! @brief return the coordinate bounding box from the previous sync call
     const Box<T>& box() const { return global_.box(); }
 
@@ -431,6 +444,7 @@ private:
         // re-locate particle SFC keys
         if constexpr (IsDeviceVector<KeyVec>{})
         {
+            memcpyH2D(layout_.data(), layout_.size(), rawPtr(layoutAcc_));
             auto& swapSpace = std::get<0>(scratchBuffers);
             size_t origSize = reallocateBytes(swapSpace, keyView.size() * sizeof(KeyType));
 
@@ -443,6 +457,7 @@ private:
         }
         else
         {
+            omp_copy(layout_.begin(), layout_.end(), layoutAcc_.begin());
             reallocate(swapKeys_, newBufDesc.size, 1.01);
             omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);
             swap(keys, swapKeys_);
@@ -468,6 +483,12 @@ private:
 
         // newBufDesc is now the valid buffer description
         std::swap(newBufDesc, bufDesc_);
+    }
+
+    void prepareFlags(TreeNodeIndex numLeafNodes)
+    {
+        reallocateDestructive(haloFlags_, numLeafNodes, 1.01);
+        std::fill(begin(haloFlags_), end(haloFlags_), 0);
     }
 
     void diagnostics(size_t assignedSize, gsl::span<int> peers)
@@ -542,12 +563,14 @@ private:
      */
     FocusedOctree<KeyType, T, Accelerator> focusTree_;
 
+    //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
+    AccVector<LocalIndex> layoutAcc_;
+    std::vector<LocalIndex> layout_;
+    std::vector<int> haloFlags_;
+
     using Distributor_t =
         typename AccelSwitchType<Accelerator, GlobalAssignment, GlobalAssignmentGpu>::template type<KeyType, T>;
     Distributor_t global_;
-
-    //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
-    std::vector<LocalIndex> layout_;
 
     Halos<KeyType, Accelerator> halos_{myRank_};
 

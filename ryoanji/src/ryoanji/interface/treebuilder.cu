@@ -30,12 +30,14 @@
  */
 
 #include <vector>
-#include <thrust/sequence.h>
+
+#include <thrust/host_vector.h>
 #include <thrust/gather.h>
+#include <thrust/sequence.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/sfc/sfc_gpu.h"
-#include "cstone/tree/octree_internal_gpu.cuh"
+#include "cstone/tree/octree_gpu.h"
 #include "cstone/tree/update_gpu.cuh"
 
 #include "ryoanji/nbody/types.h"
@@ -79,8 +81,8 @@ private:
     thrust::device_vector<KeyType>               tmpTree_;
     thrust::device_vector<cstone::TreeNodeIndex> workArray_;
 
-    cstone::OctreeGpuDataAnchor<KeyType>      octreeGpuData_;
-    thrust::device_vector<cstone::LocalIndex> d_layout_;
+    cstone::OctreeData<KeyType, cstone::GpuTag> octreeGpuData_;
+    thrust::device_vector<cstone::LocalIndex>   d_layout_;
 };
 
 template<class KeyType>
@@ -128,7 +130,7 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
         ;
 
     octreeGpuData_.resize(cstone::nNodes(d_tree_));
-    cstone::buildInternalOctreeGpu(rawPtr(d_tree_), octreeGpuData_.getData());
+    cstone::buildOctreeGpu(rawPtr(d_tree_), octreeGpuData_.data());
 
     return octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
 }

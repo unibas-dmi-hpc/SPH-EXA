@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 #include "cstone/traversal/macs.hpp"
 #include "cstone/traversal/traversal.hpp"
 

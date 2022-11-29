@@ -99,8 +99,8 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
             KeyType lowerKey = receiveBuffer[i];
             KeyType upperKey = receiveBuffer[i + 1];
 
-            LocalIndex lowerIdx = layout[findNodeAbove(treeLeaves, lowerKey)];
-            LocalIndex upperIdx = layout[findNodeAbove(treeLeaves, upperKey)];
+            LocalIndex lowerIdx = layout[findNodeAbove(treeLeaves.data(), treeLeaves.size(), lowerKey)];
+            LocalIndex upperIdx = layout[findNodeAbove(treeLeaves.data(), treeLeaves.size(), upperKey)];
 
             ret[receiveRank].addRange(lowerIdx, upperIdx);
         }

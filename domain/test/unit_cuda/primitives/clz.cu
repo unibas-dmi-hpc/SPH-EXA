@@ -24,54 +24,46 @@
  */
 
 /*! @file
- * @brief Global octree build test
+ * @brief  Tests for GPU device functions
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <vector>
-#include <mpi.h>
+#include "gtest/gtest.h"
 
-#include <gtest/gtest.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
-#include "cstone/tree/update_mpi.hpp"
-#include "cstone/tree/cs_util.hpp"
+#include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/gpu_config.cuh"
+#include "cstone/primitives/clz.hpp"
 
 using namespace cstone;
 
-template<class I>
-void buildTree(int rank)
+template<class T>
+__global__ void testCtz(T* values)
 {
-    constexpr unsigned level = 2;
-    std::vector<I> allCodes  = makeNLevelGrid<I>(level);
-    std::vector<I> codes{begin(allCodes) + rank * allCodes.size() / 2,
-                         begin(allCodes) + (rank + 1) * allCodes.size() / 2};
+    T laneValue = threadIdx.x;
 
-    int bucketSize = 8;
-
-    std::vector<I> tree = makeRootNodeTree<I>();
-    std::vector<unsigned> counts{unsigned(codes.size())};
-    while (!updateOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize, tree, counts))
-        ;
-
-    std::vector<I> refTree = OctreeMaker<I>{}.divide().makeTree();
-
-    std::vector<unsigned> refCounts(8, 8);
-
-    EXPECT_EQ(counts, refCounts);
-    EXPECT_EQ(tree, refTree);
+    values[threadIdx.x] = countTrailingZeros(laneValue);
 }
 
-TEST(GlobalTree, basicRegularTree32)
+template<class T>
+void ctzTest()
 {
-    int rank = 0, nRanks = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    thrust::host_vector<T> h_v(GpuConfig::warpSize);
+    thrust::device_vector<T> d_v = h_v;
 
-    constexpr int thisExampleRanks = 2;
+    testCtz<<<1, GpuConfig::warpSize>>>(rawPtr(d_v));
+    h_v = d_v;
 
-    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
+    EXPECT_EQ(h_v[1], 0);
+    EXPECT_EQ(h_v[4], 2);
+    EXPECT_EQ(h_v[8], 3);
+}
 
-    buildTree<unsigned>(rank);
-    buildTree<uint64_t>(rank);
+TEST(ClzGpu, countTrailingZeros)
+{
+    ctzTest<uint32_t>();
+    ctzTest<uint64_t>();
 }

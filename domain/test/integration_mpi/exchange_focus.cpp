@@ -32,80 +32,27 @@
 #include <gtest/gtest.h>
 
 #include "cstone/focus/exchange_focus.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 using namespace cstone;
 
-/*! @brief simple particle count exchange test with 2 ranks
- *
- * Each ranks has a regular level-2 grid with 64 elements as tree.
- * Rank 0 queries Rank 1 for particle counts in the x,y,z = [0.5-1, 0-1, 0-1] half
- * and vice versa.
- */
-template<class KeyType>
-void exchangeFocus(int myRank, int numRanks)
-{
-    std::vector<KeyType> treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
-    std::vector<unsigned> counts(nNodes(treeLeaves), 0);
-
-    std::vector<int> peers;
-    std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices(2);
-
-    if (myRank == 0)
-    {
-        peers.push_back(1);
-        peerFocusIndices[1] = TreeIndexPair(32, 64);
-        std::fill(begin(counts), begin(counts) + 32, 1);
-    }
-    else
-    {
-        peers.push_back(0);
-        peerFocusIndices[0] = TreeIndexPair(0, 32);
-        std::fill(begin(counts) + 32, end(counts), 1);
-    }
-
-    exchangePeerCounts<KeyType>(peers, peerFocusIndices, treeLeaves, counts);
-
-    std::vector<unsigned> reference(nNodes(treeLeaves), 1);
-
-    EXPECT_EQ(counts, reference);
-}
-
-TEST(PeerExchange, simpleTest)
-{
-    int rank = 0, numRanks = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
-
-    constexpr int thisExampleRanks = 2;
-
-    if (numRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
-
-    exchangeFocus<unsigned>(rank, numRanks);
-    exchangeFocus<uint64_t>(rank, numRanks);
-}
-
-/*! @brief irregular tree particle count exchange with 2 ranks
+/*! @brief irregular treelet exchange with 2 ranks
  *
  * In this test, each rank has a regular level-3 grid in its assigned half
  * of the cube with 512/2 = 256 elements. Outside the assigned area,
  * the tree structure is irregular.
- *
- * Rank 0 still queries Rank 1 for particle counts in the x,y,z = [0.5-1, 0-1, 0-1] half
- * and vice versa, but the tree structure that rank 0 has and sends to Rank 1 differs
- * from the regular grid that rank 1 has in this half.
  */
 template<class KeyType>
 void exchangeFocusIrregular(int myRank, int numRanks)
 {
-    std::vector<KeyType> treeLeaves;
+    std::vector<KeyType> treeLeavesRef[numRanks];
     std::vector<int> peers;
     std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices(numRanks);
 
-    OctreeMaker<KeyType> octreeMaker;
-    octreeMaker.divide();
-    if (myRank == 0)
+    // create reference trees
     {
+        OctreeMaker<KeyType> octreeMaker;
+        octreeMaker.divide();
         // regular level-3 grid in the half cube with x = 0...0.5
         for (int i = 0; i < 4; ++i)
         {
@@ -117,15 +64,11 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         }
         // finer resolution at one location outside the regular grid
         octreeMaker.divide(7).divide(7, 0);
-        treeLeaves = octreeMaker.makeTree();
-
-        peers.push_back(1);
-        TreeNodeIndex peerStartIdx =
-            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
-        peerFocusIndices[1] = TreeIndexPair(peerStartIdx, nNodes(treeLeaves));
+        treeLeavesRef[0] = octreeMaker.makeTree();
     }
-    else
     {
+        OctreeMaker<KeyType> octreeMaker;
+        octreeMaker.divide();
         // regular level-3 grid in the half cube with x = 0.5...1
         for (int i = 4; i < 8; ++i)
         {
@@ -137,42 +80,39 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         }
         // finer resolution at one location outside the regular grid
         octreeMaker.divide(1).divide(1, 6);
-        treeLeaves = octreeMaker.makeTree();
+        treeLeavesRef[1] = octreeMaker.makeTree();
+    }
 
+    std::vector<KeyType> treeLeaves = treeLeavesRef[myRank];
+
+    if (myRank == 0)
+    {
+        peers.push_back(1);
+        TreeNodeIndex peerStartIdx =
+            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
+        peerFocusIndices[1] = TreeIndexPair(peerStartIdx, nNodes(treeLeaves));
+    }
+    else
+    {
         peers.push_back(0);
         TreeNodeIndex peerEndIdx =
             std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
         peerFocusIndices[0] = TreeIndexPair(0, peerEndIdx);
     }
 
-    std::vector<unsigned> counts(nNodes(treeLeaves), 1);
+    std::vector<std::vector<KeyType>> treelets(numRanks);
+    std::vector<MPI_Request> requests;
+    exchangeTreelets<KeyType>(peers, peerFocusIndices, treeLeaves, treelets, requests);
+    MPI_Waitall(requests.size(), requests.data(), MPI_STATUS_IGNORE);
 
-    exchangePeerCounts<KeyType>(peers, peerFocusIndices, treeLeaves, counts);
-
-    std::vector<unsigned> reference(nNodes(treeLeaves), 1);
-    TreeNodeIndex peerStartIdx, peerEndIdx;
-    if (myRank == 0)
-    {
-        peerStartIdx =
-            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
-        peerEndIdx = nNodes(treeLeaves);
-    }
+    if (myRank == 0) { EXPECT_TRUE(std::equal(begin(treelets[1]), end(treelets[1]), treeLeavesRef[1].begin())); }
     else
     {
-        peerStartIdx = 0;
-        peerEndIdx =
-            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
+        TreeNodeIndex peerStartIdx =
+            std::lower_bound(begin(treeLeavesRef[0]), end(treeLeavesRef[0]), codeFromIndices<KeyType>({4})) -
+            begin(treeLeavesRef[0]);
+        EXPECT_TRUE(std::equal(begin(treelets[0]), end(treelets[0]), treeLeavesRef[0].begin() + peerStartIdx));
     }
-
-    for (int i = peerStartIdx; i < peerEndIdx; ++i)
-    {
-        int level = treeLevel(treeLeaves[i + 1] - treeLeaves[i]);
-        // the particle count per node outside the focus is 8^(3 - level-of-node)
-        unsigned numParticles = 1u << (3 * (3 - level));
-        reference[i]          = numParticles;
-    }
-
-    EXPECT_EQ(counts, reference);
 }
 
 TEST(PeerExchange, irregularTree)

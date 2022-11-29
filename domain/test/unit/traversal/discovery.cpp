@@ -32,15 +32,18 @@
 #include "gtest/gtest.h"
 
 #include "cstone/traversal/collisions.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 #include "collisions_a2a.hpp"
 
 using namespace cstone;
 
 template<class KeyType, class T>
-std::vector<int> findHalosAll2All(gsl::span<const KeyType> tree, const std::vector<T>& haloRadii, const Box<T>& box,
-                                  TreeNodeIndex firstNode, TreeNodeIndex lastNode)
+std::vector<int> findHalosAll2All(gsl::span<const KeyType> tree,
+                                  const std::vector<T>& haloRadii,
+                                  const Box<T>& box,
+                                  TreeNodeIndex firstNode,
+                                  TreeNodeIndex lastNode)
 {
     std::vector<int> flags(nNodes(tree));
     auto collisions = findCollisionsAll2all(tree, haloRadii, box);
@@ -71,7 +74,8 @@ void findHalosFlags()
 
     {
         std::vector<int> collisionFlags(nNodes(tree), 0);
-        findHalos(octree, interactionRadii.data(), box, 0, 32, collisionFlags.data());
+        findHalos(octree.nodeKeys().data(), octree.childOffsets().data(), octree.toLeafOrder().data(), tree.data(),
+                  interactionRadii.data(), box, 0, 32, collisionFlags.data());
 
         std::vector<int> reference = findHalosAll2All<KeyType>(tree, interactionRadii, box, 0, 32);
 
@@ -81,7 +85,8 @@ void findHalosFlags()
     }
     {
         std::vector<int> collisionFlags(nNodes(tree), 0);
-        findHalos(octree, interactionRadii.data(), box, 32, 64, collisionFlags.data());
+        findHalos(octree.nodeKeys().data(), octree.childOffsets().data(), octree.toLeafOrder().data(), tree.data(),
+                  interactionRadii.data(), box, 32, 64, collisionFlags.data());
 
         std::vector<int> reference = findHalosAll2All<KeyType>(tree, interactionRadii, box, 32, 64);
 

@@ -32,7 +32,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/domain/layout.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 using namespace cstone;
 
@@ -76,8 +76,8 @@ TEST(DomainDecomposition, invertRanges)
 //! @brief tests extraction of SFC keys for all nodes marked as halos within an index range
 TEST(Layout, extractMarkedElements)
 {
-    std::vector<unsigned> leaves{0,1,2,3,4,5,6,7,8,9,10};
-    std::vector<int>   haloFlags{0,0,0,1,1,1,0,1,0,1};
+    std::vector<unsigned> leaves{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    std::vector<int> haloFlags{0, 0, 0, 1, 1, 1, 0, 1, 0, 1};
 
     {
         std::vector<unsigned> reqKeys = extractMarkedElements<unsigned>(leaves, haloFlags, 0, 0);
@@ -91,27 +91,27 @@ TEST(Layout, extractMarkedElements)
     }
     {
         std::vector<unsigned> reqKeys = extractMarkedElements<unsigned>(leaves, haloFlags, 0, 4);
-        std::vector<unsigned> reference{3,4};
+        std::vector<unsigned> reference{3, 4};
         EXPECT_EQ(reqKeys, reference);
     }
     {
         std::vector<unsigned> reqKeys = extractMarkedElements<unsigned>(leaves, haloFlags, 0, 5);
-        std::vector<unsigned> reference{3,5};
+        std::vector<unsigned> reference{3, 5};
         EXPECT_EQ(reqKeys, reference);
     }
     {
         std::vector<unsigned> reqKeys = extractMarkedElements<unsigned>(leaves, haloFlags, 0, 7);
-        std::vector<unsigned> reference{3,6};
+        std::vector<unsigned> reference{3, 6};
         EXPECT_EQ(reqKeys, reference);
     }
     {
         std::vector<unsigned> reqKeys = extractMarkedElements<unsigned>(leaves, haloFlags, 0, 10);
-        std::vector<unsigned> reference{3,6,7,8,9,10};
+        std::vector<unsigned> reference{3, 6, 7, 8, 9, 10};
         EXPECT_EQ(reqKeys, reference);
     }
     {
         std::vector<unsigned> reqKeys = extractMarkedElements<unsigned>(leaves, haloFlags, 9, 10);
-        std::vector<unsigned> reference{9,10};
+        std::vector<unsigned> reference{9, 10};
         EXPECT_EQ(reqKeys, reference);
     }
 }

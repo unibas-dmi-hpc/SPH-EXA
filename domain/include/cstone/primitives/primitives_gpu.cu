@@ -51,6 +51,30 @@ void fillGpu(T* first, T* last, T value)
 
 template void fillGpu(double*, double*, double);
 template void fillGpu(float*, float*, float);
+template void fillGpu(int*, int*, int);
+template void fillGpu(unsigned*, unsigned*, unsigned);
+
+template<class T>
+struct ScaleFunctor
+{
+    const T s;
+
+    ScaleFunctor(T s_)
+        : s(s_)
+    {
+    }
+
+    __host__ __device__ T operator()(const T& x) const { return s * x; }
+};
+
+template<class T>
+void scaleGpu(T* first, T* last, T value)
+{
+    thrust::transform(thrust::device, first, last, first, ScaleFunctor<T>(value));
+}
+
+template void scaleGpu(double*, double*, double);
+template void scaleGpu(float*, float*, float);
 
 template<class T, class IndexType>
 __global__ void gatherGpuKernel(const IndexType* map, size_t n, const T* source, T* destination)
@@ -69,6 +93,7 @@ void gatherGpu(const IndexType* map, size_t n, const T* source, T* destination)
     gatherGpuKernel<<<numBlocks, numThreads>>>(map, n, source, destination);
 }
 
+template void gatherGpu(const int*, size_t, const int*, int*);
 template void gatherGpu(const unsigned*, size_t, const double*, double*);
 template void gatherGpu(const unsigned*, size_t, const float*, float*);
 template void gatherGpu(const unsigned*, size_t, const char*, char*);
@@ -180,5 +205,24 @@ template void sortByKeyGpu(unsigned*, unsigned*, unsigned*);
 template void sortByKeyGpu(unsigned*, unsigned*, int*);
 template void sortByKeyGpu(uint64_t*, uint64_t*, unsigned*);
 template void sortByKeyGpu(uint64_t*, uint64_t*, int*);
+
+template<class IndexType, class SumType>
+void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* output)
+{
+    thrust::exclusive_scan(thrust::device, first, last, output, SumType(0));
+}
+
+template void exclusiveScanGpu(const int*, const int*, int*);
+template void exclusiveScanGpu(const int*, const int*, unsigned*);
+template void exclusiveScanGpu(const unsigned*, const unsigned*, unsigned*);
+
+template<class ValueType>
+size_t countGpu(const ValueType* first, const ValueType* last, ValueType v)
+{
+    return thrust::count(thrust::device, first, last, v);
+}
+
+template size_t countGpu(const int* first, const int* last, int v);
+template size_t countGpu(const unsigned* first, const unsigned* last, unsigned v);
 
 } // namespace cstone

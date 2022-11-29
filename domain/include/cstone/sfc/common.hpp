@@ -295,12 +295,12 @@ HOST_DEVICE_FUN constexpr KeyType zeroLowBits(KeyType code, unsigned nBits)
  *                   digit place. Returns 10 or 21 (64-bit) if x is zero.
  */
 template<class KeyType>
-constexpr int lastNzPlace(KeyType x)
+HOST_DEVICE_FUN constexpr int lastNzPlace(KeyType x)
 {
     if (x)
-        return maxTreeLevel<KeyType>{} - __builtin_ctzl(x) / 3;
+        return maxTreeLevel<KeyType>{} - countTrailingZeros(x) / 3;
     else
-        return maxTreeLevel<KeyType>{} - 0;
+        return maxTreeLevel<KeyType>{};
 }
 
 /*! @brief return the power of 8 for the octal place at position @p pos

@@ -97,10 +97,13 @@ std::vector<int> findPeersMac(int myRank,
     spanSfcRange(domainStart, domainEnd, spanningNodeKeys.data());
     spanningNodeKeys.back() = domainEnd;
 
+    const KeyType* nodeKeys         = domainTree.nodeKeys().data();
+    const TreeNodeIndex* levelRange = domainTree.levelRange().data();
+
 #pragma omp parallel for schedule(dynamic)
     for (std::size_t i = 0; i < spanningNodeKeys.size() - 1; ++i)
     {
-        TreeNodeIndex nodeIdx = domainTree.locate(spanningNodeKeys[i], spanningNodeKeys[i + 1]);
+        TreeNodeIndex nodeIdx = locateNode(spanningNodeKeys[i], spanningNodeKeys[i + 1], nodeKeys, levelRange);
         dualTraversal(domainTree, nodeIdx, 0, crossFocusPairs, m2l, p2p);
     }
 

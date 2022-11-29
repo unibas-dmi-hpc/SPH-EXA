@@ -39,6 +39,9 @@ namespace cstone
 template<class T>
 extern void fillGpu(T* first, T* last, T value);
 
+template<class T>
+extern void scaleGpu(T* first, T* last, T value);
+
 template<class T, class IndexType>
 extern void gatherGpu(const IndexType* ordering, size_t numElements, const T* src, T* buffer);
 
@@ -75,5 +78,11 @@ extern void sequenceGpu(IndexType* input, size_t numElements, IndexType init);
 
 template<class KeyType, class ValueType>
 extern void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values);
+
+template<class IndexType, class SumType>
+extern void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* output);
+
+template<class ValueType>
+extern size_t countGpu(const ValueType* first, const ValueType* last, ValueType v);
 
 } // namespace cstone

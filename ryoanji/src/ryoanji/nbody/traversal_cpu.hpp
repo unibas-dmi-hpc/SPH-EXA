@@ -33,7 +33,6 @@
 
 #include "cstone/traversal/traversal.hpp"
 #include "cstone/traversal/macs.hpp"
-#include "cstone/tree/octree_internal.hpp"
 #include "cstone/focus/source_center.hpp"
 #include "cartesian_qpole.hpp"
 
@@ -42,32 +41,32 @@ namespace ryoanji
 
 /*! @brief computes gravitational acceleration for all particles in the specified group
  *
- * @tparam KeyType            unsigned 32- or 64-bit integer type
- * @tparam T1                 float or double
- * @tparam T2                 float or double
- * @param[in]    groupIdx     leaf cell index in [0:octree.numLeafNodes()] to compute accelerations for
- * @param[in]    octree       fully linked octree
- * @param[in]    multipoles   array of length @p octree.numTreeNodes() with the multipole moments for all nodes
- * @param[in]    layout       array of length @p octree.numLeafNodes()+1, layout[i] is the start offset
- *                            into the x,y,z,m arrays for the leaf node with index i. The last element
- *                            is equal to the length of the x,y,z,m arrays.
- * @param[in]    x            x-coordinates
- * @param[in]    y            y-coordinates
- * @param[in]    z            z-coordinates
- * @param[in]    h            smoothing lengths
- * @param[in]    m            masses
- * @param[in]    box          global coordinate bounding box
- * @param[in]    theta        accuracy parameter
- * @param[in]    G            gravitational constant
- * @param[inout] ax           location to add x-acceleration to
- * @param[inout] ay           location to add y-acceleration to
- * @param[inout] az           location to add z-acceleration to
- * @param[inout] ugrav        location to add gravitational potential to
+ * @tparam T1                   float or double
+ * @tparam T2                   float or double
+ * @param[in]    groupIdx       leaf cell index in [0:octree.numLeafNodes()] to compute accelerations for
+ * @param[in]    childOffsets   child node index of each node
+ * @param[in]    internalToLeaf map to convert an octree node index into a cstone leaf index
+ * @param[in]    multipoles     array of length @p octree.numTreeNodes() with the multipole moments for all nodes
+ * @param[in]    layout         array of length @p octree.numLeafNodes()+1, layout[i] is the start offset
+ *                              into the x,y,z,m arrays for the leaf node with index i. The last element
+ *                              is equal to the length of the x,y,z,m arrays.
+ * @param[in]    x              x-coordinates
+ * @param[in]    y              y-coordinates
+ * @param[in]    z              z-coordinates
+ * @param[in]    h              smoothing lengths
+ * @param[in]    m              masses
+ * @param[in]    box            global coordinate bounding box
+ * @param[in]    theta          accuracy parameter
+ * @param[in]    G              gravitational constant
+ * @param[inout] ax             location to add x-acceleration to
+ * @param[inout] ay             location to add y-acceleration to
+ * @param[inout] az             location to add z-acceleration to
+ * @param[inout] ugrav          location to add gravitational potential to
  *
  * Note: acceleration output is added to destination
  */
-template<class KeyType, class MType, class T1, class T2, class Tm>
-void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& octree,
+template<class MType, class T1, class T2, class Tm>
+void computeGravityGroup(TreeNodeIndex groupIdx, const TreeNodeIndex* childOffsets, const TreeNodeIndex* internalToLeaf,
                          const cstone::SourceCenterType<T1>* centers, MType* multipoles, const LocalIndex* layout,
                          const T1* x, const T1* y, const T1* z, const T2* h, const Tm* m, float G, T1* ax, T1* ay,
                          T1* az, T1* ugrav)
@@ -130,10 +129,10 @@ void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& 
      * and the leaf failed the MAC w.r.t to the target box. In that case, direct particle-particle
      * interactions need to be computed.
      */
-    auto leafP2P = [groupIdx, toLeaf = octree.toLeafOrder(), layout, firstTarget, lastTarget, x, y, z, h, m, G, ax, ay,
-                    az, ugrav](TreeNodeIndex idx)
+    auto leafP2P = [groupIdx, internalToLeaf, layout, firstTarget, lastTarget, x, y, z, h, m, G, ax, ay, az,
+                    ugrav](TreeNodeIndex idx)
     {
-        TreeNodeIndex lidx       = toLeaf[idx];
+        TreeNodeIndex lidx       = internalToLeaf[idx];
         LocalIndex    numTargets = lastTarget - firstTarget;
 
         LocalIndex firstSource = layout[lidx];
@@ -178,22 +177,22 @@ void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& 
         }
     };
 
-    cstone::singleTraversal(octree.childOffsets().data(), descendOrM2P, leafP2P);
+    cstone::singleTraversal(childOffsets, descendOrM2P, leafP2P);
 }
 
 //! @brief repeats computeGravityGroup for all leaf node indices specified
 template<class KeyType, class MType, class T1, class T2, class Tm>
-void computeGravity(const cstone::Octree<KeyType>& octree, const cstone::SourceCenterType<T1>* centers,
-                    MType* multipoles, const LocalIndex* layout, TreeNodeIndex firstLeafIndex,
-                    TreeNodeIndex lastLeafIndex, const T1* x, const T1* y, const T1* z, const T2* h, const Tm* m,
-                    float G, T1* ax, T1* ay, T1* az, T1* ugrav)
+void computeGravity(const TreeNodeIndex* childOffsets, const TreeNodeIndex* internalToLeaf,
+                    const cstone::SourceCenterType<T1>* centers, MType* multipoles, const LocalIndex* layout,
+                    TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex, const T1* x, const T1* y, const T1* z,
+                    const T2* h, const Tm* m, float G, T1* ax, T1* ay, T1* az, T1* ugrav)
 {
 #pragma omp parallel for
     for (TreeNodeIndex leafIdx = firstLeafIndex; leafIdx < lastLeafIndex; ++leafIdx)
     {
         LocalIndex firstTarget = layout[leafIdx];
-        computeGravityGroup(leafIdx, octree, centers, multipoles, layout, x, y, z, h, m, G, ax + firstTarget,
-                            ay + firstTarget, az + firstTarget, ugrav + firstTarget);
+        computeGravityGroup(leafIdx, childOffsets, internalToLeaf, centers, multipoles, layout, x, y, z, h, m, G,
+                            ax + firstTarget, ay + firstTarget, az + firstTarget, ugrav + firstTarget);
     }
 }
 
@@ -204,7 +203,9 @@ void computeGravity(const cstone::Octree<KeyType>& octree, const cstone::SourceC
  * @tparam KeyType               unsigned 32- or 64-bit integer type
  * @tparam T1                    float or double
  * @tparam T2                    float or double
- * @param[in]    octree          fully linked octree
+ * @param[in]    childOffsets    child node index of each node
+ * @param[in]    internalToLeaf  map to convert an octree node index into a cstone leaf index
+ * @param[in]    numLeafNodes    number of leaf nodes
  * @param[in]    multipoles      array of length @p octree.numTreeNodes() with the multipole moments for all nodes
  * @param[in]    layout          array of length @p octree.numLeafNodes()+1, layout[i] is the start offset
  *                               into the x,y,z,m arrays for the leaf node with index i. The last element
@@ -222,17 +223,18 @@ void computeGravity(const cstone::Octree<KeyType>& octree, const cstone::SourceC
  * @param[inout] az              location to add z-acceleration to
  * @return                       total gravitational energy
  */
-template<class KeyType, class MType, class T1, class T2, class Tm>
-T2 computeGravity(const cstone::Octree<KeyType>& octree, const cstone::SourceCenterType<T1>* centers, MType* multipoles,
-                  const LocalIndex* layout, TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex, const T1* x,
-                  const T1* y, const T1* z, const T2* h, const Tm* m, float G, T1* ax, T1* ay, T1* az)
+template<class MType, class T1, class T2, class Tm>
+T2 computeGravity(const TreeNodeIndex* childOffsets, const TreeNodeIndex* internalToLeaf, TreeNodeIndex numLeafNodes,
+                  const cstone::SourceCenterType<T1>* centers, MType* multipoles, const LocalIndex* layout,
+                  TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex, const T1* x, const T1* y, const T1* z,
+                  const T2* h, const Tm* m, float G, T1* ax, T1* ay, T1* az)
 {
     T1 egravTot = 0.0;
 
     // determine maximum leaf particle count, bucketSize does not work, since octree might not be converged
     std::size_t maxNodeCount = 0;
 #pragma omp parallel for reduction(max : maxNodeCount)
-    for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
+    for (TreeNodeIndex i = 0; i < numLeafNodes; ++i)
     {
         maxNodeCount = std::max(maxNodeCount, std::size_t(layout[i + 1] - layout[i]));
     }
@@ -249,8 +251,8 @@ T2 computeGravity(const cstone::Octree<KeyType>& octree, const cstone::SourceCen
             LocalIndex numTargets  = layout[leafIdx + 1] - firstTarget;
 
             std::fill(ugravThread, ugravThread + maxNodeCount, 0);
-            computeGravityGroup(leafIdx, octree, centers, multipoles, layout, x, y, z, h, m, G, ax + firstTarget,
-                                ay + firstTarget, az + firstTarget, ugravThread);
+            computeGravityGroup(leafIdx, childOffsets, internalToLeaf, centers, multipoles, layout, x, y, z, h, m, G,
+                                ax + firstTarget, ay + firstTarget, az + firstTarget, ugravThread);
 
             for (LocalIndex i = 0; i < numTargets; ++i)
             {
