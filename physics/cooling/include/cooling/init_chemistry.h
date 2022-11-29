@@ -9,23 +9,21 @@
 #include "cstone/util/util.hpp"
 #include "cstone/fields/particles_get.hpp"
 
-namespace cooling
-{
+namespace cooling {
     //! @brief Initialize Grackle chemistry arrays with default data
     template<typename ChemistryData>
-    void initChemistryData(ChemistryData& d, size_t n)
-    {
+    void initChemistryData(ChemistryData &d, size_t n) {
         std::cout << "resizing: " << n << std::endl;
         using T = typename ChemistryData::RealType;
         // This is done so in the sample implementation from GRACKLE – don't know if really needed
         constexpr T tiny_number = 1.e-20;
 
-        constexpr T metal_fraction     = 0.0;
-        const T     non_metal_fraction = 1. - metal_fraction;
+        constexpr T metal_fraction = 0.0;
+        const T non_metal_fraction = 1. - metal_fraction;
 
         d.resize(n);
 
-        auto fillVec = [](std::vector<T>& vec, T value) { std::fill(vec.begin(), vec.end(), value); };
+        auto fillVec = [](std::vector<T> &vec, T value) { std::fill(vec.begin(), vec.end(), value); };
 
         //fillVec(cstone::get<"HI_fraction">(d), non_metal_fraction * d.cooling_data.get_global_values().data.HydrogenFractionByMass);
         //fillVec(cstone::get<"HeI_fraction">(d), non_metal_fraction * (1. - d.cooling_data.get_global_values().data.HydrogenFractionByMass));

@@ -148,5 +148,4 @@ struct cooler_field_data_content {
 };
 
 
-
 #endif //SPHEXA_COOLER_FIELD_DATA_CONTENT_H

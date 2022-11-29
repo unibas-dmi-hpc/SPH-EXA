@@ -34,19 +34,18 @@
 #include "cooling/cooler.hpp"
 
 #include "cooling/init_chemistry.h"
+
 template<class Dataset>
-class EvrardGlassSphereCooling : public sphexa::EvrardGlassSphere<Dataset>
-{
+class EvrardGlassSphereCooling : public sphexa::EvrardGlassSphere<Dataset> {
 
 
 public:
     EvrardGlassSphereCooling(std::string initBlock)
-        : sphexa::EvrardGlassSphere<Dataset>(initBlock)
-    {
+            : sphexa::EvrardGlassSphere<Dataset>(initBlock) {
     }
+
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData) const override
-    {
+                                                 Dataset &simData) const override {
         auto box = sphexa::EvrardGlassSphere<Dataset>::init(rank, numRanks, cbrtNumPart, simData);
         cooling::initChemistryData(simData.chem, simData.hydro.x.size());
         return box;
