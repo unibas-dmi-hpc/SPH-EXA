@@ -67,6 +67,7 @@ class HydroGrackleProp final : public Propagator<DomainType, DataType>
         typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
                                          MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
     MHolder_t mHolder_;
+    cooling::Cooler<T>               cooling_data;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
      *
@@ -89,6 +90,15 @@ public:
     HydroGrackleProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
     {
+        constexpr float ms_sim = 1e16;
+        constexpr float kp_sim = 46400.;
+        std::map<std::string, std::any> grackleOptions;
+        grackleOptions["use_grackle"] = 1;
+        grackleOptions["with_radiative_cooling"] = 1;
+        grackleOptions["dust_chemistry"] = 0;
+        grackleOptions["metal_cooling"] = 0;
+        grackleOptions["UVbackground"] = 0;
+        cooling_data.init(ms_sim, kp_sim, 0, grackleOptions, std::nullopt);
     }
 
     std::vector<std::string> conservedFields() const override
@@ -191,7 +201,7 @@ public:
 
             T u_old = cv * d.temp[i];
             T u_cool = u_old;
-            simData.chem.cooling_data.cool_particle(
+            cooling_data.cool_particle(
                     d.minDt, d.rho[i], u_cool,
                 cstone::get<"HI_fraction">(simData.chem)[i], cstone::get<"HII_fraction">(simData.chem)[i],
                 cstone::get<"HM_fraction">(simData.chem)[i], cstone::get<"HeI_fraction">(simData.chem)[i],

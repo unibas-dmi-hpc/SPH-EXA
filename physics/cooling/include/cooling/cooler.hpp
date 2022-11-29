@@ -45,7 +45,7 @@ namespace cooling {
 
         ~Cooler();
 
-        //! @brief
+        //! @brief Init Cooler. Must be called before any other function is used.
         void init(const double ms_sim, const double kp_sim, const int comoving_coordinates,
                   const std::optional<std::map<std::string, std::any>> grackleOptions = std::nullopt,
                   const std::optional<double> t_sim = std::nullopt);
@@ -72,18 +72,4 @@ namespace cooling {
         struct Impl;
         std::unique_ptr<Impl> impl_ptr;
     };
-
-
-#ifndef SPH_EXA_HAVE_GRACKLE
-    template<typename T>
-    struct Cooler<T>::Impl {
-    };
-
-    template<typename T>
-    Cooler<T>::Cooler() : impl_ptr(nullptr) {}
-
-    template<typename T>
-    Cooler<T>::~Cooler() {
-    }
-#endif
 } // namespace cooling

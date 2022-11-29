@@ -37,8 +37,7 @@
 template<class Dataset>
 class EvrardGlassSphereCooling : public sphexa::EvrardGlassSphere<Dataset>
 {
-    const float ms_sim = 1e16;
-    const float kp_sim = 46400.;
+
 
 public:
     EvrardGlassSphereCooling(std::string initBlock)
@@ -48,15 +47,6 @@ public:
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
                                                  Dataset& simData) const override
     {
-        std::map<std::string, std::any> grackleOptions;
-        grackleOptions["use_grackle"] = 1;
-        grackleOptions["with_radiative_cooling"] = 1;
-        grackleOptions["dust_chemistry"] = 0;
-        grackleOptions["metal_cooling"] = 0;
-        grackleOptions["UVbackground"] = 0;
-
-        simData.chem.cooling_data.init(ms_sim, kp_sim, 0, grackleOptions, std::nullopt);
-
         auto box = sphexa::EvrardGlassSphere<Dataset>::init(rank, numRanks, cbrtNumPart, simData);
         cooling::initChemistryData(simData.chem, simData.hydro.x.size());
         return box;
