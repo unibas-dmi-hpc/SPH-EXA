@@ -68,7 +68,7 @@ class NbodyProp final : public Propagator<DomainType, DataType>
      *
      * x, y, z, h and m are automatically considered conserved and must not be specified in this list
      */
-    using ConservedFields = FieldList<"vx", "vy", "vz">;
+    using ConservedFields = FieldList<>;
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
     using DependentFields = FieldList<"ax", "ay", "du", "az">;
@@ -89,6 +89,9 @@ public:
     void activateFields(DataType& simData) override
     {
         auto& d = simData.hydro;
+
+        //! grav constant override
+        d.g = 1.0;
 
         //! @brief Fields accessed in domain sync are not part of extensible lists.
         d.setConserved("x", "y", "z", "h", "m");
