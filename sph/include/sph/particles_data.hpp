@@ -89,9 +89,9 @@ public:
     T g{0.0};
 
     //! @brief adiabatic index
-    T gamma{5.0 / 3.0};
+    T gamma;
     //! @brief mean molecular weight of ions for models that use one value for all particles
-    T muiConst{10.0};
+    T muiConst;
 
     /*! @brief Particle fields
      *

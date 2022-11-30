@@ -79,7 +79,7 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
     std::fill(d.vy.begin(), d.vy.end(), 0.0);
     std::fill(d.vz.begin(), d.vz.end(), 0.0);
 
-    auto cv = sph::idealGasCv(d.muiConst);
+    auto cv = sph::idealGasCv(d.muiConst, d.gamma);
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
