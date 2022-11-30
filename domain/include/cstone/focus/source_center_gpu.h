@@ -56,4 +56,18 @@ extern void computeLeafSourceCenterGpu(const Tc* x,
                                        const LocalIndex* layout,
                                        Vec4<Tf>* centers);
 
+/*! @brief compute center of gravity for internal nodes with an upsweep
+ *
+ * @tparam T                   float or double
+ * @param[in]    numLevels     max tree depth
+ * @param[in]    levelRange    first node index per tree level
+ * @param[in]    childOffsets  indices of first child node of each node
+ * @param[inout] centers       center of mass coordinates with leaf node centers set
+ */
+template<class T>
+extern void upsweepCentersGpu(int numLevels,
+                              const TreeNodeIndex* levelRange,
+                              const TreeNodeIndex* childOffsets,
+                              SourceCenterType<T>* centers);
+
 } // namespace cstone
