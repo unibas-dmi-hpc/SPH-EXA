@@ -205,7 +205,7 @@ public:
         // 1st upsweep with local data
         counts_.resize(treeData_.numNodes);
         scatter<TreeNodeIndex>(leafToInternal(treeData_), leafCounts_.data(), counts_.data());
-        upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), SumCombination<unsigned>{});
+        upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), NodeCount<unsigned>{});
 
         // global counts
         auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves_));
@@ -228,7 +228,7 @@ public:
                                treeData_.levelRange, leafToInternal(treeData_), gsl::span<unsigned>(counts_), countTag);
 
         // 2nd upsweep with peer and global data present
-        upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), SumCombination<unsigned>{});
+        upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), NodeCount<unsigned>{});
         gather(leafToInternal(treeData_), counts_.data(), leafCounts_.data());
 
         if constexpr (HaveGpu<Accelerator>{})
