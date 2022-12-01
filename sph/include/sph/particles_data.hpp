@@ -90,8 +90,12 @@ public:
 
     //! @brief adiabatic index
     T gamma{5.0 / 3.0};
+
     //! @brief mean molecular weight of ions for models that use one value for all particles
     T muiConst{10.0};
+
+    //! @brief Fraction of Courant condition for timestep
+    T Kcour{0.2};
 
     /*! @brief Particle fields
      *
@@ -196,7 +200,6 @@ public:
     std::vector<std::string> outputFieldNames;
 
     constexpr static T sincIndex     = 6.0;
-    constexpr static T Kcour         = 0.2;
     constexpr static T maxDtIncrease = 1.1;
 
     // Min. Atwood number in ramp function in momentum equation (crossed/uncrossed selection)

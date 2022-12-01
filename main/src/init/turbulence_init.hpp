@@ -60,7 +60,8 @@ std::map<std::string, double> TurbulenceConstants()
             {"anglesExp", 2.0},
             {"gamma", 1.001},
             {"mui", 10.},
-            {"u0", 1000.}};
+            {"u0", 1000.},
+            {"Kcour", 0.4}};
 }
 
 template<class Dataset>
@@ -74,6 +75,7 @@ void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& 
 
     d.gamma    = constants.at("gamma");
     d.muiConst = constants.at("mui");
+    d.Kcour    = constants.at("Kcour");
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;
 
