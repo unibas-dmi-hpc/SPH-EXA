@@ -53,8 +53,6 @@ std::map<std::string, double> TurbulenceConstants()
             {"mui", 0.62},           {"u0", 1000.}};
 }
 
-
-
 template<class Dataset>
 void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& constants)
 {
