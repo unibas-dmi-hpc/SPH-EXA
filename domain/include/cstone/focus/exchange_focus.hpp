@@ -91,7 +91,8 @@ void countRequestParticles(gsl::span<const KeyType> leaves,
         assert(startKey == leaves[startIdx]);
         assert(endKey == leaves[endIdx]);
 
-        requestCounts[internalIdx] = std::accumulate(counts.begin() + startIdx, counts.begin() + endIdx, 0u);
+        uint64_t internalCount     = std::accumulate(counts.begin() + startIdx, counts.begin() + endIdx, uint64_t(0));
+        requestCounts[internalIdx] = std::min(uint64_t(std::numeric_limits<unsigned>::max()), internalCount);
     }
 }
 

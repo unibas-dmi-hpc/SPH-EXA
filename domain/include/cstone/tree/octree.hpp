@@ -556,4 +556,18 @@ struct SumCombination
     }
 };
 
+template<class CountType>
+struct NodeCount
+{
+    CountType operator()(TreeNodeIndex /*nodeIdx*/, TreeNodeIndex c, const CountType* Q)
+    {
+        uint64_t sum = Q[c];
+        for (TreeNodeIndex octant = 1; octant < 8; ++octant)
+        {
+            sum += Q[c + octant];
+        }
+        return stl::min(uint64_t(std::numeric_limits<CountType>::max()), sum);
+    }
+};
+
 } // namespace cstone
