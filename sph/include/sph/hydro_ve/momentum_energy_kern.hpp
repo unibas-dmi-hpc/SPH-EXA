@@ -172,11 +172,16 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
                  dvxdzj * rz * rx + dvydzj * rz * ry + dvzdzj * rz * rz;
 
         T A_ab = T(0);
+        std::cout << dmy1 << " "<< dmy2<<" - 1 \n"<<std::endl;
+
         if (dmy2 != T(0)) { A_ab = dmy1 / dmy2;}
         T eta_ab = stl::min(dist / hi, dist / hj);
+        std::cout << A_ab << " "<< eta_ab <<" - 2 \n"<<std::endl;
+
         T dmy3 = T(1);
         if (eta_ab < eta_crit) {dmy3 = std::exp(- math::pow((eta_ab - eta_crit) / T(0.2), 2));}
         T phi_ab = T(0.5) * stl::max(T(0), stl::min(T(1), T(4) * A_ab / math::pow(T(1) + A_ab, 2))) * dmy3;
+        std::cout << eta_ab << " "<< eta_crit << " "<<dmy3<<" "<<phi_ab<<" - 3 \n"<<std::endl;
 
         T vAVi_x = vxi - phi_ab * (dvxdxi * rx + dvxdyi * ry + dvxdzi * rz);
         T vAVi_y = vyi - phi_ab * (dvydxi * rx + dvydyi * ry + dvydzi * rz);
