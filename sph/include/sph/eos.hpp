@@ -11,10 +11,10 @@ namespace sph
 
 //! @brief returns the heat capacity for given mean molecular weight
 template<class T>
-HOST_DEVICE_FUN constexpr T idealGasCv(T mui , T gamma)
+HOST_DEVICE_FUN constexpr T idealGasCv(T mui, T gamma)
 {
     constexpr T R = 8.317e7;
-    return  R / mui / (gamma - T(1));
+    return R / mui / (gamma - T(1));
 }
 
 /*! @brief Reduced version of Ideal gas EOS for internal energy
