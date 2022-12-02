@@ -67,7 +67,7 @@ void initNohFields(Dataset& d, double totalVolume, const std::map<std::string, d
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;
 
-    auto cv    = sph::idealGasCv(d.muiConst);
+    auto cv    = sph::idealGasCv(d.muiConst, d.gamma);
     auto temp0 = constants.at("u0") / cv;
 
     std::fill(d.m.begin(), d.m.end(), mPart);

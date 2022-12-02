@@ -104,4 +104,41 @@ template void computeLeafSourceCenterGpu(const float*,
                                          const LocalIndex*,
                                          Vec4<float>*);
 
+template<class T>
+__global__ void upsweepCentersKernel(TreeNodeIndex firstCell,
+                                     TreeNodeIndex lastCell,
+                                     const TreeNodeIndex* childOffsets,
+                                     SourceCenterType<T>* centers)
+{
+    const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + firstCell;
+    if (cellIdx >= lastCell) return;
+
+    TreeNodeIndex firstChild = childOffsets[cellIdx];
+
+    if (firstChild) { centers[cellIdx] = CombineSourceCenter<T>{}(cellIdx, firstChild, centers); }
+}
+
+template<class T>
+void upsweepCentersGpu(int numLevels,
+                       const TreeNodeIndex* levelRange,
+                       const TreeNodeIndex* childOffsets,
+                       SourceCenterType<T>* centers)
+{
+    constexpr int numThreads = 256;
+
+    for (int level = numLevels - 1; level >= 0; level--)
+    {
+        int numCellsLevel = levelRange[level + 1] - levelRange[level];
+        int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
+        if (numCellsLevel)
+        {
+            upsweepCentersKernel<<<numBlocks, numThreads>>>(levelRange[level], levelRange[level + 1], childOffsets,
+                                                            centers);
+        }
+    }
+}
+
+template void upsweepCentersGpu(int, const TreeNodeIndex*, const TreeNodeIndex*, SourceCenterType<float>*);
+template void upsweepCentersGpu(int, const TreeNodeIndex*, const TreeNodeIndex*, SourceCenterType<double>*);
+
 } // namespace cstone
