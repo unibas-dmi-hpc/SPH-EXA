@@ -59,42 +59,43 @@ struct EMom
      * @return    Tuple<kinetic energy, internal energy, linear momentum, angular momentum>
      */
     HOST_DEVICE_FUN
-    thrust::tuple<double, double, Vec3<double>, Vec3<double>>
-    operator()(const thrust::tuple<Tc, Tc, Tc, Tm, Tv, Tv, Tv, Tt>& p)
+    thrust::tuple<double, double, Vec3<double>, Vec3<double>, double>
+    operator()(const thrust::tuple<Tc, Tc, Tc, Tm, Tv, Tv, Tv, Tt, Tc>& p)
     {
         Vec3<double> X{get<0>(p), get<1>(p), get<2>(p)};
         Vec3<double> V{get<4>(p), get<5>(p), get<6>(p)};
         Tm           m    = get<3>(p);
         Tt           temp = get<7>(p);
-        return thrust::make_tuple(m * norm2(V), cv * m * temp, double(m) * V, double(m) * cross(X, V));
+        Tc           c    = get<8>(p);
+        return thrust::make_tuple(m * norm2(V), cv * m * temp, double(m) * V, double(m) * cross(X, V), norm2(V)/(double(c)*c));
     }
 
     Tt cv;
 };
 
 template<class Tc, class Tv, class Tt, class Tm>
-std::tuple<double, double, Vec3<double>, Vec3<double>>
+std::tuple<double, double, Vec3<double>, Vec3<double>, double>
 conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz,
-                       const Tt* temp, const Tm* m, size_t first, size_t last)
+                       const Tt* temp, const Tm* m, const Tc* c, size_t first, size_t last)
 {
     auto it1 = thrust::make_zip_iterator(thrust::make_tuple(x + first, y + first, z + first, m + first, vx + first,
-                                                            vy + first, vz + first, temp + first));
-    auto it2 = thrust::make_zip_iterator(
-        thrust::make_tuple(x + last, y + last, z + last, m + last, vx + last, vy + last, vz + last, temp + last));
+                                                            vy + first, vz + first, temp + first, c + first));
+    auto it2 = thrust::make_zip_iterator(thrust::make_tuple(x + last, y + last, z + last, m + last, vx + last,
+                                                            vy + last, vz + last, temp + last, c + last));
 
-    auto plus = util::TuplePlus<thrust::tuple<double, double, Vec3<double>, Vec3<double>>>{};
-    auto init = thrust::make_tuple(0.0, 0.0, Vec3<double>{0, 0, 0}, Vec3<double>{0, 0, 0});
+    auto plus = util::TuplePlus<thrust::tuple<double, double, Vec3<double>, Vec3<double>, double>>{};
+    auto init = thrust::make_tuple(0.0, 0.0, Vec3<double>{0, 0, 0}, Vec3<double>{0, 0, 0}, 0.0);
 
     //! apply EMom to each particle and reduce results into a single sum
     auto result = thrust::transform_reduce(thrust::device, it1, it2, EMom<Tc, Tm, Tv, Tt>{cv}, init, plus);
 
-    return {0.5 * get<0>(result), get<1>(result), get<2>(result), get<3>(result)};
+    return {0.5 * get<0>(result), get<1>(result), get<2>(result), get<3>(result), get<4>(result)};
 }
 
 #define CONSERVED_Q_GPU(Tc, Tv, Tt, Tm)                                                                                \
-    template std::tuple<double, double, Vec3<double>, Vec3<double>> conservedQuantitiesGpu(                            \
+    template std::tuple<double, double, Vec3<double>, Vec3<double>, double> conservedQuantitiesGpu(                    \
         Tt, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz, const Tt* temp,           \
-        const Tm* m, size_t, size_t)
+        const Tm* m, const Tc* c, size_t, size_t)
 
 CONSERVED_Q_GPU(double, double, double, double);
 CONSERVED_Q_GPU(double, double, double, float);

@@ -55,9 +55,11 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     const auto* vz   = d.vz.data();
     const auto* m    = d.m.data();
     const auto* temp = d.temp.data();
+    const auto* c    = d.c.data();
 
-    double eKin = 0.0;
-    double eInt = 0.0;
+    double eKin    = 0.0;
+    double eInt    = 0.0;
+    double machSum = 0;
 
     util::array<double, 3> linmom{0.0, 0.0, 0.0};
     util::array<double, 3> angmom{0.0, 0.0, 0.0};
@@ -65,9 +67,9 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     double sharedCv = sph::idealGasCv(d.muiConst, d.gamma);
     bool   haveMui  = !d.mui.empty();
 
-#pragma omp declare reduction(+ : util::array <double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
+#pragma omp declare reduction(+ : util::array<double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
 
-#pragma omp parallel for reduction(+ : eKin, eInt, linmom, angmom)
+#pragma omp parallel for reduction(+ : eKin, eInt, linmom, angmom, machSum)
     for (size_t i = startIndex; i < endIndex; i++)
     {
         util::array<double, 3> X{x[i], y[i], z[i]};
@@ -79,9 +81,10 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
         eInt += cv * temp[i] * mi;
         linmom += mi * V;
         angmom += mi * cross(X, V);
+        machSum += norm2(V) / (c[i]*c[i]);
     }
 
-    return std::make_tuple(0.5 * eKin, eInt, linmom, angmom);
+    return std::make_tuple(0.5 * eKin, eInt, linmom, angmom, machSum);
 }
 
 /*! @brief Computation of globally conserved quantities
@@ -95,17 +98,17 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 template<class Dataset>
 void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, MPI_Comm comm)
 {
-    double               eKin, eInt;
+    double               eKin, eInt, machSum;
     cstone::Vec3<double> linmom, angmom;
     size_t               ncsum = 0;
 
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         ncsum = cstone::reduceGpu(rawPtr(d.devData.nc) + startIndex, endIndex - startIndex, size_t(0));
-        std::tie(eKin, eInt, linmom, angmom) = conservedQuantitiesGpu(
+        std::tie(eKin, eInt, linmom, angmom, machSum) = conservedQuantitiesGpu(
             sph::idealGasCv(d.muiConst, d.gamma), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
             rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.temp),
-            rawPtr(d.devData.m), startIndex, endIndex);
+            rawPtr(d.devData.m), rawPtr(d.devData.c), startIndex, endIndex);
     }
     else
     {
@@ -115,22 +118,23 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
             ncsum += d.nc[i];
         }
 
-        std::tie(eKin, eInt, linmom, angmom) = localConservedQuantities(startIndex, endIndex, d);
+        std::tie(eKin, eInt, linmom, angmom, machSum) = localConservedQuantities(startIndex, endIndex, d);
     }
 
-    util::array<double, 10> quantities, globalQuantities;
+    util::array<double, 11> quantities, globalQuantities;
     std::fill(globalQuantities.begin(), globalQuantities.end(), double(0));
 
-    quantities[0] = eKin;
-    quantities[1] = eInt;
-    quantities[2] = d.egrav;
-    quantities[3] = linmom[0];
-    quantities[4] = linmom[1];
-    quantities[5] = linmom[2];
-    quantities[6] = angmom[0];
-    quantities[7] = angmom[1];
-    quantities[8] = angmom[2];
-    quantities[9] = double(ncsum);
+    quantities[0]  = eKin;
+    quantities[1]  = eInt;
+    quantities[2]  = d.egrav;
+    quantities[3]  = linmom[0];
+    quantities[4]  = linmom[1];
+    quantities[5]  = linmom[2];
+    quantities[6]  = angmom[0];
+    quantities[7]  = angmom[1];
+    quantities[8]  = angmom[2];
+    quantities[9]  = double(ncsum);
+    quantities[10] = machSum;
 
     int rootRank = 0;
     MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<double>{}, MPI_SUM, rootRank,
@@ -146,6 +150,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     d.linmom         = std::sqrt(norm2(globalLinmom));
     d.angmom         = std::sqrt(norm2(globalAngmom));
     d.totalNeighbors = size_t(globalQuantities[9]);
+    d.machRMS        = std::sqrt(globalQuantities[10] / d.x.size());
 }
 
 } // namespace sphexa
