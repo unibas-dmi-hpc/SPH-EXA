@@ -150,7 +150,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     d.linmom         = std::sqrt(norm2(globalLinmom));
     d.angmom         = std::sqrt(norm2(globalAngmom));
     d.totalNeighbors = size_t(globalQuantities[9]);
-    d.machRMS        = std::sqrt(globalQuantities[10] / d.x.size());
+    d.machRMS        = std::sqrt(globalQuantities[10] / d.numParticlesGlobal);
 }
 
 } // namespace sphexa
