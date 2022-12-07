@@ -121,7 +121,7 @@ bool isPeriodicOutputStep(size_t step, const std::string& frequencyStr)
  * @param duration      defined simulation duration in seconds
  * @param elapsed_time  elapsed time of the simulation
  * @param frequencyStr  iteration frequency to output the simulation as string
- * @return              true if the defined simulation duration is reached and file output enabled 
+ * @return              true if the defined simulation duration is reached and file output enabled
  */
 bool isSimDurationReached(int duration, float elapsed_time, const std::string& frequencyStr)
 {

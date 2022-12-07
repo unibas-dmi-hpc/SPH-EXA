@@ -151,12 +151,12 @@ int main(int argc, char** argv)
         observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
         propagator->printIterationTimings(domain, simData);
 
-        bool isWallClockReached = isSimDurationReached(std::stoi(simDuration), totalTimer.getSimDuration(), writeFrequencyStr);
+        bool isWallClockReached =
+            isSimDurationReached(std::stoi(simDuration), totalTimer.getSimDuration(), writeFrequencyStr);
 
         if (isPeriodicOutputStep(d.iteration, writeFrequencyStr) ||
             isPeriodicOutputTime(d.ttot - d.minDt, d.ttot, writeFrequencyStr) ||
-            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) ||
-            isWallClockReached)
+            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) || isWallClockReached)
         {
             propagator->prepareOutput(simData, domain.startIndex(), domain.endIndex(), domain.box());
             fileWriter->dump(simData, domain.startIndex(), domain.endIndex(), box, outFile);
