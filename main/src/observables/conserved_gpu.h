@@ -54,8 +54,11 @@ namespace sphexa
  * @return               A tuple with the total kinetic energy, internal energy, linear momentum and angular momentum
  */
 template<class Tc, class Tv, class Tt, class Tm>
-extern std::tuple<double, double, cstone::Vec3<double>, cstone::Vec3<double>, double>
+extern std::tuple<double, double, cstone::Vec3<double>, cstone::Vec3<double>>
 conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz,
-                       const Tt* temp, const Tm* m, const Tc* c, size_t, size_t);
+                       const Tt* temp, const Tm* m, size_t, size_t);
+
+template<class Tc, class Tv>
+extern double machSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, size_t, size_t);
 
 } // namespace sphexa
