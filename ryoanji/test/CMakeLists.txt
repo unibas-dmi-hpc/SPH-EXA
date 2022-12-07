@@ -22,6 +22,7 @@ add_executable(${testname}
         nbody/cartesian_qpole.cpp
         nbody/multipole.cpp
         nbody/traversal_cpu.cpp
+        nbody/ewald_cpu.cpp
         test_main.cpp)
 
 target_compile_options(${testname} PRIVATE -Wall -Wextra -Wno-unknown-pragmas)
