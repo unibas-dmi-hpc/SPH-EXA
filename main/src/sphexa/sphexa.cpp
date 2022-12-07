@@ -94,7 +94,7 @@ int main(int argc, char** argv)
     if (std::stoi(simDuration) > 0)
     {
         maxStepStr = "2000000000"; // 2 billion iterations. Almost max_int.
-    }    
+    }
 
     size_t ngmax = 150;
     size_t ng0   = 100;
