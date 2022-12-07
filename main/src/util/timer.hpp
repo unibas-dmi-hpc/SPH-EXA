@@ -42,6 +42,8 @@ public:
 
     float duration() { return std::chrono::duration_cast<Time>(tstop - tstart).count(); }
 
+    float getSimDuration() { return std::chrono::duration_cast<Time>(Clock::now() - tstart).count(); }
+
     void start() { tstart = tstop = tlast = Clock::now(); }
 
     void stop() { tstop = Clock::now(); }
@@ -68,6 +70,8 @@ public:
     }
 
     float duration() { return rank == 0 ? Timer::duration() : 0.0f; }
+
+    float getSimDuration() { return rank == 0 ? Timer::getSimDuration() : 0.0f; }
 
     void start()
     {

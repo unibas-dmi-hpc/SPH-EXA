@@ -116,4 +116,18 @@ bool isPeriodicOutputStep(size_t step, const std::string& frequencyStr)
     return strIsIntegral(frequencyStr) && frequency != 0 && (step % frequency == 0);
 }
 
+/*! @brief Evaluate whether the specified simulation duration is reached
+ *
+ * @param duration      defined simulation duration in seconds
+ * @param elapsed_time  elapsed time of the simulation
+ * @param frequencyStr  iteration frequency to output the simulation as string
+ * @return              true if the defined simulation duration is reached and file output enabled 
+ */
+bool isSimDurationReached(int duration, float elapsed_time, const std::string& frequencyStr)
+{
+    if (duration == 0) return false;
+    int frequency = std::stoi(frequencyStr);
+    return strIsIntegral(frequencyStr) && frequency != 0 && (elapsed_time > duration);
+}
+
 } // namespace sphexa
