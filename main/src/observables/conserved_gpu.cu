@@ -92,7 +92,7 @@ conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* v
 }
 
 template<class Tc, class Tv>
-struct MachSum
+struct MachSquareSum
 {
     HOST_DEVICE_FUN
     double operator()(const thrust::tuple<Tv, Tv, Tv, Tc>& p)
@@ -104,17 +104,17 @@ struct MachSum
 };
 
 template<class Tc, class Tv>
-double machSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, size_t first, size_t last)
+double machSquareSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, size_t first, size_t last)
 {
     auto it1 = thrust::make_zip_iterator(thrust::make_tuple(vx + first, vy + first, vz + first, c + first));
     auto it2 = thrust::make_zip_iterator(thrust::make_tuple(vx + last, vy + last, vz + last, c + last));
 
     auto plus         = thrust::plus<double>{};
-    auto localMachSum = 0.0;
+    double localMachSquareSum = 0.0;
 
-    localMachSum = thrust::transform_reduce(thrust::device, it1, it2, MachSum<Tc, Tv>{}, localMachSum, plus);
+    localMachSquareSum = thrust::transform_reduce(thrust::device, it1, it2, MachSquareSum<Tc, Tv>{}, localMachSquareSum, plus);
 
-    return localMachSum;
+    return localMachSquareSum;
 }
 
 #define CONSERVED_Q_GPU(Tc, Tv, Tt, Tm)                                                                                \
@@ -128,7 +128,7 @@ CONSERVED_Q_GPU(double, float, double, float);
 CONSERVED_Q_GPU(float, float, float, float);
 
 #define MACH_GPU(Tc, Tv)                                                                                               \
-    template double machSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, size_t, size_t)
+    template double machSquareSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, size_t, size_t)
 
 MACH_GPU(double, double);
 MACH_GPU(double, float);

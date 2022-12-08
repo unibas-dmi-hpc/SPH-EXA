@@ -59,6 +59,6 @@ conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* v
                        const Tt* temp, const Tm* m, size_t, size_t);
 
 template<class Tc, class Tv>
-extern double machSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, size_t, size_t);
+extern double machSquareSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, size_t, size_t);
 
 } // namespace sphexa

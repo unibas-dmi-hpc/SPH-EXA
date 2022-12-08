@@ -85,23 +85,23 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 }
 
 template<class Dataset>
-double localMachSum(size_t first, size_t last, Dataset& d)
+double localMachSquareSum(size_t first, size_t last, Dataset& d)
 {
     const auto* vx = d.vx.data();
     const auto* vy = d.vy.data();
     const auto* vz = d.vz.data();
     const auto* c  = d.c.data();
 
-    double localMachSum = 0.0;
+    double localMachSquareSum = 0.0;
 
-#pragma omp parallel for reduction(+ : localMachSum)
+#pragma omp parallel for reduction(+ : localMachSquareSum)
     for (size_t i = first; i < last; ++i)
     {
         util::array<double, 3> V{vx[i], vy[i], vz[i]};
-        localMachSum += norm2(V) / (c[i] * c[i]);
+        localMachSquareSum += norm2(V) / (c[i] * c[i]);
     }
 
-    return localMachSum;
+    return localMachSquareSum;
 }
 
 /*! @brief Computation of globally conserved quantities
@@ -115,7 +115,7 @@ double localMachSum(size_t first, size_t last, Dataset& d)
 template<class Dataset>
 void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, MPI_Comm comm)
 {
-    double               eKin, eInt, machSum;
+    double               eKin, eInt, machSqSum;
     cstone::Vec3<double> linmom, angmom;
     size_t               ncsum = 0;
 
@@ -127,7 +127,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
             rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.temp),
             rawPtr(d.devData.m), startIndex, endIndex);
 
-        machSum = machSumGpu(rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.c),
+        machSqSum = machSquareSumGpu(rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.c),
                              startIndex, endIndex);
     }
     else
@@ -139,7 +139,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
         }
 
         std::tie(eKin, eInt, linmom, angmom) = localConservedQuantities(startIndex, endIndex, d);
-        machSum                              = localMachSum(startIndex, endIndex, d);
+        machSqSum                            = localMachSquareSum(startIndex, endIndex, d);
     }
 
     util::array<double, 11> quantities, globalQuantities;
@@ -155,7 +155,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     quantities[7]  = angmom[1];
     quantities[8]  = angmom[2];
     quantities[9]  = double(ncsum);
-    quantities[10] = machSum;
+    quantities[10] = machSqSum;
 
     int rootRank = 0;
     MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<double>{}, MPI_SUM, rootRank,
