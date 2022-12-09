@@ -82,19 +82,15 @@ int main(int argc, char** argv)
     const size_t             problemSize       = parser.get("-n", 50);
     const std::string        glassBlock        = parser.get("--glass");
     const std::string        propChoice        = parser.get("--prop", std::string("ve"));
-    std::string              maxStepStr        = parser.get("-s", std::string("200"));
+    const std::string        maxStepStr        = parser.get("-s", std::string("200"));
     const std::string        writeFrequencyStr = parser.get("-w", std::string("0"));
     std::vector<std::string> writeExtra        = parser.getCommaList("--wextra");
     std::vector<std::string> outputFields      = parser.getCommaList("-f");
     const bool               ascii             = parser.exists("--ascii");
     const std::string        outDirectory      = parser.get("--outDir");
     const bool               quiet             = parser.exists("--quiet");
-    const std::string        simDuration       = parser.get("--duration", std::string("0"));
-
-    if (std::stoi(simDuration) > 0)
-    {
-        maxStepStr = "2000000000"; // 2 billion iterations. Almost max_int.
-    }
+    const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
+    const bool               writeEnabled      = writeFrequencyStr != "0" || !writeExtra.empty();
 
     size_t ngmax = 150;
     size_t ng0   = 100;
@@ -124,10 +120,7 @@ int main(int argc, char** argv)
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 
     const std::string outFile = parser.get("-o", outDirectory + "dump_" + initCond + fileWriter->suffix());
-    if (rank == 0 && (writeFrequencyStr != "0" || !writeExtra.empty()))
-    {
-        fileWriter->constants(simInit->constants(), outFile);
-    }
+    if (rank == 0 && writeEnabled) { fileWriter->constants(simInit->constants(), outFile); }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
     size_t bucketSizeFocus = 64;
@@ -141,7 +134,7 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    MasterProcessTimer totalTimer(output, rank);
+    Timer totalTimer(output);
     totalTimer.start();
     size_t startIteration = d.iteration;
     for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
@@ -151,12 +144,12 @@ int main(int argc, char** argv)
         observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
         propagator->printIterationTimings(domain, simData);
 
-        bool isWallClockReached =
-            isSimDurationReached(std::stoi(simDuration), totalTimer.getSimDuration(), writeFrequencyStr);
+        bool isWallClockReached = totalTimer.getSimDuration() > simDuration;
 
         if (isPeriodicOutputStep(d.iteration, writeFrequencyStr) ||
             isPeriodicOutputTime(d.ttot - d.minDt, d.ttot, writeFrequencyStr) ||
-            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) || isWallClockReached)
+            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) ||
+            (isWallClockReached && writeEnabled))
         {
             propagator->prepareOutput(simData, domain.startIndex(), domain.endIndex(), domain.box());
             fileWriter->dump(simData, domain.startIndex(), domain.endIndex(), box, outFile);
@@ -165,11 +158,18 @@ int main(int argc, char** argv)
         }
 
         viz::execute(d, domain.startIndex(), domain.endIndex());
-        if (isWallClockReached) break;
+        if (isWallClockReached)
+        {
+            d.iteration++;
+            break;
+        }
     }
 
-    totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
-                    initCond + " up to t = " + std::to_string(d.ttot));
+    if (rank == 0)
+    {
+        totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
+                        initCond + " up to t = " + std::to_string(d.ttot));
+    }
 
     constantsFile.close();
     viz::finalize();
@@ -226,7 +226,6 @@ void printHelp(char* name, int rank)
 
         printf("\t--quiet \t Don't print anything to stdout\n\n");
 
-        printf("\t--duration \t Wall-clock running time of the simulation in seconds.\n\
-                    \t overwrites the iteration(-s) argument.\n\n");
+        printf("\t--duration \t Maximum wall-clock run time of the simulation in seconds.[MAX_INT]\n\n");
     }
 }

@@ -69,18 +69,6 @@ public:
     {
     }
 
-    float duration() { return rank == 0 ? Timer::duration() : 0.0f; }
-
-    float getSimDuration() { return rank == 0 ? Timer::getSimDuration() : 0.0f; }
-
-    void start()
-    {
-        if (rank == 0) Timer::start();
-    }
-    void stop()
-    {
-        if (rank == 0) Timer::stop();
-    }
     void step(const std::string& name)
     {
         if (rank == 0) Timer::step(name);
