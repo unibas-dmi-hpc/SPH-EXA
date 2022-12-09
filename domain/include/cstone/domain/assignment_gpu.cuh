@@ -108,13 +108,13 @@ public:
         }
         oldBoundaries.back() = nodeRange<KeyType>(0);
 
-        updateOctreeGlobalGpu(keyView.begin(), keyView.end(), bucketSize_, tree_, d_csTree_, nodeCounts_, d_nodeCounts_,
-                              numRanks_);
+        updateOctreeGlobalGpu(keyView.begin(), keyView.end(), bucketSize_, tree_, d_csTree_, nodeCounts_,
+                              d_nodeCounts_);
         if (firstCall_)
         {
             firstCall_ = false;
             while (!updateOctreeGlobalGpu(keyView.begin(), keyView.end(), bucketSize_, tree_, d_csTree_, nodeCounts_,
-                                          d_nodeCounts_, numRanks_))
+                                          d_nodeCounts_))
                 ;
         }
 
