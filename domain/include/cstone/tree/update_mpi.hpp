@@ -51,13 +51,18 @@ bool updateOctreeGlobal(const KeyType* keyStart,
                         std::vector<KeyType>& tree,
                         std::vector<unsigned>& counts)
 {
-    int numRanks;
-    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
-    // to prevent 32-bit overflow we limit the maximum count to 2^32-1, divided by numRanks due to MPI_Allreduce
-    unsigned maxCount = std::numeric_limits<unsigned>::max() / numRanks;
+    unsigned maxCount = std::numeric_limits<unsigned>::max();
 
     bool converged = updateOctree(keyStart, keyEnd, bucketSize, tree, counts, maxCount);
-    MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+    std::vector<unsigned> counts_reduced(counts.size());
+    MPI_Allreduce(counts.data(), counts_reduced.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < counts.size(); ++i)
+    {
+        counts[i] = std::max(counts[i], counts_reduced[i]);
+    }
 
     return converged;
 }
@@ -78,17 +83,22 @@ bool updateOctreeGlobal(const KeyType* keyStart,
                         const KeyType* keyEnd,
                         unsigned bucketSize,
                         Octree<KeyType>& tree,
-                        std::vector<unsigned>& counts,
-                        int numRanks)
+                        std::vector<unsigned>& counts)
 {
-    // to prevent 32-bit overflow we limit the maximum count to 2^32-1, divided by numRanks due to MPI_Allreduce
-    unsigned maxCount = std::numeric_limits<unsigned>::max() / numRanks;
-
-    bool converged = tree.rebalance(bucketSize, counts);
+    unsigned maxCount = std::numeric_limits<unsigned>::max();
+    bool converged    = tree.rebalance(bucketSize, counts);
 
     counts.resize(tree.numLeafNodes());
     computeNodeCounts(tree.treeLeaves().data(), counts.data(), tree.numLeafNodes(), keyStart, keyEnd, maxCount, true);
-    MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+    std::vector<unsigned> counts_reduced(counts.size());
+    MPI_Allreduce(counts.data(), counts_reduced.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < counts.size(); ++i)
+    {
+        counts[i] = std::max(counts[i], counts_reduced[i]);
+    }
 
     return converged;
 }

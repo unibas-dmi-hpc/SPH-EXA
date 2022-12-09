@@ -88,7 +88,7 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
     bool anyFBC = fbcX || fbcY || fbcZ;
 
     bool haveMui = !d.mui.empty();
-    T    constCv = idealGasCv(d.muiConst);
+    T    constCv = idealGasCv(d.muiConst, d.gamma);
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
@@ -113,7 +113,7 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
         util::tie(d.x_m1[i], d.y_m1[i], d.z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
         util::tie(d.vx[i], d.vy[i], d.vz[i])       = util::tie(V[0], V[1], V[2]);
 
-        T cv = haveMui ? idealGasCv(d.mui[i]) : constCv;
+        T cv = haveMui ? idealGasCv(d.mui[i], d.gamma) : constCv;
         d.temp[i] += energyUpdate(dt, dt_m1, d.du[i], d.du_m1[i]) / cv;
         d.du_m1[i] = d.du[i];
     }
@@ -124,14 +124,15 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        T     constCv = d.mui.empty() ? idealGasCv(d.muiConst) : -1.0;
+        T     constCv = d.mui.empty() ? idealGasCv(d.muiConst, d.gamma) : -1.0;
         auto* d_mui   = d.mui.empty() ? nullptr : rawPtr(d.devData.mui);
 
         computePositionsGpu(startIndex, endIndex, d.minDt, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y),
                             rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
                             rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1),
                             rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.temp),
-                            rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h), d_mui, constCv, box);
+                            rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h), d_mui, d.gamma, constCv,
+                            box);
     }
     else { computePositionsHost(startIndex, endIndex, d, box); }
 }

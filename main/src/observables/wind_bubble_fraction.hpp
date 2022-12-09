@@ -117,7 +117,7 @@ public:
         }
         transferToHost(d, firstIndex, lastIndex, {"temp", "kx", "xm"});
 
-        T    tempWind       = uWind * sph::idealGasCv(d.muiConst);
+        T    tempWind       = uWind * sph::idealGasCv(d.muiConst, d.gamma);
         auto bubbleFraction = calculateSurvivingFraction(firstIndex, lastIndex, d.temp.data(), d.kx.data(), d.xm.data(),
                                                          d.m.data(), rhoBubble, tempWind, initialMass);
         int  rank;
