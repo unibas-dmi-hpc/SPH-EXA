@@ -127,8 +127,8 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
             rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.temp),
             rawPtr(d.devData.m), startIndex, endIndex);
 
-        machSqSum = machSquareSumGpu(rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.c),
-                             startIndex, endIndex);
+        machSqSum = machSquareSumGpu(rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
+                                     rawPtr(d.devData.c), startIndex, endIndex);
     }
     else
     {

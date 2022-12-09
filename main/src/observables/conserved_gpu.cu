@@ -91,6 +91,16 @@ conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* v
     return {0.5 * get<0>(result), get<1>(result), get<2>(result), get<3>(result)};
 }
 
+#define CONSERVED_Q_GPU(Tc, Tv, Tt, Tm)                                                                                \
+    template std::tuple<double, double, Vec3<double>, Vec3<double>> conservedQuantitiesGpu(                            \
+        Tt, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz, const Tt* temp,           \
+        const Tm* m, size_t, size_t)
+
+CONSERVED_Q_GPU(double, double, double, double);
+CONSERVED_Q_GPU(double, double, double, float);
+CONSERVED_Q_GPU(double, float, double, float);
+CONSERVED_Q_GPU(float, float, float, float);
+
 template<class Tc, class Tv>
 struct MachSquareSum
 {
@@ -109,23 +119,14 @@ double machSquareSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, s
     auto it1 = thrust::make_zip_iterator(thrust::make_tuple(vx + first, vy + first, vz + first, c + first));
     auto it2 = thrust::make_zip_iterator(thrust::make_tuple(vx + last, vy + last, vz + last, c + last));
 
-    auto plus         = thrust::plus<double>{};
+    auto   plus               = thrust::plus<double>{};
     double localMachSquareSum = 0.0;
 
-    localMachSquareSum = thrust::transform_reduce(thrust::device, it1, it2, MachSquareSum<Tc, Tv>{}, localMachSquareSum, plus);
+    localMachSquareSum =
+        thrust::transform_reduce(thrust::device, it1, it2, MachSquareSum<Tc, Tv>{}, localMachSquareSum, plus);
 
     return localMachSquareSum;
 }
-
-#define CONSERVED_Q_GPU(Tc, Tv, Tt, Tm)                                                                                \
-    template std::tuple<double, double, Vec3<double>, Vec3<double>> conservedQuantitiesGpu(                            \
-        Tt, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz, const Tt* temp,           \
-        const Tm* m, size_t, size_t)
-
-CONSERVED_Q_GPU(double, double, double, double);
-CONSERVED_Q_GPU(double, double, double, float);
-CONSERVED_Q_GPU(double, float, double, float);
-CONSERVED_Q_GPU(float, float, float, float);
 
 #define MACH_GPU(Tc, Tv)                                                                                               \
     template double machSquareSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, size_t, size_t)
@@ -133,4 +134,5 @@ CONSERVED_Q_GPU(float, float, float, float);
 MACH_GPU(double, double);
 MACH_GPU(double, float);
 MACH_GPU(float, float);
+
 } // namespace sphexa
