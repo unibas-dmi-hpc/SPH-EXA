@@ -127,9 +127,9 @@ public:
         fill(get<"m">(d), 0, first, d.m[first]);
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
-        fill(get<"ax">(d), first, last, 0.0);
-        fill(get<"ay">(d), first, last, 0.0);
-        fill(get<"az">(d), first, last, 0.0);
+        fill(get<"ax">(d), first, last, T(0));
+        fill(get<"ay">(d), first, last, T(0));
+        fill(get<"az">(d), first, last, T(0));
 
         mHolder_.upsweep(d, domain);
         MPI_Barrier(MPI_COMM_WORLD);
