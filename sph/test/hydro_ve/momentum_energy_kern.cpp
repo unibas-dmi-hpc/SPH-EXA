@@ -31,6 +31,10 @@
  */
 
 #include <vector>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 #include "gtest/gtest.h"
 
@@ -55,8 +59,11 @@ TEST(MomentumEnergy, JLoop)
     cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
 
     // particle 0 has 4 neighbors
-    std::vector<cstone::LocalIndex> neighbors{1, 2, 3, 4};
+    std::vector<cstone::LocalIndex> neighbors;//{1, 2, 3, 4};
     unsigned                        neighborsCount = 4, i;
+    for (i = 1; i < neighborsCount + 1; i++) {
+      neighbors[i] = i;
+    }
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
@@ -94,6 +101,62 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> xm{m[0] / 1.1, m[1] / 1.2, m[2] / 1.3, m[3] / 1.4, m[4] / 1.5};
 
     std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
+
+/*
+
+    std::ifstream in("UT_IC.d");
+    std::vector<std::vector<T> > v;
+    if (in) {
+        std::string line;
+        while (std::getline(in, line)) {
+            v.push_back(std::vector<T>());
+
+            // Break down the row into column values
+            std::stringstream split(line);
+            T value;
+
+            while (split >> value)
+                v.back().push_back(value);
+        }
+    }
+
+    std::fill(m.begin(), m.end(), v[0][0]);
+    //dt = v[0][1];
+    for (i = 1; i < v.size(); i++) {
+        x[i]        = v[i][0];
+        y[i]        = v[i][1];
+        z[i]        = v[i][2];
+        vx[i]       = v[i][3];
+        vy[i]       = v[i][4];
+        vz[i]       = v[i][5];
+        h[i]        = v[i][6];
+        c[i]        = v[i][7];
+        c11[i]      = v[i][8];
+        c12[i]      = v[i][9];
+        c13[i]      = v[i][10];
+        c22[i]      = v[i][11];
+        c23[i]      = v[i][12];
+        c33[i]      = v[i][13];
+        p[i]        = v[i][14];
+        gradh[i]    = v[i][15];
+        //rho0[i]     = v[i][16];
+        //sumwhro0[i] = v[i][17];
+        xm[i]       = v[i][18];
+        dvxdx[i]    = v[i][19];
+        dvxdy[i]    = v[i][20];
+        dvxdz[i]    = v[i][21];
+        dvydx[i]    = v[i][22];
+        dvydy[i]    = v[i][23];
+        dvydz[i]    = v[i][24];
+        dvzdx[i]    = v[i][25];
+        dvzdy[i]    = v[i][26];
+        dvzdz[i]    = v[i][27];
+        alpha[i]    = v[i][28];
+        //u[i]        = v[i][29];
+        //divv[i]     = v[i][30];
+    }
+    */
+
     for (i = 0; i < neighborsCount + 1; i++)
     {
         kx[i] = K * xm[i] / math::pow(h[i], 3);
@@ -112,7 +175,6 @@ TEST(MomentumEnergy, JLoop)
      * j = 3   3.32716
      * j = 4   4.63465
      */
-
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     T du         = -1;
     T grad_Px    = -1;
