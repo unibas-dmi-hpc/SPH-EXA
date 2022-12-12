@@ -30,6 +30,7 @@
  */
 
 #include <thrust/binary_search.h>
+#include <thrust/count.h>
 #include <thrust/execution_policy.h>
 #include <thrust/extrema.h>
 #include <thrust/reduce.h>
