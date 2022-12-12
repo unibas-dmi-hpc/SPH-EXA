@@ -49,7 +49,7 @@ public:
     {
     }
 
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box) override
     {
         int rank;
         MPI_Comm_rank(simData.comm, &rank);

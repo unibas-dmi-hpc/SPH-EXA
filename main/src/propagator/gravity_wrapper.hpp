@@ -71,6 +71,8 @@ public:
             d.z.data(), d.h.data(), d.m.data(), d.g, d.ax.data(), d.ay.data(), d.az.data());
     }
 
+    util::array<uint64_t, 4> readStats() const { return {0, 0, 0, 0}; }
+
     const MType* multipoles() const { return multipoles_.data(); }
 
 private:
@@ -101,6 +103,9 @@ public:
                                    rawPtr(d.devData.z), rawPtr(d.devData.m), rawPtr(d.devData.h), d.g,
                                    rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az));
     }
+
+    //! @brief return numP2P, maxP2P, numM2P, maxM2P stats
+    util::array<uint64_t, 4> readStats() const { return mHolder_.readStats(); }
 
     const MType* multipoles() const { return multipoles_.data(); }
 

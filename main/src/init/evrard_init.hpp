@@ -72,6 +72,10 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
     std::fill(d.vy.begin(), d.vy.end(), 0.0);
     std::fill(d.vz.begin(), d.vz.end(), 0.0);
 
+    std::fill(d.x_m1.begin(), d.x_m1.end(), 0.0);
+    std::fill(d.y_m1.begin(), d.y_m1.end(), 0.0);
+    std::fill(d.z_m1.begin(), d.z_m1.end(), 0.0);
+
     auto cv    = sph::idealGasCv(d.muiConst, d.gamma);
     auto temp0 = constants.at("u0") / cv;
     std::fill(d.temp.begin(), d.temp.end(), temp0);
@@ -85,14 +89,9 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
-
+        T radius        = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
         T concentration = c0 / radius;
         d.h[i]          = std::cbrt(3 / (4 * M_PI) * ng0 / concentration) * 0.5;
-
-        d.x_m1[i] = d.vx[i] * firstTimeStep;
-        d.y_m1[i] = d.vy[i] * firstTimeStep;
-        d.z_m1[i] = d.vz[i] * firstTimeStep;
     }
 }
 
