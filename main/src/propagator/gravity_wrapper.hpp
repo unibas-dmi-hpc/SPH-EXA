@@ -105,10 +105,7 @@ public:
     }
 
     //! @brief return numP2P, maxP2P, numM2P, maxM2P stats
-    util::array<uint64_t, 4> readStats() const
-    {
-        return mHolder_.readStats();
-    }
+    util::array<uint64_t, 4> readStats() const { return mHolder_.readStats(); }
 
     const MType* multipoles() const { return multipoles_.data(); }
 

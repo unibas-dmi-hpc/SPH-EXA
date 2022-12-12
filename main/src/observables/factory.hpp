@@ -132,10 +132,7 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
     }
 #endif
 
-    if (testCase == "nbody")
-    {
-        return std::make_unique<IObservables<Dataset>>();
-    }
+    if (testCase == "nbody") { return std::make_unique<IObservables<Dataset>>(); }
 
     return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
 }

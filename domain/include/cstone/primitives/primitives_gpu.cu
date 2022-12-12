@@ -185,7 +185,7 @@ void segmentMax(const Tin* input, const IndexType* segments, size_t numSegments,
 template void segmentMax(const float*, const unsigned*, size_t, float*);
 template void segmentMax(const double*, const unsigned*, size_t, float*);
 template void segmentMax(const double*, const unsigned*, size_t, double*);
-template void segmentMax(const float*, const  uint64_t*, size_t, float*);
+template void segmentMax(const float*, const uint64_t*, size_t, float*);
 template void segmentMax(const double*, const uint64_t*, size_t, float*);
 template void segmentMax(const double*, const uint64_t*, size_t, double*);
 
