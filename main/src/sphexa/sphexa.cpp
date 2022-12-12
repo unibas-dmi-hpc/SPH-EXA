@@ -108,6 +108,10 @@ int main(int argc, char** argv)
     Dataset simData;
     simData.comm = MPI_COMM_WORLD;
 
+    Timer totalTimer(output);
+    MPI_Barrier(MPI_COMM_WORLD);
+    totalTimer.start();
+
     propagator->activateFields(simData);
     propagator->restoreState(initCond, simData.comm);
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, simData);
@@ -134,8 +138,6 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    Timer totalTimer(output);
-    totalTimer.start();
     size_t startIteration = d.iteration;
     for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
     {
