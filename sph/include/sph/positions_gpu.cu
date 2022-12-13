@@ -69,7 +69,8 @@ __global__ void computePositionsKernel(size_t first, size_t last, double dt, dou
     util::tie(vx[i], vy[i], vz[i])       = util::tie(V[0], V[1], V[2]);
 
     Thydro cv = (constCv < 0) ? idealGasCv(mui[i]) : constCv;
-    temp[i] += energyUpdate(dt, dt_m1, du[i], du_m1[i]) / cv;
+    auto u_old = temp[i] * cv;
+    temp[i] = energyUpdate(u_old, dt, dt_m1, du[i], du_m1[i]) / cv;
     du_m1[i] = du[i];
 }
 

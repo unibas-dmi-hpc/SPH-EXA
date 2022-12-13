@@ -51,12 +51,14 @@ HOST_DEVICE_FUN bool fbcCheck(Tc coord, Th h, Tc top, Tc bottom, bool fbc)
 
 //! @brief update the energy according to Adams-Bashforth (2nd order)
 template<class T>
-HOST_DEVICE_FUN double energyUpdate(double dt, double dt_m1, T du, T du_m1)
+HOST_DEVICE_FUN double energyUpdate(double u_old, double dt, double dt_m1, T du, T du_m1)
 {
     double deltaA = 0.5 * dt * dt / dt_m1;
     double deltaB = dt + deltaA;
-
-    return du * deltaB - du_m1 * deltaA;
+    double u_new = u_old + du * deltaB - du_m1 * deltaA;
+    // To prevent u < 0 (when cooling with GRACKLE is active)
+    if (u_new < 0.) { u_new = u_old * std::exp(u_new * dt / u_old); }
+    return u_new;
 }
 
 //! @brief Update positions according to Press (2nd order)
@@ -115,9 +117,8 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
 
         T cv    = haveMui ? idealGasCv(d.mui[i]) : constCv;
         T u_old = cv * d.temp[i];
-        T u_new = u_old + energyUpdate(dt, dt_m1, d.du[i], d.du_m1[i]);
-        // To prevent u < 0 (when cooling with GRACKLE is active)
-        if (u_new < 0.) { u_new = u_old * std::exp(u_new * dt / u_old); }
+        T u_new = energyUpdate(u_old, dt, dt_m1, d.du[i], d.du_m1[i]);
+
         d.temp[i]  = u_new / cv;
         d.du_m1[i] = d.du[i];
     }
