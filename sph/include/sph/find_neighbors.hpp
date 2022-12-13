@@ -5,31 +5,13 @@
 namespace sph
 {
 
-#ifndef USE_CUDA
-
-template<class T, class KeyType>
-void findNeighborsSfc(size_t startIndex, size_t endIndex, unsigned ngmax, gsl::span<const T> x, gsl::span<const T> y,
-                      gsl::span<const T> z, gsl::span<const T> h, gsl::span<const KeyType> particleKeys,
-                      gsl::span<cstone::LocalIndex> neighbors, gsl::span<unsigned> neighborsCount,
-                      const cstone::Box<T>& box)
+template<class T, class Dataset>
+void findNeighborsSfc(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    std::array<std::size_t, 5> sizes{x.size(), y.size(), z.size(), h.size(), particleKeys.size()};
-    if (std::count(begin(sizes), end(sizes), x.size()) != 5)
-        throw std::runtime_error("findNeighborsSfc: input array sizes inconsistent\n");
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{}) { return; }
 
-    cstone::findNeighbors(x.data(), y.data(), z.data(), h.data(), startIndex, endIndex, x.size(), box,
-                          cstone::sfcKindPointer(particleKeys.data()), neighbors.data(),
-                          neighborsCount.data() + startIndex, ngmax);
+    cstone::findNeighbors(d.x.data(), d.y.data(), d.z.data(), d.h.data(), startIndex, endIndex, d.x.size(), box,
+                          cstone::sfcKindPointer(d.keys.data()), d.neighbors.data(), d.nc.data() + startIndex, ngmax);
 }
-#else
-
-template<class T, class KeyType>
-void findNeighborsSfc(size_t, size_t, size_t, gsl::span<const T>, gsl::span<const T>, gsl::span<const T>,
-                      gsl::span<const T>, gsl::span<const KeyType>, gsl::span<cstone::LocalIndex>, gsl::span<unsigned>,
-                      const cstone::Box<T>&)
-{
-}
-
-#endif
 
 } // namespace sph

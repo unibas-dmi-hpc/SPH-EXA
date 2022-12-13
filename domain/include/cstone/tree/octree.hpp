@@ -256,6 +256,22 @@ struct OctreeView
     NodeType* leafToInternal;
 };
 
+//! @brief combination of octree data needed for traversal with node properties
+template<class KeyType, class T>
+struct OctreeNsView
+{
+    const KeyType* prefixes;
+    const TreeNodeIndex* childOffsets;
+    const TreeNodeIndex* internalToLeaf;
+    const TreeNodeIndex* levelRange;
+
+    //! @brief index of first particle for each node
+    const LocalIndex* layout;
+    //! @brief geometrical node centers and sizes
+    const Vec3<T>* centers;
+    const Vec3<T>* sizes;
+};
+
 template<class KeyType, class Accelerator>
 class OctreeData
 {
@@ -328,9 +344,6 @@ gsl::span<const TreeNodeIndex> leafToInternal(const OctreeData<KeyType, Accelera
 {
     return {rawPtr(octree.leafToInternal) + octree.numInternalNodes, size_t(octree.numLeafNodes)};
 }
-
-template<class KeyType>
-struct CombinedUpdate;
 
 template<class KeyType>
 class Octree
@@ -481,7 +494,6 @@ public:
     }
 
 private:
-    friend struct CombinedUpdate<KeyType>;
 
     void resize(TreeNodeIndex numCsLeafNodes)
     {

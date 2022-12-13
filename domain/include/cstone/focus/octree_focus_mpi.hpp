@@ -323,14 +323,14 @@ public:
         }
     }
 
-    template<class T, class Tm, class DeviceVector = std::vector<LocalIndex>>
-    void updateCenters(const T* x,
-                       const T* y,
-                       const T* z,
+    template<class Tm, class DeviceVector = std::vector<LocalIndex>>
+    void updateCenters(const RealType* x,
+                       const RealType* y,
+                       const RealType* z,
                        const Tm* m,
                        const SpaceCurveAssignment& assignment,
                        const Octree<KeyType>& globalTree,
-                       const Box<T>& box,
+                       const Box<RealType>& box,
                        DeviceVector&& scratch1 = std::vector<LocalIndex>{},
                        DeviceVector&& scratch2 = std::vector<LocalIndex>{})
     {
@@ -376,24 +376,25 @@ public:
                 centers_[nodeIdx]     = massCenter<RealType>(x, y, z, m, layout[leafIdx], layout[leafIdx + 1]);
             }
             //! upsweep with local data in place
-            upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<T>{});
+            upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<RealType>{});
         }
 
         //! exchange information with peer close to focus
-        peerExchange<SourceCenterType<T>>(centers_, static_cast<int>(P2pTags::focusPeerCenters));
+        peerExchange<SourceCenterType<RealType>>(centers_, static_cast<int>(P2pTags::focusPeerCenters));
         //! global exchange for the top nodes that are bigger than local domains
-        std::vector<SourceCenterType<T>> globalLeafCenters(globalTree.numLeafNodes());
-        populateGlobal<SourceCenterType<T>>(globalTree.treeLeaves(), centers_, globalLeafCenters);
+        std::vector<SourceCenterType<RealType>> globalLeafCenters(globalTree.numLeafNodes());
+        populateGlobal<SourceCenterType<RealType>>(globalTree.treeLeaves(), centers_, globalLeafCenters);
         mpiAllreduce(MPI_IN_PLACE, globalLeafCenters.data(), globalLeafCenters.size(), MPI_SUM);
         scatter(globalTree.internalOrder(), globalLeafCenters.data(), globalCenters_.data());
-        upsweep(globalTree.levelRange(), globalTree.childOffsets(), globalCenters_.data(), CombineSourceCenter<T>{});
-        extractGlobal<SourceCenterType<T>>(globalTree.nodeKeys().data(), globalTree.levelRange().data(), globalCenters_,
-                                           centers_);
+        upsweep(globalTree.levelRange(), globalTree.childOffsets(), globalCenters_.data(),
+                CombineSourceCenter<RealType>{});
+        extractGlobal<SourceCenterType<RealType>>(globalTree.nodeKeys().data(), globalTree.levelRange().data(),
+                                                  globalCenters_, centers_);
 
         //! upsweep with all (leaf) data in place
-        upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<T>{});
+        upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<RealType>{});
         //! calculate mac radius for each cell based on location of expansion centers
-        setMac<T, KeyType>(treeData_.prefixes, centers_, 1.0 / theta_, box);
+        setMac<RealType, KeyType>(treeData_.prefixes, centers_, 1.0 / theta_, box);
 
         if constexpr (HaveGpu<Accelerator>{}) { memcpyH2D(centers_.data(), centers_.size(), rawPtr(centersAcc_)); }
         // else { omp_copy(centers_.begin(), centers_.end(), centersAcc_.begin()); }
@@ -406,8 +407,7 @@ public:
      * @param[in] assignment       assignment of the global leaf tree to ranks
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      */
-    template<class T>
-    void updateMinMac(const Box<T>& box,
+    void updateMinMac(const Box<RealType>& box,
                       const SpaceCurveAssignment& assignment,
                       gsl::span<const KeyType> globalTreeLeaves,
                       float invThetaEff)
@@ -427,14 +427,13 @@ public:
 
     /*! @brief Update the MAC criteria based on the vector MAC
      *
-     * @tparam    T                float or double
      * @param[in] box              global coordinate bounding box
      * @param[in] assignment       assignment of the global leaf tree to ranks
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      */
-    template<class T>
-    void
-    updateMacs(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
+    void updateMacs(const Box<RealType>& box,
+                    const SpaceCurveAssignment& assignment,
+                    gsl::span<const KeyType> globalTreeLeaves)
     {
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
@@ -451,9 +450,24 @@ public:
         rebalanceStatus_ |= macCriterion;
     }
 
+    void updateGeoCenters(const Box<RealType>& box)
+    {
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            reallocate(geoCentersAcc_, octreeAcc_.numNodes, 1.01);
+            reallocate(geoSizesAcc_, octreeAcc_.numNodes, 1.01);
+        }
+        else
+        {
+            reallocate(geoCentersAcc_, treeData_.numNodes, 1.01);
+            reallocate(geoSizesAcc_, treeData_.numNodes, 1.01);
+            nodeFpCenters<KeyType>(treeData_.prefixes, geoCentersAcc_.data(), geoSizesAcc_.data(), box);
+        }
+    }
+
     //! @brief update until converged with a simple min-distance MAC
-    template<class T, class DeviceVector = std::vector<KeyType>>
-    void converge(const Box<T>& box,
+    template<class DeviceVector = std::vector<KeyType>>
+    void converge(const Box<RealType>& box,
                   gsl::span<const KeyType> particleKeys,
                   gsl::span<const int> peers,
                   const SpaceCurveAssignment& assignment,
@@ -507,6 +521,9 @@ public:
         if constexpr (HaveGpu<Accelerator>{}) { return {rawPtr(leafCountsAcc_), leafCountsAcc_.size()}; }
         else { return leafCounts_; }
     }
+
+    gsl::span<const Vec3<RealType>> geoCentersAcc() const { return {rawPtr(geoCentersAcc_), geoCentersAcc_.size()}; }
+    gsl::span<const Vec3<RealType>> geoSizesAcc() const { return {rawPtr(geoSizesAcc_), geoSizesAcc_.size()}; }
 
     void addMacs(gsl::span<int> haloFlags) const
     {
@@ -591,6 +608,8 @@ private:
     AccVector<KeyType> leavesAcc_;
     AccVector<unsigned> leafCountsAcc_;
     AccVector<SourceCenterType<RealType>> centersAcc_;
+    AccVector<Vec3<RealType>> geoCentersAcc_;
+    AccVector<Vec3<RealType>> geoSizesAcc_;
     AccVector<unsigned> countsAcc_;
     AccVector<char> macsAcc_;
 

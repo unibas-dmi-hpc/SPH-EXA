@@ -136,7 +136,7 @@ public:
         fill(get<"m">(d), 0, first, d.m[first]);
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
-        findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.keys, d.neighbors, d.nc, domain.box());
+        findNeighborsSfc(first, last, ngmax_, d, domain.box());
         timer.step("FindNeighbors");
 
         computeDensity(first, last, ngmax_, d, domain.box());

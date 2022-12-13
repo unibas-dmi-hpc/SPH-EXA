@@ -141,4 +141,22 @@ void setMac(gsl::span<const KeyType> nodeKeys,
     }
 }
 
+//! @brief compute geometric node centers based on node SFC keys and the global bounding box
+template<class KeyType, class T>
+void nodeFpCenters(gsl::span<const KeyType> prefixes,
+                   Vec3<T>* centers,
+                   Vec3<T>* sizes,
+                   const Box<T>& box)
+{
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < prefixes.size(); ++i)
+    {
+        KeyType prefix                  = prefixes[i];
+        KeyType startKey                = decodePlaceholderBit(prefix);
+        unsigned level                  = decodePrefixLength(prefix) / 3;
+        auto nodeBox                    = sfcIBox(sfcKey(startKey), level);
+        util::tie(centers[i], sizes[i]) = centerAndSize<KeyType>(nodeBox, box);
+    }
+}
+
 } // namespace cstone
