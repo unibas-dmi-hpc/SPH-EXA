@@ -44,15 +44,15 @@ TEST(FindNeighbors, distanceSqPbc)
 {
     {
         Box<double> box(0, 10, BoundaryType::open);
-        EXPECT_DOUBLE_EQ(64.0, distanceSqPbc(1., 0., 0., 9., 0., 0., box));
-        EXPECT_DOUBLE_EQ(64.0, distanceSqPbc(9., 0., 0., 1., 0., 0., box));
-        EXPECT_DOUBLE_EQ(192.0, distanceSqPbc(9., 9., 9., 1., 1., 1., box));
+        EXPECT_DOUBLE_EQ(64.0, distanceSq<true>(1., 0., 0., 9., 0., 0., box));
+        EXPECT_DOUBLE_EQ(64.0, distanceSq<true>(9., 0., 0., 1., 0., 0., box));
+        EXPECT_DOUBLE_EQ(192.0, distanceSq<true>(9., 9., 9., 1., 1., 1., box));
     }
     {
         Box<double> box(0, 10, BoundaryType::periodic);
-        EXPECT_DOUBLE_EQ(4.0, distanceSqPbc(1., 0., 0., 9., 0., 0., box));
-        EXPECT_DOUBLE_EQ(4.0, distanceSqPbc(9., 0., 0., 1., 0., 0., box));
-        EXPECT_DOUBLE_EQ(12.0, distanceSqPbc(9., 9., 9., 1., 1., 1., box));
+        EXPECT_DOUBLE_EQ(4.0, distanceSq<true>(1., 0., 0., 9., 0., 0., box));
+        EXPECT_DOUBLE_EQ(4.0, distanceSq<true>(9., 0., 0., 1., 0., 0., box));
+        EXPECT_DOUBLE_EQ(12.0, distanceSq<true>(9., 9., 9., 1., 1., 1., box));
     }
 }
 

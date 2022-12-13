@@ -61,7 +61,7 @@ static void all2allNeighbors(const T* x,
         for (LocalIndex j = 0; j < n; ++j)
         {
             if (j == i) { continue; }
-            if (ngcount < ngmax && distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < r2)
+            if (ngcount < ngmax && distanceSq<true>(xi, yi, zi, x[j], y[j], z[j], box) < r2)
             {
                 neighbors[i * ngmax + ngcount++] = j;
             }

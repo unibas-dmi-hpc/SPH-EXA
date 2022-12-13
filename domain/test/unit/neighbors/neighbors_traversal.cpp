@@ -46,8 +46,7 @@ using namespace cstone;
 template<class Coordinates, class T>
 static void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
 {
-    using KeyType                   = typename Coordinates::KeyType;
-    using KeyInt                    = typename KeyType::ValueType;
+    using KeyType                   = typename Coordinates::KeyType::ValueType;
     cstone::LocalIndex numParticles = coords.x().size();
     unsigned ngmax                  = numParticles;
     unsigned bucketSize             = 64;
@@ -63,17 +62,25 @@ static void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box
     auto [csTree, counts] =
         computeOctree(coords.particleKeys().data(), coords.particleKeys().data() + numParticles, bucketSize);
 
-    Octree<KeyInt> octree;
-    octree.update(csTree.data(), nNodes(csTree));
+    OctreeData<KeyType, CpuTag> octree;
+    octree.resize(nNodes(csTree));
+    updateInternalTree<KeyType>(csTree, octree.data());
 
     std::vector<LocalIndex> layout(nNodes(csTree) + 1);
     std::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), 0);
 
     EXPECT_EQ(layout.back(), numParticles);
 
-    std::vector<Vec3<T>> centers(octree.numTreeNodes()), sizes(octree.numTreeNodes());
-    gsl::span<const KeyInt> nodeKeys(octree.nodeKeys().data(), octree.numTreeNodes());
-    nodeFpCenters<KeyType>(nodeKeys, centers.data(), sizes.data(), box);
+    std::vector<Vec3<T>> centers(octree.numNodes), sizes(octree.numNodes);
+    nodeFpCenters<KeyType>(octree.prefixes, centers.data(), sizes.data(), box);
+
+    OctreeNsView<KeyType, T> nsView{octree.prefixes.data(),
+                                    octree.childOffsets.data(),
+                                    octree.internalToLeaf.data(),
+                                    octree.levelRange.data(),
+                                    layout.data(),
+                                    centers.data(),
+                                    sizes.data()};
 
     std::vector<LocalIndex> neighbors(numParticles * ngmax);
     std::vector<unsigned> nc(numParticles);
@@ -81,9 +88,8 @@ static void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box
 #pragma omp parallel for
     for (LocalIndex idx = 0; idx < numParticles; ++idx)
     {
-        findNeighborsT(idx, coords.x().data(), coords.y().data(), coords.z().data(), h.data(),
-                       octree.childOffsets().data(), octree.toLeafOrder().data(), layout.data(), centers.data(),
-                       sizes.data(), box, ngmax, neighbors.data() + idx * ngmax, nc.data() + idx);
+        findNeighborsT(idx, coords.x().data(), coords.y().data(), coords.z().data(), h.data(), nsView, box, ngmax,
+                       neighbors.data() + idx * ngmax, nc.data() + idx);
     }
     sortNeighbors(neighbors.data(), nc.data(), numParticles, ngmax);
 
@@ -110,12 +116,9 @@ public:
     }
 };
 
-TEST_P(FindNeighborsTRandom, MortonUniform32) { check<MortonKey<uint32_t>, RandomCoordinates>(); }
-// TEST_P(FindNeighborsRandom, MortonUniform64)   { check<MortonKey<uint64_t>, RandomCoordinates>(); }
-// TEST_P(FindNeighborsRandom, MortonGaussian32)  { check<MortonKey<uint32_t>, RandomGaussianCoordinates>(); }
-// TEST_P(FindNeighborsRandom, MortonGaussian64)  { check<MortonKey<uint64_t>, RandomGaussianCoordinates>(); }
+// support for Morton-based neighbor search only possible by changing "sfcKey" in nodeFpCenters
+//TEST_P(FindNeighborsTRandom, MortonUniform32) { check<MortonKey<uint32_t>, RandomCoordinates>(); }
 TEST_P(FindNeighborsTRandom, HilbertUniform32) { check<HilbertKey<uint32_t>, RandomCoordinates>(); }
-// TEST_P(FindNeighborsRandom, HilbertUniform64)  { check<HilbertKey<uint64_t>, RandomCoordinates>(); }
 TEST_P(FindNeighborsTRandom, HilbertGaussian32) { check<HilbertKey<uint32_t>, RandomGaussianCoordinates>(); }
 TEST_P(FindNeighborsTRandom, HilbertGaussian64) { check<HilbertKey<uint64_t>, RandomGaussianCoordinates>(); }
 
