@@ -98,7 +98,7 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
     auto dvzdyi = dvzdy[i];
     auto dvzdzi = dvzdz[i];
 
-    T eta_crit = std::cbrt(T(32) * M_PI / T(3) / T(neighborsCount));
+    T eta_crit = std::cbrt(T(32) * M_PI / T(3) / T(neighborsCount + 1)); //+1 is because we need to add selfparticle to neighborsCount
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
@@ -172,16 +172,13 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
                  dvxdzj * rz * rx + dvydzj * rz * ry + dvzdzj * rz * rz;
 
         T A_ab = T(0);
-        std::cout << dmy1 << " "<< dmy2<<" - 1 \n"<<std::endl;
 
         if (dmy2 != T(0)) { A_ab = dmy1 / dmy2;}
         T eta_ab = stl::min(dist / hi, dist / hj);
-        std::cout << A_ab << " "<< eta_ab <<" - 2 \n"<<std::endl;
 
         T dmy3 = T(1);
         if (eta_ab < eta_crit) {dmy3 = std::exp(- math::pow((eta_ab - eta_crit) / T(0.2), 2));}
         T phi_ab = T(0.5) * stl::max(T(0), stl::min(T(1), T(4) * A_ab / math::pow(T(1) + A_ab, 2))) * dmy3;
-        std::cout << eta_ab << " "<< eta_crit << " "<<dmy3<<" "<<phi_ab<<" - 3 \n"<<std::endl;
 
         T vAVi_x = vxi - phi_ab * (dvxdxi * rx + dvxdyi * ry + dvxdzi * rz);
         T vAVi_y = vyi - phi_ab * (dvydxi * rx + dvydyi * ry + dvydzi * rz);
@@ -191,7 +188,6 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
         T vAVj_z = vzj + phi_ab * (dvzdxj * rx + dvzdyj * ry + dvzdzj * rz);
 
         T rv     = rx * (vAVi_x - vAVj_x) + ry * (vAVi_y - vAVj_y) + rz * (vAVi_z - vAVj_z);
-
         //T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
 
         T wij          = rv / dist;
@@ -244,7 +240,7 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
     a_visc_energy = stl::max(T(0), a_visc_energy);
     du[i]         = K * (energy + T(0.5) * a_visc_energy); // factor of 2 already removed from 2P/rho
 
-    // grad_P_xyz is stored as the acceleration, accel = -grad_P / rho
+    // grad_P_xyz is stored as the acceleration,s accel = -grad_P / rho
     grad_P_x[i] = -K * momentum_x;
     grad_P_y[i] = -K * momentum_y;
     grad_P_z[i] = -K * momentum_z;

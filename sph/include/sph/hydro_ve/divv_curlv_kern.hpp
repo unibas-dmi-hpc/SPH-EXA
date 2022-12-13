@@ -125,18 +125,19 @@ divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& b
         curlv_z += (vy_ji * termA1 - vx_ji * termA2) * xmassj;
     }
 
-    divv[i]  = K * hiInv3 * divvi / kxi;
-    curlv[i] = K * hiInv3 * std::abs(std::sqrt(curlv_x * curlv_x + curlv_y * curlv_y + curlv_z * curlv_z)) / kxi;
+    T norm   = K * hiInv3;
+    divv[i]  = norm * divvi / kxi;
+    curlv[i] = norm * std::abs(std::sqrt(curlv_x * curlv_x + curlv_y * curlv_y + curlv_z * curlv_z)) / kxi;
 
-    dvxdx[i] = dvxdxi / kxi;
-    dvxdy[i] = dvxdyi / kxi;
-    dvxdz[i] = dvxdzi / kxi;
-    dvydx[i] = dvydxi / kxi;
-    dvydy[i] = dvydyi / kxi;
-    dvydz[i] = dvydzi / kxi;
-    dvzdx[i] = dvzdxi / kxi;
-    dvzdy[i] = dvzdyi / kxi;
-    dvzdz[i] = dvzdzi / kxi;
+    dvxdx[i] = norm * dvxdxi / kxi;
+    dvxdy[i] = norm * dvxdyi / kxi;
+    dvxdz[i] = norm * dvxdzi / kxi;
+    dvydx[i] = norm * dvydxi / kxi;
+    dvydy[i] = norm * dvydyi / kxi;
+    dvydz[i] = norm * dvydzi / kxi;
+    dvzdx[i] = norm * dvzdxi / kxi;
+    dvzdy[i] = norm * dvzdyi / kxi;
+    dvzdz[i] = norm * dvzdzi / kxi;
 }
 
 } // namespace sph
