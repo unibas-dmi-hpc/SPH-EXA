@@ -173,8 +173,8 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
 {
     H5PartFile* h5_file = nullptr;
 
-    if (std::filesystem::exists(path)) { h5_file = openH5Part(path, H5PART_APPEND, comm); }
-    else { h5_file = openH5Part(path, H5PART_WRITE, comm); }
+    if (std::filesystem::exists(path)) { h5_file = openH5Part(path, H5PART_APPEND | H5PART_VFD_MPIIO_IND, comm); }
+    else { h5_file = openH5Part(path, H5PART_WRITE | H5PART_VFD_MPIIO_IND, comm); }
 
     // create the next step
     h5part_int64_t numSteps = H5PartGetNumSteps(h5_file);
