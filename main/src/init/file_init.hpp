@@ -116,6 +116,7 @@ cstone::Box<typename HydroData::RealType> restoreHydroData(const std::string& h5
     H5PartReadStepAttrib(h5_file, "gravConstant", &d.g);
     H5PartReadStepAttrib(h5_file, "gamma", &d.gamma);
     H5PartReadStepAttrib(h5_file, "muiConst", &d.muiConst);
+    H5PartReadStepAttrib(h5_file, "Kcour", &d.Kcour);
 
     double extents[6];
     H5PartReadStepAttrib(h5_file, "box", extents);
