@@ -97,7 +97,7 @@ cstone::Box<typename HydroData::RealType> restoreHydroData(const std::string& h5
     using T        = typename HydroData::RealType;
     using Boundary = cstone::BoundaryType;
 
-    H5PartFile*    h5_file    = fileutils::openH5Part(h5File, H5PART_READ, comm);
+    H5PartFile*    h5_file    = fileutils::openH5Part(h5File, H5PART_READ | H5PART_VFD_MPIIO_IND, comm);
     h5part_int64_t numH5Steps = H5PartGetNumSteps(h5_file);
     H5PartSetStep(h5_file, numH5Steps - 1);
 
