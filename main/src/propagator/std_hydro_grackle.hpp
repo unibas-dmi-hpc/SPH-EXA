@@ -43,190 +43,199 @@
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"
 
-namespace sphexa {
+namespace sphexa
+{
 
-    using namespace sph;
-    using cstone::FieldList;
+using namespace sph;
+using cstone::FieldList;
 
-    template<class DomainType, class DataType>
-    class HydroGrackleProp final : public Propagator<DomainType, DataType> {
-        using Base = Propagator<DomainType, DataType>;
-        using Base::ng0_;
-        using Base::ngmax_;
-        using Base::timer;
+template<class DomainType, class DataType>
+class HydroGrackleProp final : public Propagator<DomainType, DataType>
+{
+    using Base = Propagator<DomainType, DataType>;
+    using Base::ng0_;
+    using Base::ngmax_;
+    using Base::timer;
 
-        using T = typename DataType::RealType;
-        using KeyType = typename DataType::KeyType;
-        using Tmass = typename DataType::HydroData::Tmass;
-        using MultipoleType = ryoanji::CartesianQuadrupole<Tmass>;
+    using T             = typename DataType::RealType;
+    using KeyType       = typename DataType::KeyType;
+    using Tmass         = typename DataType::HydroData::Tmass;
+    using MultipoleType = ryoanji::CartesianQuadrupole<Tmass>;
 
-        using Acc = typename DataType::AcceleratorType;
-        using MHolder_t =
-                typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
-                        MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
-        MHolder_t mHolder_;
-        cooling::Cooler<T> cooling_data;
+    using Acc = typename DataType::AcceleratorType;
+    using MHolder_t =
+        typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
+                                         MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
+    MHolder_t          mHolder_;
+    cooling::Cooler<T> cooling_data;
 
-        /*! @brief the list of conserved particles fields with values preserved between iterations
-         *
-         * x, y, z, h and m are automatically considered conserved and must not be specified in this list
-         */
-        using ConservedFields = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1">;
+    /*! @brief the list of conserved particles fields with values preserved between iterations
+     *
+     * x, y, z, h and m are automatically considered conserved and must not be specified in this list
+     */
+    using ConservedFields = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1">;
 
-        //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
-        using DependentFields =
-                FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
+    //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
+    using DependentFields =
+        FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
 
-        using CoolingFields =
-                FieldList<"HI_fraction", "HII_fraction", "HM_fraction", "HeI_fraction", "HeII_fraction",
-                        "HeIII_fraction", "H2I_fraction", "H2II_fraction", "DI_fraction", "DII_fraction",
-                        "HDI_fraction", "e_fraction", "metal_fraction", "volumetric_heating_rate",
-                        "specific_heating_rate", "RT_heating_rate", "RT_HI_ionization_rate", "RT_HeI_ionization_rate",
-                        "RT_HeII_ionization_rate", "RT_H2_dissociation_rate", "H2_self_shielding_length">;
+    using CoolingFields =
+        FieldList<"HI_fraction", "HII_fraction", "HM_fraction", "HeI_fraction", "HeII_fraction", "HeIII_fraction",
+                  "H2I_fraction", "H2II_fraction", "DI_fraction", "DII_fraction", "HDI_fraction", "e_fraction",
+                  "metal_fraction", "volumetric_heating_rate", "specific_heating_rate", "RT_heating_rate",
+                  "RT_HI_ionization_rate", "RT_HeI_ionization_rate", "RT_HeII_ionization_rate",
+                  "RT_H2_dissociation_rate", "H2_self_shielding_length">;
 
-    public:
-        HydroGrackleProp(size_t ngmax, size_t ng0, std::ostream &output, size_t rank)
-                : Base(ngmax, ng0, output, rank) {
-            constexpr float ms_sim = 1e16;
-            constexpr float kp_sim = 46400.;
-            std::map<std::string, std::any> grackleOptions;
-            grackleOptions["use_grackle"] = 1;
-            grackleOptions["with_radiative_cooling"] = 1;
-            grackleOptions["dust_chemistry"] = 0;
-            grackleOptions["metal_cooling"] = 0;
-            grackleOptions["UVbackground"] = 0;
-            cooling_data.init(ms_sim, kp_sim, 0, grackleOptions, std::nullopt);
+public:
+    HydroGrackleProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+        : Base(ngmax, ng0, output, rank)
+    {
+        constexpr float                 ms_sim = 1e16;
+        constexpr float                 kp_sim = 46400.;
+        std::map<std::string, std::any> grackleOptions;
+        grackleOptions["use_grackle"]            = 1;
+        grackleOptions["with_radiative_cooling"] = 1;
+        grackleOptions["dust_chemistry"]         = 0;
+        grackleOptions["metal_cooling"]          = 0;
+        grackleOptions["UVbackground"]           = 0;
+        cooling_data.init(ms_sim, kp_sim, 0, grackleOptions, std::nullopt);
+    }
+
+    std::vector<std::string> conservedFields() const override
+    {
+        std::vector<std::string> ret{"x", "y", "z", "h", "m"};
+        for_each_tuple([&ret](auto f) { ret.push_back(f.value); }, make_tuple(ConservedFields{}));
+        return ret;
+    }
+
+    void activateFields(DataType& simData) override
+    {
+        auto& d = simData.hydro;
+
+        //! @brief Fields accessed in domain sync are not part of extensible lists.
+        d.setConserved("x", "y", "z", "h", "m");
+        d.setDependent("keys");
+        std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
+        std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
+        std::apply([&simData](auto... f) { simData.chem.setConserved(f.value...); }, make_tuple(CoolingFields{}));
+
+        d.devData.setConserved("x", "y", "z", "h", "m");
+        d.devData.setDependent("keys");
+        std::apply([&d](auto... f) { d.devData.setConserved(f.value...); }, make_tuple(ConservedFields{}));
+        std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
+    }
+
+    void sync(DomainType& domain, DataType& simData) override
+    {
+        auto& d = simData.hydro;
+        if (d.g != 0.0)
+        {
+            std::cout << "sizes: " << get<"x">(d).size() << "\t" << get<"HI_fraction">(simData.chem).size()
+                      << std::endl;
+            domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
+                            std::tuple_cat(get<ConservedFields>(d), get<CoolingFields>(simData.chem)),
+                            get<DependentFields>(d));
+        }
+        else
+        {
+            domain.sync(
+                get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
+                std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d), get<CoolingFields>(simData.chem)),
+                get<DependentFields>(d));
+        }
+    }
+
+    void step(DomainType& domain, DataType& simData) override
+    {
+        timer.start();
+        sync(domain, simData);
+        timer.step("domain::sync");
+
+        auto& d = simData.hydro;
+        d.resize(domain.nParticlesWithHalos());
+        resizeNeighbors(d, domain.nParticles() * ngmax_);
+        size_t first = domain.startIndex();
+        size_t last  = domain.endIndex();
+
+        transferToHost(d, first, first + 1, {"m"});
+        fill(get<"m">(d), 0, first, d.m[first]);
+        fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
+
+        findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.keys, d.neighbors, d.nc, domain.box());
+        timer.step("FindNeighbors");
+
+        computeDensity(first, last, ngmax_, d, domain.box());
+        timer.step("Density");
+
+        computeEOS_HydroStd(first, last, d);
+        timer.step("EquationOfState");
+        domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
+
+        timer.step("mpi::synchronizeHalos");
+
+        computeIAD(first, last, ngmax_, d, domain.box());
+        timer.step("IAD");
+
+        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
+
+        timer.step("mpi::synchronizeHalos");
+
+        computeMomentumEnergySTD(first, last, ngmax_, d, domain.box());
+        timer.step("MomentumEnergyIAD");
+
+        if (d.g != 0.0)
+        {
+            mHolder_.upsweep(d, domain);
+            timer.step("Upsweep");
+            mHolder_.traverse(d, domain);
+            timer.step("Gravity");
         }
 
-        std::vector<std::string> conservedFields() const override {
-            std::vector<std::string> ret{"x", "y", "z", "h", "m"};
-            for_each_tuple([&ret](auto f) { ret.push_back(f.value); }, make_tuple(ConservedFields{}));
-            return ret;
-        }
-
-        void activateFields(DataType &simData) override {
-            auto &d = simData.hydro;
-
-            //! @brief Fields accessed in domain sync are not part of extensible lists.
-            d.setConserved("x", "y", "z", "h", "m");
-            d.setDependent("keys");
-            std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
-            std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
-            std::apply([&simData](auto... f) { simData.chem.setConserved(f.value...); }, make_tuple(CoolingFields{}));
-
-            d.devData.setConserved("x", "y", "z", "h", "m");
-            d.devData.setDependent("keys");
-            std::apply([&d](auto... f) { d.devData.setConserved(f.value...); }, make_tuple(ConservedFields{}));
-            std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
-        }
-
-        void sync(DomainType &domain, DataType &simData) override {
-            auto &d = simData.hydro;
-            if (d.g != 0.0) {
-                std::cout << "sizes: " << get<"x">(d).size() << "\t" << get<"HI_fraction">(simData.chem).size()
-                          << std::endl;
-                domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                                std::tuple_cat(get<ConservedFields>(d), get<CoolingFields>(simData.chem)),
-                                get<DependentFields>(d));
-            } else {
-                domain.sync(
-                        get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d),
-                                       get<CoolingFields>(simData.chem)),
-                        get<DependentFields>(d));
-            }
-        }
-
-        void step(DomainType &domain, DataType &simData) override {
-            timer.start();
-            sync(domain, simData);
-            timer.step("domain::sync");
-
-            auto &d = simData.hydro;
-            d.resize(domain.nParticlesWithHalos());
-            resizeNeighbors(d, domain.nParticles() * ngmax_);
-            size_t first = domain.startIndex();
-            size_t last = domain.endIndex();
-
-            transferToHost(d, first, first + 1, {"m"});
-            fill(get<"m">(d), 0, first, d.m[first]);
-            fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
-
-            findNeighborsSfc<T, KeyType>(first, last, ngmax_, d.x, d.y, d.z, d.h, d.keys, d.neighbors, d.nc,
-                                         domain.box());
-            timer.step("FindNeighbors");
-
-            computeDensity(first, last, ngmax_, d, domain.box());
-            timer.step("Density");
-
-            computeEOS_HydroStd(first, last, d);
-            timer.step("EquationOfState");
-            domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
-
-            timer.step("mpi::synchronizeHalos");
-
-            computeIAD(first, last, ngmax_, d, domain.box());
-            timer.step("IAD");
-
-            domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
-
-            timer.step("mpi::synchronizeHalos");
-
-            computeMomentumEnergySTD(first, last, ngmax_, d, domain.box());
-            timer.step("MomentumEnergyIAD");
-
-            if (d.g != 0.0) {
-                mHolder_.upsweep(d, domain);
-                timer.step("Upsweep");
-                mHolder_.traverse(d, domain);
-                timer.step("Gravity");
-            }
-
-            computeTimestep(d);
-            timer.step("Timestep");
+        computeTimestep(d);
+        timer.step("Timestep");
 
 #pragma omp parallel for schedule(static)
-            for (size_t i = first; i < last; i++) {
-                bool haveMui = !d.mui.empty();
-                T cv = idealGasCv(haveMui ? d.mui[i] : d.muiConst);
+        for (size_t i = first; i < last; i++)
+        {
+            bool haveMui = !d.mui.empty();
+            T    cv      = idealGasCv(haveMui ? d.mui[i] : d.muiConst);
 
-                T u_old = cv * d.temp[i];
-                T u_cool = u_old;
-                cooling_data.cool_particle(
-                        d.minDt, d.rho[i], u_cool,
-                        cstone::get<"HI_fraction">(simData.chem)[i], cstone::get<"HII_fraction">(simData.chem)[i],
-                        cstone::get<"HM_fraction">(simData.chem)[i], cstone::get<"HeI_fraction">(simData.chem)[i],
-                        cstone::get<"HeII_fraction">(simData.chem)[i], cstone::get<"HeIII_fraction">(simData.chem)[i],
-                        cstone::get<"H2I_fraction">(simData.chem)[i], cstone::get<"H2II_fraction">(simData.chem)[i],
-                        cstone::get<"DI_fraction">(simData.chem)[i], cstone::get<"DII_fraction">(simData.chem)[i],
-                        cstone::get<"HDI_fraction">(simData.chem)[i], cstone::get<"e_fraction">(simData.chem)[i],
-                        cstone::get<"metal_fraction">(simData.chem)[i],
-                        cstone::get<"volumetric_heating_rate">(simData.chem)[i],
-                        cstone::get<"specific_heating_rate">(simData.chem)[i],
-                        cstone::get<"RT_heating_rate">(simData.chem)[i],
-                        cstone::get<"RT_HI_ionization_rate">(simData.chem)[i],
-                        cstone::get<"RT_HeI_ionization_rate">(simData.chem)[i],
-                        cstone::get<"RT_HeII_ionization_rate">(simData.chem)[i],
-                        cstone::get<"RT_H2_dissociation_rate">(simData.chem)[i],
-                        cstone::get<"H2_self_shielding_length">(simData.chem)[i]);
-                const T du = (u_cool - u_old) / d.minDt;
-                d.du[i] += du;
-            }
-            timer.step("GRACKLE chemistry and cooling");
-
-            computePositions(first, last, d, domain.box());
-            timer.step("UpdateQuantities");
-            updateSmoothingLength(first, last, d, ng0_);
-            timer.step("UpdateSmoothingLength");
-
-            timer.stop();
+            T u_old  = cv * d.temp[i];
+            T u_cool = u_old;
+            cooling_data.cool_particle(
+                d.minDt, d.rho[i], u_cool, cstone::get<"HI_fraction">(simData.chem)[i],
+                cstone::get<"HII_fraction">(simData.chem)[i], cstone::get<"HM_fraction">(simData.chem)[i],
+                cstone::get<"HeI_fraction">(simData.chem)[i], cstone::get<"HeII_fraction">(simData.chem)[i],
+                cstone::get<"HeIII_fraction">(simData.chem)[i], cstone::get<"H2I_fraction">(simData.chem)[i],
+                cstone::get<"H2II_fraction">(simData.chem)[i], cstone::get<"DI_fraction">(simData.chem)[i],
+                cstone::get<"DII_fraction">(simData.chem)[i], cstone::get<"HDI_fraction">(simData.chem)[i],
+                cstone::get<"e_fraction">(simData.chem)[i], cstone::get<"metal_fraction">(simData.chem)[i],
+                cstone::get<"volumetric_heating_rate">(simData.chem)[i],
+                cstone::get<"specific_heating_rate">(simData.chem)[i], cstone::get<"RT_heating_rate">(simData.chem)[i],
+                cstone::get<"RT_HI_ionization_rate">(simData.chem)[i],
+                cstone::get<"RT_HeI_ionization_rate">(simData.chem)[i],
+                cstone::get<"RT_HeII_ionization_rate">(simData.chem)[i],
+                cstone::get<"RT_H2_dissociation_rate">(simData.chem)[i],
+                cstone::get<"H2_self_shielding_length">(simData.chem)[i]);
+            const T du = (u_cool - u_old) / d.minDt;
+            d.du[i] += du;
         }
+        timer.step("GRACKLE chemistry and cooling");
 
-        void prepareOutput(DataType &simData, size_t first, size_t last, const cstone::Box<T> &box) override {
-            auto &d = simData.hydro;
-            transferToHost(d, first, last, conservedFields());
-            transferToHost(d, first, last, {"rho", "p", "c", "du", "ax", "ay", "az", "nc"});
-        }
-    };
+        computePositions(first, last, d, domain.box());
+        timer.step("UpdateQuantities");
+        updateSmoothingLength(first, last, d, ng0_);
+        timer.step("UpdateSmoothingLength");
+
+        timer.stop();
+    }
+
+    void prepareOutput(DataType& simData, size_t first, size_t last, const cstone::Box<T>& box) override
+    {
+        auto& d = simData.hydro;
+        transferToHost(d, first, last, conservedFields());
+        transferToHost(d, first, last, {"rho", "p", "c", "du", "ax", "ay", "az", "nc"});
+    }
+};
 
 } // namespace sphexa
