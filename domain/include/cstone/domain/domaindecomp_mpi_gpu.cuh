@@ -183,6 +183,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
             destinationArrays[index] += count * elementSizes[index];
         };
         for_each_tuple(gatherArray, indices);
+        checkGpuErrors(cudaDeviceSynchronize());
     }
 
     while (numParticlesPresent != numParticlesAssigned)
@@ -209,6 +210,7 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
                                       cudaMemcpyDeviceToDevice));
             destinationArrays[arrayIndex] += receiveCount * elementSizes[arrayIndex];
         }
+        checkGpuErrors(cudaDeviceSynchronize());
 
         numParticlesPresent += receiveCount;
     }

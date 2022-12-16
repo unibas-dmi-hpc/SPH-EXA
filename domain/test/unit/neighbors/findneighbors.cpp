@@ -36,47 +36,9 @@
 #include "cstone/findneighbors.hpp"
 #include "coord_samples/random.hpp"
 
+#include "all_to_all.hpp"
+
 using namespace cstone;
-
-//! @brief simple N^2 all-to-all neighbor search
-template<class T>
-void all2allNeighbors(const T* x,
-                      const T* y,
-                      const T* z,
-                      const T* h,
-                      LocalIndex n,
-                      LocalIndex* neighbors,
-                      unsigned* neighborsCount,
-                      unsigned ngmax,
-                      const Box<T>& box)
-{
-    for (LocalIndex i = 0; i < n; ++i)
-    {
-        T radius = 2 * h[i];
-        T r2     = radius * radius;
-
-        T xi = x[i], yi = y[i], zi = z[i];
-
-        unsigned ngcount = 0;
-        for (LocalIndex j = 0; j < n; ++j)
-        {
-            if (j == i) { continue; }
-            if (ngcount < ngmax && distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < r2)
-            {
-                neighbors[i * ngmax + ngcount++] = j;
-            }
-        }
-        neighborsCount[i] = ngcount;
-    }
-}
-
-void sortNeighbors(LocalIndex* neighbors, unsigned* neighborsCount, LocalIndex n, unsigned ngmax)
-{
-    for (LocalIndex i = 0; i < n; ++i)
-    {
-        std::sort(neighbors + i * ngmax, neighbors + i * ngmax + neighborsCount[i]);
-    }
-}
 
 TEST(FindNeighbors, distanceSqPbc)
 {

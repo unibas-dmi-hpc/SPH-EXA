@@ -32,7 +32,7 @@
 #pragma once
 
 #include "cstone/traversal/boxoverlap.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 namespace cstone
 {

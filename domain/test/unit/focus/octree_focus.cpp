@@ -32,7 +32,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/focus/octree_focus.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 namespace cstone
 {
@@ -48,7 +48,7 @@ static auto computeNodeOps(const Octree<KeyType>& octree,
 {
     std::vector<unsigned> counts(octree.numTreeNodes());
     scatter(octree.internalOrder(), leafCounts.data(), counts.data());
-    upsweep(octree.levelRange(), octree.childOffsets(), counts.data(), SumCombination<unsigned>{});
+    upsweep(octree.levelRange(), octree.childOffsets(), counts.data(), NodeCount<unsigned>{});
 
     std::vector<char> macs(octree.numTreeNodes());
     scatter(octree.internalOrder(), csMacs.data() + octree.numInternalNodes(), macs.data());
@@ -60,7 +60,8 @@ static auto computeNodeOps(const Octree<KeyType>& octree,
         auto [keyStub, level, value] = t;
 
         KeyType keyStart  = pad(KeyType(keyStub), 3 * level);
-        TreeNodeIndex idx = octree.locate(keyStart, keyStart + nodeRange<KeyType>(level));
+        TreeNodeIndex idx = locateNode(keyStart, keyStart + nodeRange<KeyType>(level), octree.nodeKeys().data(),
+                                       octree.levelRange().data());
         macs[idx]         = value;
     }
 
@@ -372,10 +373,11 @@ static void computeEssentialTree()
 
     {
         // the first node in the cornerstone tree that starts at or above focusStart
-        TreeNodeIndex firstCstoneNode   = findNodeAbove<KeyType>(csTree, focusStart);
-        TreeNodeIndex matchingFocusNode = findNodeAbove(tree.treeLeaves(), csTree[firstCstoneNode]);
+        TreeNodeIndex firstCstoneNode = findNodeAbove(csTree.data(), csTree.size(), focusStart);
+        TreeNodeIndex matchingFocusNode =
+            findNodeAbove(tree.treeLeaves().data(), tree.treeLeaves().size(), csTree[firstCstoneNode]);
         // in the focus area (the first octant) the essential tree and the csTree are identical
-        TreeNodeIndex lastFocusNode = findNodeAbove(tree.treeLeaves(), focusEnd);
+        TreeNodeIndex lastFocusNode = findNodeAbove(tree.treeLeaves().data(), tree.treeLeaves().size(), focusEnd);
 
         EXPECT_TRUE(matchingFocusNode >= 1 && matchingFocusNode < lastFocusNode);
 
@@ -408,7 +410,7 @@ static void computeEssentialTree()
     while (!tree.update(box, codes, focusStart, focusEnd, {})) {}
 
     {
-        TreeNodeIndex lastFocusNode = findNodeAbove(tree.treeLeaves(), focusEnd);
+        TreeNodeIndex lastFocusNode = findNodeAbove(tree.treeLeaves().data(), tree.treeLeaves().size(), focusEnd);
         // tree now focused again on first octant
         EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, tree.treeLeaves().begin()));
 

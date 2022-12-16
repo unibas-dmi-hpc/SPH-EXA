@@ -68,9 +68,8 @@ void computeLeafMultipoles(const T1* x, const T1* y, const T1* z, const T2* m,
 }
 
 template<class T, class MType>
-void upsweepMultipoles(gsl::span<const cstone::TreeNodeIndex> levelOffset,
-                       gsl::span<const cstone::TreeNodeIndex> childOffsets, const cstone::SourceCenterType<T>* centers,
-                       MType* multipoles)
+void upsweepMultipoles(gsl::span<const cstone::TreeNodeIndex> levelOffset, const cstone::TreeNodeIndex* childOffsets,
+                       const cstone::SourceCenterType<T>* centers, MType* multipoles)
 {
     int currentLevel = levelOffset.size() - 2;
 

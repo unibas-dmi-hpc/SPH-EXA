@@ -76,7 +76,7 @@ public:
         numExtract_ = mapSize_;
 
         reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
-        sequenceGpu(ordering(), mapSize_, 0u);
+        sequenceGpu(ordering(), mapSize_, LocalIndex(0));
         sortByKeyGpu(first, last, ordering());
     }
 

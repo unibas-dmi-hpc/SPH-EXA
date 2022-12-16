@@ -50,11 +50,8 @@ public:
     {
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const auto& focusTree = domain.focusTree();
-        //! the focused octree, structure only
-        const cstone::Octree<KeyType>& octree = focusTree.octree();
 
-        reallocate(multipoles_, octree.numTreeNodes(), 1.05);
-
+        reallocate(multipoles_, focusTree.octreeViewAcc().numNodes, 1.05);
         ryoanji::computeGlobalMultipoles(d.x.data(), d.y.data(), d.z.data(), d.m.data(), d.x.size(),
                                          domain.globalTree(), domain.focusTree(), domain.layout().data(),
                                          multipoles_.data());
@@ -66,13 +63,15 @@ public:
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const auto& focusTree = domain.focusTree();
         //! the focused octree, structure only
-        const cstone::Octree<KeyType>& octree = focusTree.octree();
+        cstone::OctreeView<const KeyType> octree = focusTree.octreeViewAcc();
 
-        d.egrav = ryoanji::computeGravity(octree, focusTree.expansionCenters().data(), multipoles_.data(),
-                                          domain.layout().data(), domain.startCell(), domain.endCell(), d.x.data(),
-                                          d.y.data(), d.z.data(), d.h.data(), d.m.data(), d.g, d.ax.data(), d.ay.data(),
-                                          d.az.data());
+        d.egrav = ryoanji::computeGravity(
+            octree.childOffsets, octree.internalToLeaf, octree.numLeafNodes, focusTree.expansionCenters().data(),
+            multipoles_.data(), domain.layout().data(), domain.startCell(), domain.endCell(), d.x.data(), d.y.data(),
+            d.z.data(), d.h.data(), d.m.data(), d.g, d.ax.data(), d.ay.data(), d.az.data());
     }
+
+    util::array<uint64_t, 4> readStats() const { return {0, 0, 0, 0}; }
 
     const MType* multipoles() const { return multipoles_.data(); }
 
@@ -91,11 +90,8 @@ public:
     {
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const auto& focusTree = domain.focusTree();
-        //! the focused octree, structure only
-        const cstone::Octree<KeyType>& octree = focusTree.octree();
 
-        reallocate(multipoles_, octree.numTreeNodes(), 1.05);
-
+        reallocate(multipoles_, focusTree.octreeViewAcc().numNodes, 1.05);
         mHolder_.upsweep(rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.m),
                          domain.globalTree(), domain.focusTree(), domain.layout().data(), multipoles_.data());
     }
@@ -107,6 +103,9 @@ public:
                                    rawPtr(d.devData.z), rawPtr(d.devData.m), rawPtr(d.devData.h), d.g,
                                    rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az));
     }
+
+    //! @brief return numP2P, maxP2P, numM2P, maxM2P stats
+    util::array<uint64_t, 4> readStats() const { return mHolder_.readStats(); }
 
     const MType* multipoles() const { return multipoles_.data(); }
 

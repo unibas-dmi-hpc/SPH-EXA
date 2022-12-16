@@ -39,7 +39,7 @@
 #include <vector>
 
 #include "cstone/primitives/gather.hpp"
-#include "cstone/tree/octree.hpp"
+#include "cstone/tree/csarray.hpp"
 #include "index_ranges.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
@@ -229,12 +229,12 @@ void limitBoundaryShifts(gsl::span<const KeyType> oldBoundaries,
         TreeNodeIndex restrictedStart = newAssignment.firstNodeIdx(rank);
         if (newBoundary < doNotGoBelow)
         {
-            restrictedStart = findNodeAbove(newTree, doNotGoBelow);
+            restrictedStart = findNodeAbove(newTree.data(), newTree.size(), doNotGoBelow);
             triggerRecount  = true;
         }
         else if (newBoundary > doNotExceed)
         {
-            restrictedStart = findNodeBelow(newTree, doNotExceed);
+            restrictedStart = findNodeBelow(newTree.data(), newTree.size(), doNotExceed);
             triggerRecount  = true;
         }
         newIndexBoundaries[rank] = restrictedStart;
@@ -284,8 +284,8 @@ void translateAssignment(const SpaceCurveAssignment& assignment,
 
         // Note: start-end range is narrowed down if no exact match is found.
         // the discarded part will not participate in peer/halo exchanges
-        TreeNodeIndex startIndex = findNodeAbove(focusTree, peerSfcStart);
-        TreeNodeIndex endIndex   = findNodeBelow(focusTree, peerSfcEnd);
+        TreeNodeIndex startIndex = findNodeAbove(focusTree.data(), focusTree.size(), peerSfcStart);
+        TreeNodeIndex endIndex   = findNodeBelow(focusTree.data(), focusTree.size(), peerSfcEnd);
 
         if (endIndex < startIndex) { endIndex = startIndex; }
         focusAssignment[peer] = TreeIndexPair(startIndex, endIndex);
@@ -294,8 +294,8 @@ void translateAssignment(const SpaceCurveAssignment& assignment,
     KeyType startKey = domainTree[assignment.firstNodeIdx(myRank)];
     KeyType endKey   = domainTree[assignment.lastNodeIdx(myRank)];
 
-    TreeNodeIndex newStartIndex = findNodeAbove(focusTree, startKey);
-    TreeNodeIndex newEndIndex   = findNodeBelow(focusTree, endKey);
+    TreeNodeIndex newStartIndex = findNodeAbove(focusTree.data(), focusTree.size(), startKey);
+    TreeNodeIndex newEndIndex   = findNodeBelow(focusTree.data(), focusTree.size(), endKey);
     focusAssignment[myRank]     = TreeIndexPair(newStartIndex, newEndIndex);
 }
 
@@ -371,6 +371,31 @@ size_t computeTotalSendBytes(const SendList& sendList,
     }
 
     return totalSendBytes;
+}
+
+/*! @brief return @p numRanks equal length SFC segments for initial domain decomposition
+ *
+ * @tparam KeyType
+ * @param numRanks    number of segments
+ * @param level       maximum tree depths or (=number of non-zero leading octal digits)
+ * @return            the segments
+ *
+ * Example: returns [0 2525200000 5252500000 10000000000] for numRanks = 3 and level = 5
+ */
+template<class KeyType>
+std::vector<KeyType> initialDomainSplits(int numRanks, int level)
+{
+    std::vector<KeyType> ret(numRanks + 1);
+    KeyType delta = nodeRange<KeyType>(0) / numRanks;
+
+    ret.front() = 0;
+    for (int i = 1; i < numRanks; ++i)
+    {
+        ret[i] = enclosingBoxCode(KeyType(i) * delta, level);
+    }
+    ret.back() = nodeRange<KeyType>(0);
+
+    return ret;
 }
 
 } // namespace cstone

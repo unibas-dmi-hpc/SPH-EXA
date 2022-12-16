@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 #include "cstone/traversal/macs.hpp"
 #include "cstone/traversal/traversal.hpp"
 
@@ -42,13 +42,13 @@ template<class KeyType>
 IBox makeLevelBox(unsigned ix, unsigned iy, unsigned iz, unsigned level)
 {
     unsigned L = 1u << (maxTreeLevel<KeyType>{} - level);
-    return IBox(ix * L,  ix * L + L, iy * L, iy * L + L, iz * L, iz * L + L);
+    return IBox(ix * L, ix * L + L, iy * L, iy * L + L, iz * L, iz * L + L);
 }
 
 template<class KeyType>
 void surfaceDetection()
 {
-    unsigned level = 2;
+    unsigned level            = 2;
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
     Octree<KeyType> fullTree;
@@ -62,18 +62,17 @@ void surfaceDetection()
         treeBoxes[i] = sfcIBox(sfcKey(fullTree.codeStart(i)), fullTree.level(i));
     }
 
-    auto isSurface = [targetBox, bbox = Box<double>(0, 1), boxes = treeBoxes.data()](TreeNodeIndex idx) {
+    auto isSurface = [targetBox, bbox = Box<double>(0, 1), boxes = treeBoxes.data()](TreeNodeIndex idx)
+    {
         double distance = minDistanceSq<KeyType>(targetBox, boxes[idx], bbox);
         return distance == 0.0;
     };
 
     std::vector<IBox> surfaceBoxes;
     auto saveBox = [numInternalNodes = fullTree.numInternalNodes(), &surfaceBoxes, &treeBoxes](TreeNodeIndex idx)
-    {
-        surfaceBoxes.push_back(treeBoxes[idx + numInternalNodes]);
-    };
+    { surfaceBoxes.push_back(treeBoxes[idx]); };
 
-    singleTraversal(fullTree, isSurface, saveBox);
+    singleTraversal(fullTree.childOffsets().data(), isSurface, saveBox);
 
     std::sort(begin(surfaceBoxes), end(surfaceBoxes));
 
@@ -81,21 +80,12 @@ void surfaceDetection()
     // Hilbert node indices at surface: {0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 15};
 
     // coordinates of 3D-node boxes that touch targetBox
-    std::vector<IBox> reference
-        {
-            makeLevelBox<KeyType>(0, 0, 0, 2),
-            makeLevelBox<KeyType>(0, 0, 1, 2),
-            makeLevelBox<KeyType>(0, 1, 0, 2),
-            makeLevelBox<KeyType>(0, 1, 1, 2),
-            makeLevelBox<KeyType>(1, 0, 0, 2),
-            makeLevelBox<KeyType>(1, 0, 1, 2),
-            makeLevelBox<KeyType>(1, 1, 0, 2),
-            makeLevelBox<KeyType>(1, 1, 1, 2),
-            makeLevelBox<KeyType>(0, 0, 2, 2),
-            makeLevelBox<KeyType>(0, 1, 2, 2),
-            makeLevelBox<KeyType>(1, 0, 2, 2),
-            makeLevelBox<KeyType>(1, 1, 2, 2),
-        };
+    std::vector<IBox> reference{
+        makeLevelBox<KeyType>(0, 0, 0, 2), makeLevelBox<KeyType>(0, 0, 1, 2), makeLevelBox<KeyType>(0, 1, 0, 2),
+        makeLevelBox<KeyType>(0, 1, 1, 2), makeLevelBox<KeyType>(1, 0, 0, 2), makeLevelBox<KeyType>(1, 0, 1, 2),
+        makeLevelBox<KeyType>(1, 1, 0, 2), makeLevelBox<KeyType>(1, 1, 1, 2), makeLevelBox<KeyType>(0, 0, 2, 2),
+        makeLevelBox<KeyType>(0, 1, 2, 2), makeLevelBox<KeyType>(1, 0, 2, 2), makeLevelBox<KeyType>(1, 1, 2, 2),
+    };
 
     std::sort(begin(reference), end(reference));
     EXPECT_EQ(surfaceBoxes, reference);
@@ -153,7 +143,8 @@ void dualTraversalNeighbors()
     KeyType focusStart = octree.codeStart(octree.toInternal(0));
     KeyType focusEnd   = octree.codeStart(octree.toInternal(8));
 
-    auto crossFocusSurfacePairs = [focusStart, focusEnd, &tree = octree, &box](TreeNodeIndex a, TreeNodeIndex b) {
+    auto crossFocusSurfacePairs = [focusStart, focusEnd, &tree = octree, &box](TreeNodeIndex a, TreeNodeIndex b)
+    {
         bool aFocusOverlap = overlapTwoRanges(focusStart, focusEnd, tree.codeStart(a), tree.codeEnd(a));
         bool bInFocus      = containedIn(tree.codeStart(b), tree.codeEnd(b), focusStart, focusEnd);
         if (!aFocusOverlap || bInFocus) { return false; }

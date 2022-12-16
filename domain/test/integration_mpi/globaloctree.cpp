@@ -35,7 +35,7 @@
 #include <gtest/gtest.h>
 
 #include "cstone/tree/update_mpi.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 using namespace cstone;
 

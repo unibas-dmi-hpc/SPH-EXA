@@ -181,4 +181,75 @@ HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType 
     return makeHaloBox<KeyType>(nodeBox, radius, box);
 }
 
+//! @brief returns true if the cuboid defined by center and size is contained within the bounding box
+template<class T>
+HOST_DEVICE_FUN bool insideBox(const Vec3<T>& center, const Vec3<T>& size, const Box<T>& box)
+{
+    Vec3<T> globalMin{box.xmin(), box.ymin(), box.zmin()};
+    Vec3<T> globalMax{box.xmax(), box.ymax(), box.zmax()};
+    Vec3<T> boxMin = center - size;
+    Vec3<T> boxMax = center + size;
+    return boxMin[0] >= globalMin[0] && boxMin[1] >= globalMin[1] && boxMin[2] >= globalMin[2] &&
+           boxMax[0] <= globalMax[0] && boxMax[1] <= globalMax[1] && boxMax[2] <= globalMax[2];
+}
+
+//! @brief returns the smallest distance vector of point X to box b, 0 if X is in b
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, const Vec3<T>& bSize)
+{
+    Vec3<T> dX = abs(bCenter - X) - bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+    return dX;
+}
+
+//! @brief returns the smallest periodic distance vector of point X to box b, 0 if X is in b
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, const Vec3<T>& bSize, const Box<T>& box)
+{
+    Vec3<T> dX = bCenter - X;
+    dX         = abs(applyPbc(dX, box));
+    dX -= bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    return dX;
+}
+
+//! @brief returns the smallest distance vector between two boxes, 0 if they overlap
+template<class T>
+HOST_DEVICE_FUN Vec3<T>
+minDistance(const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter, const Vec3<T>& bSize)
+{
+    Vec3<T> dX = abs(bCenter - aCenter) - aSize - bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    return dX;
+}
+
+//! @brief returns the smallest periodic distance vector between two boxes, 0 if they overlap
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(
+    const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter, const Vec3<T>& bSize, const Box<T>& box)
+{
+    Vec3<T> dX = bCenter - aCenter;
+    dX         = abs(applyPbc(dX, box));
+    dX -= aSize;
+    dX -= bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    return dX;
+}
+
+//! @brief Convenience wrapper to minDistance. This should only be used for testing.
+template<class KeyType, class T>
+HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
+{
+    auto [aCenter, aSize] = centerAndSize<KeyType>(a, box);
+    auto [bCenter, bSize] = centerAndSize<KeyType>(b, box);
+    return norm2(minDistance(aCenter, aSize, bCenter, bSize, box));
+}
+
 } // namespace cstone

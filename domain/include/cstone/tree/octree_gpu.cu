@@ -24,206 +24,151 @@
  */
 
 /*! @file
- * @brief Generation of local and global octrees in cornerstone format on the GPU
+ * @brief  Compute the internal part of a cornerstone octree on the GPU
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
- * See octree.hpp for a description of the cornerstone format.
  */
 
-#include <thrust/copy.h>
-#include <thrust/device_ptr.h>
-#include <thrust/scan.h>
+#include <thrust/execution_policy.h>
+#include <thrust/sort.h>
+#include <thrust/fill.h>
 
-#include "cstone/cuda/errorcheck.cuh"
-#include "cstone/util/util.hpp"
-#include "octree.hpp"
-
-#include "octree_gpu.h"
+#include "cstone/sfc/common.hpp"
+#include "cstone/tree/octree_gpu.h"
 
 namespace cstone
 {
 
-//! @brief see computeNodeCounts
-template<class KeyType>
-__global__ void computeNodeCountsKernel(const KeyType* tree,
-                                        unsigned* counts,
-                                        TreeNodeIndex nNodes,
-                                        const KeyType* codesStart,
-                                        const KeyType* codesEnd,
-                                        unsigned maxCount)
-{
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < nNodes) { counts[tid] = calculateNodeCount(tree[tid], tree[tid + 1], codesStart, codesEnd, maxCount); }
-}
-
-//! @brief see updateNodeCounts
-template<class KeyType>
-__global__ void updateNodeCountsKernel(const KeyType* tree,
-                                       unsigned* counts,
-                                       TreeNodeIndex numNodes,
-                                       const KeyType* codesStart,
-                                       const KeyType* codesEnd,
-                                       unsigned maxCount)
-{
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < numNodes)
-    {
-        unsigned firstGuess     = counts[tid];
-        TreeNodeIndex secondIdx = (tid + 1 < numNodes - 1) ? tid + 1 : numNodes - 1;
-        unsigned secondGuess    = counts[secondIdx];
-
-        counts[tid] = updateNodeCount(tid, tree, firstGuess, secondGuess, codesStart, codesEnd, maxCount);
-    }
-}
-
-//! @brief used to communicate required node search range for computeNodeCountsKernel back to host
-__device__ TreeNodeIndex populatedNodes[2];
-
-template<class KeyType>
-__global__ void
-findPopulatedNodes(const KeyType* tree, TreeNodeIndex nNodes, const KeyType* codesStart, const KeyType* codesEnd)
-{
-    if (threadIdx.x == 0 && codesStart != codesEnd)
-    {
-        populatedNodes[0] = stl::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
-        populatedNodes[1] = stl::upper_bound(tree, tree + nNodes, *(codesEnd - 1)) - tree;
-    }
-    else
-    {
-        populatedNodes[0] = nNodes;
-        populatedNodes[1] = nNodes;
-    }
-}
-
-template<class KeyType>
-void computeNodeCountsGpu(const KeyType* tree,
-                          unsigned* counts,
-                          TreeNodeIndex numNodes,
-                          const KeyType* firstKey,
-                          const KeyType* lastKey,
-                          unsigned maxCount,
-                          bool useCountsAsGuess)
-{
-    TreeNodeIndex popNodes[2];
-
-    findPopulatedNodes<<<1, 1>>>(tree, numNodes, firstKey, lastKey);
-    checkGpuErrors(cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex)));
-
-    checkGpuErrors(cudaMemset(counts, 0, popNodes[0] * sizeof(unsigned)));
-    checkGpuErrors(cudaMemset(counts + popNodes[1], 0, (numNodes - popNodes[1]) * sizeof(unsigned)));
-
-    constexpr unsigned nThreads = 256;
-    if (useCountsAsGuess)
-    {
-        thrust::exclusive_scan(thrust::device, counts + popNodes[0], counts + popNodes[1], counts + popNodes[0]);
-        updateNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>(
-            tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], firstKey, lastKey, maxCount);
-    }
-    else
-    {
-        computeNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>(
-            tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], firstKey, lastKey, maxCount);
-    }
-}
-
-template void
-computeNodeCountsGpu(const unsigned*, unsigned*, TreeNodeIndex, const unsigned*, const unsigned*, unsigned, bool);
-template void
-computeNodeCountsGpu(const uint64_t*, unsigned*, TreeNodeIndex, const uint64_t*, const uint64_t*, unsigned, bool);
-
-//! @brief this symbol is used to keep track of octree structure changes and detect convergence
-__device__ int rebalanceChangeCounter;
-
-/*! @brief Compute split or fuse decision for each octree node in parallel
+/*! @brief combine internal and leaf tree parts into a single array with the nodeKey prefixes
  *
- * @tparam KeyType         32- or 64-bit unsigned integer type
- * @param[in] tree         octree nodes given as Morton codes of length @a numNodes
- *                         needs to satisfy the octree invariants
- * @param[in] counts       output particle counts per node, length = @a numNodes
- * @param[in] numNodes     number of nodes in tree
- * @param[in] bucketSize   maximum particle count per (leaf) node and
- *                         minimum particle count (strictly >) for (implicit) internal nodes
- * @param[out] nodeOps     stores rebalance decision result for each node, length = @a numNodes
- * @param[out] converged   stores 0 upon return if converged, a non-zero positive integer otherwise.
- *                         The storage location is accessed concurrently and cuda-memcheck might detect
- *                         a data race, but this is irrelevant for correctness.
- *
- * For each node i in the tree, in nodeOps[i], stores
- *  - 0 if to be merged
- *  - 1 if unchanged,
- *  - 8 if to be split.
+ * @tparam     KeyType           unsigned 32- or 64-bit integer
+ * @param[in]  leaves            cornerstone SFC keys, length numLeafNodes + 1
+ * @param[in]  numInternalNodes  number of internal octree nodes
+ * @param[in]  numLeafNodes      total number of nodes
+ * @param[in]  binaryToOct       translation map from binary to octree nodes
+ * @param[out] prefixes          output octree SFC keys, length @p numInternalNodes + numLeafNodes
+ *                               NOTE: keys are prefixed with Warren-Salmon placeholder bits!
+ * @param[out] nodeOrder         iota 0,1,2,3,... sequence for later use, length same as @p prefixes
  */
 template<class KeyType>
-__global__ void rebalanceDecisionKernel(
-    const KeyType* tree, const unsigned* counts, TreeNodeIndex numNodes, unsigned bucketSize, TreeNodeIndex* nodeOps)
+__global__ void createUnsortedLayout(const KeyType* leaves,
+                                     TreeNodeIndex numInternalNodes,
+                                     TreeNodeIndex numLeafNodes,
+                                     KeyType* prefixes,
+                                     TreeNodeIndex* nodeOrder)
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < numNodes)
+    int tid = int(blockDim.x * blockIdx.x + threadIdx.x);
+    if (tid < numLeafNodes)
     {
-        int decision = calculateNodeOp(tree, tid, counts, bucketSize);
-        if (decision != 1) { rebalanceChangeCounter = 1; }
-        nodeOps[tid] = decision;
+        KeyType key                       = leaves[tid];
+        unsigned level                    = treeLevel(leaves[tid + 1] - key);
+        prefixes[tid + numInternalNodes]  = encodePlaceholderBit(key, 3 * level);
+        nodeOrder[tid + numInternalNodes] = tid + numInternalNodes;
+
+        unsigned prefixLength = commonPrefix(key, leaves[tid + 1]);
+        if (prefixLength % 3 == 0 && tid < numLeafNodes - 1)
+        {
+            TreeNodeIndex octIndex = (tid + binaryKeyWeight(key, prefixLength / 3)) / 7;
+            prefixes[octIndex]     = encodePlaceholderBit(key, prefixLength);
+            nodeOrder[octIndex]    = octIndex;
+        }
     }
 }
 
-/*! @brief construct new nodes in the balanced tree
+/*! @brief extract parent/child relationships from binary tree and translate to sorted order
  *
- * @tparam KeyType         32- or 64-bit unsigned integer type
- * @param[in]  oldTree     old cornerstone octree, length = numOldNodes + 1
- * @param[in]  nodeOps     transformation codes for old tree, length = numOldNodes + 1
- * @param[in]  numOldNodes number of nodes in @a oldTree
- * @param[out] newTree     the rebalanced tree, length = nodeOps[numOldNodes] + 1
+ * @tparam     KeyType           unsigned 32- or 64-bit integer
+ * @param[in]  prefixes          octree node prefixes in Warren-Salmon format
+ * @param[in]  numInternalNodes  number of internal octree nodes
+ * @param[in]  leafToInternal    translation map from unsorted layout to level/SFC sorted octree layout
+ *                               length is total number of octree nodes, internal + leaves
+ * @param[in]  levelRange        indices of the first node at each level
+ * @param[out] childOffsets      octree node index of first child for each node, length is total number of nodes
+ * @param[out] parents           parent index of for each node which is the first of 8 siblings
+ *                               i.e. the parent of node i is stored at parents[(i - 1)/8]
  */
 template<class KeyType>
-__global__ void
-processNodes(const KeyType* oldTree, const TreeNodeIndex* nodeOps, TreeNodeIndex numOldNodes, KeyType* newTree)
+__global__ void linkTree(const KeyType* prefixes,
+                         TreeNodeIndex numInternalNodes,
+                         const TreeNodeIndex* leafToInternal,
+                         const TreeNodeIndex* levelRange,
+                         TreeNodeIndex* childOffsets,
+                         TreeNodeIndex* parents)
 {
+    // loop over octree nodes index in unsorted layout A
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < numOldNodes) { processNode(tid, oldTree, nodeOps, newTree); }
+    if (tid < numInternalNodes)
+    {
+        TreeNodeIndex idxA    = leafToInternal[tid];
+        KeyType prefix        = prefixes[idxA];
+        KeyType nodeKey       = decodePlaceholderBit(prefix);
+        unsigned prefixLength = decodePrefixLength(prefix);
+        unsigned level        = prefixLength / 3;
+        assert(level < maxTreeLevel<KeyType>{});
+
+        KeyType childPrefix = encodePlaceholderBit(nodeKey, prefixLength + 3);
+
+        TreeNodeIndex leafSearchStart = levelRange[level + 1];
+        TreeNodeIndex leafSearchEnd   = levelRange[level + 2];
+        TreeNodeIndex childIdx =
+            stl::lower_bound(prefixes + leafSearchStart, prefixes + leafSearchEnd, childPrefix) - prefixes;
+
+        if (childIdx != leafSearchEnd && childPrefix == prefixes[childIdx])
+        {
+            childOffsets[idxA] = childIdx;
+            // We only store the parent once for every group of 8 siblings.
+            // This works as long as each node always has 8 siblings.
+            // Subtract one because the root has no siblings.
+            parents[(childIdx - 1) / 8] = idxA;
+        }
+    }
 }
 
-__global__ void resetRebalanceCounter() { rebalanceChangeCounter = 0; }
+//! @brief determine the octree subdivision level boundaries
+template<class KeyType>
+__global__ void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeIndex* levelRange)
+{
+    unsigned level    = blockIdx.x;
+    auto it           = stl::lower_bound(nodeKeys, nodeKeys + numNodes, encodePlaceholderBit(KeyType(0), 3 * level));
+    levelRange[level] = TreeNodeIndex(it - nodeKeys);
+
+    if (level == maxTreeLevel<KeyType>{} + 1) { levelRange[level] = numNodes; }
+}
+
+//! @brief computes the inverse of the permutation given by @p order and then subtract @p numInternalNodes from it
+__global__ void
+invertOrder(TreeNodeIndex* order, TreeNodeIndex* inverseOrder, TreeNodeIndex numNodes, TreeNodeIndex numInternalNodes)
+{
+    int tid = int(blockDim.x * blockIdx.x + threadIdx.x);
+    if (tid < numNodes)
+    {
+        inverseOrder[order[tid]] = tid;
+        order[tid] -= numInternalNodes;
+    }
+}
 
 template<class KeyType>
-TreeNodeIndex computeNodeOpsGpu(
-    const KeyType* tree, TreeNodeIndex numNodes, const unsigned* counts, unsigned bucketSize, TreeNodeIndex* nodeOps)
+void buildOctreeGpu(const KeyType* cstoneTree, OctreeView<KeyType> d)
 {
-    resetRebalanceCounter<<<1, 1>>>();
+    constexpr unsigned numThreads = 256;
 
-    constexpr unsigned nThreads = 512;
-    rebalanceDecisionKernel<<<iceil(numNodes, nThreads), nThreads>>>(tree, counts, numNodes, bucketSize, nodeOps);
+    TreeNodeIndex numNodes = d.numInternalNodes + d.numLeafNodes;
+    createUnsortedLayout<<<iceil(numNodes, numThreads), numThreads>>>(cstoneTree, d.numInternalNodes, d.numLeafNodes,
+                                                                      d.prefixes, d.internalToLeaf);
 
-    size_t nodeOpsSize = numNodes + 1;
-    thrust::exclusive_scan(thrust::device, nodeOps, nodeOps + nodeOpsSize, nodeOps);
+    thrust::sort_by_key(thrust::device, d.prefixes, d.prefixes + numNodes, d.internalToLeaf);
 
-    TreeNodeIndex newNumNodes;
-    thrust::copy_n(thrust::device_pointer_cast(nodeOps) + nodeOpsSize - 1, 1, &newNumNodes);
+    invertOrder<<<iceil(numNodes, numThreads), numThreads>>>(d.internalToLeaf, d.leafToInternal, numNodes,
+                                                             d.numInternalNodes);
+    getLevelRange<<<maxTreeLevel<KeyType>{} + 2, 1>>>(d.prefixes, numNodes, d.levelRange);
 
-    return newNumNodes;
+    thrust::fill(thrust::device, d.childOffsets, d.childOffsets + numNodes, 0);
+    linkTree<<<iceil(d.numInternalNodes, numThreads), numThreads>>>(d.prefixes, d.numInternalNodes, d.leafToInternal,
+                                                                    d.levelRange, d.childOffsets, d.parents);
 }
 
-template TreeNodeIndex computeNodeOpsGpu(const unsigned*, TreeNodeIndex, const unsigned*, unsigned, TreeNodeIndex*);
-template TreeNodeIndex computeNodeOpsGpu(const uint64_t*, TreeNodeIndex, const unsigned*, unsigned, TreeNodeIndex*);
-
-template<class KeyType>
-bool rebalanceTreeGpu(const KeyType* tree,
-                      TreeNodeIndex numNodes,
-                      TreeNodeIndex newNumNodes,
-                      const TreeNodeIndex* nodeOps,
-                      KeyType* newTree)
-{
-    constexpr unsigned nThreads = 512;
-    processNodes<<<iceil(numNodes, nThreads), nThreads>>>(tree, nodeOps, numNodes, newTree);
-    thrust::fill_n(thrust::device_pointer_cast(newTree + newNumNodes), 1, nodeRange<KeyType>(0));
-
-    int changeCounter;
-    checkGpuErrors(cudaMemcpyFromSymbol(&changeCounter, rebalanceChangeCounter, sizeof(int)));
-
-    return changeCounter == 0;
-}
-
-template bool rebalanceTreeGpu(const unsigned*, TreeNodeIndex, TreeNodeIndex, const TreeNodeIndex*, unsigned*);
-template bool rebalanceTreeGpu(const uint64_t*, TreeNodeIndex, TreeNodeIndex, const TreeNodeIndex*, uint64_t*);
+template void buildOctreeGpu(const uint32_t*, OctreeView<uint32_t>);
+template void buildOctreeGpu(const uint64_t*, OctreeView<uint64_t>);
 
 } // namespace cstone

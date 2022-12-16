@@ -31,10 +31,11 @@
 
 #pragma once
 
-#include "gpu_config.cuh"
-#include "types.h"
+#include <type_traits>
 
-namespace ryoanji
+#include "cstone/cuda/gpu_config.cuh"
+
+namespace cstone
 {
 
 //! @brief there's no int overload for min in AMD ROCM
@@ -285,4 +286,4 @@ __device__ __forceinline__ int streamCompact(T* value, bool keep, volatile T* sm
     return numKeep;
 }
 
-} // namespace ryoanji
+} // namespace cstone

@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Binary radix tree traversal tests with explicit references
+ * @brief Octree traversal tests with explicit references
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -34,8 +34,8 @@
 #include "gtest/gtest.h"
 
 #include "cstone/traversal/collisions.hpp"
-#include "cstone/tree/octree.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/csarray.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 using namespace cstone;
 
@@ -54,9 +54,10 @@ findCollidingIndices(IBox target, gsl::span<const KeyType> leaves, KeyType exclS
     octree.update(leaves.data(), nNodes(leaves));
 
     std::vector<TreeNodeIndex> collisions;
-    auto storeCollisions = [&collisions](TreeNodeIndex i) { collisions.push_back(i); };
+    auto storeCollisions = [toLeaf = octree.toLeafOrder().data(), &collisions](TreeNodeIndex i)
+    { collisions.push_back(toLeaf[i]); };
 
-    findCollisions(octree, storeCollisions, target, exclStart, exclEnd);
+    findCollisions(octree.nodeKeys().data(), octree.childOffsets().data(), storeCollisions, target, exclStart, exclEnd);
     std::sort(collisions.begin(), collisions.end());
 
     return collisions;
@@ -98,16 +99,15 @@ static void pbcCollision()
     constexpr unsigned L2 = 2;
     // all 8 corners collide
     std::vector<IBox> refCollided{
-        makeLevelBox<KeyType>(0, 0, 0, L2), makeLevelBox<KeyType>(0, 0, 3, L2),
-        makeLevelBox<KeyType>(0, 3, 0, L2), makeLevelBox<KeyType>(0, 3, 3, L2),
-        makeLevelBox<KeyType>(3, 0, 0, L2), makeLevelBox<KeyType>(3, 0, 3, L2),
+        makeLevelBox<KeyType>(0, 0, 0, L2), makeLevelBox<KeyType>(0, 0, 3, L2), makeLevelBox<KeyType>(0, 3, 0, L2),
+        makeLevelBox<KeyType>(0, 3, 3, L2), makeLevelBox<KeyType>(3, 0, 0, L2), makeLevelBox<KeyType>(3, 0, 3, L2),
         makeLevelBox<KeyType>(3, 3, 0, L2), makeLevelBox<KeyType>(3, 3, 3, L2),
     };
 
     EXPECT_EQ(probe, refCollided);
 }
 
-TEST(BinaryTreeTraversal, pbcCollision)
+TEST(OctreeTraversal, pbcCollision)
 {
     pbcCollision<unsigned>();
     pbcCollision<uint64_t>();
@@ -123,7 +123,7 @@ TEST(BinaryTreeTraversal, pbcCollision)
 template<class KeyType>
 static void pbcCollisionWithExclusions()
 {
-    constexpr int L2 = 2;
+    constexpr int L2          = 2;
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
     IBox haloBox{-1, 1, -1, 1, -1, 1};
@@ -132,16 +132,15 @@ static void pbcCollisionWithExclusions()
 
     // the (0,0,0) corner gets excluded
     std::vector<IBox> refCollided{
-        makeLevelBox<KeyType>(0, 0, 3, L2),
-        makeLevelBox<KeyType>(0, 3, 0, L2), makeLevelBox<KeyType>(0, 3, 3, L2),
-        makeLevelBox<KeyType>(3, 0, 0, L2), makeLevelBox<KeyType>(3, 0, 3, L2),
-        makeLevelBox<KeyType>(3, 3, 0, L2), makeLevelBox<KeyType>(3, 3, 3, L2),
+        makeLevelBox<KeyType>(0, 0, 3, L2), makeLevelBox<KeyType>(0, 3, 0, L2), makeLevelBox<KeyType>(0, 3, 3, L2),
+        makeLevelBox<KeyType>(3, 0, 0, L2), makeLevelBox<KeyType>(3, 0, 3, L2), makeLevelBox<KeyType>(3, 3, 0, L2),
+        makeLevelBox<KeyType>(3, 3, 3, L2),
     };
 
     EXPECT_EQ(probe, refCollided);
 }
 
-TEST(BinaryTreeTraversal, pbcCollisionWithExclusions)
+TEST(OctreeTraversal, pbcCollisionWithExclusions)
 {
     pbcCollisionWithExclusions<unsigned>();
     pbcCollisionWithExclusions<uint64_t>();
@@ -162,21 +161,23 @@ static void anisotropicHaloBox()
     int r = 1u << (maxTreeLevel<KeyType>{} - 2);
 
     // this will hit two nodes in +x direction, not just one neighbor node
-    IBox haloBox(0, 4*r, r, 2*r, r, 2*r);
+    IBox haloBox(0, 4 * r, r, 2 * r, r, 2 * r);
 
     auto probe = findCollidingBoxes<KeyType>(haloBox, tree, 0, 0);
 
     constexpr unsigned L2 = 2;
     // the (0,0,0) corner gets excluded
     std::vector<IBox> refCollided{
-        makeLevelBox<KeyType>(0, 1, 1, L2), makeLevelBox<KeyType>(1, 1, 1, L2),
-        makeLevelBox<KeyType>(2, 1, 1, L2), makeLevelBox<KeyType>(3, 1, 1, L2),
+        makeLevelBox<KeyType>(0, 1, 1, L2),
+        makeLevelBox<KeyType>(1, 1, 1, L2),
+        makeLevelBox<KeyType>(2, 1, 1, L2),
+        makeLevelBox<KeyType>(3, 1, 1, L2),
     };
 
     EXPECT_EQ(probe, refCollided);
 }
 
-TEST(BinaryTreeTraversal, anisotropicHalo)
+TEST(OctreeTraversal, anisotropicHalo)
 {
     anisotropicHaloBox<unsigned>();
     anisotropicHaloBox<uint64_t>();
@@ -218,7 +219,7 @@ TEST(Collisions, adjacentEdgeRegression)
     Box<double> box(0.5, 0.6);
 
     std::vector<double> haloRadii(nNodes(leaves), 0);
-    haloRadii[0] = 0.2;
+    haloRadii[0]        = 0.2;
     *haloRadii.rbegin() = 0.2;
 
     std::vector<TreeNodeIndex> allNodes(nNodes(leaves));
@@ -226,14 +227,11 @@ TEST(Collisions, adjacentEdgeRegression)
 
     for (std::size_t i = 0; i < nNodes(leaves); ++i)
     {
-        IBox haloBox = makeHaloBox(leaves[i], leaves[i + 1], haloRadii[i], box);
+        IBox haloBox    = makeHaloBox(leaves[i], leaves[i + 1], haloRadii[i], box);
         auto collisions = findCollidingIndices<unsigned>(haloBox, leaves, 0u, 0u);
 
         if (i == 0 || i == nNodes(leaves) - 1) { EXPECT_EQ(collisions, allNodes); }
-        else
-        {
-            EXPECT_EQ(collisions, std::vector<TreeNodeIndex>(1, i));
-        }
+        else { EXPECT_EQ(collisions, std::vector<TreeNodeIndex>(1, i)); }
     }
 }
 
@@ -249,8 +247,8 @@ TEST(Collisions, adjacentEdgeSmallRadius)
 
     // nNodes is 134
     TreeNodeIndex secondLastNode = 132;
-    double radius = 0.0001;
-    IBox haloBox = makeHaloBox(leaves[secondLastNode], leaves[secondLastNode + 1], radius, box);
+    double radius                = 0.0001;
+    IBox haloBox                 = makeHaloBox(leaves[secondLastNode], leaves[secondLastNode + 1], radius, box);
 
     auto collisions = findCollidingBoxes<unsigned>(haloBox, leaves, 0u, 0u);
 
@@ -268,9 +266,9 @@ TEST(Collisions, adjacentEdgeLastNode)
     Box<double> box(0, 1);
 
     // nNodes is 134
-    int lastNode = 133;
+    int lastNode  = 133;
     double radius = 0.0;
-    IBox haloBox = makeHaloBox(leaves[lastNode], leaves[lastNode + 1], radius, box);
+    IBox haloBox  = makeHaloBox(leaves[lastNode], leaves[lastNode + 1], radius, box);
 
     auto collisions = findCollidingIndices<unsigned>(haloBox, leaves, 0u, 0u);
 

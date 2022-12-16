@@ -159,3 +159,17 @@ TEST(DomainDecomposition, computeByteOffsets)
 
     EXPECT_EQ(offsets[3], 8064 + 4096 + 8064);
 }
+
+template<class KeyType>
+static void initialSplits()
+{
+    auto ret = initialDomainSplits<KeyType>(3, 5);
+    EXPECT_EQ(ret.front(), 0);
+    EXPECT_EQ(ret.back(), nodeRange<KeyType>(0));
+}
+
+TEST(DomainDecomposition, initialDomainSplit)
+{
+    initialSplits<unsigned>();
+    initialSplits<uint64_t>();
+}

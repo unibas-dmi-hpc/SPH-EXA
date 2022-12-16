@@ -92,8 +92,7 @@ template<class KeyType>
 void mortonNeighbors()
 {
     //                      input    ref. out  treeLevel dx   dy   dz
-    std::vector<std::tuple<KeyType, KeyType, unsigned, int, int, int>> codes
-    {
+    std::vector<std::tuple<KeyType, KeyType, unsigned, int, int, int>> codes{
         {pad(KeyType(0b000111111), 9), pad(KeyType(0b000111011), 9), 3, -1, 0, 0},
         {pad(KeyType(0b000111111), 9), pad(KeyType(0b100011011), 9), 3, 1, 0, 0},
         {pad(KeyType(0b000111111), 9), pad(KeyType(0b000111101), 9), 3, 0, -1, 0},
@@ -113,9 +112,10 @@ void mortonNeighbors()
         {pad(KeyType(0b000111000), 9), pad(KeyType(0b000000000), 9), 3, 6, 6, 6},    // PBC sensitive
     };
 
-    auto computeCode = [](auto t) {
+    auto computeCode = [](auto t)
+    {
         auto [input, reference, level, dx, dy, dz] = t;
-        IBox ibox = mortonIBox(input, level);
+        IBox ibox                                  = mortonIBox(input, level);
         return sfcNeighbor<MortonKey<KeyType>>(ibox, level, dx, dy, dz);
     };
 
@@ -141,7 +141,7 @@ void mortonIBox()
     {
         KeyType nodeStart = nodeRange<KeyType>(0) - 1;
         KeyType nodeEnd   = nodeRange<KeyType>(0);
-        IBox ibox = mortonIBoxKeys(nodeStart, nodeEnd);
+        IBox ibox         = mortonIBoxKeys(nodeStart, nodeEnd);
         IBox refBox{maxCoord - 1, maxCoord};
         EXPECT_EQ(ibox, refBox);
     }

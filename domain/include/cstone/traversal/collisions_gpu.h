@@ -24,18 +24,14 @@
  */
 
 /*! @file
- * @brief  CPU driver for halo discovery using traversal of an internal binary radix tree
+ * @brief  GPU driver for halo discovery using traversal of an octree
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include <algorithm>
-#include <vector>
-
-#include "cstone/halos/btreetraversal.hpp"
-#include "cstone/util/gsl-lite.hpp"
+#include "cstone/traversal/collisions.hpp"
 
 namespace cstone
 {
@@ -44,45 +40,30 @@ namespace cstone
  *
  * @tparam KeyType               32- or 64-bit unsigned integer
  * @tparam RadiusType            float or double, float is sufficient for 64-bit codes or less
- * @tparam CoordinateType        float or double
- * @param[in]  leaves            cornerstone octree leaves
- * @param[in]  binaryTree        matching binary tree on top of @p leaves
+ * @tparam T                     float or double
+ * @param[in]  prefixes          Warren-Salmon node keys of the octree, length = numTreeNodes
+ * @param[in]  childOffsets      child offsets array, length = numTreeNodes
+ * @param[in]  internalToLeaf    map leaf node indices of fully linked format to cornerstone order
+ * @param[in]  leaves            cstone array of leaf node keys
  * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
  * @param[in]  box               coordinate bounding box
- * @param[in]  firstNode         first leaf node index of @p leaves to consider as local
- * @param[in]  lastNode          last leaf node index of @p leaves to consider as local
- * @param[out] collisionFlags    array of length nNodes(leaves), each node that is a halo
+ * @param[in]  firstNode         first cstone leaf node index to consider as local
+ * @param[in]  lastNode          last cstone leaf node index to consider as local
+ * @param[out] collisionFlags    array of length numLeafNodes, each node that is a halo
  *                               from the perspective of [firstNode:lastNode] will be marked
  *                               with a non-zero value.
  *                               Note: does NOT reset non-colliding indices to 0, so @p collisionFlags
  *                               should be zero-initialized prior to calling this function.
  */
-template<class KeyType, class RadiusType, class CoordinateType>
-void findHalos(const KeyType* leaves,
-               const BinaryNode<KeyType>* binaryTree,
-               const RadiusType* interactionRadii,
-               const Box<CoordinateType>& box,
-               TreeNodeIndex firstNode,
-               TreeNodeIndex lastNode,
-               int* collisionFlags)
-{
-    KeyType lowestCode  = leaves[firstNode];
-    KeyType highestCode = leaves[lastNode];
-
-// loop over all the nodes in range
-#pragma omp parallel for
-    for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
-    {
-        RadiusType radius = interactionRadii[nodeIdx];
-
-        IBox haloBox = makeHaloBox<KeyType>(leaves[nodeIdx], leaves[nodeIdx + 1], radius, box);
-
-        // if the halo box is fully inside the assigned SFC range, we skip collision detection
-        if (containedIn(lowestCode, highestCode, haloBox)) { continue; }
-
-        // mark all colliding node indices outside [lowestCode:highestCode]
-        findCollisions(binaryTree, leaves, collisionFlags, haloBox, {lowestCode, highestCode});
-    }
-}
+template<class KeyType, class RadiusType, class T>
+extern void findHalosGpu(const KeyType* prefixes,
+                         const TreeNodeIndex* childOffsets,
+                         const TreeNodeIndex* internalToLeaf,
+                         const KeyType* leaves,
+                         const RadiusType* interactionRadii,
+                         const Box<T>& box,
+                         TreeNodeIndex firstNode,
+                         TreeNodeIndex lastNode,
+                         int* collisionFlags);
 
 } // namespace cstone

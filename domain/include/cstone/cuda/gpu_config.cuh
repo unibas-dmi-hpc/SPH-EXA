@@ -27,19 +27,16 @@
  * @brief  GPU hardware specific configuration
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Rio Yokota <rioyokota@gsic.titech.ac.jp>
  */
 
 #pragma once
 
-#include <cassert>
+#include <cstdint>
 #include <cuda_runtime.h>
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
 
 #include "cstone/cuda/errorcheck.cuh"
 
-namespace ryoanji
+namespace cstone
 {
 
 struct GpuConfig
@@ -73,20 +70,4 @@ struct GpuConfig
     inline static int smCount = getSmCount();
 };
 
-template<class T>
-T* rawPtr(thrust::device_ptr<T> p)
-{
-    return thrust::raw_pointer_cast(p);
-}
-
-static void kernelSuccess(const char kernel[] = "kernel")
-{
-    cudaError_t err = cudaDeviceSynchronize();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "%s launch failed: %s\n", kernel, cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-}
-
-} // namespace ryoanji
+} // namespace cstone

@@ -31,22 +31,16 @@
 
 #include <thrust/device_vector.h>
 
+#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/util/reallocate.hpp"
-#include "multipole_holder.cuh"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
-#include "ryoanji/nbody/gpu_config.cuh"
 #include "ryoanji/nbody/upwardpass.cuh"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
 #include "ryoanji/nbody/traversal.cuh"
+#include "multipole_holder.cuh"
 
 namespace ryoanji
 {
-
-template<class T>
-void memcpy(T* dest, const T* src, size_t n, cudaMemcpyKind kind)
-{
-    cudaMemcpy(dest, src, sizeof(T) * n, kind);
-}
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
 class MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::Impl
@@ -58,68 +52,59 @@ public:
                  const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles)
     {
-        constexpr int                  numThreads = UpsweepConfig::numThreads;
-        const cstone::Octree<KeyType>& octree     = focusTree.octree();
+        constexpr int numThreads = UpsweepConfig::numThreads;
+        octree_                  = focusTree.octreeViewAcc();
 
-        TreeNodeIndex numLeaves = focusTree.octree().numLeafNodes();
-        resize(numLeaves);
+        resize(octree_.numLeafNodes);
 
-        auto centers       = focusTree.expansionCenters();
         auto globalCenters = focusTree.globalExpansionCenters();
 
-        // H2D leafToInternal, internalToLeaf, layout, centers, childOffsets
+        layout_  = layout;
+        centers_ = focusTree.expansionCentersAcc().data();
 
-        const TreeNodeIndex* leafToInternal = octree.internalOrder().data();
-        memcpy(rawPtr(leafToInternal_.data()), leafToInternal, numLeaves, cudaMemcpyHostToDevice);
+        computeLeafMultipoles<<<(octree_.numLeafNodes - 1) / numThreads + 1, numThreads>>>(
+            x, y, z, m, octree_.leafToInternal + octree_.numInternalNodes, octree_.numLeafNodes, layout_, centers_,
+            rawPtr(multipoles_));
 
-        const TreeNodeIndex* internalToLeaf = octree.toLeafOrder().data();
-        memcpy(rawPtr(internalToLeaf_.data()), internalToLeaf, internalToLeaf_.size(), cudaMemcpyHostToDevice);
+        std::vector<TreeNodeIndex> levelRange(cstone::maxTreeLevel<KeyType>{} + 2);
+        memcpyD2H(octree_.levelRange, levelRange.size(), levelRange.data());
 
-        const TreeNodeIndex* childOffsets = octree.childOffsets().data();
-        memcpy(rawPtr(childOffsets_.data()), octree.childOffsets().data(), childOffsets_.size(),
-               cudaMemcpyHostToDevice);
-
-        memcpy(rawPtr(layout_.data()), layout, layout_.size(), cudaMemcpyHostToDevice);
-        memcpy(rawPtr(centers_.data()), centers.data(), centers.size(), cudaMemcpyHostToDevice);
-
-        computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(
-            x, y, z, m, rawPtr(leafToInternal_.data()), numLeaves, rawPtr(layout_.data()), rawPtr(centers_.data()),
-            rawPtr(multipoles_.data()));
-
-        //! first upsweep with local data
-        int  numLevels  = 21;
-        auto levelRange = octree.levelRange();
+        //! first upsweep with local data, start at lowest possible level - 1, lowest level can only be leaves
+        int numLevels = cstone::maxTreeLevel<KeyType>{};
         for (int level = numLevels - 1; level >= 0; level--)
         {
             int numCellsLevel = levelRange[level + 1] - levelRange[level];
             int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level], levelRange[level + 1],
-                                                         rawPtr(childOffsets_.data()), rawPtr(centers_.data()),
-                                                         rawPtr(multipoles_.data()));
+            if (numCellsLevel)
+            {
+                upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level], levelRange[level + 1],
+                                                             octree_.childOffsets, centers_, rawPtr(multipoles_));
+            }
         }
 
-        // D2H multipoles
-        memcpy(multipoles, rawPtr(multipoles_.data()), multipoles_.size(), cudaMemcpyDeviceToHost);
+        memcpyD2H(rawPtr(multipoles_), multipoles_.size(), multipoles);
 
         auto ryUpsweep = [](auto levelRange, auto childOffsets, auto M, auto centers)
-        { upsweepMultipoles(levelRange, childOffsets, centers, M); };
+        { upsweepMultipoles(levelRange, childOffsets.data(), centers, M); };
 
-        gsl::span multipoleSpan{multipoles, size_t(octree.numTreeNodes())};
+        gsl::span multipoleSpan{multipoles, size_t(octree_.numNodes)};
         cstone::globalFocusExchange(globalOctree, focusTree, multipoleSpan, ryUpsweep, globalCenters.data());
 
         focusTree.peerExchange(multipoleSpan, static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);
 
         // H2D multipoles
-        memcpy(rawPtr(multipoles_.data()), multipoles, multipoles_.size(), cudaMemcpyHostToDevice);
+        memcpyH2D(multipoles, multipoles_.size(), rawPtr(multipoles_));
 
         //! second upsweep with leaf data from peer and global ranks in place
         for (int level = numLevels - 1; level >= 0; level--)
         {
             int numCellsLevel = levelRange[level + 1] - levelRange[level];
             int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level], levelRange[level + 1],
-                                                         rawPtr(childOffsets_.data()), rawPtr(centers_.data()),
-                                                         rawPtr(multipoles_.data()));
+            if (numCellsLevel)
+            {
+                upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level], levelRange[level + 1],
+                                                             octree_.childOffsets, centers_, rawPtr(multipoles_));
+            }
         }
     }
 
@@ -128,7 +113,7 @@ public:
     {
         resetTraversalCounters<<<1, 1>>>();
 
-        constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
+        constexpr int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
 
         LocalIndex numBodies = lastBody - firstBody;
 
@@ -141,16 +126,27 @@ public:
 
         reallocateGeneric(globalPool_, poolSize, 1.05);
         traverse<<<numBlocks, TravConfig::numThreads>>>(
-            firstBody, lastBody, {1, 9}, x, y, z, m, h, rawPtr(childOffsets_.data()), rawPtr(internalToLeaf_.data()),
-            rawPtr(layout_.data()), rawPtr(centers_.data()), rawPtr(multipoles_.data()), G, (int*)(nullptr), ax, ay, az,
-            rawPtr(globalPool_.data()));
+            firstBody, lastBody, {1, 9}, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_, centers_,
+            rawPtr(multipoles_), G, (int*)(nullptr), ax, ay, az, rawPtr(globalPool_));
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
 
         return 0.5f * Tc(G) * totalPotential;
     }
 
-    const MType* deviceMultipoles() const { return rawPtr(multipoles_.data()); }
+    util::array<uint64_t, 4> readStats() const
+    {
+        uint64_t     sumP2P, sumM2P;
+        unsigned int maxP2P, maxM2P;
+        checkGpuErrors(cudaMemcpyFromSymbol(&sumP2P, sumP2PGlob, sizeof(uint64_t)));
+        checkGpuErrors(cudaMemcpyFromSymbol(&maxP2P, maxP2PGlob, sizeof(unsigned int)));
+        checkGpuErrors(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
+        checkGpuErrors(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
+
+        return {sumP2P, maxP2P, sumM2P, maxM2P};
+    }
+
+    const MType* deviceMultipoles() const { return rawPtr(multipoles_); }
 
 private:
     void resize(size_t numLeaves)
@@ -158,40 +154,19 @@ private:
         double growthRate = 1.01;
         size_t numNodes   = numLeaves + (numLeaves - 1) / 7;
 
-        auto dealloc = [](auto& v)
+        if (numLeaves > multipoles_.capacity())
         {
-            v.clear();
-            v.shrink_to_fit();
-        };
-
-        if (numLeaves > leafToInternal_.capacity())
-        {
-            dealloc(leafToInternal_);
-            dealloc(internalToLeaf_);
-            dealloc(childOffsets_);
-            dealloc(layout_);
-            dealloc(centers_);
-            dealloc(multipoles_);
+            multipoles_.clear();
+            multipoles_.shrink_to_fit();
         }
-
-        reallocateGeneric(leafToInternal_, numLeaves, growthRate);
-        reallocateGeneric(internalToLeaf_, numNodes, growthRate);
-        reallocateGeneric(childOffsets_, numNodes, growthRate);
-
-        reallocateGeneric(layout_, numLeaves + 1, growthRate);
-
-        reallocateGeneric(centers_, numNodes, growthRate);
         reallocateGeneric(multipoles_, numNodes, growthRate);
     }
 
-    thrust::device_vector<TreeNodeIndex> leafToInternal_;
-    thrust::device_vector<TreeNodeIndex> internalToLeaf_;
-    thrust::device_vector<TreeNodeIndex> childOffsets_;
+    cstone::OctreeView<const KeyType> octree_;
 
-    thrust::device_vector<LocalIndex> layout_;
-
-    thrust::device_vector<Vec4<Tf>> centers_;
-    thrust::device_vector<MType>    multipoles_;
+    const LocalIndex*            layout_;
+    const Vec4<Tf>*              centers_;
+    thrust::device_vector<MType> multipoles_;
 
     thrust::device_vector<int> globalPool_;
 };
@@ -219,6 +194,12 @@ float MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::compute(LocalIndex fi
                                                                    const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az)
 {
     return impl_->compute(firstBody, lastBody, x, y, z, m, h, G, ax, ay, az);
+}
+
+template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
+util::array<uint64_t, 4> MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::readStats() const
+{
+    return impl_->readStats();
 }
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>

@@ -68,23 +68,25 @@ TEST(Gravity, TreeWalk)
         computeOctree(coordinates.particleKeys().data(), coordinates.particleKeys().data() + numParticles, bucketSize);
 
     // fully linked octree, including internal part
-    Octree<KeyType> octree;
-    octree.update(treeLeaves.data(), nNodes(treeLeaves));
+    OctreeData<KeyType, CpuTag> octree;
+    octree.resize(nNodes(treeLeaves));
+    updateInternalTree<KeyType>(treeLeaves, octree.data());
 
     // layout[i] is equal to the index in (x,y,z,m) of the first particle in leaf cell with index i
-    std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);
+    std::vector<LocalIndex> layout(octree.numLeafNodes + 1);
     stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
-    std::vector<SourceCenterType<T>> centers(octree.numTreeNodes());
-    computeLeafMassCenter<T, T, T, KeyType>(
-        coordinates.x(), coordinates.y(), coordinates.z(), masses, coordinates.particleKeys(), octree, centers);
-    upsweep(octree.levelRange(), octree.childOffsets(), centers.data(), CombineSourceCenter<T>{});
-    setMac<T>(octree.nodeKeys(), centers, 1.0 / theta, box);
+    auto toInternal = leafToInternal(octree);
 
-    std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-    computeLeafMultipoles(
-        x, y, z, masses.data(), octree.internalOrder(), layout.data(), centers.data(), multipoles.data());
-    upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
+    std::vector<SourceCenterType<T>> centers(octree.numNodes);
+    computeLeafMassCenter<T, T, T>(coordinates.x(), coordinates.y(), coordinates.z(), masses, toInternal, layout.data(),
+                                   centers.data());
+    upsweep(octree.levelRange, octree.childOffsets, centers.data(), CombineSourceCenter<T>{});
+    setMac<T, KeyType>(octree.prefixes, centers, 1.0 / theta, box);
+
+    std::vector<MultipoleType> multipoles(octree.numNodes);
+    computeLeafMultipoles(x, y, z, masses.data(), toInternal, layout.data(), centers.data(), multipoles.data());
+    upsweepMultipoles(octree.levelRange, octree.childOffsets.data(), centers.data(), multipoles.data());
     for (size_t i = 0; i < multipoles.size(); ++i)
     {
         multipoles[i] = ryoanji::normalize(multipoles[i]);
@@ -98,21 +100,9 @@ TEST(Gravity, TreeWalk)
     std::vector<T> az(numParticles, 0);
 
     auto   t0       = std::chrono::high_resolution_clock::now();
-    double egravTot = computeGravity(octree,
-                                     centers.data(),
-                                     multipoles.data(),
-                                     layout.data(),
-                                     0,
-                                     octree.numLeafNodes(),
-                                     x,
-                                     y,
-                                     z,
-                                     h.data(),
-                                     masses.data(),
-                                     G,
-                                     ax.data(),
-                                     ay.data(),
-                                     az.data());
+    double egravTot = computeGravity(octree.childOffsets.data(), octree.internalToLeaf.data(), octree.numLeafNodes,
+                                     centers.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z,
+                                     h.data(), masses.data(), G, ax.data(), ay.data(), az.data());
     auto   t1       = std::chrono::high_resolution_clock::now();
     double elapsed  = std::chrono::duration<double>(t1 - t0).count();
 
@@ -126,8 +116,8 @@ TEST(Gravity, TreeWalk)
     std::vector<T> potentialReference(numParticles, 0);
 
     t0 = std::chrono::high_resolution_clock::now();
-    directSum(
-        x, y, z, h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(), Az.data(), potentialReference.data());
+    directSum(x, y, z, h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(), Az.data(),
+              potentialReference.data());
     t1      = std::chrono::high_resolution_clock::now();
     elapsed = std::chrono::duration<double>(t1 - t0).count();
 

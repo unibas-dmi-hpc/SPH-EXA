@@ -36,14 +36,14 @@
 #include <thrust/device_vector.h>
 
 #include "coord_samples/random.hpp"
-#include "cstone/tree/octree.hpp"
-#include "cstone/tree/octree_gpu.h"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/csarray.hpp"
+#include "cstone/tree/csarray_gpu.h"
+#include "cstone/tree/cs_util.hpp"
 #include "cstone/tree/update_gpu.cuh"
 
 using namespace cstone;
 
-TEST(OctreeGpu, computeNodeCountsGpu)
+TEST(CsArrayGpu, computeNodeCountsGpu)
 {
     using KeyType = unsigned;
 
@@ -90,7 +90,7 @@ TEST(OctreeGpu, computeNodeCountsGpu)
     EXPECT_EQ(h_counts, refCounts);
 }
 
-TEST(OctreeGpu, rebalanceDecision)
+TEST(CsArrayGpu, rebalanceDecision)
 {
     using KeyType       = unsigned;
     unsigned bucketSize = 8;
@@ -112,7 +112,7 @@ TEST(OctreeGpu, rebalanceDecision)
     EXPECT_EQ(refNodeOps, h_nodeOps);
 }
 
-TEST(OctreeGpu, rebalanceTree)
+TEST(CsArrayGpu, rebalanceTree)
 {
     using KeyType                       = unsigned;
     thrust::device_vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(7).makeTree();
@@ -165,7 +165,7 @@ public:
 };
 
 //! @brief build tree from random particles and compare against CPU
-TEST(OctreeGpu, computeOctreeRandom)
+TEST(CsArrayGpu, computeOctreeRandom)
 {
     using Integer = unsigned;
 
@@ -196,7 +196,7 @@ TEST(OctreeGpu, computeOctreeRandom)
  * and recomputing the node counts based on this subset of particle codes. The non-zero node counts should stay the
  * same.
  */
-TEST(OctreeGpu, distributedMockUp)
+TEST(CsArrayGpu, distributedMockUp)
 {
     using CodeType = unsigned;
 

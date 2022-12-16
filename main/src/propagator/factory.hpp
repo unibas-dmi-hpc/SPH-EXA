@@ -35,6 +35,7 @@
 #include <variant>
 
 #include "ipropagator.hpp"
+#include "nbody.hpp"
 #include "std_hydro.hpp"
 #include "ve_hydro.hpp"
 #ifdef SPH_EXA_HAVE_GRACKLE
@@ -61,6 +62,10 @@ propagatorFactory(const std::string& choice, size_t ngmax, size_t ng0, std::ostr
         return std::make_unique<HydroGrackleProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
     }
 #endif
+    if (choice == "nbody")
+    {
+        return std::make_unique<NbodyProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+    }
     if (choice == "turbulence")
     {
 #ifdef SPH_EXA_HAVE_H5PART

@@ -49,7 +49,7 @@ public:
     {
     }
 
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box) override
     {
         int rank;
         MPI_Comm_rank(simData.comm, &rank);
@@ -60,7 +60,7 @@ public:
         if (rank == 0)
         {
             fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
-                                    d.linmom, d.angmom);
+                                    d.linmom, d.angmom, d.machRMS);
         }
     }
 };

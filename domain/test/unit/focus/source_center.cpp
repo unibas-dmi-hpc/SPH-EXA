@@ -32,7 +32,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/focus/source_center.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "cstone/tree/cs_util.hpp"
 
 #include "coord_samples/random.hpp"
 
@@ -83,21 +83,26 @@ static void computeSourceCenter()
 
     auto [csTree, csCounts] =
         computeOctree(coords.particleKeys().data(), coords.particleKeys().data() + numParticles, csBucketSize);
-    Octree<KeyType> octree;
-    octree.update(csTree.data(), nNodes(csTree));
+    OctreeData<KeyType, CpuTag> octree;
+    octree.resize(nNodes(csTree));
+    updateInternalTree<KeyType>(csTree, octree.data());
 
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), [numParticles]() { return drand48() / numParticles; });
-    std::vector<util::array<T, 4>> centers(octree.numTreeNodes());
+    std::vector<util::array<T, 4>> centers(octree.numNodes);
 
-    computeLeafMassCenter<T, T, T, KeyType>(coords.x(), coords.y(), coords.z(), masses, coords.particleKeys(), octree,
-                                            centers);
-    upsweep(octree.levelRange(), octree.childOffsets(), centers.data(), CombineSourceCenter<T>{});
+    std::vector<LocalIndex> layout(octree.numLeafNodes + 1);
+    stl::exclusive_scan(csCounts.begin(), csCounts.end() + 1, layout.begin(), LocalIndex(0));
+
+    auto toInternal = leafToInternal(octree);
+    computeLeafMassCenter<T, T, T>(coords.x(), coords.y(), coords.z(), masses, toInternal, layout.data(),
+                                   centers.data());
+    upsweep(octree.levelRange, octree.childOffsets, centers.data(), CombineSourceCenter<T>{});
 
     util::array<T, 4> refRootCenter =
         massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(), masses.data(), 0, numParticles);
 
-    TreeNodeIndex rootNode = octree.levelOffset(0);
+    TreeNodeIndex rootNode = octree.levelRange[0];
 
     EXPECT_NEAR(centers[rootNode][3], refRootCenter[3], 1e-8);
 }

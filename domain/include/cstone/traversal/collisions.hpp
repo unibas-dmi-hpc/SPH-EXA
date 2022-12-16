@@ -36,20 +36,24 @@
 namespace cstone
 {
 
-template<class TreeType, class KeyType, class F>
-void findCollisions(
-    const TreeType& octree, F&& endpointAction, const IBox& target, KeyType excludeStart, KeyType excludeEnd)
+template<class KeyType, class F>
+HOST_DEVICE_FUN void findCollisions(const KeyType* nodePrefixes,
+                                    const TreeNodeIndex* childOffsets,
+                                    F&& endpointAction,
+                                    const IBox& target,
+                                    KeyType excludeStart,
+                                    KeyType excludeEnd)
 {
-    auto overlaps = [excludeStart, excludeEnd, &octree, &target](TreeNodeIndex idx)
+    auto overlaps = [excludeStart, excludeEnd, nodePrefixes, &target](TreeNodeIndex idx)
     {
-        KeyType nodeKey = octree.codeStart(idx);
-        int level       = octree.level(idx);
+        KeyType nodeKey = decodePlaceholderBit(nodePrefixes[idx]);
+        int level       = decodePrefixLength(nodePrefixes[idx]) / 3;
         IBox sourceBox  = sfcIBox(sfcKey(nodeKey), level);
         return !containedIn(nodeKey, nodeKey + nodeRange<KeyType>(level), excludeStart, excludeEnd) &&
                overlap<KeyType>(sourceBox, target);
     };
 
-    singleTraversal(octree, overlaps, endpointAction);
+    singleTraversal(childOffsets, overlaps, endpointAction);
 }
 
 /*! @brief mark halo nodes with flags
@@ -57,7 +61,10 @@ void findCollisions(
  * @tparam KeyType               32- or 64-bit unsigned integer
  * @tparam RadiusType            float or double, float is sufficient for 64-bit codes or less
  * @tparam CoordinateType        float or double
- * @param[in]  octree            fully linked octree
+ * @param[in]  prefixes          node keys in placeholder-bit format of fully linked octree
+ * @param[in]  childOffsets      first child node index of each node
+ * @param[in]  internalToLeaf    conversion of fully linked indices to cstone indices
+ * @param[in]  leaves            cornerstone array of tree leaves
  * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
  * @param[in]  box               coordinate bounding box
  * @param[in]  firstNode         first leaf node index to consider as local
@@ -68,33 +75,32 @@ void findCollisions(
  *                               Note: does NOT reset non-colliding indices to 0, so @p collisionFlags
  *                               should be zero-initialized prior to calling this function.
  */
-template<template<class> class TreeType, class KeyType, class RadiusType, class CoordinateType>
-void findHalos(const TreeType<KeyType>& octree,
+template<class KeyType, class RadiusType, class CoordinateType>
+void findHalos(const KeyType* prefixes,
+               const TreeNodeIndex* childOffsets,
+               const TreeNodeIndex* internalToLeaf,
+               const KeyType* leaves,
                const RadiusType* interactionRadii,
                const Box<CoordinateType>& box,
                TreeNodeIndex firstNode,
                TreeNodeIndex lastNode,
                int* collisionFlags)
 {
-    KeyType lowestCode  = octree.codeStart(octree.toInternal(firstNode));
-    KeyType highestCode = octree.codeEnd(octree.toInternal(lastNode - 1));
+    KeyType lowestCode  = leaves[firstNode];
+    KeyType highestCode = leaves[lastNode];
 
-    auto markCollisions = [flags = collisionFlags](TreeNodeIndex i) { flags[i] = 1; };
+    auto markCollisions = [collisionFlags, internalToLeaf](TreeNodeIndex i) { collisionFlags[internalToLeaf[i]] = 1; };
 
 #pragma omp parallel for
     for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
     {
         RadiusType radius = interactionRadii[nodeIdx];
-
-        TreeNodeIndex internalIdx = octree.toInternal(nodeIdx);
-        KeyType leafKey           = octree.codeStart(internalIdx);
-        unsigned level            = octree.level(internalIdx);
-        IBox haloBox              = makeHaloBox<KeyType>(leafKey, leafKey + nodeRange<KeyType>(level), radius, box);
+        IBox haloBox      = makeHaloBox<KeyType>(leaves[nodeIdx], leaves[nodeIdx + 1], radius, box);
 
         // if the halo box is fully inside the assigned SFC range, we skip collision detection
         if (containedIn(lowestCode, highestCode, haloBox)) { continue; }
 
-        findCollisions(octree, markCollisions, haloBox, lowestCode, highestCode);
+        findCollisions(prefixes, childOffsets, markCollisions, haloBox, lowestCode, highestCode);
     }
 }
 
