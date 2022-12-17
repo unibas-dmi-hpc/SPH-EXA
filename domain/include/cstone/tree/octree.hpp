@@ -257,7 +257,7 @@ struct OctreeView
 };
 
 //! @brief combination of octree data needed for traversal with node properties
-template<class KeyType, class T>
+template<class T, class KeyType>
 struct OctreeNsView
 {
     const KeyType* prefixes;

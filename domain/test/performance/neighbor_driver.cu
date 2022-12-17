@@ -127,7 +127,7 @@ void benchmarkGpu()
     gsl::span<const KeyType> nodeKeys(octree.prefixes.data(), octree.numNodes);
     nodeFpCenters<KeyType>(nodeKeys, centers.data(), sizes.data(), box);
 
-    OctreeNsView<KeyType, T> nsView{octree.prefixes.data(),
+    OctreeNsView<T, KeyType> nsView{octree.prefixes.data(),
                                     octree.childOffsets.data(),
                                     octree.internalToLeaf.data(),
                                     octree.levelRange.data(),
@@ -169,7 +169,7 @@ void benchmarkGpu()
     thrust::device_vector<Vec3<T>> d_centers              = centers;
     thrust::device_vector<Vec3<T>> d_sizes                = sizes;
 
-    OctreeNsView<KeyType, T> nsViewGpu{rawPtr(d_prefixes),   rawPtr(d_childOffsets), rawPtr(d_internalToLeaf),
+    OctreeNsView<T, KeyType> nsViewGpu{rawPtr(d_prefixes),   rawPtr(d_childOffsets), rawPtr(d_internalToLeaf),
                                        rawPtr(d_levelRange), rawPtr(d_layout),       rawPtr(d_centers),
                                        rawPtr(d_sizes)};
 

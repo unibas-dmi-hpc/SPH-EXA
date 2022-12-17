@@ -396,7 +396,6 @@ HOST_DEVICE_FUN void findNeighbors(LocalIndex id,
     *neighborsCount = numNeighbors;
 }
 
-//! @brief generic version for Morton and Hilbert keys
 template<class T, class KeyType>
 void findNeighbors(const T* x,
                    const T* y,
@@ -409,7 +408,7 @@ void findNeighbors(const T* x,
                    const KeyType* particleKeys,
                    LocalIndex* neighbors,
                    unsigned* neighborsCount,
-                   int ngmax)
+                   unsigned ngmax)
 {
     LocalIndex numWork = lastId - firstId;
 
@@ -422,13 +421,13 @@ void findNeighbors(const T* x,
     }
 }
 
-template<class KeyType, class T>
+template<class T, class KeyType>
 HOST_DEVICE_FUN void findNeighborsT(LocalIndex i,
                                     const T* x,
                                     const T* y,
                                     const T* z,
                                     const T* h,
-                                    const OctreeNsView<KeyType, T>& tree,
+                                    const OctreeNsView<T, KeyType>& tree,
                                     const Box<T>& box,
                                     unsigned ngmax,
                                     LocalIndex* neighbors,
@@ -500,6 +499,29 @@ HOST_DEVICE_FUN void findNeighborsT(LocalIndex i,
     else { singleTraversal(tree.childOffsets, overlaps, searchBox); }
 
     *nc = numNeighbors;
+}
+
+template<class T, class KeyType>
+void findNeighborsT(const T* x,
+                    const T* y,
+                    const T* z,
+                    const T* h,
+                    LocalIndex firstId,
+                    LocalIndex lastId,
+                    const Box<T>& box,
+                    const OctreeNsView<T, KeyType>& treeView,
+                    unsigned ngmax,
+                    LocalIndex* neighbors,
+                    unsigned* neighborsCount)
+{
+    LocalIndex numWork = lastId - firstId;
+
+#pragma omp parallel for
+    for (LocalIndex i = 0; i < numWork; ++i)
+    {
+        LocalIndex id = i + firstId;
+        findNeighborsT(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax, neighborsCount + i);
+    }
 }
 
 } // namespace cstone

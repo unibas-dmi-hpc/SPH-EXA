@@ -338,7 +338,7 @@ public:
     //! @brief return the coordinate bounding box from the previous sync call
     const Box<T>& box() const { return global_.box(); }
 
-    OctreeNsView<KeyType, T> octreeNsViewAcc() const
+    OctreeNsView<T, KeyType> octreeNsViewAcc() const
     {
         auto v = focusTree_.octreeViewAcc();
         return {v.prefixes,
@@ -346,8 +346,8 @@ public:
                 v.internalToLeaf,
                 v.levelRange,
                 layout_.data(),
-                focusTree_.geoCentersAcc.data(),
-                focusTree_.geoSizesAcc.data()};
+                focusTree_.geoCentersAcc().data(),
+                focusTree_.geoSizesAcc().data()};
     }
 
 private:
