@@ -42,8 +42,8 @@ namespace sph
 {
 
 template<class Tc, class Th, class T>
-HOST_DEVICE_FUN T avRelVelCorrection(util::array<Tc, 3> R, Tc dist, Th hi, Th hj, T eta_crit,
-                                     const util::array<T, 9>& gradV_i, const util::array<const T, 9>& gradV_j)
+HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc dist, Th hiInv, Th hjInv, T eta_crit,
+                                 const util::array<T, 9>& gradV_i, const util::array<const T, 9>& gradV_j)
 {
     util::array<T, 3> gradVx_i{gradV_i[0], gradV_i[1], gradV_i[2]};
     util::array<T, 3> gradVy_i{gradV_i[3], gradV_i[4], gradV_i[5]};
@@ -62,7 +62,7 @@ HOST_DEVICE_FUN T avRelVelCorrection(util::array<Tc, 3> R, Tc dist, Th hi, Th hj
     T A_ab = T(0);
 
     if (dmy2 != T(0)) { A_ab = dmy1 / dmy2; }
-    T eta_ab = stl::min(dist / hi, dist / hj);
+    T eta_ab = dist * stl::min(hiInv, hjInv);
 
     T dmy3 = T(1);
     if (eta_ab < eta_crit) { dmy3 = std::exp(-math::pow((eta_ab - eta_crit) / T(0.2), 2)); }
@@ -74,15 +74,13 @@ HOST_DEVICE_FUN T avRelVelCorrection(util::array<Tc, 3> R, Tc dist, Th hi, Th hj
 }
 
 template<class Tc, class Tm, class T, class Tm1>
-HOST_DEVICE_FUN inline void
-momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
-                       const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x, const Tc* y,
-                       const Tc* z, const T* vx, const T* vy, const T* vz, const T* h, const Tm* m, const T* prho,
-                       const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
-                       const T Atmin, const T Atmax, const T ramp, const T* wh, const T* whd, const T* kx, const T* xm,
-                       const T* alpha, const T* dvxdx, const T* dvxdy, const T* dvxdz, const T* dvydx, const T* dvydy,
-                       const T* dvydz, const T* dvzdx, const T* dvzdy, const T* dvzdz,
-                       T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
+HOST_DEVICE_FUN inline void momentumAndEnergyJLoop(
+    cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
+    unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz, const T* h,
+    const Tm* m, const T* prho, const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
+    const T* c33, const T Atmin, const T Atmax, const T ramp, const T* wh, const T* whd, const T* kx, const T* xm,
+    const T* alpha, const T* dvxdx, const T* dvxdy, const T* dvxdz, const T* dvydx, const T* dvydy, const T* dvydz,
+    const T* dvzdx, const T* dvzdy, const T* dvzdz, T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
 {
     auto xi  = x[i];
     auto yi  = y[i];
@@ -123,15 +121,16 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
     util::array<T, 9> gradV_i = {dvxdx[i], dvxdy[i], dvxdz[i], dvydx[i], dvydy[i],
                                  dvydz[i], dvzdx[i], dvzdy[i], dvzdz[i]};
 
-    T eta_crit = std::cbrt(T(32) * M_PI / T(3) / T(neighborsCount + 1)); //+1 is because we need to add selfparticle to neighborsCount
+    // +1 is because we need to add selfparticle to neighborsCount
+    T eta_crit = std::cbrt(T(32) * M_PI / T(3) / T(neighborsCount + 1));
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
         cstone::LocalIndex j = neighbors[pj];
 
-        T rx     = xi - x[j];
-        T ry     = yi - y[j];
-        T rz     = zi - z[j];
+        T    rx  = xi - x[j];
+        T    ry  = yi - y[j];
+        T    rz  = zi - z[j];
         auto vxj = vx[j];
         auto vyj = vy[j];
         auto vzj = vz[j];
@@ -150,7 +149,6 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
 
         T v1 = dist * hiInv;
         T v2 = dist * hjInv;
-
 
         T hjInv3 = hjInv * hjInv * hjInv;
         T Wi     = hiInv3 * math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
@@ -177,12 +175,12 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
         auto xmassj = xm[j];
         auto rhoj   = kxj * mj / xmassj;
 
-        T alpha_j   = alpha[j];
+        T alpha_j = alpha[j];
 
         T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
-        rv += avRelVelCorrection(
-            {rx, ry, rz}, dist, hi, hj, eta_crit, gradV_i,
-            {dvxdx[j], dvxdy[j], dvxdz[j], dvydx[j], dvydy[j], dvydz[j], dvzdx[j], dvzdy[j], dvzdz[j]});
+        rv +=
+            avRvCorrection({rx, ry, rz}, dist, hiInv, hjInv, eta_crit, gradV_i,
+                           {dvxdx[j], dvxdy[j], dvxdz[j], dvydx[j], dvydy[j], dvydz[j], dvzdx[j], dvzdy[j], dvzdz[j]});
 
         T wij          = rv / dist;
         T viscosity_ij = artificial_viscosity(alpha_i, alpha_j, ci, cj, wij);
