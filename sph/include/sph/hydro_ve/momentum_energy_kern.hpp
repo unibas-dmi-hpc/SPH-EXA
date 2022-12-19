@@ -42,9 +42,8 @@ namespace sph
 {
 
 template<class Tc, class Th, class T>
-HOST_DEVICE_FUN T avRelVelCorrection(util::array<Tc, 3> R, Tc dist, Th hi, Th hj, util::array<T, 3> Vi,
-                                     util::array<T, 3> Vj, T eta_crit, const util::array<T, 9>& gradV_i,
-                                     const util::array<const T, 9>& gradV_j)
+HOST_DEVICE_FUN T avRelVelCorrection(util::array<Tc, 3> R, Tc dist, Th hi, Th hj, T eta_crit,
+                                     const util::array<T, 9>& gradV_i, const util::array<const T, 9>& gradV_j)
 {
     util::array<T, 3> gradVx_i{gradV_i[0], gradV_i[1], gradV_i[2]};
     util::array<T, 3> gradVy_i{gradV_i[3], gradV_i[4], gradV_i[5]};
@@ -69,11 +68,9 @@ HOST_DEVICE_FUN T avRelVelCorrection(util::array<Tc, 3> R, Tc dist, Th hi, Th hj
     if (eta_ab < eta_crit) { dmy3 = std::exp(-math::pow((eta_ab - eta_crit) / T(0.2), 2)); }
     T phi_ab = T(0.5) * stl::max(T(0), stl::min(T(1), T(4) * A_ab / math::pow(T(1) + A_ab, 2))) * dmy3;
 
-    auto vAVi = Vi - phi_ab * gradV_i_dot_R;
-    auto vAVj = Vj + phi_ab * gradV_j_dot_R;
-    T    rv   = dot(R, vAVi - vAVj);
-
-    return rv;
+    // additive AV correction to rv = dot(R, Vij)
+    T rv_AV = dot(R, -phi_ab * (gradV_i_dot_R + gradV_j_dot_R));
+    return rv_AV;
 }
 
 template<class Tc, class Tm, class T, class Tm1>
@@ -182,10 +179,10 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
 
         T alpha_j   = alpha[j];
 
-        T rv = avRelVelCorrection(
-            {rx, ry, rz}, dist, hi, hj, {vxi, vyi, vzi}, {vxj, vyj, vzj}, eta_crit, gradV_i,
+        T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
+        rv += avRelVelCorrection(
+            {rx, ry, rz}, dist, hi, hj, eta_crit, gradV_i,
             {dvxdx[j], dvxdy[j], dvxdz[j], dvydx[j], dvydy[j], dvydz[j], dvzdx[j], dvzdy[j], dvzdz[j]});
-        // T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
 
         T wij          = rv / dist;
         T viscosity_ij = artificial_viscosity(alpha_i, alpha_j, ci, cj, wij);
