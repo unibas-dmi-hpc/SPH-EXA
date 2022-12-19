@@ -198,7 +198,7 @@ public:
         for (size_t i = first; i < last; i++)
         {
             bool haveMui = !d.mui.empty();
-            T    cv      = idealGasCv(haveMui ? d.mui[i] : d.muiConst);
+            T    cv      = idealGasCv(haveMui ? d.mui[i] : d.muiConst, d.gamma);
 
             T u_old  = cv * d.temp[i];
             T u_cool = u_old;
