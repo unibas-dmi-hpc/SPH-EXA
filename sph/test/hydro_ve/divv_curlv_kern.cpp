@@ -104,7 +104,7 @@ TEST(Divv_Curlv, JLoop)
               dvydzp.data(), dvzdxp.data(), dvzdyp.data(), dvzdzp.data(), alpha.data(),
               u.data(), divvp.data()};
 
-    sphexa::fileutils::readAscii("../../../../sph/test/hydro_ve/UT_IC.d", npart, fields);
+    sphexa::fileutils::readAscii("example_data.txt", npart, fields);
 
     std::fill(m.begin(), m.end(), mpart);
 

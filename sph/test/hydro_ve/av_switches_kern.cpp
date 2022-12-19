@@ -111,7 +111,7 @@ TEST(AVswitches, JLoop)
               u.data(), divv.data()};
 
     T alphai = alphap[0];
-    sphexa::fileutils::readAscii("../../../../sph/test/hydro_ve/UT_IC.d", npart, fields);
+    sphexa::fileutils::readAscii("example_data.txt", npart, fields);
 
     std::fill(m.begin(), m.end(), mpart);
 

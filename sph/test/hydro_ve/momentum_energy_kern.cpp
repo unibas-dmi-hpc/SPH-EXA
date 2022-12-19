@@ -58,13 +58,14 @@ TEST(MomentumEnergy, JLoop)
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
-    size_t                          npart = 99;
-    unsigned                        neighborsCount = npart - 1, i;
+    size_t   npart          = 99;
+    unsigned neighborsCount = npart - 1, i;
 
     std::vector<cstone::LocalIndex> neighbors(neighborsCount - 1);
 
-    for (i = 0; i < neighborsCount; i++) {
-      neighbors[i] = i + 1;
+    for (i = 0; i < neighborsCount; i++)
+    {
+        neighbors[i] = i + 1;
     }
 
     std::vector<T> x(npart);
@@ -102,14 +103,14 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> xm(npart);
     std::vector<T> kx(npart);
 
-    std::vector<T*> fields{x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(),
-              h.data(), c.data(), c11.data(), c12.data(), c13.data(), c22.data(),
-              c23.data(), c33.data(), p.data(), gradh.data(), rho0.data(), sumwhrho0.data(),
-              sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(),
-              dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alpha.data(),
-              u.data(), divv.data()};
+    std::vector<T*> fields{x.data(),     y.data(),     z.data(),     vx.data(),    vy.data(),    vz.data(),
+                           h.data(),     c.data(),     c11.data(),   c12.data(),   c13.data(),   c22.data(),
+                           c23.data(),   c33.data(),   p.data(),     gradh.data(), rho0.data(),  sumwhrho0.data(),
+                           sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(),
+                           dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alpha.data(), u.data(),
+                           divv.data()};
 
-    sphexa::fileutils::readAscii("../../../../sph/test/hydro_ve/UT_IC.d", npart, fields);
+    sphexa::fileutils::readAscii("example_data.txt", npart, fields);
 
     std::fill(m.begin(), m.end(), mpart);
 
@@ -137,20 +138,22 @@ TEST(MomentumEnergy, JLoop)
                            vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(), c.data(), c11.data(),
                            c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), Atmin, Atmax, ramp, wh.data(),
                            whd.data(), kx.data(), xm.data(), alpha.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(),
-                           dvydx.data(), dvydy.data(), dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(),
-                           &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
+                           dvydx.data(), dvydy.data(), dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), &grad_Px,
+                           &grad_Py, &grad_Pz, &du, &maxvsignal);
 
-    if(AV_cleaning){
-      EXPECT_NEAR(grad_Px, -5.0554864587379282e5, 1e-10);
-      EXPECT_NEAR(grad_Py, 3.0338488942286494e5, 1e-10);
-      EXPECT_NEAR(grad_Pz, -1.7674639665806836e6, 1e-10);
-      EXPECT_NEAR(du, 8.5525242823085e12, 1e-10);
+    if (AV_cleaning)
+    {
+        EXPECT_NEAR(grad_Px, -5.0554864587379282e5, 1e-10);
+        EXPECT_NEAR(grad_Py, 3.0338488942286494e5, 1e-10);
+        EXPECT_NEAR(grad_Pz, -1.7674639665806836e6, 1e-10);
+        EXPECT_NEAR(du, 8.5525242823085e12, 1e-10);
     }
-    else{
-      EXPECT_NEAR(grad_Px, -5.212610428350963e5, 1e-10);
-      EXPECT_NEAR(grad_Py, -7.4471044578240151e4, 1e-10);
-      EXPECT_NEAR(grad_Pz, -1.7304268207564927e6, 1e-10);
-      EXPECT_NEAR(du, 7.1838439171209658e12, 1e-10);
+    else
+    {
+        EXPECT_NEAR(grad_Px, -5.212610428350963e5, 1e-10);
+        EXPECT_NEAR(grad_Py, -7.4471044578240151e4, 1e-10);
+        EXPECT_NEAR(grad_Pz, -1.7304268207564927e6, 1e-10);
+        EXPECT_NEAR(du, 7.1838439171209658e12, 1e-10);
     }
     EXPECT_NEAR(maxvsignal, 4.5535959472046174e7, 1e-10);
     /*EXPECT_NEAR(grad_Px, -9.6981521759897936e5, 1e-10);

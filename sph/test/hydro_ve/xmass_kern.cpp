@@ -102,7 +102,7 @@ TEST(xmass, JLoop)
               dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alpha.data(),
               u.data(), divv.data()};
 
-    sphexa::fileutils::readAscii("../../../../sph/test/hydro_ve/UT_IC.d", npart, fields);
+    sphexa::fileutils::readAscii("example_data.txt", npart, fields);
 
     std::fill(m.begin(), m.end(), mpart);
 
