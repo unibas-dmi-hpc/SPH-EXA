@@ -59,14 +59,17 @@ HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc dist, Th hiInv, Th hjI
     T dmy1 = dot(gradV_i_dot_R, R);
     T dmy2 = dot(gradV_j_dot_R, R);
 
-    T A_ab = T(0);
-
-    if (dmy2 != T(0)) { A_ab = dmy1 / dmy2; }
+    T A_ab   = (dmy2 != T(0)) ? dmy1 / dmy2 : T(0);
     T eta_ab = dist * stl::min(hiInv, hjInv);
 
     T dmy3 = T(1);
-    if (eta_ab < eta_crit) { dmy3 = std::exp(-math::pow((eta_ab - eta_crit) / T(0.2), 2)); }
-    T phi_ab = T(0.5) * stl::max(T(0), stl::min(T(1), T(4) * A_ab / math::pow(T(1) + A_ab, 2))) * dmy3;
+    if (eta_ab < eta_crit)
+    {
+        T etaDiff = T(5) * (eta_ab - eta_crit);
+        dmy3      = std::exp(-etaDiff * etaDiff);
+    }
+    T A_abp1 = T(1) + A_ab;
+    T phi_ab = T(0.5) * dmy3 * stl::max(T(0), stl::min(T(1), T(4) * A_ab / (A_abp1 * A_abp1)));
 
     // additive AV correction to rv = dot(R, Vij)
     T rv_AV = dot(R, -phi_ab * (gradV_i_dot_R + gradV_j_dot_R));
