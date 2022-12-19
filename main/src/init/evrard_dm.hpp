@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 CSCS, ETH Zurich, University of Basel, University of Zurich
+ * Copyright (c) 2022 CSCS, ETH Zurich, University of Zurich, University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,42 +23,31 @@
  */
 
 /*! @file
- * @brief Contains the object holding all simulation data
+ * @brief Unit tests for ParticlesData
  *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Noah Kubli <noah.kubli@uzh.ch>
  */
 
 #pragma once
 
-#include <mpi.h>
+#include "evrard_init.hpp"
+#include "cooling/cooler.hpp"
 
-#include "cooling/chemistry_data.hpp"
-#include "sph/particles_data.hpp"
+#include "cooling/init_chemistry.h"
 
-namespace sphexa {
-
-//! @brief the place to store hydro, chemistry, nuclear and other simulation data
-    template<typename T, typename KeyType_, class AccType>
-    class SimulationData {
-    public:
-        using AcceleratorType = AccType;
-        using KeyType = KeyType_;
-        using RealType = T;
-
-        using HydroData = ParticlesData<RealType, KeyType, AccType>;
-        using ChemData = cooling::ChemistryData<T>;
+template<class Dataset>
+class EvrardGlassSphereCooling : public sphexa::EvrardGlassSphere<Dataset> {
 
 
-        //! @brief spacially distributed data for hydrodynamics and gravity
-        HydroData hydro;
+public:
+    EvrardGlassSphereCooling(std::string initBlock)
+            : sphexa::EvrardGlassSphere<Dataset>(initBlock) {
+    }
 
-        //! @brief chemistry data for radiative cooling, e.g. for GRACKLE
-        ChemData chem;
-
-        //! @brief non-spacially distributed nuclear abundances
-        // NuclearData nuclear;
-
-        MPI_Comm comm;
-    };
-
-} // namespace sphexa
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
+                                                 Dataset &simData) const override {
+        auto box = sphexa::EvrardGlassSphere<Dataset>::init(rank, numRanks, cbrtNumPart, simData);
+        cooling::initChemistryData(simData.chem, simData.hydro.x.size());
+        return box;
+    }
+};
