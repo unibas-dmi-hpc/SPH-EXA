@@ -61,9 +61,11 @@ public:
         , bucketSize_(bucketSize)
         , box_(box)
     {
-        std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
+        unsigned level            = log8ceil<KeyType>(100 * nRanks);
+        auto initialBoundaries    = initialDomainSplits<KeyType>(nRanks, level);
+        std::vector<KeyType> init = computeSpanningTree<KeyType>(initialBoundaries);
         tree_.update(init.data(), nNodes(init));
-        nodeCounts_ = std::vector<unsigned>{bucketSize_ + 1};
+        nodeCounts_ = std::vector<unsigned>(nNodes(init), bucketSize_ - 1);
     }
 
     /*! @brief Update the global tree
@@ -104,12 +106,12 @@ public:
         }
         oldBoundaries.back() = nodeRange<KeyType>(0);
 
-        updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_);
+        updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_);
 
         if (firstCall_)
         {
             firstCall_ = false;
-            while (!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_))
+            while (!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_))
                 ;
         }
 

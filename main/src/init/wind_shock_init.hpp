@@ -90,7 +90,7 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;
 
-    auto cv = sph::idealGasCv(d.muiConst);
+    auto cv = sph::idealGasCv(d.muiConst, d.gamma);
 
     std::fill(d.m.begin(), d.m.end(), massPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);

@@ -89,6 +89,8 @@ int main(int argc, char** argv)
     const bool               ascii             = parser.exists("--ascii");
     const std::string        outDirectory      = parser.get("--outDir");
     const bool               quiet             = parser.exists("--quiet");
+    const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
+    const bool               writeEnabled      = writeFrequencyStr != "0" || !writeExtra.empty();
 
     size_t ngmax = 150;
     size_t ng0   = 100;
@@ -106,6 +108,10 @@ int main(int argc, char** argv)
     Dataset simData;
     simData.comm = MPI_COMM_WORLD;
 
+    Timer totalTimer(output);
+    MPI_Barrier(MPI_COMM_WORLD);
+    totalTimer.start();
+
     propagator->activateFields(simData);
     propagator->restoreState(initCond, simData.comm);
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, simData);
@@ -118,10 +124,7 @@ int main(int argc, char** argv)
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 
     const std::string outFile = parser.get("-o", outDirectory + "dump_" + initCond + fileWriter->suffix());
-    if (rank == 0 && (writeFrequencyStr != "0" || !writeExtra.empty()))
-    {
-        fileWriter->constants(simInit->constants(), outFile);
-    }
+    if (rank == 0 && writeEnabled) { fileWriter->constants(simInit->constants(), outFile); }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
     size_t bucketSizeFocus = 64;
@@ -135,8 +138,6 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    MasterProcessTimer totalTimer(output, rank);
-    totalTimer.start();
     size_t startIteration = d.iteration;
     for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
     {
@@ -145,9 +146,12 @@ int main(int argc, char** argv)
         observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
         propagator->printIterationTimings(domain, simData);
 
+        bool isWallClockReached = totalTimer.getSimDuration() > simDuration;
+
         if (isPeriodicOutputStep(d.iteration, writeFrequencyStr) ||
             isPeriodicOutputTime(d.ttot - d.minDt, d.ttot, writeFrequencyStr) ||
-            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra))
+            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) ||
+            (isWallClockReached && writeEnabled))
         {
             propagator->prepareOutput(simData, domain.startIndex(), domain.endIndex(), domain.box());
             fileWriter->dump(simData, domain.startIndex(), domain.endIndex(), box, outFile);
@@ -156,10 +160,18 @@ int main(int argc, char** argv)
         }
 
         viz::execute(d, domain.startIndex(), domain.endIndex());
+        if (isWallClockReached)
+        {
+            d.iteration++;
+            break;
+        }
     }
 
-    totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
-                    initCond + " up to t = " + std::to_string(d.ttot));
+    if (rank == 0)
+    {
+        totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
+                        initCond + " up to t = " + std::to_string(d.ttot));
+    }
 
     constantsFile.close();
     viz::finalize();
@@ -215,5 +227,7 @@ void printHelp(char* name, int rank)
                     \t e.g: --outDir /home/user/folderToSaveOutputFiles/\n\n");
 
         printf("\t--quiet \t Don't print anything to stdout\n\n");
+
+        printf("\t--duration \t Maximum wall-clock run time of the simulation in seconds.[MAX_INT]\n\n");
     }
 }

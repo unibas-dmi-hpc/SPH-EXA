@@ -77,7 +77,7 @@ public:
     size_t numParticlesGlobal;
     size_t totalNeighbors;
 
-    T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
+    T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0}, machRMS{0.0};
     T linmom{0.0}, angmom{0.0};
 
     //! current and previous (global) time-steps
@@ -90,8 +90,12 @@ public:
 
     //! @brief adiabatic index
     T gamma{5.0 / 3.0};
+
     //! @brief mean molecular weight of ions for models that use one value for all particles
     T muiConst{10.0};
+
+    //! @brief Fraction of Courant condition for timestep
+    T Kcour{0.2};
 
     /*! @brief Particle fields
      *
@@ -201,7 +205,6 @@ public:
     std::vector<std::string> outputFieldNames;
 
     constexpr static T sincIndex     = 6.0;
-    constexpr static T Kcour         = 0.2;
     constexpr static T maxDtIncrease = 1.1;
 
     // Min. Atwood number in ramp function in momentum equation (crossed/uncrossed selection)
