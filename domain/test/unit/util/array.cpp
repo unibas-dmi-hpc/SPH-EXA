@@ -190,6 +190,17 @@ TEST(Array, assignValue)
     EXPECT_EQ(a, ref);
 }
 
+TEST(Array, structuredBinding)
+{
+    util::array<int, 2> a{1, 2};
+    auto& [x, y] = a;
+    auto [u, v] = a;
+
+    x = 3;
+    EXPECT_EQ(get<0>(a), 3);
+    EXPECT_EQ(u, 1);
+}
+
 TEST(Array, reduction)
 {
     util::array<size_t, 3ul> a{1ul, 2ul, 3ul};
