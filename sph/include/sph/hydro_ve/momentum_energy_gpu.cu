@@ -131,6 +131,7 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, D
 }
 
 template void computeMomentumEnergy(size_t, size_t, unsigned,
+                                    sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                     const cstone::Box<double>&);
 template void computeMomentumEnergy(size_t, size_t, unsigned,
                                     sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
