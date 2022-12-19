@@ -41,6 +41,41 @@
 namespace sph
 {
 
+template<class Tc, class Th, class T>
+HOST_DEVICE_FUN T avRelVelCorrection(util::array<Tc, 3> R, Tc dist, Th hi, Th hj, util::array<T, 3> Vi,
+                                     util::array<T, 3> Vj, T eta_crit, const util::array<T, 9>& gradV_i,
+                                     const util::array<const T, 9>& gradV_j)
+{
+    util::array<T, 3> gradVx_i{gradV_i[0], gradV_i[1], gradV_i[2]};
+    util::array<T, 3> gradVy_i{gradV_i[3], gradV_i[4], gradV_i[5]};
+    util::array<T, 3> gradVz_i{gradV_i[6], gradV_i[7], gradV_i[8]};
+
+    util::array<T, 3> gradVx_j{gradV_j[0], gradV_j[1], gradV_j[2]};
+    util::array<T, 3> gradVy_j{gradV_j[3], gradV_j[4], gradV_j[5]};
+    util::array<T, 3> gradVz_j{gradV_j[6], gradV_j[7], gradV_j[8]};
+
+    util::array<Tc, 3> gradV_i_dot_R = {dot(gradVx_i, R), dot(gradVy_i, R), dot(gradVz_i, R)};
+    util::array<Tc, 3> gradV_j_dot_R = {dot(gradVx_j, R), dot(gradVy_j, R), dot(gradVz_j, R)};
+
+    T dmy1 = dot(gradV_i_dot_R, R);
+    T dmy2 = dot(gradV_j_dot_R, R);
+
+    T A_ab = T(0);
+
+    if (dmy2 != T(0)) { A_ab = dmy1 / dmy2; }
+    T eta_ab = stl::min(dist / hi, dist / hj);
+
+    T dmy3 = T(1);
+    if (eta_ab < eta_crit) { dmy3 = std::exp(-math::pow((eta_ab - eta_crit) / T(0.2), 2)); }
+    T phi_ab = T(0.5) * stl::max(T(0), stl::min(T(1), T(4) * A_ab / math::pow(T(1) + A_ab, 2))) * dmy3;
+
+    auto vAVi = Vi - phi_ab * gradV_i_dot_R;
+    auto vAVj = Vj + phi_ab * gradV_j_dot_R;
+    T    rv   = dot(R, vAVi - vAVj);
+
+    return rv;
+}
+
 template<class Tc, class Tm, class T, class Tm1>
 HOST_DEVICE_FUN inline void
 momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
@@ -88,15 +123,8 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
     auto c23i = c23[i];
     auto c33i = c33[i];
 
-    auto dvxdxi = dvxdx[i];
-    auto dvxdyi = dvxdy[i];
-    auto dvxdzi = dvxdz[i];
-    auto dvydxi = dvydx[i];
-    auto dvydyi = dvydy[i];
-    auto dvydzi = dvydz[i];
-    auto dvzdxi = dvzdx[i];
-    auto dvzdyi = dvzdy[i];
-    auto dvzdzi = dvzdz[i];
+    util::array<T, 9> gradV_i = {dvxdx[i], dvxdy[i], dvxdz[i], dvydx[i], dvydy[i],
+                                 dvydz[i], dvzdx[i], dvzdy[i], dvzdz[i]};
 
     T eta_crit = std::cbrt(T(32) * M_PI / T(3) / T(neighborsCount + 1)); //+1 is because we need to add selfparticle to neighborsCount
 
@@ -154,41 +182,10 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
 
         T alpha_j   = alpha[j];
 
-        auto dvxdxj = dvxdx[j];
-        auto dvxdyj = dvxdy[j];
-        auto dvxdzj = dvxdz[j];
-        auto dvydxj = dvydx[j];
-        auto dvydyj = dvydy[j];
-        auto dvydzj = dvydz[j];
-        auto dvzdxj = dvzdx[j];
-        auto dvzdyj = dvzdy[j];
-        auto dvzdzj = dvzdz[j];
-
-        T dmy1 = dvxdxi * rx * rx + dvydxi * rx * ry + dvzdxi * rx * rz +
-                 dvxdyi * ry * rx + dvydyi * ry * ry + dvzdyi * ry * rz +
-                 dvxdzi * rz * rx + dvydzi * rz * ry + dvzdzi * rz * rz;
-        T dmy2 = dvxdxj * rx * rx + dvydxj * rx * ry + dvzdxj * rx * rz +
-                 dvxdyj * ry * rx + dvydyj * ry * ry + dvzdyj * ry * rz +
-                 dvxdzj * rz * rx + dvydzj * rz * ry + dvzdzj * rz * rz;
-
-        T A_ab = T(0);
-
-        if (dmy2 != T(0)) { A_ab = dmy1 / dmy2;}
-        T eta_ab = stl::min(dist / hi, dist / hj);
-
-        T dmy3 = T(1);
-        if (eta_ab < eta_crit) {dmy3 = std::exp(- math::pow((eta_ab - eta_crit) / T(0.2), 2));}
-        T phi_ab = T(0.5) * stl::max(T(0), stl::min(T(1), T(4) * A_ab / math::pow(T(1) + A_ab, 2))) * dmy3;
-
-        T vAVi_x = vxi - phi_ab * (dvxdxi * rx + dvxdyi * ry + dvxdzi * rz);
-        T vAVi_y = vyi - phi_ab * (dvydxi * rx + dvydyi * ry + dvydzi * rz);
-        T vAVi_z = vzi - phi_ab * (dvzdxi * rx + dvzdyi * ry + dvzdzi * rz);
-        T vAVj_x = vxj + phi_ab * (dvxdxj * rx + dvxdyj * ry + dvxdzj * rz);
-        T vAVj_y = vyj + phi_ab * (dvydxj * rx + dvydyj * ry + dvydzj * rz);
-        T vAVj_z = vzj + phi_ab * (dvzdxj * rx + dvzdyj * ry + dvzdzj * rz);
-
-        T rv     = rx * (vAVi_x - vAVj_x) + ry * (vAVi_y - vAVj_y) + rz * (vAVi_z - vAVj_z);
-        //T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
+        T rv = avRelVelCorrection(
+            {rx, ry, rz}, dist, hi, hj, {vxi, vyi, vzi}, {vxj, vyj, vzj}, eta_crit, gradV_i,
+            {dvxdx[j], dvxdy[j], dvxdz[j], dvydx[j], dvydy[j], dvydz[j], dvzdx[j], dvzdy[j], dvzdz[j]});
+        // T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
 
         T wij          = rv / dist;
         T viscosity_ij = artificial_viscosity(alpha_i, alpha_j, ci, cj, wij);
