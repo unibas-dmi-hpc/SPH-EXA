@@ -32,7 +32,7 @@ extern void computeIadDivvCurlv(size_t, size_t, unsigned, Dataset& d, const csto
 template<class Dataset>
 extern void computeAVswitches(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
-template<class Dataset>
+template<bool avClean, class Dataset>
 extern void computeMomentumEnergy(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Tu, class Trho, class Tp, class Tc>

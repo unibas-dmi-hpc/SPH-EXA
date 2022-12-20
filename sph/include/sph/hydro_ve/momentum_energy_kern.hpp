@@ -74,7 +74,7 @@ HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc eta_ab, T eta_crit, co
     return rv_AV;
 }
 
-template<class Tc, class Tm, class T, class Tm1>
+template<bool avClean, class Tc, class Tm, class T, class Tm1>
 HOST_DEVICE_FUN inline void momentumAndEnergyJLoop(
     cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
     unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz, const T* h,
@@ -119,8 +119,11 @@ HOST_DEVICE_FUN inline void momentumAndEnergyJLoop(
     auto c23i = c23[i];
     auto c33i = c33[i];
 
-    util::array<T, 9> gradV_i = {dvxdx[i], dvxdy[i], dvxdz[i], dvydx[i], dvydy[i],
-                                 dvydz[i], dvzdx[i], dvzdy[i], dvzdz[i]};
+    util::array<T, 9> gradV_i;
+    if constexpr (avClean)
+    {
+        gradV_i = {dvxdx[i], dvxdy[i], dvxdz[i], dvydx[i], dvydy[i], dvydz[i], dvzdx[i], dvzdy[i], dvzdz[i]};
+    }
 
     // +1 is because we need to add selfparticle to neighborsCount
     T eta_crit = std::cbrt(T(32) * M_PI / T(3) / T(neighborsCount + 1));
@@ -179,9 +182,12 @@ HOST_DEVICE_FUN inline void momentumAndEnergyJLoop(
         T alpha_j = alpha[j];
 
         T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
-        rv +=
-            avRvCorrection({rx, ry, rz}, stl::min(v1, v2), eta_crit, gradV_i,
-                           {dvxdx[j], dvxdy[j], dvxdz[j], dvydx[j], dvydy[j], dvydz[j], dvzdx[j], dvzdy[j], dvzdz[j]});
+        if constexpr (avClean)
+        {
+            rv += avRvCorrection(
+                {rx, ry, rz}, stl::min(v1, v2), eta_crit, gradV_i,
+                {dvxdx[j], dvxdy[j], dvxdz[j], dvydx[j], dvydy[j], dvydz[j], dvzdx[j], dvzdy[j], dvzdz[j]});
+        }
 
         T wij          = rv / dist;
         T viscosity_ij = artificial_viscosity(alpha_i, alpha_j, ci, cj, wij);

@@ -51,8 +51,6 @@ TEST(MomentumEnergy, JLoop)
     T ramp      = 1.0 / (Atmax - Atmin);
     T mpart     = 3.781038064465603e26;
 
-    bool AV_cleaning = true;
-
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
@@ -126,39 +124,49 @@ TEST(MomentumEnergy, JLoop)
         prho[k] = p[k] / (kx[k] * m[k] * m[k] * gradh[k]);
     }
 
-    // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
-    T du         = -1;
-    T grad_Px    = -1;
-    T grad_Py    = -1;
-    T grad_Pz    = -1;
-    T maxvsignal = -1;
-
-    // compute gradient for for particle 0
-    momentumAndEnergyJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
-                           vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(), c.data(), c11.data(),
-                           c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), Atmin, Atmax, ramp, wh.data(),
-                           whd.data(), kx.data(), xm.data(), alpha.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(),
-                           dvydx.data(), dvydy.data(), dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), &grad_Px,
-                           &grad_Py, &grad_Pz, &du, &maxvsignal);
-
-    if (AV_cleaning)
+    // test with AV cleaning
     {
+        // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
+        T du         = -1;
+        T grad_Px    = -1;
+        T grad_Py    = -1;
+        T grad_Pz    = -1;
+        T maxvsignal = -1;
+
+        // compute gradient for for particle 0
+        momentumAndEnergyJLoop<true>(
+            0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(), vy.data(),
+            vz.data(), h.data(), m.data(), prho.data(), c.data(), c11.data(), c12.data(), c13.data(), c22.data(),
+            c23.data(), c33.data(), Atmin, Atmax, ramp, wh.data(), whd.data(), kx.data(), xm.data(), alpha.data(),
+            dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(), dvydz.data(), dvzdx.data(),
+            dvzdy.data(), dvzdz.data(), &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
+
         EXPECT_NEAR(grad_Px, -5.0554864587379282e5, 1e-8);
         EXPECT_NEAR(grad_Py, 3.0338488942286494e5, 1e-8);
         EXPECT_NEAR(grad_Pz, -1.7674639665806836e6, 1e-8);
         EXPECT_NEAR(du, 8.5525242823085e12, 1e-2);
+        EXPECT_NEAR(maxvsignal, 4.5535959472046174e7, 1e-6);
     }
-    else
+    // test without AV cleaning
     {
+        T du         = -1;
+        T grad_Px    = -1;
+        T grad_Py    = -1;
+        T grad_Pz    = -1;
+        T maxvsignal = -1;
+
+        // compute gradient for for particle 0
+        momentumAndEnergyJLoop<false>(
+            0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(), vy.data(),
+            vz.data(), h.data(), m.data(), prho.data(), c.data(), c11.data(), c12.data(), c13.data(), c22.data(),
+            c23.data(), c33.data(), Atmin, Atmax, ramp, wh.data(), whd.data(), kx.data(), xm.data(), alpha.data(),
+            dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(), dvydz.data(), dvzdx.data(),
+            dvzdy.data(), dvzdz.data(), &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
+
         EXPECT_NEAR(grad_Px, -5.212610428350963e5, 1e-8);
         EXPECT_NEAR(grad_Py, -7.4471044578240151e4, 1e-8);
         EXPECT_NEAR(grad_Pz, -1.7304268207564927e6, 1e-8);
         EXPECT_NEAR(du, 7.1838439171209658e12, 1e-8);
+        EXPECT_NEAR(maxvsignal, 4.5535959472046174e7, 1e-6);
     }
-    EXPECT_NEAR(maxvsignal, 4.5535959472046174e7, 1e-6);
-    /*EXPECT_NEAR(grad_Px, -9.6981521759897936e5, 1e-10);
-    EXPECT_NEAR(grad_Py, 5.8788205288070044e5, 1e-10);
-    EXPECT_NEAR(grad_Pz, 1.1268046187519622e6, 1e-10);
-    EXPECT_NEAR(du, 7.4569925982303721e12, 1e-10);
-    EXPECT_NEAR(maxvsignal, 4.6782969129471347e7, 1e-10);*/
 }
