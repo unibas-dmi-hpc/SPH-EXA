@@ -41,9 +41,9 @@
 namespace sph
 {
 
-template<class Tc, class Th, class T>
-HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc dist, Th hiInv, Th hjInv, T eta_crit,
-                                 const util::array<T, 9>& gradV_i, const util::array<const T, 9>& gradV_j)
+template<class Tc, class T>
+HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc eta_ab, T eta_crit, const util::array<T, 9>& gradV_i,
+                                 const util::array<const T, 9>& gradV_j)
 {
     util::array<T, 3> gradVx_i{gradV_i[0], gradV_i[1], gradV_i[2]};
     util::array<T, 3> gradVy_i{gradV_i[3], gradV_i[4], gradV_i[5]};
@@ -58,21 +58,19 @@ HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc dist, Th hiInv, Th hjI
 
     T dmy1 = dot(gradV_i_dot_R, R);
     T dmy2 = dot(gradV_j_dot_R, R);
-
-    T A_ab   = (dmy2 != T(0)) ? dmy1 / dmy2 : T(0);
-    T eta_ab = dist * stl::min(hiInv, hjInv);
-
     T dmy3 = T(1);
     if (eta_ab < eta_crit)
     {
         T etaDiff = T(5) * (eta_ab - eta_crit);
         dmy3      = std::exp(-etaDiff * etaDiff);
     }
+
+    T A_ab   = (dmy2 != T(0)) ? dmy1 / dmy2 : T(0);
     T A_abp1 = T(1) + A_ab;
     T phi_ab = T(0.5) * dmy3 * stl::max(T(0), stl::min(T(1), T(4) * A_ab / (A_abp1 * A_abp1)));
 
     // additive AV correction to rv = dot(R, Vij)
-    T rv_AV = dot(R, -phi_ab * (gradV_i_dot_R + gradV_j_dot_R));
+    T rv_AV = -phi_ab * (dmy1 + dmy2);
     return rv_AV;
 }
 
@@ -182,7 +180,7 @@ HOST_DEVICE_FUN inline void momentumAndEnergyJLoop(
 
         T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
         rv +=
-            avRvCorrection({rx, ry, rz}, dist, hiInv, hjInv, eta_crit, gradV_i,
+            avRvCorrection({rx, ry, rz}, stl::min(v1, v2), eta_crit, gradV_i,
                            {dvxdx[j], dvxdy[j], dvxdz[j], dvydx[j], dvydy[j], dvydz[j], dvzdx[j], dvzdy[j], dvzdz[j]});
 
         T wij          = rv / dist;
