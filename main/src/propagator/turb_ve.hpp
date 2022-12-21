@@ -27,7 +27,6 @@
  * @brief A Propagator class for modern SPH with generalized volume elements
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Jose A. Escartin <ja.escartin@gmail.com>
  */
 
 #pragma once
@@ -67,8 +66,8 @@ class TurbVeProp final : public HydroVeProp<DomainType, DataType>
     sph::TurbulenceData<RealType, typename DataType::AcceleratorType> turbulenceData;
 
 public:
-    TurbVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : Base(ngmax, ng0, output, rank)
+    TurbVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool avClean = true)
+        : Base(ngmax, ng0, output, rank, avClean)
         , turbulenceData(TurbulenceConstants(), rank == 0)
     {
     }

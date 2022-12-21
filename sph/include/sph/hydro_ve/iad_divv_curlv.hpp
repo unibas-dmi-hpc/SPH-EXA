@@ -66,6 +66,8 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, unsigned ngmax,
     auto* dV23 = d.dV23.data();
     auto* dV33 = d.dV33.data();
 
+    bool doGradV = d.dV11.size() == d.x.size();
+
     auto* divv  = d.divv.data();
     auto* curlv = d.curlv.data();
 
@@ -87,7 +89,7 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, unsigned ngmax,
                  c33);
 
         divV_curlVJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, c11, c12, c13, c22,
-                        c23, c33, wh, whd, kx, xm, divv, curlv, dV11, dV12, dV13, dV22, dV23, dV33);
+                        c23, c33, wh, whd, kx, xm, divv, curlv, dV11, dV12, dV13, dV22, dV23, dV33, doGradV);
     }
 }
 

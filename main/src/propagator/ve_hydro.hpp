@@ -66,6 +66,7 @@ protected:
         typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
                                          MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
 
+    bool avClean_;
     MHolder_t mHolder_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
@@ -84,8 +85,8 @@ protected:
                                          "xm", "kx", "nc", "dV11", "dV12", "dV13", "dV22", "dV23", "dV33">;
 
 public:
-    HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : Base(ngmax, ng0, output, rank)
+    HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool avClean = true)
+        : avClean_(avClean), Base(ngmax, ng0, output, rank)
     {
     }
 
@@ -171,7 +172,10 @@ public:
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"az">(d), get<"du">(d));
-        domain.exchangeHalos(get<"dV11", "dV12", "dV13", "dV22", "dV23", "dV33">(d), get<"az">(d), get<"du">(d));
+        if (avClean_)
+        {
+            domain.exchangeHalos(get<"dV11", "dV12", "dV13", "dV22", "dV23", "dV33">(d), get<"az">(d), get<"du">(d));
+        }
         timer.step("mpi::synchronizeHalos");
 
         computeAVswitches(first, last, ngmax_, d, domain.box());
@@ -182,7 +186,8 @@ public:
 
         d.devData.release("divv", "curlv");
         d.devData.acquire("ax", "ay");
-        computeMomentumEnergy(first, last, ngmax_, d, domain.box());
+        if (avClean_) { computeMomentumEnergy<true>(first, last, ngmax_, d, domain.box()); }
+        else { computeMomentumEnergy<false>(first, last, ngmax_, d, domain.box()); }
         timer.step("MomentumAndEnergy");
 
         if (d.g != 0.0)

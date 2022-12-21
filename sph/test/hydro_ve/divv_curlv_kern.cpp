@@ -53,13 +53,14 @@ TEST(Divv_Curlv, JLoop)
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
-    size_t                          npart = 99;
-    unsigned                        neighborsCount = npart - 1, i;
+    size_t   npart          = 99;
+    unsigned neighborsCount = npart - 1, i;
 
     std::vector<cstone::LocalIndex> neighbors(neighborsCount - 1);
 
-    for (i = 0; i < neighborsCount; i++) {
-      neighbors[i] = i + 1;
+    for (i = 0; i < neighborsCount; i++)
+    {
+        neighbors[i] = i + 1;
     }
 
     std::vector<T> x(npart);
@@ -97,12 +98,12 @@ TEST(Divv_Curlv, JLoop)
     std::vector<T> xm(npart);
     std::vector<T> kx(npart);
 
-    std::vector<T*> fields{x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(),
-              h.data(), c.data(), c11.data(), c12.data(), c13.data(), c22.data(),
-              c23.data(), c33.data(), p.data(), gradh.data(), rho0.data(), sumwhrho0.data(),
-              sumwh.data(), dvxdxp.data(), dvxdyp.data(), dvxdzp.data(), dvydxp.data(), dvydyp.data(),
-              dvydzp.data(), dvzdxp.data(), dvzdyp.data(), dvzdzp.data(), alpha.data(),
-              u.data(), divvp.data()};
+    std::vector<T*> fields{x.data(),      y.data(),      z.data(),      vx.data(),     vy.data(),     vz.data(),
+                           h.data(),      c.data(),      c11.data(),    c12.data(),    c13.data(),    c22.data(),
+                           c23.data(),    c33.data(),    p.data(),      gradh.data(),  rho0.data(),   sumwhrho0.data(),
+                           sumwh.data(),  dvxdxp.data(), dvxdyp.data(), dvxdzp.data(), dvydxp.data(), dvydyp.data(),
+                           dvydzp.data(), dvzdxp.data(), dvzdyp.data(), dvzdzp.data(), alpha.data(),  u.data(),
+                           divvp.data()};
 
     sphexa::fileutils::readAscii("example_data.txt", npart, fields);
 
@@ -117,18 +118,18 @@ TEST(Divv_Curlv, JLoop)
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     T divv  = -1;
     T curlv = -1;
-    T dV11 = -1;
-    T dV12 = -1;
-    T dV13 = -1;
-    T dV22 = -1;
-    T dV23 = -1;
-    T dV33 = -1;
+    T dV11  = -1;
+    T dV12  = -1;
+    T dV13  = -1;
+    T dV22  = -1;
+    T dV23  = -1;
+    T dV33  = -1;
 
     // compute gradient for for particle 0
     divV_curlVJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(),
                     vy.data(), vz.data(), h.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(),
-                    c33.data(), wh.data(), whd.data(), kx.data(), xm.data(), &divv, &curlv, &dV11, &dV12, &dV13,
-                    &dV22, &dV23, &dV33);
+                    c33.data(), wh.data(), whd.data(), kx.data(), xm.data(), &divv, &curlv, &dV11, &dV12, &dV13, &dV22,
+                    &dV23, &dV33, true);
 
     T dvxdxRef = 1.3578325800572969e-3;
     T dvxdyRef = 3.0002215820712448e-2;
