@@ -75,14 +75,13 @@ protected:
     using ConservedFields = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha">;
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
-    using DependentFields = FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33",
-                                      "xm", "kx", "divv", "curlv", "nc", "dvxdx", "dvxdy", "dvxdz", "dvydx", "dvydy",
-                                      "dvydz", "dvzdx", "dvzdy", "dvzdz">;
+    using DependentFields =
+        FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "xm", "kx", "divv",
+                  "curlv", "nc", "dV11", "dV12", "dV13", "dV22", "dV23", "dV33">;
 
     //! @brief not all dependent CPU fields are simultaneously needed on the GPU
-    using DependentFieldsGpu =
-        FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "xm", "kx", "nc",
-                  "dvxdx", "dvxdy", "dvxdz", "dvydx", "dvydy", "dvydz", "dvzdx", "dvzdy", "dvzdz">;
+    using DependentFieldsGpu = FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33",
+                                         "xm", "kx", "nc", "dV11", "dV12", "dV13", "dV22", "dV23", "dV33">;
 
 public:
     HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
@@ -171,8 +170,8 @@ public:
         computeIadDivvCurlv(first, last, ngmax_, d, domain.box());
         timer.step("IadVelocityDivCurl");
 
-        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv", "dvxdx", "dvxdy", "dvxdz",
-                                     "dvydx", "dvydy", "dvydz", "dvzdx", "dvzdy", "dvzdz">(d), get<"az">(d), get<"du">(d));
+        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"az">(d), get<"du">(d));
+        domain.exchangeHalos(get<"dV11", "dV12", "dV13", "dV22", "dV23", "dV33">(d), get<"az">(d), get<"du">(d));
         timer.step("mpi::synchronizeHalos");
 
         computeAVswitches(first, last, ngmax_, d, domain.box());

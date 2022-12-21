@@ -59,15 +59,12 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, unsigned ngmax,
     auto* c23 = d.c23.data();
     auto* c33 = d.c33.data();
 
-    auto* dvxdx = d.dvxdx.data();
-    auto* dvxdy = d.dvxdy.data();
-    auto* dvxdz = d.dvxdz.data();
-    auto* dvydx = d.dvydx.data();
-    auto* dvydy = d.dvydy.data();
-    auto* dvydz = d.dvydz.data();
-    auto* dvzdx = d.dvzdx.data();
-    auto* dvzdy = d.dvzdy.data();
-    auto* dvzdz = d.dvzdz.data();
+    auto* dV11 = d.dV11.data();
+    auto* dV12 = d.dV12.data();
+    auto* dV13 = d.dV13.data();
+    auto* dV22 = d.dV22.data();
+    auto* dV23 = d.dV23.data();
+    auto* dV33 = d.dV33.data();
 
     auto* divv  = d.divv.data();
     auto* curlv = d.curlv.data();
@@ -90,8 +87,7 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, unsigned ngmax,
                  c33);
 
         divV_curlVJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, c11, c12, c13, c22,
-                        c23, c33, wh, whd, kx, xm, divv, curlv, dvxdx, dvxdy, dvxdz, dvydx, dvydy, dvydz, dvzdx, dvzdy,
-                        dvzdz);
+                        c23, c33, wh, whd, kx, xm, divv, curlv, dV11, dV12, dV13, dV22, dV23, dV33);
     }
 }
 

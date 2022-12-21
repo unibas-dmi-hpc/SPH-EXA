@@ -53,14 +53,14 @@ struct GradPVEConfig
 __device__ float minDt_ve_device;
 
 template<bool avClean, class Tc, class Tm, class T, class Tm1, class KeyType>
-__global__ void
-momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, unsigned ngmax, const cstone::Box<T> box,
-                  size_t first, size_t last, size_t numParticles, const KeyType* particleKeys, const Tc* x, const Tc* y,
-                  const Tc* z, const T* vx, const T* vy, const T* vz, const T* h, const Tm* m, const T* prho,
-                  const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
-                  const T* wh, const T* whd, const T* kx, const T* xm, const T* alpha, const T* dvxdx, const T* dvxdy,
-                  const T* dvxdz, const T* dvydx, const T* dvydy, const T* dvydz, const T* dvzdx, const T* dvzdy,
-                  const T* dvzdz, T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du)
+__global__ void momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, unsigned ngmax,
+                                  const cstone::Box<T> box, size_t first, size_t last, size_t numParticles,
+                                  const KeyType* particleKeys, const Tc* x, const Tc* y, const Tc* z, const T* vx,
+                                  const T* vy, const T* vz, const T* h, const Tm* m, const T* prho, const T* c,
+                                  const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
+                                  const T* wh, const T* whd, const T* kx, const T* xm, const T* alpha, const T* dV11,
+                                  const T* dV12, const T* dV13, const T* dV22, const T* dV23, const T* dV33,
+                                  T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + first;
@@ -84,8 +84,8 @@ momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, unsigned 
         T maxvsignal;
         momentumAndEnergyJLoop<avClean>(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, m,
                                         prho, c, c11, c12, c13, c22, c23, c33, Atmin, Atmax, ramp, wh, whd, kx, xm,
-                                        alpha, dvxdx, dvxdy, dvxdz, dvydx, dvydy, dvydz, dvzdx, dvzdy, dvzdz, grad_P_x,
-                                        grad_P_y, grad_P_z, du, &maxvsignal);
+                                        alpha, dV11, dV12, dV13, dV22, dV23, dV33, grad_P_x, grad_P_y, grad_P_z, du,
+                                        &maxvsignal);
 
         dt_i = tsKCourant(maxvsignal, h[i], c[i], Kcour);
     }
@@ -119,10 +119,9 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, D
         rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.prho),
         rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
         rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.kx),
-        rawPtr(d.devData.xm), rawPtr(d.devData.alpha), rawPtr(d.devData.dvxdx), rawPtr(d.devData.dvxdy),
-        rawPtr(d.devData.dvxdz), rawPtr(d.devData.dvydx), rawPtr(d.devData.dvydy), rawPtr(d.devData.dvydz),
-        rawPtr(d.devData.dvzdx), rawPtr(d.devData.dvzdy), rawPtr(d.devData.dvzdz), rawPtr(d.devData.ax),
-        rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.du));
+        rawPtr(d.devData.xm), rawPtr(d.devData.alpha), rawPtr(d.devData.dV11), rawPtr(d.devData.dV12),
+        rawPtr(d.devData.dV13), rawPtr(d.devData.dV22), rawPtr(d.devData.dV23), rawPtr(d.devData.dV33),
+        rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.du));
     checkGpuErrors(cudaGetLastError());
 
     float minDt;

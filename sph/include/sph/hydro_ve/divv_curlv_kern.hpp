@@ -42,12 +42,12 @@ namespace sph
 {
 
 template<typename Tc, class T>
-HOST_DEVICE_FUN inline void
-divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
-                unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz,
-                const T* h, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
-                const T* wh, const T* whd, const T* kx, const T* xm, T* divv, T* curlv, T* dvxdx, T* dvxdy, T* dvxdz,
-                T* dvydx, T* dvydy, T* dvydz, T* dvzdx, T* dvzdy, T* dvzdz)
+HOST_DEVICE_FUN inline void divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& box,
+                                            const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
+                                            const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz, const T* h,
+                                            const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
+                                            const T* c33, const T* wh, const T* whd, const T* kx, const T* xm, T* divv,
+                                            T* curlv, T* dV11, T* dV12, T* dV13, T* dV22, T* dV23, T* dV33)
 {
     auto xi  = x[i];
     auto yi  = y[i];
@@ -109,15 +109,12 @@ divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& b
     cstone::Vec3<T> curlV{dVzi[1] - dVyi[2], dVxi[2] - dVzi[0], dVyi[0] - dVxi[1]};
     curlv[i] = norm_kxi * std::sqrt(norm2(curlV));
 
-    dvxdx[i] = norm_kxi * dVxi[0];
-    dvxdy[i] = norm_kxi * dVxi[1];
-    dvxdz[i] = norm_kxi * dVxi[2];
-    dvydx[i] = norm_kxi * dVyi[0];
-    dvydy[i] = norm_kxi * dVyi[1];
-    dvydz[i] = norm_kxi * dVyi[2];
-    dvzdx[i] = norm_kxi * dVzi[0];
-    dvzdy[i] = norm_kxi * dVzi[1];
-    dvzdz[i] = norm_kxi * dVzi[2];
+    dV11[i] = norm_kxi * dVxi[0];
+    dV12[i] = norm_kxi * (dVxi[1] + dVyi[0]);
+    dV13[i] = norm_kxi * (dVxi[2] + dVzi[0]);
+    dV22[i] = norm_kxi * dVyi[1];
+    dV23[i] = norm_kxi * (dVyi[2] + dVzi[1]);
+    dV33[i] = norm_kxi * dVzi[2];
 }
 
 } // namespace sph

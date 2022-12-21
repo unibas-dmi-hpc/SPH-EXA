@@ -41,20 +41,23 @@
 namespace sph
 {
 
-template<class Tc, class T>
-HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc eta_ab, T eta_crit, const util::array<T, 9>& gradV_i,
-                                 const util::array<const T, 9>& gradV_j)
+//! @brief symmetric 3x3 matrix-vector product
+template<class Tv, class Tm>
+HOST_DEVICE_FUN HOST_DEVICE_INLINE util::array<Tv, 3> symv(const util::array<Tm, 6>& mat, const util::array<Tv, 3>& vec)
 {
-    util::array<T, 3> gradVx_i{gradV_i[0], gradV_i[1], gradV_i[2]};
-    util::array<T, 3> gradVy_i{gradV_i[3], gradV_i[4], gradV_i[5]};
-    util::array<T, 3> gradVz_i{gradV_i[6], gradV_i[7], gradV_i[8]};
+    util::array<Tv, 3> ret;
+    ret[0] = mat[0] * vec[0] + mat[1] * vec[1] + mat[2] * vec[2];
+    ret[1] = mat[3] * vec[1] + mat[4] * vec[2];
+    ret[2] = mat[5] * vec[2];
+    return ret;
+}
 
-    util::array<T, 3> gradVx_j{gradV_j[0], gradV_j[1], gradV_j[2]};
-    util::array<T, 3> gradVy_j{gradV_j[3], gradV_j[4], gradV_j[5]};
-    util::array<T, 3> gradVz_j{gradV_j[6], gradV_j[7], gradV_j[8]};
-
-    util::array<Tc, 3> gradV_i_dot_R = {dot(gradVx_i, R), dot(gradVy_i, R), dot(gradVz_i, R)};
-    util::array<Tc, 3> gradV_j_dot_R = {dot(gradVx_j, R), dot(gradVy_j, R), dot(gradVz_j, R)};
+template<class Tc, class T>
+HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc eta_ab, T eta_crit, const util::array<T, 6>& gradV_i,
+                                 const util::array<const T, 6>& gradV_j)
+{
+    util::array<Tc, 3> gradV_i_dot_R = symv(gradV_i, R);
+    util::array<Tc, 3> gradV_j_dot_R = symv(gradV_j, R);
 
     T dmy1 = dot(gradV_i_dot_R, R);
     T dmy2 = dot(gradV_j_dot_R, R);
@@ -75,13 +78,14 @@ HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc eta_ab, T eta_crit, co
 }
 
 template<bool avClean, class Tc, class Tm, class T, class Tm1>
-HOST_DEVICE_FUN inline void momentumAndEnergyJLoop(
-    cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
-    unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz, const T* h,
-    const Tm* m, const T* prho, const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
-    const T* c33, const T Atmin, const T Atmax, const T ramp, const T* wh, const T* whd, const T* kx, const T* xm,
-    const T* alpha, const T* dvxdx, const T* dvxdy, const T* dvxdz, const T* dvydx, const T* dvydy, const T* dvydz,
-    const T* dvzdx, const T* dvzdy, const T* dvzdz, T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
+HOST_DEVICE_FUN inline void
+momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
+                       const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x, const Tc* y,
+                       const Tc* z, const T* vx, const T* vy, const T* vz, const T* h, const Tm* m, const T* prho,
+                       const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
+                       const T Atmin, const T Atmax, const T ramp, const T* wh, const T* whd, const T* kx, const T* xm,
+                       const T* alpha, const T* dV11, const T* dV12, const T* dV13, const T* dV22, const T* dV23,
+                       const T* dV33, T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
 {
     auto xi  = x[i];
     auto yi  = y[i];
@@ -119,11 +123,8 @@ HOST_DEVICE_FUN inline void momentumAndEnergyJLoop(
     auto c23i = c23[i];
     auto c33i = c33[i];
 
-    util::array<T, 9> gradV_i;
-    if constexpr (avClean)
-    {
-        gradV_i = {dvxdx[i], dvxdy[i], dvxdz[i], dvydx[i], dvydy[i], dvydz[i], dvzdx[i], dvzdy[i], dvzdz[i]};
-    }
+    util::array<T, 6> gradV_i;
+    if constexpr (avClean) { gradV_i = {dV11[i], dV12[i], dV13[i], dV22[i], dV23[i], dV33[i]}; }
 
     // +1 is because we need to add selfparticle to neighborsCount
     T eta_crit = std::cbrt(T(32) * M_PI / T(3) / T(neighborsCount + 1));
@@ -184,9 +185,8 @@ HOST_DEVICE_FUN inline void momentumAndEnergyJLoop(
         T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
         if constexpr (avClean)
         {
-            rv += avRvCorrection(
-                {rx, ry, rz}, stl::min(v1, v2), eta_crit, gradV_i,
-                {dvxdx[j], dvxdy[j], dvxdz[j], dvydx[j], dvydy[j], dvydz[j], dvzdx[j], dvzdy[j], dvzdz[j]});
+            rv += avRvCorrection({rx, ry, rz}, stl::min(v1, v2), eta_crit, gradV_i,
+                                 {dV11[j], dV12[j], dV13[j], dV22[j], dV23[j], dV33[j]});
         }
 
         T wij          = rv / dist;

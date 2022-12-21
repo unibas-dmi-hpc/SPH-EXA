@@ -63,15 +63,12 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, unsigned ngma
     const auto* c23 = d.c23.data();
     const auto* c33 = d.c33.data();
 
-    const auto* dvxdx = d.dvxdx.data();
-    const auto* dvxdy = d.dvxdy.data();
-    const auto* dvxdz = d.dvxdz.data();
-    const auto* dvydx = d.dvydx.data();
-    const auto* dvydy = d.dvydy.data();
-    const auto* dvydz = d.dvydz.data();
-    const auto* dvzdx = d.dvzdx.data();
-    const auto* dvzdy = d.dvzdy.data();
-    const auto* dvzdz = d.dvzdz.data();
+    const auto* dV11 = d.dV11.data();
+    const auto* dV12 = d.dV12.data();
+    const auto* dV13 = d.dV13.data();
+    const auto* dV22 = d.dV22.data();
+    const auto* dV23 = d.dV23.data();
+    const auto* dV33 = d.dV33.data();
 
     auto* du       = d.du.data();
     auto* grad_P_x = d.ax.data();
@@ -100,9 +97,8 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, unsigned ngma
         T maxvsignal = 0;
 
         momentumAndEnergyJLoop<true>(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, m, prho,
-                                     c, c11, c12, c13, c22, c23, c33, Atmin, Atmax, ramp, wh, whd, kx, xm, alpha, dvxdx,
-                                     dvxdy, dvxdz, dvydx, dvydy, dvydz, dvzdx, dvzdy, dvzdz, grad_P_x, grad_P_y,
-                                     grad_P_z, du, &maxvsignal);
+                                     c, c11, c12, c13, c22, c23, c33, Atmin, Atmax, ramp, wh, whd, kx, xm, alpha, dV11,
+                                     dV12, dV13, dV22, dV23, dV33, grad_P_x, grad_P_y, grad_P_z, du, &maxvsignal);
 
         T dt_i = tsKCourant(maxvsignal, h[i], c[i], d.Kcour);
         minDt  = std::min(minDt, dt_i);

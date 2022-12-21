@@ -117,31 +117,35 @@ TEST(Divv_Curlv, JLoop)
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     T divv  = -1;
     T curlv = -1;
-    T dvxdx = -1;
-    T dvxdy = -1;
-    T dvxdz = -1;
-    T dvydx = -1;
-    T dvydy = -1;
-    T dvydz = -1;
-    T dvzdx = -1;
-    T dvzdy = -1;
-    T dvzdz = -1;
+    T dV11 = -1;
+    T dV12 = -1;
+    T dV13 = -1;
+    T dV22 = -1;
+    T dV23 = -1;
+    T dV33 = -1;
 
     // compute gradient for for particle 0
     divV_curlVJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(),
                     vy.data(), vz.data(), h.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(),
-                    c33.data(), wh.data(), whd.data(), kx.data(), xm.data(), &divv, &curlv, &dvxdx, &dvxdy, &dvxdz,
-                    &dvydx, &dvydy, &dvydz, &dvzdx, &dvzdy, &dvzdz);
+                    c33.data(), wh.data(), whd.data(), kx.data(), xm.data(), &divv, &curlv, &dV11, &dV12, &dV13,
+                    &dV22, &dV23, &dV33);
+
+    T dvxdxRef = 1.3578325800572969e-3;
+    T dvxdyRef = 3.0002215820712448e-2;
+    T dvxdzRef = -9.0001569692540768e-3;
+    T dvydxRef = -5.3495470097538571e-3;
+    T dvydyRef = 2.2556439156962826e-2;
+    T dvydzRef = 5.8741778655137782e-3;
+    T dvzdxRef = 4.3397397877829496e-3;
+    T dvzdyRef = 3.8963123805324977e-3;
+    T dvzdzRef = 9.8460822552287348e-3;
 
     EXPECT_NEAR(divv, 3.3760353992248873e-2, 1e-10);
     EXPECT_NEAR(curlv, 3.783664800939196e-2, 1e-10);
-    EXPECT_NEAR(dvxdx, 1.3578325800572969e-3, 1e-10);
-    EXPECT_NEAR(dvxdy, 3.0002215820712448e-2, 1e-10);
-    EXPECT_NEAR(dvxdz, -9.0001569692540768e-3, 1e-10);
-    EXPECT_NEAR(dvydx, -5.3495470097538571e-3, 1e-10);
-    EXPECT_NEAR(dvydy, 2.2556439156962826e-2, 1e-10);
-    EXPECT_NEAR(dvydz, 5.8741778655137782e-3, 1e-10);
-    EXPECT_NEAR(dvzdx, 4.3397397877829496e-3, 1e-10);
-    EXPECT_NEAR(dvzdy, 3.8963123805324977e-3, 1e-10);
-    EXPECT_NEAR(dvzdz, 9.8460822552287348e-3, 1e-10);
+    EXPECT_NEAR(dV11, dvxdxRef, 1e-10);
+    EXPECT_NEAR(dV12, dvxdyRef + dvydxRef, 1e-10);
+    EXPECT_NEAR(dV13, dvxdzRef + dvzdxRef, 1e-10);
+    EXPECT_NEAR(dV22, dvydyRef, 1e-10);
+    EXPECT_NEAR(dV23, dvydzRef + dvzdyRef, 1e-10);
+    EXPECT_NEAR(dV33, dvzdzRef, 1e-10);
 }

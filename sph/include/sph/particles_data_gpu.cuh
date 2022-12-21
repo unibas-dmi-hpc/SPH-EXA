@@ -77,32 +77,30 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    DevVector<T>        x, y, z;                      // Positions
-    DevVector<XM1Type>  x_m1, y_m1, z_m1;             // Difference to previous positions
-    DevVector<T>        vx, vy, vz;                   // Velocities
-    DevVector<T>        rho;                          // Density
-    DevVector<T>        temp;                         // Temperature
-    DevVector<T>        u;                            // Internal Energy
-    DevVector<T>        p;                            // Pressure
-    DevVector<T>        prho;                         // p / (kx * m^2 * gradh)
-    DevVector<T>        h;                            // Smoothing Length
-    DevVector<Tmass>    m;                            // Mass
-    DevVector<T>        c;                            // Speed of sound
-    DevVector<T>        cv;                           // Specific heat
-    DevVector<T>        mue, mui;                     // mean molecular weight (electrons, ions)
-    DevVector<T>        divv, curlv;                  // Div(velocity), Curl(velocity)
-    DevVector<T>        ax, ay, az;                   // acceleration
-    DevVector<XM1Type>  du, du_m1;                    // energy rate of change (du/dt)
-    DevVector<T>        c11, c12, c13, c22, c23, c33; // IAD components
-    DevVector<T>        alpha;                        // AV coeficient
-    DevVector<T>        xm;                           // Volume element definition
-    DevVector<T>        kx;                           // Volume element normalization
-    DevVector<T>        gradh;                        // grad(h) term
-    DevVector<KeyType>  keys;                         // Particle space-filling-curve keys
-    DevVector<unsigned> nc;                           // number of neighbors of each particle
-    DevVector<T>        dvxdx, dvxdy, dvxdz;          // Velocity gradient components
-    DevVector<T>        dvydx, dvydy, dvydz;
-    DevVector<T>        dvzdx, dvzdy, dvzdz;
+    DevVector<T>        x, y, z;                            // Positions
+    DevVector<XM1Type>  x_m1, y_m1, z_m1;                   // Difference to previous positions
+    DevVector<T>        vx, vy, vz;                         // Velocities
+    DevVector<T>        rho;                                // Density
+    DevVector<T>        temp;                               // Temperature
+    DevVector<T>        u;                                  // Internal Energy
+    DevVector<T>        p;                                  // Pressure
+    DevVector<T>        prho;                               // p / (kx * m^2 * gradh)
+    DevVector<T>        h;                                  // Smoothing Length
+    DevVector<Tmass>    m;                                  // Mass
+    DevVector<T>        c;                                  // Speed of sound
+    DevVector<T>        cv;                                 // Specific heat
+    DevVector<T>        mue, mui;                           // mean molecular weight (electrons, ions)
+    DevVector<T>        divv, curlv;                        // Div(velocity), Curl(velocity)
+    DevVector<T>        ax, ay, az;                         // acceleration
+    DevVector<XM1Type>  du, du_m1;                          // energy rate of change (du/dt)
+    DevVector<T>        c11, c12, c13, c22, c23, c33;       // IAD components
+    DevVector<T>        alpha;                              // AV coeficient
+    DevVector<T>        xm;                                 // Volume element definition
+    DevVector<T>        kx;                                 // Volume element normalization
+    DevVector<T>        gradh;                              // grad(h) term
+    DevVector<KeyType>  keys;                               // Particle space-filling-curve keys
+    DevVector<unsigned> nc;                                 // number of neighbors of each particle
+    DevVector<T>        dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
 
     DevVector<T> wh;
     DevVector<T> whd;
@@ -111,10 +109,10 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",   "y",   "z",   "x_m1", "y_m1", "z_m1", "vx", "vy",    "vz",    "rho",   "u",     "p",    "prho",
-        "h",   "m",   "c",   "ax",   "ay",   "az",   "du", "du_m1", "c11",   "c12",   "c13",   "c22",  "c23",
-        "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc",
-        "dvxdx", "dvxdy", "dvxdz", "dvydx", "dvydy", "dvydz", "dvzdx", "dvzdy", "dvzdz"};
+        "x",     "y",    "z",   "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",    "rho",  "u",     "p",
+        "prho",  "h",    "m",   "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",   "c13",
+        "c22",   "c23",  "c33", "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv", "alpha",
+        "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
 
     /*! @brief return a tuple of field references
      *
@@ -122,10 +120,9 @@ public:
      */
     auto dataTuple()
     {
-        auto ret =
-            std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11, c12,
-                     c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc,
-                     dvxdx, dvxdy, dvxdz, dvydx, dvydy, dvydz, dvzdx, dvzdy, dvzdz);
+        auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11,
+                            c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc,
+                            dV11, dV12, dV13, dV22, dV23, dV33);
 
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
         return ret;
