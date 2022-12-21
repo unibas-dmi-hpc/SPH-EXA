@@ -43,11 +43,24 @@ namespace ryoanji
 
 struct EwaldData
 {
+    double ix;
+    double iy;
+    double iz;
     double hx;
     double hy;
     double hz;
     double hfac_cos;
     double hfac_sin;
+};
+
+enum EWALD_GRAVITY_SWITCH
+{
+    GRAV_ALL                = (1 << 0),
+    GRAV_NO_CENTRAL_BOX     = (1 << 1),
+    GRAV_NO_REPLICAS        = (1 << 2),
+    GRAV_NO_EWALD           = (1 << 3),
+    GRAV_NO_EWALD_REALSPACE = (1 << 4),
+    GRAV_NO_EWALD_KSPACE    = (1 << 5),
 };
 
 /*! @brief apply gravitational interaction with a multipole to a particle
@@ -72,14 +85,26 @@ struct EwaldData
 template<class T1, class T2>
 T2 ewaldEvalMultipole(T1 rx, T1 ry, T1 rz, T1 *gamma, const CartesianQuadrupole<T2>& multipole)
 {
-    T2 Qrx = rx * multipole[Cqi::qxx] + ry * multipole[Cqi::qxy] + rz * multipole[Cqi::qxz];
-    T2 Qry = rx * multipole[Cqi::qxy] + ry * multipole[Cqi::qyy] + rz * multipole[Cqi::qyz];
-    T2 Qrz = rx * multipole[Cqi::qxz] + ry * multipole[Cqi::qyz] + rz * multipole[Cqi::qzz];
+    //printf("ewaldEvalMultipole::Mroot trace: %23.15e\n", multipole[Cqi::traceQ]);
+
+    T2 qxx = multipole[Cqi::qxx] + multipole[Cqi::traceQ];
+    T2 qyy = multipole[Cqi::qyy] + multipole[Cqi::traceQ];
+    T2 qzz = multipole[Cqi::qzz] + multipole[Cqi::traceQ];
+
+    T2 Qrx = rx *                qxx  + ry * multipole[Cqi::qxy] + rz * multipole[Cqi::qxz];
+    T2 Qry = rx * multipole[Cqi::qxy] + ry *                qyy  + rz * multipole[Cqi::qyz];
+    T2 Qrz = rx * multipole[Cqi::qxz] + ry * multipole[Cqi::qyz] + rz *                qzz;
 
     T2 rQr = T2(0.5) * (rx * Qrx + ry * Qry + rz * Qrz);
 
+    T2 Qtr = 0.5*(qxx + qyy + qzz);
+
+    rQr /= T2(3.0);
+    Qtr /= T2(3.0);
+
     auto ugrav = T2(0.0);
     ugrav -= gamma[2] * rQr;
+    ugrav -= gamma[1] * Qtr;
     ugrav -= gamma[0] * multipole[Cqi::mass];
 
     return ugrav;
@@ -87,32 +112,66 @@ T2 ewaldEvalMultipole(T1 rx, T1 ry, T1 rz, T1 *gamma, const CartesianQuadrupole<
 
 template<class T1, class T2>
 util::tuple<T1, T1, T1, T1> 
-ewaldEvalMultipoleComplete(T1 dx, T1 dy, T1 dz, T1 *gamma, const CartesianQuadrupole<T2>& multipole)
+ewaldEvalMultipoleComplete(T1 rx, T1 ry, T1 rz, T1 *gamma, const CartesianQuadrupole<T2>& multipole)
 {
-    T2 Qdx = dx * multipole[Cqi::qxx] + dy * multipole[Cqi::qxy] + dz * multipole[Cqi::qxz];
-    T2 Qdy = dx * multipole[Cqi::qxy] + dy * multipole[Cqi::qyy] + dz * multipole[Cqi::qyz];
-    T2 Qdz = dx * multipole[Cqi::qxz] + dy * multipole[Cqi::qyz] + dz * multipole[Cqi::qzz];
+    //printf("ewaldEvalMultipoleComplete::Mroot trace: %23.15e\n", multipole[Cqi::traceQ]);
+    T2 qxx = multipole[Cqi::qxx] + multipole[Cqi::traceQ];
+    T2 qyy = multipole[Cqi::qyy] + multipole[Cqi::traceQ];
+    T2 qzz = multipole[Cqi::qzz] + multipole[Cqi::traceQ];
 
-    T2 rQr = T2(0.5) * (dx * Qdx + dy * Qdy + dz * Qdz);
+    T2 Qrx = rx *                qxx  + ry * multipole[Cqi::qxy] + rz * multipole[Cqi::qxz];
+    T2 Qry = rx * multipole[Cqi::qxy] + ry *                qyy  + rz * multipole[Cqi::qyz];
+    T2 Qrz = rx * multipole[Cqi::qxz] + ry * multipole[Cqi::qyz] + rz *                qzz;
 
-    T2 Qa = T2(0.0);
-    Qa += gamma[3] * rQr;
-    Qa += gamma[1] * multipole[Cqi::mass];
+    Qrx /= T1(3.0);
+    Qry /= T1(3.0);
+    Qrz /= T1(3.0);
+
+    T2 rQr = T2(0.5) * (rx * Qrx + ry * Qry + rz * Qrz);
+    T2 Qtr = T2(0.5) * (qxx + qyy + qzz);
+
+    Qtr /= T2(3.0);
+
+    auto ugrav = 0.0
+               - gamma[2] * rQr 
+               - gamma[1] * Qtr 
+               - gamma[0] * multipole[Cqi::mass];
 
     auto ax = T1(0.0);
     auto ay = T1(0.0);
     auto az = T1(0.0);
-    ax += gamma[2] * Qdx;
-    ay += gamma[2] * Qdy;
-    az += gamma[2] * Qdz;
+    ax += gamma[2] * Qrx;
+    ay += gamma[2] * Qry;
+    az += gamma[2] * Qrz;
 
-    ax -= dx * Qa;
-    ay -= dy * Qa;
-    az -= dz * Qa;
+    T2 Qa = gamma[3] * rQr 
+          - gamma[2] * Qtr 
+          + gamma[1] * multipole[Cqi::mass];
 
-    auto ugrav = T1(0.0);
-    ugrav -= gamma[2] * rQr;
-    ugrav -= gamma[0] * multipole[Cqi::mass];
+    ax -= rx * Qa;
+    ay -= ry * Qa;
+    az -= rz * Qa;
+
+//  T2 Qdx = dx * multipole[Cqi::qxx] + dy * multipole[Cqi::qxy] + dz * multipole[Cqi::qxz];
+//  T2 Qdy = dx * multipole[Cqi::qxy] + dy * multipole[Cqi::qyy] + dz * multipole[Cqi::qyz];
+//  T2 Qdz = dx * multipole[Cqi::qxz] + dy * multipole[Cqi::qyz] + dz * multipole[Cqi::qzz];
+
+//  T2 rQr = T2(0.5) * (dx * Qdx + dy * Qdy + dz * Qdz);
+
+//  T2 Qa = T2(0.0);
+//  Qa += gamma[3] * rQr;
+//  Qa += gamma[1] * multipole[Cqi::mass];
+
+//  auto ax = T1(0.0);
+//  auto ay = T1(0.0);
+//  auto az = T1(0.0);
+//  ax += gamma[2] * Qdx;
+//  ay += gamma[2] * Qdy;
+//  az += gamma[2] * Qdz;
+
+//  ax -= dx * Qa;
+//  ay -= dy * Qa;
+//  az -= dz * Qa;
 
     return {ax,ay,az,ugrav};
 }
@@ -123,18 +182,21 @@ template<class T1, class T2>
 void computeGravityGroupEwald(
         const CartesianQuadrupole<T2>& Mroot, const cstone::SourceCenterType<T1>& Mroot_center, double L, 
         std::vector<struct EwaldData> &ed_list,
-        double ewaldCut, int numShells,
+        double ewaldCut, int numShells, double alpha_scale,
         const T1* x, const T1* y, const T1* z,
         T1* ax, T1* ay, T1* az, T1* ugrav,
-        LocalIndex numParticles
+        LocalIndex numParticles,
+        int gravity_switch
         )
 {
     auto ewaldCut2      = ewaldCut*ewaldCut*L*L;
     auto numEwaldShells = std::max(int(ceil(ewaldCut)), numShells);
-    auto alpha          = 2.0/L;
+    auto alpha          = alpha_scale/L;
     auto alpha2         = alpha*alpha;
     auto k1             = M_PI/(alpha2*L*L*L);
     auto ka             = 2.0*alpha/sqrt(M_PI);
+
+//    ewaldCut2 *= 1e8;
 
 //  std::cout << "Mroot" << std::endl
 //            << "  " << Mroot[Cqi::qxx]
@@ -152,33 +214,51 @@ void computeGravityGroupEwald(
         auto dy      = y[j] - Mroot_center[1];
         auto dz      = z[j] - Mroot_center[2];
 
-        dx = -dx;
-        dy = -dy;
-        dz = -dz;
-
         auto ax_t    = 0.0;
         auto ay_t    = 0.0;
         auto az_t    = 0.0;
         auto ugrav_t = k1 * Mroot[Cqi::mass];
 
+        if (gravity_switch & GRAV_NO_EWALD_REALSPACE) goto ewald_shells_end;
+
+        //printf("numShells %i  numEwaldShells %i  ewaldCut2 %f\n", numShells, numEwaldShells, ewaldCut2);
+
+ewald_shells_begin:
+
         for (auto ix = -numEwaldShells; ix <= numEwaldShells; ix++)
         for (auto iy = -numEwaldShells; iy <= numEwaldShells; iy++)
         for (auto iz = -numEwaldShells; iz <= numEwaldShells; iz++)
         {
+//          if (!(ix < 0 && iy == 0 && iz == 0))
+//          {
+//              continue;
+//          }
+            double gamma[6];
+
             auto in_hole = 
                    (-numShells <= ix && ix <= numShells) 
                 && (-numShells <= iy && iy <= numShells) 
                 && (-numShells <= iz && iz <= numShells);
 
-            auto dxo = dx + ix*L;
-            auto dyo = dy + iy*L;
-            auto dzo = dz + iz*L;
-            auto r2  = dxo*dxo + dyo*dyo + dzo*dzo;
+            auto rx = dx - ix*L;
+            auto ry = dy - iy*L;
+            auto rz = dz - iz*L;
+            auto r2  = rx*rx + ry*ry + rz*rz;
 
+            //printf("ewald: %23.15f  %23.15f  %23.15f\n", rx,ry,rz);
+
+            //printf("%2f %2f %2f\n", ix, iy, iz);
+            //printf("%2i %2i %2i r2: %23.15f  ewaldCut2: %23.15f  in_hole: %i\n", ix, iy, iz, r2, ewaldCut2, in_hole);
+            
+            // in other words: !(r2 <= ewaldCut2 || in_hole)
             if (r2 > ewaldCut2 && !in_hole) continue;
+            //if (in_hole) continue;
 
-            double gamma[6];
-            if (r2 < 3.0e-3*L*L) 
+            //bool use_small_r_approximation = r2 < 3.0e-3*L*L;       // Gasoline
+            bool use_small_r_approximation = r2 < 1.2e-3*L*L;       // PKDGrav3
+            //use_small_r_approximation = false;
+
+            if (use_small_r_approximation)
             {
                 //
                 // For small r, series expand about the origin to avoid errors
@@ -187,12 +267,12 @@ void computeGravityGroupEwald(
                 auto alphan  = ka;
                 auto r2a2    = alpha2;
 
-                gamma[0]  = alphan*(r2a2/3 - 1);         alphan *= 2*alpha2;
-                gamma[1]  = alphan*(r2a2/5 - 1.0/3.0);   alphan *= 2*alpha2;
-                gamma[2]  = alphan*(r2a2/7 - 1.0/5.0);   alphan *= 2*alpha2;
-                gamma[3]  = alphan*(r2a2/9 - 1.0/7.0);   alphan *= 2*alpha2;
-                gamma[4]  = alphan*(r2a2/11 - 1.0/9.0);  alphan *= 2*alpha2;
-                gamma[5]  = alphan*(r2a2/13 - 1.0/11.0);
+                gamma[0]  = alphan*(r2a2/3.0  - 1.0     );  alphan *= 2*alpha2;
+                gamma[1]  = alphan*(r2a2/5.0  - 1.0/3.0 );  alphan *= 2*alpha2;
+                gamma[2]  = alphan*(r2a2/7.0  - 1.0/5.0 );  alphan *= 2*alpha2;
+                gamma[3]  = alphan*(r2a2/9.0  - 1.0/7.0 );  alphan *= 2*alpha2;
+                gamma[4]  = alphan*(r2a2/11.0 - 1.0/9.0 );  alphan *= 2*alpha2;
+                gamma[5]  = alphan*(r2a2/13.0 - 1.0/11.0);
             }
             else 
             {
@@ -208,47 +288,66 @@ void computeGravityGroupEwald(
                 gamma[3] = 5*gamma[2]*dir2 + alphan*a;  alphan *= 2*alpha2;
                 gamma[4] = 7*gamma[3]*dir2 + alphan*a;  alphan *= 2*alpha2;
                 gamma[5] = 9*gamma[4]*dir2 + alphan*a;
+
+                //printf("            ] %23.15e %23.15e %23.15e %23.15e %23.15e %23.15e\n", r, dir, a, gamma[0], gamma[1], gamma[2]);
             }
 
-            auto [ax_, ay_, az_, u_] = ewaldEvalMultipoleComplete(dxo,dyo,dzo, gamma, Mroot);
+            auto [ax_, ay_, az_, u_] = ewaldEvalMultipoleComplete(rx,ry,rz, gamma, Mroot);
             ax_t    += ax_;
             ay_t    += ay_;
             az_t    += az_;
             ugrav_t -= u_;
 
-//          printf("%2i %2i %2i ] ugrav_t: %23.15f  u_: %23.15f\n", ix, iy, iz, ugrav_t, u_);
+            //printf("%2i %2i %2i ] ugrav_t: %23.15f  u_: %23.15f\n", ix, iy, iz, ugrav_t, u_);
+
+            //printf("%2i %2i %2i ] ugrav_t: %23.15f  u_: %23.15f  a: %23.15e %23.15e %23.15e\n", ix, iy, iz, ugrav_t, u_, ax_, ay_, az_);
         }
+
+ewald_shells_end:
+
+ewald_waves_begin:
+
+        if (gravity_switch & GRAV_NO_EWALD_KSPACE) goto ewald_waves_end;
+
+        //dx      = x[j];
+        //dy      = y[j];
+        //dz      = z[j];
 
         for (auto ed : ed_list)
         {
             auto hdotx = ed.hx*dx + ed.hy*dy + ed.hz*dz;
             auto c = std::cos(hdotx);
             auto s = std::sin(hdotx);
+            auto cs_diff = ed.hfac_cos*s - ed.hfac_sin*c;
+            auto cs_sum  = ed.hfac_cos*s + ed.hfac_sin*c;
 
-            ax_t    += ed.hx * (ed.hfac_cos*s - ed.hfac_sin*c);
-            ay_t    += ed.hy * (ed.hfac_cos*s - ed.hfac_sin*c);
-            az_t    += ed.hz * (ed.hfac_cos*s - ed.hfac_sin*c);
-            ugrav_t -=         (ed.hfac_cos*c + ed.hfac_sin*s);
+            ax_t    += ed.hx * cs_diff;
+            ay_t    += ed.hy * cs_diff;
+            az_t    += ed.hz * cs_diff;
+            ugrav_t -=         cs_sum;
 
-//          printf("%.2f %.2f %.2f ] ugrav_t: %23.15f  u_: %23.15f\n", ed.hx, ed.hy, ed.hz, ugrav_t, ed.hfac_cos*c + ed.hfac_sin*s);
+//          if ((ed.ix == -1 || ed.ix == 1) && ed.iy == 0 && ed.iz == 0)
+//              printf("%.2f %.2f %.2f ] ugrav_t: %23.15f  cs_diff: %23.15e  %23.15e  %23.15e  %23.15e  %23.15e\n", ed.hx, ed.hy, ed.hz, ugrav_t, cs_diff, c,s, ed.hfac_cos, ed.hfac_sin);
         }
-
+ewald_waves_end:
 
         ax[j]    += ax_t;
         ay[j]    += ay_t;
         az[j]    += az_t;
         ugrav[j] += ugrav_t;
+
+        //break;
     }
 }
 #endif
 
 template<class T2>
-std::vector<struct EwaldData> ewaldInit(const CartesianQuadrupole<T2>& Mroot, double L, double hCut)
+std::vector<struct EwaldData> ewaldInit(const CartesianQuadrupole<T2>& Mroot, double L, double hCut, double alpha_scale)
 {
     std::vector<struct EwaldData> ed_list;
 
     auto hReps = std::ceil(hCut);
-    auto alpha = 2.0/L;
+    auto alpha = alpha_scale/L;
     auto k4    = M_PI*M_PI/(alpha*alpha*L*L);
     auto hCut2 = hCut * hCut;
 
@@ -275,6 +374,9 @@ std::vector<struct EwaldData> ewaldInit(const CartesianQuadrupole<T2>& Mroot, do
 
         struct EwaldData ed = 
         {
+            .ix       = hx,
+            .iy       = hy,
+            .iz       = hz,
             .hx       = 2*M_PI/L*hx,
             .hy       = 2*M_PI/L*hy,
             .hz       = 2*M_PI/L*hz,
@@ -315,11 +417,11 @@ std::vector<struct EwaldData> ewaldInit(const CartesianQuadrupole<T2>& Mroot, do
  * Note: acceleration output is added to destination
  */
 template<class MType, class T1, class T2, class Tm>
-void computeGravityGroupPBC(TreeNodeIndex groupIdx, const TreeNodeIndex* childOffsets, const TreeNodeIndex* internalToLeaf,
-                            const cstone::SourceCenterType<T1>* centers, MType* multipoles, const LocalIndex* layout,
-                            const T1 dx_target, const T1 dy_target, const T1 dz_target,
-                            const T1* x, const T1* y, const T1* z, const T2* h, const Tm* m, float G, T1* ax, T1* ay,
-                            T1* az, T1* ugrav)
+void computeGravityGroupReplica(TreeNodeIndex groupIdx, const TreeNodeIndex* childOffsets, const TreeNodeIndex* internalToLeaf,
+                                const cstone::SourceCenterType<T1>* centers, MType* multipoles, const LocalIndex* layout,
+                                const T1 dx_target, const T1 dy_target, const T1 dz_target,
+                                const T1* x, const T1* y, const T1* z, const T2* h, const Tm* m, float G, T1* ax, T1* ay,
+                                T1* az, T1* ugrav)
 {
     LocalIndex firstTarget = layout[groupIdx];
     LocalIndex lastTarget  = layout[groupIdx + 1];
@@ -336,6 +438,8 @@ void computeGravityGroupPBC(TreeNodeIndex groupIdx, const TreeNodeIndex* childOf
 
     Vec3<T1> targetCenter = (tMax + tMin) * T2(0.5);
     Vec3<T1> targetSize   = (tMax - tMin) * T2(0.5);
+
+    targetCenter += Vec3<T1> {dx_target, dy_target, dz_target};
 
     /*! @brief octree traversal continuation criterion
      *
@@ -355,11 +459,13 @@ void computeGravityGroupPBC(TreeNodeIndex groupIdx, const TreeNodeIndex* childOf
         const auto& p   = multipoles[idx];
 
         bool violatesMac = cstone::evaluateMac(makeVec3(com), com[3], targetCenter, targetSize);
+        //violatesMac = false;
 
         if (!violatesMac)
         {
             LocalIndex numTargets = lastTarget - firstTarget;
 
+            //printf("m2p : %23.15f  %23.15f  %23.15f\n", dx_target, dy_target, dz_target);
 // apply multipole to all particles in group
 #if defined(__llvm__) || defined(__clang__)
 #pragma clang loop vectorize(enable)
@@ -370,11 +476,16 @@ void computeGravityGroupPBC(TreeNodeIndex groupIdx, const TreeNodeIndex* childOf
                 auto x_target = x[offset] + dx_target;
                 auto y_target = y[offset] + dy_target;
                 auto z_target = z[offset] + dz_target;
+
+                //if (dx_target > 0 && dy_target == 0 && dz_target == 0)
+                {
                 auto [ax_, ay_, az_, u_] = multipole2Particle(x_target, y_target, z_target, makeVec3(com), p);
                 *(ax + t) += G * ax_;
                 *(ay + t) += G * ay_;
                 *(az + t) += G * az_;
                 *(ugrav + t) += G * u_;
+                }
+                //break;
             }
         }
 
@@ -417,6 +528,10 @@ void computeGravityGroupPBC(TreeNodeIndex groupIdx, const TreeNodeIndex* childOf
             *(az + t) += G * az_;
             *(ugrav + t) += G * u_;
 
+            //if (t == 0)
+            //printf("leaf %3i] %3i %3i %3i  %23.15f  %23.15f  %23.15f, %23.15f\n", t, int(dx_target)/2, int(dy_target)/2, int(dz_target)/2, ax_, ay_, az_, u_);
+            //printf("leaf %3i] %23.15f  %23.15f  %23.15f, %23.15f  %23.15f  %23.15f, %23.15f\n", t, x[offset], y[offset], z[offset], ax_, ay_, az_, u_);
+            //printf("leaf %3i] %23.15f  %23.15f  %23.15f, %23.15f  %23.15f  %23.15f, %23.15f\n", t, x_target, y_target, z_target, ax_, ay_, az_, u_);
             //printf("leaf %3i] %23.15f  %23.15f  %23.15f, %23.15f  %23.15f  %23.15f, %23.15f\n", t, x_target, y_target, z_target, x[firstSource], y[firstSource], z[firstSource], u_);
         }
     };
@@ -508,11 +623,11 @@ void computeGravityPBC(const TreeNodeIndex* childOffsets, const TreeNodeIndex* i
  */
 #if 1
 template<class MType, class T1, class T2, class Tm>
-T2 computeGravityPBC(const TreeNodeIndex* childOffsets, const TreeNodeIndex* internalToLeaf, TreeNodeIndex numLeafNodes,
-                     const cstone::SourceCenterType<T1>* centers, MType* multipoles, const LocalIndex* layout,
-                     TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex, const T1* x, const T1* y, const T1* z,
-                     const T2* h, const Tm* m, float G, T1* ax, T1* ay, T1* az,
-                     const cstone::Box<T1>& box, int numShells, bool exclude_interior = false)
+T2 computeGravityReplica(const TreeNodeIndex* childOffsets, const TreeNodeIndex* internalToLeaf, TreeNodeIndex numLeafNodes,
+                         const cstone::SourceCenterType<T1>* centers, MType* multipoles, const LocalIndex* layout,
+                         TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex, const T1* x, const T1* y, const T1* z,
+                         const T2* h, const Tm* m, float G, T1* ax, T1* ay, T1* az,
+                         const cstone::Box<T1>& box, int numShells, bool exclude_interior = false)
 {
     T1 egravTot = 0.0;
 
@@ -567,7 +682,6 @@ T2 computeGravityPBC(const TreeNodeIndex* childOffsets, const TreeNodeIndex* int
                 }
                 else
                 {
-
                     auto dx = ix * box.lx();
                     auto dy = iy * box.ly();
                     auto dz = iz * box.lz();
@@ -580,10 +694,11 @@ T2 computeGravityPBC(const TreeNodeIndex* childOffsets, const TreeNodeIndex* int
 //                      //printf("\t %3i] %23.15f  %23.15f  %23.15f, %23.15f  %23.15f  %23.15f\n", i, xp[i], yp[i], zp[i], x[i], y[i], z[i]);
 //                  }
 
-                    computeGravityGroupPBC(leafIdx, childOffsets, internalToLeaf, centers, multipoles, layout, 
-                                           -dx, -dy, -dz,
-                                           x, y, z, h, m, G,
-                                           ax + firstTarget, ay + firstTarget, az + firstTarget, ugravThread);
+                    computeGravityGroupReplica(leafIdx, childOffsets, internalToLeaf, centers, multipoles, layout, 
+                                               -dx, -dy, -dz,
+                                               x, y, z, h, m, G,
+                                               ax + firstTarget, ay + firstTarget, az + firstTarget, ugravThread);
+
                 }
             }
 
@@ -633,7 +748,7 @@ T2 computeGravityEwald(const TreeNodeIndex* childOffsets, const TreeNodeIndex* i
                      const cstone::SourceCenterType<T1>* centers, MType* multipoles, const LocalIndex* layout,
                      TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex, const T1* x, const T1* y, const T1* z,
                      const T2* h, const Tm* m, float G, T1* ax, T1* ay, T1* az,
-                     const cstone::Box<T1>& box)
+                     const cstone::Box<T1>& box, int numShells = 1, float hCut = 2.8, float ewaldCut = 2.6, float alpha_scale = 2.0, int gravity_switch = GRAV_ALL)
 {
     T1 egravTot = 0.0;
 
@@ -645,12 +760,14 @@ T2 computeGravityEwald(const TreeNodeIndex* childOffsets, const TreeNodeIndex* i
         maxNodeCount = std::max(maxNodeCount, std::size_t(layout[i + 1] - layout[i]));
     }
 
-    auto L         = box.lx();
-    auto hCut      = 2.8;
-    auto ewaldCut  = 2.6;
-    auto numShells = 1;
+    auto L = box.lx();
 
-    std::vector<struct EwaldData> ed_list = ewaldInit(multipoles[0], L, hCut);
+    std::vector<struct EwaldData> ed_list;
+
+    if (!(gravity_switch & GRAV_NO_EWALD))
+    {
+       ed_list = ewaldInit(multipoles[0], L, hCut, alpha_scale);
+    }
 
 
 #pragma omp parallel
@@ -667,16 +784,14 @@ T2 computeGravityEwald(const TreeNodeIndex* childOffsets, const TreeNodeIndex* i
             LocalIndex lastTarget  = layout[leafIdx + 1];
             LocalIndex numTargets  = lastTarget - firstTarget;
 
-//          std::vector<T1> xp(numTargets);
-//          std::vector<T1> yp(numTargets);
-//          std::vector<T1> zp(numTargets);
-
             for (auto iz = -numShells; iz <= numShells; iz++)
             for (auto iy = -numShells; iy <= numShells; iy++)
             for (auto ix = -numShells; ix <= numShells; ix++)
             {
                 if (ix == 0 && iy == 0 && iz == 0)
                 {
+                    if (gravity_switch & GRAV_NO_CENTRAL_BOX) continue;
+
                     computeGravityGroup(leafIdx, childOffsets, internalToLeaf, centers, multipoles, layout, 
                                         x, y, z, h, m, G,
                                         ax + firstTarget, ay + firstTarget, az + firstTarget, ugravThread);
@@ -684,27 +799,33 @@ T2 computeGravityEwald(const TreeNodeIndex* childOffsets, const TreeNodeIndex* i
                 else
                 {
 
-                    auto dx = ix * L;
-                    auto dy = iy * L;
-                    auto dz = iz * L;
+                    auto dx = -ix * L;
+                    auto dy = -iy * L;
+                    auto dz = -iz * L;
 
-                    computeGravityGroupPBC(leafIdx, childOffsets, internalToLeaf, centers, multipoles, layout, 
-                                           -dx, -dy, -dz,
-                                           x, y, z, h, m, G,
-                                           ax + firstTarget, ay + firstTarget, az + firstTarget, ugravThread);
+                    if (gravity_switch & GRAV_NO_REPLICAS) continue;
+
+                    computeGravityGroupReplica(leafIdx, childOffsets, internalToLeaf, centers, multipoles, layout, 
+                                               dx, dy, dz,
+                                               x, y, z, h, m, G,
+                                               ax + firstTarget, ay + firstTarget, az + firstTarget, ugravThread);
                 }
             }
 
-            computeGravityGroupEwald(
-                multipoles[0], centers[0], L, ed_list, ewaldCut, numShells, 
-                 x + firstTarget,
-                 y + firstTarget,
-                 z + firstTarget, 
-                ax + firstTarget,
-                ay + firstTarget,
-                az + firstTarget,
-                ugravThread,
-                numTargets);
+            if (!(gravity_switch & GRAV_NO_EWALD))
+            {
+                computeGravityGroupEwald(
+                    multipoles[0], centers[0], L, ed_list, ewaldCut, numShells, alpha_scale,
+                     x + firstTarget,
+                     y + firstTarget,
+                     z + firstTarget, 
+                    ax + firstTarget,
+                    ay + firstTarget,
+                    az + firstTarget,
+                    ugravThread,
+                    numTargets,
+                    gravity_switch);
+            }
 
             for (LocalIndex i = 0; i < numTargets; ++i)
             {
@@ -717,28 +838,6 @@ T2 computeGravityEwald(const TreeNodeIndex* childOffsets, const TreeNodeIndex* i
     }
 
     return 0.5 * egravTot;
-}
-
-//! @brief compute direct gravity sum for all particles [0:numParticles]
-template<class T1, class T2, class Tm>
-void directSumPBC(const T1* x, const T1* y, const T1* z, const T2* h, const Tm* m, LocalIndex numParticles, float G,
-                  T1* ax, T1* ay, T1* az, T1* ugrav)
-{
-#pragma omp parallel for schedule(static)
-    for (LocalIndex t = 0; t < numParticles; ++t)
-    {
-        // 2 splits: [0:t] and [t+1:numParticles]
-        auto [ax_, ay_, az_, u_] = particle2Particle(x[t], y[t], z[t], h[t], x, y, z, h, m, t);
-
-        LocalIndex tp1 = t + 1;
-        auto [ax2_, ay2_, az2_, u2_] =
-            particle2Particle(x[t], y[t], z[t], h[t], x + tp1, y + tp1, z + tp1, h + tp1, m + tp1, numParticles - tp1);
-
-        *(ax + t) += G * (ax_ + ax2_);
-        *(ay + t) += G * (ay_ + ay2_);
-        *(az + t) += G * (az_ + az2_);
-        *(ugrav + t) += G * m[t] * (u_ + u2_);
-    }
 }
 
 } // namespace ryoanji

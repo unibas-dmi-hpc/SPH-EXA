@@ -66,7 +66,8 @@ struct Cqi
         qxz  = 3,
         qyy  = 4,
         qyz  = 5,
-        qzz  = 6
+        qzz  = 6,
+        traceQ = 7
     };
 };
 
@@ -109,7 +110,9 @@ HOST_DEVICE_FUN void particle2Multipole(const T1* x, const T1* y, const T1* z, c
         gv[Cqi::qzz] += rz * rz * m_i;
     }
 
-    T1 traceQ = gv[Cqi::qxx] + gv[Cqi::qyy] + gv[Cqi::qzz];
+    T3 traceQ = gv[Cqi::qxx] + gv[Cqi::qyy] + gv[Cqi::qzz];
+
+    gv[Cqi::traceQ] = traceQ;
 
     // remove trace
     gv[Cqi::qxx] = 3 * gv[Cqi::qxx] - traceQ;
@@ -274,8 +277,10 @@ multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, const CartesianQ
     T2 rQrAndMonopole = (T2(-2.5) * rQr * r_minus5 - multipole[Cqi::mass] * r_minus1) * r_minus2;
 
     //       Qr Quad-term
-    return {r_minus5 * Qrx + rQrAndMonopole * rx, r_minus5 * Qry + rQrAndMonopole * ry,
-            r_minus5 * Qrz + rQrAndMonopole * rz, -(multipole[Cqi::mass] * r_minus1 + T2(0.5) * r_minus5 * rQr)};
+    return {r_minus5 * Qrx + rQrAndMonopole * rx, 
+            r_minus5 * Qry + rQrAndMonopole * ry,
+            r_minus5 * Qrz + rQrAndMonopole * rz, 
+            -(multipole[Cqi::mass] * r_minus1 + T2(0.5) * r_minus5 * rQr)};
 }
 
 /*! @brief add a multipole contribution to the composite multipole
