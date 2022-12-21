@@ -52,10 +52,10 @@ using namespace sph;
 using cstone::FieldStates;
 
 //! @brief VE hydro propagator that adds turbulence stirring to the acceleration prior to position update
-template<class DomainType, class DataType>
-class TurbVeProp final : public HydroVeProp<DomainType, DataType>
+template<bool avClean, class DomainType, class DataType>
+class TurbVeProp final : public HydroVeProp<avClean, DomainType, DataType>
 {
-    using Base = HydroVeProp<DomainType, DataType>;
+    using Base = HydroVeProp<avClean, DomainType, DataType>;
     using Base::ng0_;
     using Base::ngmax_;
     using Base::rank_;
@@ -66,8 +66,8 @@ class TurbVeProp final : public HydroVeProp<DomainType, DataType>
     sph::TurbulenceData<RealType, typename DataType::AcceleratorType> turbulenceData;
 
 public:
-    TurbVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool avClean = true)
-        : Base(ngmax, ng0, output, rank, avClean)
+    TurbVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+        : Base(ngmax, ng0, output, rank)
         , turbulenceData(TurbulenceConstants(), rank == 0)
     {
     }

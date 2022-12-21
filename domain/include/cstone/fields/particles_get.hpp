@@ -44,6 +44,12 @@ struct FieldList
 {
 };
 
+template<StructuralString... F1, StructuralString... F2>
+constexpr auto operator+(FieldList<F1...>, FieldList<F2...>)
+{
+    return FieldList<F1..., F2...>{};
+}
+
 template<StructuralString... Fields, class Dataset>
 decltype(auto) getHost(Dataset& d)
 {
