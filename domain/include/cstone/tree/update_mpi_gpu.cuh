@@ -58,11 +58,9 @@ bool updateOctreeGlobalGpu(const KeyType* keyStart,
                            Octree<KeyType>& tree,
                            DevKeyVec& d_csTree,
                            std::vector<unsigned>& counts,
-                           DevCountVec& d_counts,
-                           int numRanks)
+                           DevCountVec& d_counts)
 {
-    // to prevent 32-bit overflow we limit the maximum count to 2^32-1, divided by numRanks due to MPI_Allreduce
-    unsigned maxCount = std::numeric_limits<unsigned>::max() / numRanks;
+    unsigned maxCount = std::numeric_limits<unsigned>::max();
     bool converged    = tree.rebalance(bucketSize, counts);
 
     counts.resize(tree.numLeafNodes());
@@ -73,7 +71,14 @@ bool updateOctreeGlobalGpu(const KeyType* keyStart,
     computeNodeCountsGpu(rawPtr(d_csTree), rawPtr(d_counts), tree.numLeafNodes(), keyStart, keyEnd, maxCount, true);
     thrust::copy(d_counts.begin(), d_counts.end(), counts.begin());
 
-    MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+    std::vector<unsigned> counts_reduced(counts.size());
+    MPI_Allreduce(counts.data(), counts_reduced.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < counts.size(); ++i)
+    {
+        counts[i] = std::max(counts[i], counts_reduced[i]);
+    }
 
     return converged;
 }

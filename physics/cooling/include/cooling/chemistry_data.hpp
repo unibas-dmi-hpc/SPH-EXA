@@ -28,10 +28,10 @@
  * @author Noah Kubli <noah.kubli@uzh.ch>
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
-
 #pragma once
 
 #include <array>
+#include <optional>
 
 #include "cstone/fields/enumerate.hpp"
 #include "cstone/fields/field_states.hpp"
@@ -45,11 +45,11 @@ template<class T>
 class ChemistryData : public cstone::FieldStates<ChemistryData<T>>
 {
 public:
-    inline static constexpr size_t numFields = 14;
+    inline static constexpr size_t numFields = 21;
 
     template<class ValueType>
-    using FieldVector = std::vector<ValueType, std::allocator<ValueType>>;
-
+    using FieldVector     = std::vector<ValueType, std::allocator<ValueType>>;
+    using RealType        = T;
     using AcceleratorType = cstone::CpuTag;
 
     std::array<FieldVector<T>, numFields> fields;
@@ -79,8 +79,30 @@ public:
         }
     }
 
-    //! Generates field names: "Y0", "Y1", ...
-    inline static constexpr std::array fieldNames = enumerateFieldNames<"Y", numFields>();
+    //! Grackle field names
+    inline static constexpr std::array fieldNames{"HI_fraction",
+                                                  "HII_fraction",
+                                                  "HM_fraction",
+                                                  "HeI_fraction",
+                                                  "HeII_fraction",
+                                                  "HeIII_fraction",
+                                                  "H2I_fraction",
+                                                  "H2II_fraction",
+                                                  "DI_fraction",
+                                                  "DII_fraction",
+                                                  "HDI_fraction",
+                                                  "e_fraction",
+                                                  "metal_fraction",
+                                                  "volumetric_heating_rate",
+                                                  "specific_heating_rate",
+                                                  "RT_heating_rate",
+                                                  "RT_HI_ionization_rate",
+                                                  "RT_HeI_ionization_rate",
+                                                  "RT_HeII_ionization_rate",
+                                                  "RT_H2_dissociation_rate",
+                                                  "H2_self_shielding_length"};
+
+    static_assert(fieldNames.size() == numFields);
 
 private:
     template<size_t... Is>

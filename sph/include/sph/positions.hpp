@@ -51,12 +51,14 @@ HOST_DEVICE_FUN bool fbcCheck(Tc coord, Th h, Tc top, Tc bottom, bool fbc)
 
 //! @brief update the energy according to Adams-Bashforth (2nd order)
 template<class T>
-HOST_DEVICE_FUN double energyUpdate(double dt, double dt_m1, T du, T du_m1)
+HOST_DEVICE_FUN double energyUpdate(double u_old, double dt, double dt_m1, T du, T du_m1)
 {
     double deltaA = 0.5 * dt * dt / dt_m1;
     double deltaB = dt + deltaA;
-
-    return du * deltaB - du_m1 * deltaA;
+    double u_new  = u_old + du * deltaB - du_m1 * deltaA;
+    // To prevent u < 0 (when cooling with GRACKLE is active)
+    if (u_new < 0.) { u_new = u_old * std::exp(u_new * dt / u_old); }
+    return u_new;
 }
 
 //! @brief Update positions according to Press (2nd order)
@@ -88,7 +90,7 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
     bool anyFBC = fbcX || fbcY || fbcZ;
 
     bool haveMui = !d.mui.empty();
-    T    constCv = idealGasCv(d.muiConst);
+    T    constCv = idealGasCv(d.muiConst, d.gamma);
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
@@ -113,8 +115,9 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
         util::tie(d.x_m1[i], d.y_m1[i], d.z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
         util::tie(d.vx[i], d.vy[i], d.vz[i])       = util::tie(V[0], V[1], V[2]);
 
-        T cv = haveMui ? idealGasCv(d.mui[i]) : constCv;
-        d.temp[i] += energyUpdate(dt, dt_m1, d.du[i], d.du_m1[i]) / cv;
+        T cv       = haveMui ? idealGasCv(d.mui[i], d.gamma) : constCv;
+        T u_old    = cv * d.temp[i];
+        d.temp[i]  = energyUpdate(u_old, dt, dt_m1, d.du[i], d.du_m1[i]) / cv;
         d.du_m1[i] = d.du[i];
     }
 }
@@ -124,14 +127,15 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        T     constCv = d.mui.empty() ? idealGasCv(d.muiConst) : -1.0;
+        T     constCv = d.mui.empty() ? idealGasCv(d.muiConst, d.gamma) : -1.0;
         auto* d_mui   = d.mui.empty() ? nullptr : rawPtr(d.devData.mui);
 
         computePositionsGpu(startIndex, endIndex, d.minDt, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y),
                             rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
                             rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1),
                             rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.temp),
-                            rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h), d_mui, constCv, box);
+                            rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h), d_mui, d.gamma, constCv,
+                            box);
     }
     else { computePositionsHost(startIndex, endIndex, d, box); }
 }

@@ -56,6 +56,21 @@ namespace sphexa
 template<class Tc, class Tv, class Tt, class Tm>
 extern std::tuple<double, double, cstone::Vec3<double>, cstone::Vec3<double>>
 conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz,
-                       const Tt* temp, const Tm* m, size_t, size_t);
+                       const Tt* temp, const Tm* m, size_t first, size_t last);
+
+/*! @brief compute square of local Mach number sum
+ *
+ * @tparam     Tc     float or double
+ * @tparam     Tv     float or double
+ * @param[in]  vx     velocities x-component
+ * @param[in]  vy     velocities y-component
+ * @param[in]  vz     velocities z-component
+ * @param[in]  c      local speed of sound
+ * @param[in]  first  first local particle in vx,vy,vz,c arrays
+ * @param[in]  last   last local particle
+ * @return
+ */
+template<class Tc, class Tv>
+extern double machSquareSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, size_t first, size_t last);
 
 } // namespace sphexa

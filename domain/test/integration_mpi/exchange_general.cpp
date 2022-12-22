@@ -103,7 +103,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     focusTree.converge(box, particleKeys, peers, assignment, tree, counts, invThetaEff);
 
     auto octree = focusTree.octreeViewAcc();
-    std::vector<int> testCounts(octree.numNodes, -1);
+    std::vector<unsigned> testCounts(octree.numNodes, -1);
 
     for (TreeNodeIndex i = 0; i < octree.numNodes; ++i)
     {
@@ -120,18 +120,16 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     }
 
     upsweep({octree.levelRange, maxTreeLevel<KeyType>{} + 2}, {octree.childOffsets, size_t(octree.numNodes)},
-            testCounts.data(), SumCombination<int>{});
+            testCounts.data(), NodeCount<unsigned>{});
 
-    std::vector<int> globalCounts(domainTree.numTreeNodes());
-
-    focusTree.template peerExchange<int>(testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
+    focusTree.template peerExchange<unsigned>(testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
 
     auto upsweepFunction = [](auto levelRange, auto childOffsets, auto M)
-    { upsweep(levelRange, childOffsets, M, SumCombination<int>{}); };
-    globalFocusExchange<int>(domainTree, focusTree, testCounts, upsweepFunction);
+    { upsweep(levelRange, childOffsets, M, NodeCount<unsigned>{}); };
+    globalFocusExchange<unsigned>(domainTree, focusTree, testCounts, upsweepFunction);
 
     upsweep({octree.levelRange, maxTreeLevel<KeyType>{} + 2}, {octree.childOffsets, size_t(octree.numNodes)},
-            testCounts.data(), SumCombination<int>{});
+            testCounts.data(), NodeCount<unsigned>{});
 
     {
         for (size_t i = 0; i < testCounts.size(); ++i)
@@ -141,7 +139,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
 
             unsigned referenceCount = calculateNodeCount(nodeStart, nodeEnd, coords.particleKeys().data(),
                                                          coords.particleKeys().data() + coords.particleKeys().size(),
-                                                         std::numeric_limits<int>::max());
+                                                         std::numeric_limits<unsigned>::max());
             EXPECT_EQ(testCounts[i], referenceCount);
         }
     }

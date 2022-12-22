@@ -68,7 +68,8 @@ namespace cstone
 template<class C, class A>
 HOST_DEVICE_FUN void singleTraversal(const TreeNodeIndex* childOffsets, C&& continuationCriterion, A&& endpointAction)
 {
-    if (!continuationCriterion(0)) return;
+    bool descend = continuationCriterion(0);
+    if (!descend) return;
 
     if (childOffsets[0] == 0)
     {

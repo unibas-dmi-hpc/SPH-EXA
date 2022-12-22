@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2022 CSCS, ETH Zurich, University of Zurich, University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,27 +23,33 @@
  */
 
 /*! @file
- * @brief to add
+ * @brief Unit tests for ParticlesData
  *
- * @author Lukas Schmidt
+ * @author Noah Kubli <noah.kubli@uzh.ch>
  */
 
 #pragma once
 
-#include "cstone/sfc/box.hpp"
-#include "io/ifile_writer.hpp"
+#include "evrard_init.hpp"
+#include "cooling/cooler.hpp"
 
-namespace sphexa
-{
+#include "cooling/init_chemistry.h"
 
 template<class Dataset>
-class IObservables
+class EvrardGlassSphereCooling : public sphexa::EvrardGlassSphere<Dataset>
 {
+
 public:
-    virtual void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex,
-                                 cstone::Box<typename Dataset::RealType>& box){/* no-op */};
+    EvrardGlassSphereCooling(std::string initBlock)
+        : sphexa::EvrardGlassSphere<Dataset>(initBlock)
+    {
+    }
 
-    virtual ~IObservables() = default;
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
+                                                 Dataset& simData) const override
+    {
+        auto box = sphexa::EvrardGlassSphere<Dataset>::init(rank, numRanks, cbrtNumPart, simData);
+        cooling::initChemistryData(simData.chem, simData.hydro.x.size());
+        return box;
+    }
 };
-
-} // namespace sphexa

@@ -32,7 +32,10 @@
 #include <iostream>
 #include <random>
 
+#include <thrust/execution_policy.h>
 #include <thrust/device_vector.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/sfc/sfc_gpu.h"

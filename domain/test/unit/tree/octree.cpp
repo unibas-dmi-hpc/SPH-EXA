@@ -331,7 +331,7 @@ static void upsweepSumIrregularL3()
     std::vector<unsigned> nodeCounts(octree.numTreeNodes());
 
     scatter(octree.internalOrder(), leafCounts.data(), nodeCounts.data());
-    upsweep(octree.levelRange(), octree.childOffsets(), nodeCounts.data(), SumCombination<unsigned>{});
+    upsweep(octree.levelRange(), octree.childOffsets(), nodeCounts.data(), NodeCount<unsigned>{});
 
     //                                      L1                       L2
     //                                                               00                       30

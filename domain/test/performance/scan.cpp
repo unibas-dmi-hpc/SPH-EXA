@@ -51,7 +51,10 @@ void exclusiveScanInplace([[maybe_unused]] const T* in, T* out, std::size_t num_
 }
 
 template<class T>
-void test_scan(std::string name, const std::vector<T>& input, std::vector<T>& output, const std::vector<T>& reference,
+void test_scan(std::string name,
+               const std::vector<T>& input,
+               std::vector<T>& output,
+               const std::vector<T>& reference,
                void (*func)(const T*, T*, std::size_t))
 {
     std::size_t numElements = input.size();
@@ -74,8 +77,11 @@ void test_scan(std::string name, const std::vector<T>& input, std::vector<T>& ou
 }
 
 template<class T>
-void benchmark_scan(const std::string& name, const std::vector<T>& input, std::vector<T>& output,
-                    const std::vector<T>& reference, void (*func)(const T*, T*, std::size_t))
+void benchmark_scan(const std::string& name,
+                    const std::vector<T>& input,
+                    std::vector<T>& output,
+                    const std::vector<T>& reference,
+                    void (*func)(const T*, T*, std::size_t))
 {
     std::size_t numElements = input.size();
 

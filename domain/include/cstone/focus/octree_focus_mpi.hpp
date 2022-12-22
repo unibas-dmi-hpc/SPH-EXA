@@ -205,7 +205,7 @@ public:
         // 1st upsweep with local data
         counts_.resize(treeData_.numNodes);
         scatter<TreeNodeIndex>(leafToInternal(treeData_), leafCounts_.data(), counts_.data());
-        upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), SumCombination<unsigned>{});
+        upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), NodeCount<unsigned>{});
 
         // global counts
         auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves_));
@@ -228,7 +228,7 @@ public:
                                treeData_.levelRange, leafToInternal(treeData_), gsl::span<unsigned>(counts_), countTag);
 
         // 2nd upsweep with peer and global data present
-        upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), SumCombination<unsigned>{});
+        upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), NodeCount<unsigned>{});
         gather(leafToInternal(treeData_), counts_.data(), leafCounts_.data());
 
         if constexpr (HaveGpu<Accelerator>{})
@@ -355,6 +355,9 @@ public:
                              d_layout + firstIdx);
             computeLeafSourceCenterGpu(x, y, z, m, octree.leafToInternal + octree.numInternalNodes, octree.numLeafNodes,
                                        d_layout, rawPtr(centersAcc_));
+            //! upsweep with local data in place
+            upsweepCentersGpu(maxTreeLevel<KeyType>{}, treeData_.levelRange.data(), octree.childOffsets,
+                              rawPtr(centersAcc_));
             memcpyD2H(rawPtr(centersAcc_), numNodes, centers_.data());
 
             reallocateDevice(scratch1, osz1, 1.0);
@@ -372,10 +375,10 @@ public:
                 TreeNodeIndex nodeIdx = octree.leafToInternal[octree.numInternalNodes + leafIdx];
                 centers_[nodeIdx]     = massCenter<RealType>(x, y, z, m, layout[leafIdx], layout[leafIdx + 1]);
             }
+            //! upsweep with local data in place
+            upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<T>{});
         }
 
-        //! upsweep with local data in place
-        upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<T>{});
         //! exchange information with peer close to focus
         peerExchange<SourceCenterType<T>>(centers_, static_cast<int>(P2pTags::focusPeerCenters));
         //! global exchange for the top nodes that are bigger than local domains

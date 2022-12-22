@@ -77,7 +77,7 @@ public:
     size_t numParticlesGlobal;
     size_t totalNeighbors;
 
-    T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
+    T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0}, machRMS{0.0};
     T linmom{0.0}, angmom{0.0};
 
     //! current and previous (global) time-steps
@@ -90,37 +90,42 @@ public:
 
     //! @brief adiabatic index
     T gamma{5.0 / 3.0};
+
     //! @brief mean molecular weight of ions for models that use one value for all particles
     T muiConst{10.0};
+
+    //! @brief Fraction of Courant condition for timestep
+    T Kcour{0.2};
 
     /*! @brief Particle fields
      *
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    FieldVector<T>        x, y, z;                      // Positions
-    FieldVector<XM1Type>  x_m1, y_m1, z_m1;             // Difference between current and previous positions
-    FieldVector<T>        vx, vy, vz;                   // Velocities
-    FieldVector<T>        rho;                          // Density
-    FieldVector<T>        temp;                         // Temperature
-    FieldVector<T>        u;                            // Internal Energy
-    FieldVector<T>        p;                            // Pressure
-    FieldVector<T>        prho;                         // p / (kx * m^2 * gradh)
-    FieldVector<T>        h;                            // Smoothing Length
-    FieldVector<Tmass>    m;                            // Mass
-    FieldVector<T>        c;                            // Speed of sound
-    FieldVector<T>        cv;                           // Specific heat
-    FieldVector<T>        mue, mui;                     // mean molecular weight (electrons, ions)
-    FieldVector<T>        divv, curlv;                  // Div(velocity), Curl(velocity)
-    FieldVector<T>        ax, ay, az;                   // acceleration
-    FieldVector<XM1Type>  du, du_m1;                    // energy rate of change (du/dt)
-    FieldVector<T>        c11, c12, c13, c22, c23, c33; // IAD components
-    FieldVector<T>        alpha;                        // AV coeficient
-    FieldVector<T>        xm;                           // Volume element definition
-    FieldVector<T>        kx;                           // Volume element normalization
-    FieldVector<T>        gradh;                        // grad(h) term
-    FieldVector<KeyType>  keys;                         // Particle space-filling-curve keys
-    FieldVector<unsigned> nc;                           // number of neighbors of each particle
+    FieldVector<T>        x, y, z;                            // Positions
+    FieldVector<XM1Type>  x_m1, y_m1, z_m1;                   // Difference between current and previous positions
+    FieldVector<T>        vx, vy, vz;                         // Velocities
+    FieldVector<T>        rho;                                // Density
+    FieldVector<T>        temp;                               // Temperature
+    FieldVector<T>        u;                                  // Internal Energy
+    FieldVector<T>        p;                                  // Pressure
+    FieldVector<T>        prho;                               // p / (kx * m^2 * gradh)
+    FieldVector<T>        h;                                  // Smoothing Length
+    FieldVector<Tmass>    m;                                  // Mass
+    FieldVector<T>        c;                                  // Speed of sound
+    FieldVector<T>        cv;                                 // Specific heat
+    FieldVector<T>        mue, mui;                           // mean molecular weight (electrons, ions)
+    FieldVector<T>        divv, curlv;                        // Div(velocity), Curl(velocity)
+    FieldVector<T>        ax, ay, az;                         // acceleration
+    FieldVector<XM1Type>  du, du_m1;                          // energy rate of change (du/dt)
+    FieldVector<T>        c11, c12, c13, c22, c23, c33;       // IAD components
+    FieldVector<T>        alpha;                              // AV coeficient
+    FieldVector<T>        xm;                                 // Volume element definition
+    FieldVector<T>        kx;                                 // Volume element normalization
+    FieldVector<T>        gradh;                              // grad(h) term
+    FieldVector<KeyType>  keys;                               // Particle space-filling-curve keys
+    FieldVector<unsigned> nc;                                 // number of neighbors of each particle
+    FieldVector<T>        dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
 
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
     std::vector<cstone::LocalIndex> neighbors;
@@ -134,9 +139,10 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",   "y",   "z",   "x_m1", "y_m1", "z_m1", "vx", "vy",    "vz",    "rho",   "u",     "p",    "prho",
-        "h",   "m",   "c",   "ax",   "ay",   "az",   "du", "du_m1", "c11",   "c12",   "c13",   "c22",  "c23",
-        "c33", "mue", "mui", "temp", "cv",   "xm",   "kx", "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
+        "x",     "y",    "z",   "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",    "rho",  "u",     "p",
+        "prho",  "h",    "m",   "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",   "c13",
+        "c22",   "c23",  "c33", "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv", "alpha",
+        "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
 
     static_assert(!cstone::HaveGpu<AcceleratorType>{} ||
                       fieldNames.size() == DeviceData_t<AccType, T, KeyType>::fieldNames.size(),
@@ -149,7 +155,8 @@ public:
     auto dataTuple()
     {
         auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11,
-                            c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc);
+                            c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc,
+                            dV11, dV12, dV13, dV22, dV23, dV33);
 
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
         return ret;
@@ -196,7 +203,6 @@ public:
     std::vector<std::string> outputFieldNames;
 
     constexpr static T sincIndex     = 6.0;
-    constexpr static T Kcour         = 0.2;
     constexpr static T maxDtIncrease = 1.1;
 
     // Min. Atwood number in ramp function in momentum equation (crossed/uncrossed selection)

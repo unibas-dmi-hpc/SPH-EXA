@@ -90,8 +90,8 @@ int main(int argc, char** argv)
     {
         std::vector<double> rDummy(1, 0.1);
         std::vector<Real>   rho(1), p(1), u(1), vel(1), cs(1);
-        shockFront = SedovSolution::sedovSol(
-            dim, time, eblast, omega, gamma, rho0, u0, p0, vr0, cs0, rDummy, rho, p, u, vel, cs);
+        shockFront = SedovSolution::sedovSol(dim, time, eblast, omega, gamma, rho0, u0, p0, vr0, cs0, rDummy, rho, p, u,
+                                             vel, cs);
     }
 
     // Set the positions for calculating the solution
@@ -126,14 +126,9 @@ int main(int argc, char** argv)
     }
 
     writeColumns1D(solFile);
-    fileutils::writeAscii<Real>(0,
-                                nSteps,
-                                solFile,
-                                true,
-                                {rSol.data(), rho.data(), u.data(), p.data(), vel.data(), cs.data()},
-                                std::setw(16),
-                                std::setprecision(7),
-                                std::scientific);
+    fileutils::writeAscii<Real>(0, nSteps, solFile, true,
+                                {rSol.data(), rho.data(), u.data(), p.data(), vel.data(), cs.data()}, std::setw(16),
+                                std::setprecision(7), std::scientific);
 
     cout << "Created solution file: '" << solFile << std::endl;
 
