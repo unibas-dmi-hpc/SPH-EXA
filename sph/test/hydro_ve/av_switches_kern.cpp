@@ -38,7 +38,6 @@
 #include "sph/tables.hpp"
 #include "../../../main/src/io/file_utils.hpp"
 
-
 using namespace sph;
 
 TEST(AVswitches, JLoop)
@@ -50,22 +49,23 @@ TEST(AVswitches, JLoop)
     T alphamin       = 0.05;
     T alphamax       = 1.0;
     T decay_constant = 0.2;
-    //T alphai         = alphamax;
-    T mpart     = 3.781038064465603e26;
-    T dt             = 0.3;
+    // T alphai         = alphamax;
+    T mpart = 3.781038064465603e26;
+    T dt    = 0.3;
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
-    size_t                          npart = 99;
-    unsigned                        neighborsCount = npart - 1, i;
+    size_t   npart          = 99;
+    unsigned neighborsCount = npart - 1, i;
 
     std::vector<cstone::LocalIndex> neighbors(neighborsCount - 1);
 
-    for (i = 0; i < neighborsCount; i++) {
-      neighbors[i] = i + 1;
+    for (i = 0; i < neighborsCount; i++)
+    {
+        neighbors[i] = i + 1;
     }
 
     std::vector<T> x(npart);
@@ -103,12 +103,12 @@ TEST(AVswitches, JLoop)
     std::vector<T> xm(npart);
     std::vector<T> kx(npart);
 
-    std::vector<T*> fields{x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(),
-              h.data(), c.data(), c11.data(), c12.data(), c13.data(), c22.data(),
-              c23.data(), c33.data(), p.data(), gradh.data(), rho0.data(), sumwhrho0.data(),
-              sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(),
-              dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alphap.data(),
-              u.data(), divv.data()};
+    std::vector<T*> fields{x.data(),     y.data(),     z.data(),     vx.data(),    vy.data(),     vz.data(),
+                           h.data(),     c.data(),     c11.data(),   c12.data(),   c13.data(),    c22.data(),
+                           c23.data(),   c33.data(),   p.data(),     gradh.data(), rho0.data(),   sumwhrho0.data(),
+                           sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(),  dvydy.data(),
+                           dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alphap.data(), u.data(),
+                           divv.data()};
 
     T alphai = alphap[0];
     sphexa::fileutils::readAscii("example_data.txt", npart, fields);
@@ -120,7 +120,6 @@ TEST(AVswitches, JLoop)
         xm[i] = mpart / rho0[i];
         kx[i] = K * xm[i] / math::pow(h[i], 3);
     }
-
 
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     T alpha = -1;

@@ -53,13 +53,14 @@ TEST(IAD, JLoop)
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
-    size_t                          npart = 99;
-    unsigned                        neighborsCount = npart - 1, i;
+    size_t   npart          = 99;
+    unsigned neighborsCount = npart - 1, i;
 
     std::vector<cstone::LocalIndex> neighbors(neighborsCount - 1);
 
-    for (i = 0; i < neighborsCount; i++) {
-      neighbors[i] = i + 1;
+    for (i = 0; i < neighborsCount; i++)
+    {
+        neighbors[i] = i + 1;
     }
 
     std::vector<T> x(npart);
@@ -97,12 +98,12 @@ TEST(IAD, JLoop)
     std::vector<T> xm(npart);
     std::vector<T> kx(npart);
 
-    std::vector<T*> fields{x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(),
-              h.data(), c.data(), c11.data(), c12.data(), c13.data(), c22.data(),
-              c23.data(), c33.data(), p.data(), gradh.data(), rho0.data(), sumwhrho0.data(),
-              sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(),
-              dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alpha.data(),
-              u.data(), divv.data()};
+    std::vector<T*> fields{x.data(),     y.data(),     z.data(),     vx.data(),    vy.data(),    vz.data(),
+                           h.data(),     c.data(),     c11.data(),   c12.data(),   c13.data(),   c22.data(),
+                           c23.data(),   c33.data(),   p.data(),     gradh.data(), rho0.data(),  sumwhrho0.data(),
+                           sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(),
+                           dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alpha.data(), u.data(),
+                           divv.data()};
 
     sphexa::fileutils::readAscii("example_data.txt", npart, fields);
 
@@ -121,7 +122,7 @@ TEST(IAD, JLoop)
     IADJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(), wh.data(),
              whd.data(), xm.data(), kx.data(), &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
 
-    EXPECT_NEAR(iad[0],1.9296619855715329e-18, 1e-10);
+    EXPECT_NEAR(iad[0], 1.9296619855715329e-18, 1e-10);
     EXPECT_NEAR(iad[1], -1.7838691836843698e-20, 1e-10);
     EXPECT_NEAR(iad[2], -1.2892885646884301e-20, 1e-10);
     EXPECT_NEAR(iad[3], 1.9482845913025683e-18, 1e-10);

@@ -194,7 +194,7 @@ TEST(Array, structuredBinding)
 {
     util::array<int, 2> a{1, 2};
     auto& [x, y] = a;
-    auto [u, v] = a;
+    auto [u, v]  = a;
 
     x = 3;
     EXPECT_EQ(get<0>(a), 3);

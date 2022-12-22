@@ -53,13 +53,14 @@ TEST(VeDefGradh, JLoop)
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
-    size_t                          npart = 99;
-    unsigned                        neighborsCount = npart - 1, i;
+    size_t   npart          = 99;
+    unsigned neighborsCount = npart - 1, i;
 
     std::vector<cstone::LocalIndex> neighbors(neighborsCount - 1);
 
-    for (i = 0; i < neighborsCount; i++) {
-      neighbors[i] = i + 1;
+    for (i = 0; i < neighborsCount; i++)
+    {
+        neighbors[i] = i + 1;
     }
 
     std::vector<T> x(npart);
@@ -96,13 +97,12 @@ TEST(VeDefGradh, JLoop)
     std::vector<T> sumwh(npart);
     std::vector<T> xm(npart);
 
-
-    std::vector<T*> fields{x.data(), y.data(), z.data(), vx.data(), vy.data(), vz.data(),
-              h.data(), c.data(), c11.data(), c12.data(), c13.data(), c22.data(),
-              c23.data(), c33.data(), p.data(), gradhp.data(), rho0.data(), sumwhrho0.data(),
-              sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(),
-              dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alpha.data(),
-              u.data(), divv.data()};
+    std::vector<T*> fields{x.data(),     y.data(),     z.data(),     vx.data(),     vy.data(),    vz.data(),
+                           h.data(),     c.data(),     c11.data(),   c12.data(),    c13.data(),   c22.data(),
+                           c23.data(),   c33.data(),   p.data(),     gradhp.data(), rho0.data(),  sumwhrho0.data(),
+                           sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(),  dvydx.data(), dvydy.data(),
+                           dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(),  alpha.data(), u.data(),
+                           divv.data()};
 
     sphexa::fileutils::readAscii("example_data.txt", npart, fields);
 
