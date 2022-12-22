@@ -101,13 +101,12 @@ int main(int argc, char** argv)
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
     //! @brief evaluate user choice for different kind of actions
-
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, ngmax, ng0, output, rank);
     auto fileWriter  = fileWriterFactory<Dataset>(ascii);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
-    Dataset simData; //(grackleOptionFile, code_mass_in_solarmass, code_length_in_kpc, 0);
+    Dataset simData;
     simData.comm = MPI_COMM_WORLD;
 
     Timer totalTimer(output);
@@ -116,12 +115,10 @@ int main(int argc, char** argv)
 
     propagator->activateFields(simData);
     propagator->restoreState(initCond, simData.comm);
-
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, simData);
 
     auto& d = simData.hydro;
     transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
-
     d.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
 
     bool  haveGrav = (d.g != 0.0);
