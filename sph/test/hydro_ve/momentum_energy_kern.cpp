@@ -36,8 +36,23 @@
 
 #include "sph/hydro_ve/momentum_energy_kern.hpp"
 #include "sph/tables.hpp"
+#include "../../../main/src/io/file_utils.hpp"
 
 using namespace sph;
+
+template<class T>
+void symmetrizeGradV(util::array<const T*, 9> dV, util::array<T*, 6> sdV, size_t n)
+{
+    for (size_t i = 0; i < n; ++i)
+    {
+        sdV[0][i] = dV[0][i];
+        sdV[1][i] = dV[1][i] + dV[3][i];
+        sdV[2][i] = dV[2][i] + dV[6][i];
+        sdV[3][i] = dV[4][i];
+        sdV[4][i] = dV[5][i] + dV[7][i];
+        sdV[5][i] = dV[8][i];
+    }
+}
 
 TEST(MomentumEnergy, JLoop)
 {
@@ -48,44 +63,82 @@ TEST(MomentumEnergy, JLoop)
     T Atmin     = 0.1;
     T Atmax     = 0.2;
     T ramp      = 1.0 / (Atmax - Atmin);
+    T mpart     = 3.781038064465603e26;
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-    cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
+    cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
-    // particle 0 has 4 neighbors
-    std::vector<cstone::LocalIndex> neighbors{1, 2, 3, 4};
-    unsigned                        neighborsCount = 4, i;
+    size_t   npart          = 99;
+    unsigned neighborsCount = npart - 1, i;
 
-    std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
-    std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
-    std::vector<T> z{1.2, 2.3, 1.4, 1.5, 1.6};
-    std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
-    std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<T> gradh{1.25, 1., 0.8, 1.1, 0.51};
+    std::vector<cstone::LocalIndex> neighbors(neighborsCount - 1);
 
-    std::vector<T> vx{0.010, -0.020, 0.030, -0.040, 0.050};
-    std::vector<T> vy{-0.011, 0.021, -0.031, 0.041, -0.051};
-    std::vector<T> vz{0.091, -0.081, 0.071, -0.061, 0.055};
+    for (i = 0; i < neighborsCount; i++)
+    {
+        neighbors[i] = i + 1;
+    }
 
-    std::vector<T> c{0.4, 0.5, 0.6, 0.7, 0.8};
-    std::vector<T> p{0.2, 0.3, 0.4, 0.5, 0.6};
+    std::vector<T> x(npart);
+    std::vector<T> y(npart);
+    std::vector<T> z(npart);
+    std::vector<T> h(npart);
+    std::vector<T> m(npart);
+    std::vector<T> gradh(npart);
+    std::vector<T> rho0(npart);
+    std::vector<T> sumwhrho0(npart);
+    std::vector<T> vx(npart);
+    std::vector<T> vy(npart);
+    std::vector<T> vz(npart);
+    std::vector<T> c(npart);
+    std::vector<T> p(npart);
+    std::vector<T> u(npart);
+    std::vector<T> divv(npart);
+    std::vector<T> alpha(npart);
+    std::vector<T> c11(npart);
+    std::vector<T> c12(npart);
+    std::vector<T> c13(npart);
+    std::vector<T> c22(npart);
+    std::vector<T> c23(npart);
+    std::vector<T> c33(npart);
+    std::vector<T> dvxdx(npart);
+    std::vector<T> dvxdy(npart);
+    std::vector<T> dvxdz(npart);
+    std::vector<T> dvydx(npart);
+    std::vector<T> dvydy(npart);
+    std::vector<T> dvydz(npart);
+    std::vector<T> dvzdx(npart);
+    std::vector<T> dvzdy(npart);
+    std::vector<T> dvzdz(npart);
+    std::vector<T> sumwh(npart);
+    std::vector<T> xm(npart);
+    std::vector<T> kx(npart);
 
-    std::vector<T> alpha{1.0, 0.05, 0.3, 0.5, 0.3};
+    std::vector<T*> fields{x.data(),     y.data(),     z.data(),     vx.data(),    vy.data(),    vz.data(),
+                           h.data(),     c.data(),     c11.data(),   c12.data(),   c13.data(),   c22.data(),
+                           c23.data(),   c33.data(),   p.data(),     gradh.data(), rho0.data(),  sumwhrho0.data(),
+                           sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(),
+                           dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alpha.data(), u.data(),
+                           divv.data()};
 
-    std::vector<T> c11{0.21, 0.27, 0.10, 0.45, 0.46};
-    std::vector<T> c12{-0.22, -0.29, -0.11, -0.44, -0.47};
-    std::vector<T> c13{-0.23, -0.31, -0.12, -0.43, -0.48};
-    std::vector<T> c22{0.24, 0.32, 0.13, 0.42, 0.49};
-    std::vector<T> c23{-0.25, -0.33, -0.14, -0.41, -0.50};
-    std::vector<T> c33{0.26, 0.34, 0.15, 0.40, 0.51};
+    sphexa::fileutils::readAscii("example_data.txt", npart, fields);
 
-    std::vector<T> xm{m[0] / 1.1, m[1] / 1.2, m[2] / 1.3, m[3] / 1.4, m[4] / 1.5};
+    std::vector<T> dV11(npart);
+    std::vector<T> dV12(npart);
+    std::vector<T> dV13(npart);
+    std::vector<T> dV22(npart);
+    std::vector<T> dV23(npart);
+    std::vector<T> dV33(npart);
+    symmetrizeGradV<T>({dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(), dvydz.data(),
+                        dvzdx.data(), dvzdy.data(), dvzdz.data()},
+                       {dV11.data(), dV12.data(), dV13.data(), dV22.data(), dV23.data(), dV33.data()}, npart);
 
-    std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
+    std::fill(m.begin(), m.end(), mpart);
+
     for (i = 0; i < neighborsCount + 1; i++)
     {
+        xm[i] = mpart / rho0[i];
         kx[i] = K * xm[i] / math::pow(h[i], 3);
     }
 
@@ -95,31 +148,49 @@ TEST(MomentumEnergy, JLoop)
         prho[k] = p[k] / (kx[k] * m[k] * m[k] * gradh[k]);
     }
 
-    /* distances of particle zero to particle j
-     *
-     * j = 1   1.10905
-     * j = 2   2.21811
-     * j = 3   3.32716
-     * j = 4   4.63465
-     */
+    // test with AV cleaning
+    {
+        // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
+        T du         = -1;
+        T grad_Px    = -1;
+        T grad_Py    = -1;
+        T grad_Pz    = -1;
+        T maxvsignal = -1;
 
-    // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
-    T du         = -1;
-    T grad_Px    = -1;
-    T grad_Py    = -1;
-    T grad_Pz    = -1;
-    T maxvsignal = -1;
+        // compute gradient for for particle 0
+        momentumAndEnergyJLoop<true>(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(),
+                                     z.data(), vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(),
+                                     c.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(),
+                                     Atmin, Atmax, ramp, wh.data(), whd.data(), kx.data(), xm.data(), alpha.data(),
+                                     dV11.data(), dV12.data(), dV13.data(), dV22.data(), dV23.data(), dV33.data(),
+                                     &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
 
-    // compute gradient for for particle 0
-    momentumAndEnergyJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
-                           vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(), c.data(), c11.data(),
-                           c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), Atmin, Atmax, ramp, wh.data(),
-                           whd.data(), kx.data(), xm.data(), alpha.data(), &grad_Px, &grad_Py, &grad_Pz, &du,
-                           &maxvsignal);
+        EXPECT_NEAR(grad_Px, -5.0554864587379282e5, 1e-8);
+        EXPECT_NEAR(grad_Py, 3.0338488942286494e5, 1e-8);
+        EXPECT_NEAR(grad_Pz, -1.7674639665806836e6, 1e-8);
+        EXPECT_NEAR(du, 8.5525242823085e12, 1e-2);
+        EXPECT_NEAR(maxvsignal, 4.5535959472046174e7, 1e-6);
+    }
+    // test without AV cleaning
+    {
+        T du         = -1;
+        T grad_Px    = -1;
+        T grad_Py    = -1;
+        T grad_Pz    = -1;
+        T maxvsignal = -1;
 
-    EXPECT_NEAR(grad_Px, 4.6852624676440924e-1, 1e-10);
-    EXPECT_NEAR(grad_Py, -8.2810161944474575e-2, 1e-10);
-    EXPECT_NEAR(grad_Pz, 5.209843022360216e-1, 1e-10);
-    EXPECT_NEAR(du, -3.8445778269613888e-3, 1e-10);
-    EXPECT_NEAR(maxvsignal, 1.4112466829, 1e-10);
+        // compute gradient for for particle 0
+        momentumAndEnergyJLoop<false>(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(),
+                                      z.data(), vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(),
+                                      c.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(),
+                                      Atmin, Atmax, ramp, wh.data(), whd.data(), kx.data(), xm.data(), alpha.data(),
+                                      dV11.data(), dV12.data(), dV13.data(), dV22.data(), dV23.data(), dV33.data(),
+                                      &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
+
+        EXPECT_NEAR(grad_Px, -5.212610428350963e5, 1e-8);
+        EXPECT_NEAR(grad_Py, -7.4471044578240151e4, 1e-8);
+        EXPECT_NEAR(grad_Pz, -1.7304268207564927e6, 1e-8);
+        EXPECT_NEAR(du, 7.1838439171209658e12, 1e-2);
+        EXPECT_NEAR(maxvsignal, 4.5535959472046174e7, 1e-6);
+    }
 }

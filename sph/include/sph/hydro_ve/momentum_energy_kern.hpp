@@ -41,14 +41,37 @@
 namespace sph
 {
 
-template<class Tc, class Tm, class T, class Tm1>
+template<class Tc, class T>
+HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc eta_ab, T eta_crit, const util::array<T, 6>& gradV_i,
+                                 const util::array<const T, 6>& gradV_j)
+{
+    T dmy1 = dot(R, symv(gradV_i, R));
+    T dmy2 = dot(R, symv(gradV_j, R));
+    T dmy3 = T(1);
+    if (eta_ab < eta_crit)
+    {
+        T etaDiff = T(5) * (eta_ab - eta_crit);
+        dmy3      = std::exp(-etaDiff * etaDiff);
+    }
+
+    T A_ab   = (dmy2 != T(0)) ? dmy1 / dmy2 : T(0);
+    T A_abp1 = T(1) + A_ab;
+    T phi_ab = T(0.5) * dmy3 * stl::max(T(0), stl::min(T(1), T(4) * A_ab / (A_abp1 * A_abp1)));
+
+    // additive AV correction to rv = dot(R, Vij)
+    T rv_AV = -phi_ab * (dmy1 + dmy2);
+    return rv_AV;
+}
+
+template<bool avClean, class Tc, class Tm, class T, class Tm1>
 HOST_DEVICE_FUN inline void
 momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
                        const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x, const Tc* y,
                        const Tc* z, const T* vx, const T* vy, const T* vz, const T* h, const Tm* m, const T* prho,
                        const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
                        const T Atmin, const T Atmax, const T ramp, const T* wh, const T* whd, const T* kx, const T* xm,
-                       const T* alpha, T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
+                       const T* alpha, const T* dV11, const T* dV12, const T* dV13, const T* dV22, const T* dV23,
+                       const T* dV33, T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
 {
     auto xi  = x[i];
     auto yi  = y[i];
@@ -86,30 +109,37 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
     auto c23i = c23[i];
     auto c33i = c33[i];
 
+    util::array<T, 6> gradV_i;
+    if constexpr (avClean) { gradV_i = {dV11[i], dV12[i], dV13[i], dV22[i], dV23[i], dV33[i]}; }
+
+    // +1 is because we need to add selfparticle to neighborsCount
+    T eta_crit = std::cbrt(T(32) * M_PI / T(3) / T(neighborsCount + 1));
+
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
         cstone::LocalIndex j = neighbors[pj];
 
-        T rx = xi - x[j];
-        T ry = yi - y[j];
-        T rz = zi - z[j];
+        T    rx  = xi - x[j];
+        T    ry  = yi - y[j];
+        T    rz  = zi - z[j];
+        auto vxj = vx[j];
+        auto vyj = vy[j];
+        auto vzj = vz[j];
 
         applyPBC(box, T(2) * hi, rx, ry, rz);
 
         T r2   = rx * rx + ry * ry + rz * rz;
         T dist = std::sqrt(r2);
 
-        T vx_ij = vxi - vx[j];
-        T vy_ij = vyi - vy[j];
-        T vz_ij = vzi - vz[j];
+        T vx_ij = vxi - vxj;
+        T vy_ij = vyi - vyj;
+        T vz_ij = vzi - vzj;
 
         T hj    = h[j];
         T hjInv = T(1) / hj;
 
         T v1 = dist * hiInv;
         T v2 = dist * hjInv;
-
-        T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
 
         T hjInv3 = hjInv * hjInv * hjInv;
         T Wi     = hiInv3 * math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
@@ -137,6 +167,13 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
         auto rhoj   = kxj * mj / xmassj;
 
         T alpha_j = alpha[j];
+
+        T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
+        if constexpr (avClean)
+        {
+            rv += avRvCorrection({rx, ry, rz}, stl::min(v1, v2), eta_crit, gradV_i,
+                                 {dV11[j], dV12[j], dV13[j], dV22[j], dV23[j], dV33[j]});
+        }
 
         T wij          = rv / dist;
         T viscosity_ij = artificial_viscosity(alpha_i, alpha_j, ci, cj, wij);
@@ -188,7 +225,7 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
     a_visc_energy = stl::max(T(0), a_visc_energy);
     du[i]         = K * (energy + T(0.5) * a_visc_energy); // factor of 2 already removed from 2P/rho
 
-    // grad_P_xyz is stored as the acceleration, accel = -grad_P / rho
+    // grad_P_xyz is stored as the acceleration,s accel = -grad_P / rho
     grad_P_x[i] = -K * momentum_x;
     grad_P_y[i] = -K * momentum_y;
     grad_P_z[i] = -K * momentum_z;

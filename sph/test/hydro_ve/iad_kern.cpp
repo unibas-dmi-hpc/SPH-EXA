@@ -36,6 +36,7 @@
 
 #include "sph/hydro_ve/iad_kern.hpp"
 #include "sph/tables.hpp"
+#include "../../../main/src/io/file_utils.hpp"
 
 using namespace sph;
 
@@ -45,34 +46,74 @@ TEST(IAD, JLoop)
 
     T sincIndex = 6.0;
     T K         = compute_3d_k(sincIndex);
+    T mpart     = 3.781038064465603e26;
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-    cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
+    cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
-    // particle 0 has 4 neighbors
-    std::vector<cstone::LocalIndex> neighbors{1, 2, 3, 4};
-    unsigned                        neighborsCount = 4, i;
+    size_t   npart          = 99;
+    unsigned neighborsCount = npart - 1, i;
 
-    std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
-    std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
-    std::vector<T> z{1.2, 2.3, 1.4, 1.5, 1.6};
-    std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
-    std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<T> xm{m[0] / 1.1, m[1] / 1.2, m[2] / 1.3, m[3] / 1.4, m[4] / 1.5};
-    std::vector<T> kx{-1.0, -1.0, -1.0, -1.0, -1.0};
+    std::vector<cstone::LocalIndex> neighbors(neighborsCount - 1);
+
+    for (i = 0; i < neighborsCount; i++)
+    {
+        neighbors[i] = i + 1;
+    }
+
+    std::vector<T> x(npart);
+    std::vector<T> y(npart);
+    std::vector<T> z(npart);
+    std::vector<T> h(npart);
+    std::vector<T> m(npart);
+    std::vector<T> gradh(npart);
+    std::vector<T> rho0(npart);
+    std::vector<T> sumwhrho0(npart);
+    std::vector<T> vx(npart);
+    std::vector<T> vy(npart);
+    std::vector<T> vz(npart);
+    std::vector<T> c(npart);
+    std::vector<T> p(npart);
+    std::vector<T> u(npart);
+    std::vector<T> divv(npart);
+    std::vector<T> alpha(npart);
+    std::vector<T> c11(npart);
+    std::vector<T> c12(npart);
+    std::vector<T> c13(npart);
+    std::vector<T> c22(npart);
+    std::vector<T> c23(npart);
+    std::vector<T> c33(npart);
+    std::vector<T> dvxdx(npart);
+    std::vector<T> dvxdy(npart);
+    std::vector<T> dvxdz(npart);
+    std::vector<T> dvydx(npart);
+    std::vector<T> dvydy(npart);
+    std::vector<T> dvydz(npart);
+    std::vector<T> dvzdx(npart);
+    std::vector<T> dvzdy(npart);
+    std::vector<T> dvzdz(npart);
+    std::vector<T> sumwh(npart);
+    std::vector<T> xm(npart);
+    std::vector<T> kx(npart);
+
+    std::vector<T*> fields{x.data(),     y.data(),     z.data(),     vx.data(),    vy.data(),    vz.data(),
+                           h.data(),     c.data(),     c11.data(),   c12.data(),   c13.data(),   c22.data(),
+                           c23.data(),   c33.data(),   p.data(),     gradh.data(), rho0.data(),  sumwhrho0.data(),
+                           sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(),
+                           dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alpha.data(), u.data(),
+                           divv.data()};
+
+    sphexa::fileutils::readAscii("example_data.txt", npart, fields);
+
+    std::fill(m.begin(), m.end(), mpart);
+
     for (i = 0; i < neighborsCount + 1; i++)
     {
+        xm[i] = mpart / rho0[i];
         kx[i] = K * xm[i] / math::pow(h[i], 3);
     }
-    /* distances of particle zero to particle j
-     *
-     * j = 1   1.10905
-     * j = 2   2.21811
-     * j = 3   3.32716
-     * j = 4   4.63465
-     */
 
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     std::vector<T> iad(6, -1);
@@ -81,12 +122,12 @@ TEST(IAD, JLoop)
     IADJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(), wh.data(),
              whd.data(), xm.data(), kx.data(), &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
 
-    EXPECT_NEAR(iad[0], 0.31413443265068125, 1e-10);
-    EXPECT_NEAR(iad[1], -0.058841281079, 1e-10);
-    EXPECT_NEAR(iad[2], -0.096300685874, 1e-10);
-    EXPECT_NEAR(iad[3], 0.17170816943657527, 1e-10);
-    EXPECT_NEAR(iad[4], -0.078629533251, 1e-10);
-    EXPECT_NEAR(iad[5], 0.90805776843544594, 1e-10);
+    EXPECT_NEAR(iad[0], 1.9296619855715329e-18, 1e-10);
+    EXPECT_NEAR(iad[1], -1.7838691836843698e-20, 1e-10);
+    EXPECT_NEAR(iad[2], -1.2892885646884301e-20, 1e-10);
+    EXPECT_NEAR(iad[3], 1.9482845913025683e-18, 1e-10);
+    EXPECT_NEAR(iad[4], 1.635410357476855e-20, 1e-10);
+    EXPECT_NEAR(iad[5], 1.9246939006338132e-18, 1e-10);
 }
 
 TEST(IAD, JLoopPBC)

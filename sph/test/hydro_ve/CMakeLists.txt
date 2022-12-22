@@ -19,3 +19,9 @@ target_link_libraries(${testname} PRIVATE GTest::gtest_main)
 add_test(NAME ${testname} COMMAND ${testname})
 
 install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/hydro)
+install(FILES ${PROJECT_SOURCE_DIR}/test/hydro_ve/example_data.txt DESTINATION ${CMAKE_INSTALL_SBINDIR}/hydro)
+
+# create a symbolic link in the build directory to the example data file
+add_custom_command(TARGET ${testname} PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${PROJECT_SOURCE_DIR}/test/hydro_ve/example_data.txt $<TARGET_FILE_DIR:${testname}>/example_data.txt)

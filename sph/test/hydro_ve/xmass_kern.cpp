@@ -36,6 +36,7 @@
 
 #include "sph/hydro_ve/xmass_kern.hpp"
 #include "sph/tables.hpp"
+#include "../../../main/src/io/file_utils.hpp"
 
 using namespace sph;
 
@@ -45,32 +46,72 @@ TEST(xmass, JLoop)
 
     T sincIndex = 6.0;
     T K         = compute_3d_k(sincIndex);
+    T mpart     = 3.781038064465603e26;
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-    cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
+    cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
-    // particle 0 has 4 neighbors
-    std::vector<cstone::LocalIndex> neighbors{1, 2, 3, 4};
-    unsigned                        neighborsCount = 4;
+    size_t   npart          = 99;
+    unsigned neighborsCount = npart - 1, i;
 
-    std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
-    std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
-    std::vector<T> z{1.2, 2.3, 1.4, 1.5, 1.6};
-    std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
-    std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
+    std::vector<cstone::LocalIndex> neighbors(neighborsCount - 1);
 
-    /* distances of particle zero to particle j
-     *
-     * j = 1   1.90526
-     * j = 2   3.81051
-     * j = 3   5.71577
-     * j = 4   7.62102
-     */
+    for (i = 0; i < neighborsCount; i++)
+    {
+        neighbors[i] = i + 1;
+    }
+
+    std::vector<T> x(npart);
+    std::vector<T> y(npart);
+    std::vector<T> z(npart);
+    std::vector<T> h(npart);
+    std::vector<T> m(npart);
+    std::vector<T> gradh(npart);
+    std::vector<T> rho0(npart);
+    std::vector<T> sumwhrho0(npart);
+    std::vector<T> vx(npart);
+    std::vector<T> vy(npart);
+    std::vector<T> vz(npart);
+    std::vector<T> c(npart);
+    std::vector<T> p(npart);
+    std::vector<T> u(npart);
+    std::vector<T> divv(npart);
+    std::vector<T> alpha(npart);
+    std::vector<T> c11(npart);
+    std::vector<T> c12(npart);
+    std::vector<T> c13(npart);
+    std::vector<T> c22(npart);
+    std::vector<T> c23(npart);
+    std::vector<T> c33(npart);
+    std::vector<T> dvxdx(npart);
+    std::vector<T> dvxdy(npart);
+    std::vector<T> dvxdz(npart);
+    std::vector<T> dvydx(npart);
+    std::vector<T> dvydy(npart);
+    std::vector<T> dvydz(npart);
+    std::vector<T> dvzdx(npart);
+    std::vector<T> dvzdy(npart);
+    std::vector<T> dvzdz(npart);
+    std::vector<T> sumwh(npart);
+
+    std::vector<T*> fields{x.data(),     y.data(),     z.data(),     vx.data(),    vy.data(),    vz.data(),
+                           h.data(),     c.data(),     c11.data(),   c12.data(),   c13.data(),   c22.data(),
+                           c23.data(),   c33.data(),   p.data(),     gradh.data(), rho0.data(),  sumwhrho0.data(),
+                           sumwh.data(), dvxdx.data(), dvxdy.data(), dvxdz.data(), dvydx.data(), dvydy.data(),
+                           dvydz.data(), dvzdx.data(), dvzdy.data(), dvzdz.data(), alpha.data(), u.data(),
+                           divv.data()};
+
+    sphexa::fileutils::readAscii("example_data.txt", npart, fields);
+
+    std::fill(m.begin(), m.end(), mpart);
 
     T xmass = xmassJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(),
                          m.data(), wh.data(), whd.data());
-    EXPECT_NEAR(xmass, m[0] / 1.84507162831338e-2, 1e-10);
+    T rho0i = m[0] / xmass;
+
+    EXPECT_NEAR(rho0i, 3.4515038677924743e1, 1e-10);
+    EXPECT_NEAR(xmass, m[0] / rho0i, 1e-10);
+    EXPECT_NEAR(xmass, m[0] / rho0[0], m[0] / rho0[0] * 1.e-8);
 }

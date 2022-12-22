@@ -47,7 +47,7 @@ namespace sphexa
 using namespace sph;
 using cstone::FieldList;
 
-template<class DomainType, class DataType>
+template<bool avClean, class DomainType, class DataType>
 class HydroVeProp : public Propagator<DomainType, DataType>
 {
 protected:
@@ -74,18 +74,29 @@ protected:
      */
     using ConservedFields = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha">;
 
-    //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
-    using DependentFields = FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33",
-                                      "xm", "kx", "divv", "curlv", "nc">;
-
-    //! @brief not all dependent CPU fields are simultaneously needed on the GPU
-    using DependentFieldsGpu =
+    //! @brief list of dependent fields on CPU and GPU, these may be used as scratch space during domain sync
+    using DependentFields_ =
         FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "xm", "kx", "nc">;
+
+    //! @brief velocity gradient fields will only be allocated when avClean is true
+    using GradVFields = FieldList<"dV11", "dV12", "dV13", "dV22", "dV23", "dV33">;
+
+    using ExtraFieldsCpu = FieldList<"divv", "curlv">;
+
+    //! @brief what will be allocated on the Cpu
+    using DependentFieldsCpu =
+        std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{} + ExtraFieldsCpu{}),
+                           decltype(DependentFields_{} + ExtraFieldsCpu{})>;
+
+    //! @brief what will be allocated on the GPU
+    using DependentFieldsGpu =
+        std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{}), DependentFields_>;
 
 public:
     HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
     {
+        if (avClean && rank == 0) { std::cout << "AV cleaning is activated" << std::endl; }
     }
 
     std::vector<std::string> conservedFields() const override
@@ -102,7 +113,7 @@ public:
         d.setConserved("x", "y", "z", "h", "m");
         d.setDependent("keys");
         std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
-        std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
+        std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFieldsCpu{}));
 
         d.devData.setConserved("x", "y", "z", "h", "m");
         d.devData.setDependent("keys");
@@ -175,12 +186,16 @@ public:
         computeAVswitches(first, last, ngmax_, d, domain.box());
         timer.step("AVswitches");
 
-        domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"az">(d), get<"du">(d));
+        if (avClean)
+        {
+            domain.exchangeHalos(get<"dV11", "dV12", "dV22", "dV23", "dV33", "alpha">(d), get<"az">(d), get<"du">(d));
+        }
+        else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"az">(d), get<"du">(d)); }
         timer.step("mpi::synchronizeHalos");
 
         d.devData.release("divv", "curlv");
         d.devData.acquire("ax", "ay");
-        computeMomentumEnergy(first, last, ngmax_, d, domain.box());
+        computeMomentumEnergy<avClean>(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
 
         if (d.g != 0.0)

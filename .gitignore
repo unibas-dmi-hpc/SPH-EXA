@@ -13,6 +13,8 @@ test/constants.txt
 
 # Prerequisites
 *.d
+#Except this file, which is allowed
+!UT_IC.d
 
 # Compiled Object files
 *.slo
