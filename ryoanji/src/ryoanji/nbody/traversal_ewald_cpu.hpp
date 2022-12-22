@@ -24,9 +24,9 @@
  */
 
 /*! @file
- * @brief Barnes-Hut tree walk to compute gravity forces on particles in leaf cells
+ * @brief Barnes-Hut tree walk with Ewald periodic boundaries
  *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Jonathan Coles <jonathan.coles@cscs.ch>
  */
 
 #pragma once
@@ -257,7 +257,7 @@ void computeGravityGroupEwald(
 
         //printf("numShells %i  numEwaldShells %i  ewaldCut2 %f\n", numShells, numEwaldShells, ewaldCut2);
 
-ewald_shells_begin:
+//ewald_shells_begin:
 
         for (auto ix = -numEwaldShells; ix <= numEwaldShells; ix++)
         for (auto iy = -numEwaldShells; iy <= numEwaldShells; iy++)
@@ -333,7 +333,7 @@ ewald_shells_begin:
 
 ewald_shells_end:
 
-ewald_waves_begin:
+//ewald_waves_begin:
 
         if (gravity_switch & GRAV_NO_EWALD_KSPACE) goto ewald_waves_end;
 
@@ -464,7 +464,8 @@ void computeGravityGroupReplica(TreeNodeIndex groupIdx, const TreeNodeIndex* chi
      */
     auto leafP2P = 
         [
-            groupIdx, internalToLeaf, layout, firstTarget, lastTarget, 
+        //    groupIdx, 
+            internalToLeaf, layout, firstTarget, lastTarget, 
             x, y, z, h, m, G, ax, ay, az, ugrav,
             dx_target, dy_target, dz_target
         ](TreeNodeIndex idx)
