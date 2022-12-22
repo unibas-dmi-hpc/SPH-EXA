@@ -41,26 +41,12 @@
 namespace sph
 {
 
-//! @brief symmetric 3x3 matrix-vector product
-template<class Tv, class Tm>
-HOST_DEVICE_FUN HOST_DEVICE_INLINE util::array<Tv, 3> symv(const util::array<Tm, 6>& mat, const util::array<Tv, 3>& vec)
-{
-    util::array<Tv, 3> ret;
-    ret[0] = mat[0] * vec[0] + mat[1] * vec[1] + mat[2] * vec[2];
-    ret[1] = mat[3] * vec[1] + mat[4] * vec[2];
-    ret[2] = mat[5] * vec[2];
-    return ret;
-}
-
 template<class Tc, class T>
 HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc eta_ab, T eta_crit, const util::array<T, 6>& gradV_i,
                                  const util::array<const T, 6>& gradV_j)
 {
-    util::array<Tc, 3> gradV_i_dot_R = symv(gradV_i, R);
-    util::array<Tc, 3> gradV_j_dot_R = symv(gradV_j, R);
-
-    T dmy1 = dot(gradV_i_dot_R, R);
-    T dmy2 = dot(gradV_j_dot_R, R);
+    T dmy1 = dot(R, symv(gradV_i, R));
+    T dmy2 = dot(R, symv(gradV_j, R));
     T dmy3 = T(1);
     if (eta_ab < eta_crit)
     {
