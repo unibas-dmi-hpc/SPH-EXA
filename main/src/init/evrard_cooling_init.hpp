@@ -23,39 +23,33 @@
  */
 
 /*! @file
- * @brief Radiative cooling tests with GRACKLE
+ * @brief Unit tests for ParticlesData
  *
  * @author Noah Kubli <noah.kubli@uzh.ch>
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <iostream>
-#include <vector>
+#pragma once
 
-#include "gtest/gtest.h"
+#include "evrard_init.hpp"
+#include "cooling/cooler.hpp"
 
-#include "cooling/chemistry_data.hpp"
+#include "cooling/init_chemistry.h"
 
-using namespace cooling;
-using cstone::get;
-
-TEST(ChemistryData, test1a)
+template<class Dataset>
+class EvrardGlassSphereCooling : public sphexa::EvrardGlassSphere<Dataset>
 {
-    using T = double;
-    ChemistryData<T> data;
 
-    // activate some of the fields at runtime, affects next resize
-    data.setConserved(0, 1, 9);
+public:
+    EvrardGlassSphereCooling(std::string initBlock)
+        : sphexa::EvrardGlassSphere<Dataset>(initBlock)
+    {
+    }
 
-    size_t dataSize = 10;
-    data.resize(dataSize);
-
-    EXPECT_EQ(data.fields[0].size(), dataSize);
-    EXPECT_EQ(data.fields[1].size(), dataSize);
-    EXPECT_EQ(data.fields[9].size(), dataSize);
-
-    EXPECT_EQ(data.fields[2].size(), 0);
-
-    // fields can also be accessed based on names
-    EXPECT_EQ(get<"HI_fraction">(data).data(), data.fields[0].data());
-}
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
+                                                 Dataset& simData) const override
+    {
+        auto box = sphexa::EvrardGlassSphere<Dataset>::init(rank, numRanks, cbrtNumPart, simData);
+        cooling::initChemistryData(simData.chem, simData.hydro.x.size());
+        return box;
+    }
+};

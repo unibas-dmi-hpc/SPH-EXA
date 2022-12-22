@@ -7,6 +7,7 @@ set(CSTONE_DIR ${CMAKE_SOURCE_DIR}/domain/include)
 
 #include(CTest)
 #include(CheckLanguage)
+add_subdirectory(include/cooling)
 
 if (BUILD_TESTING)
     add_subdirectory(test)

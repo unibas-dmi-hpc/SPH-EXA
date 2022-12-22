@@ -13,6 +13,7 @@ set(grackle_SRCS
     grackle_repo/src/clib/calculate_pressure.c
     grackle_repo/src/clib/calculate_temperature.c
     grackle_repo/src/clib/grackle_units.c
+        grackle_repo/src/clib/index_helper.c
     grackle_repo/src/clib/initialize_chemistry_data.c
     grackle_repo/src/clib/initialize_cloudy_data.c
     grackle_repo/src/clib/initialize_UVbackground_data.c

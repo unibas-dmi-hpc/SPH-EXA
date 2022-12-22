@@ -46,6 +46,9 @@
 #include "wind_shock_init.hpp"
 #include "turbulence_init.hpp"
 #endif
+#ifdef SPH_EXA_HAVE_GRACKLE
+#include "evrard_cooling_init.hpp"
+#endif
 
 namespace sphexa
 {
@@ -98,6 +101,13 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for turbulence test\n"); }
         else { return std::make_unique<TurbulenceGlass<Dataset>>(glassBlock); }
     }
+#ifdef SPH_EXA_HAVE_GRACKLE
+    if (testCase == "evrard-cooling")
+    {
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for evrard\n"); }
+        return std::make_unique<EvrardGlassSphereCooling<Dataset>>(glassBlock);
+    }
+#endif
     if (std::filesystem::exists(testCase)) { return std::make_unique<FileInit<Dataset>>(testCase); }
 
 #endif
