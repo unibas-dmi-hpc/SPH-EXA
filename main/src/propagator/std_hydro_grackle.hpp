@@ -203,20 +203,17 @@ public:
             T u_old  = cv * d.temp[i];
             T u_cool = u_old;
             cooling_data.cool_particle(
-                d.minDt, d.rho[i], u_cool, cstone::get<"HI_fraction">(simData.chem)[i],
-                cstone::get<"HII_fraction">(simData.chem)[i], cstone::get<"HM_fraction">(simData.chem)[i],
-                cstone::get<"HeI_fraction">(simData.chem)[i], cstone::get<"HeII_fraction">(simData.chem)[i],
-                cstone::get<"HeIII_fraction">(simData.chem)[i], cstone::get<"H2I_fraction">(simData.chem)[i],
-                cstone::get<"H2II_fraction">(simData.chem)[i], cstone::get<"DI_fraction">(simData.chem)[i],
-                cstone::get<"DII_fraction">(simData.chem)[i], cstone::get<"HDI_fraction">(simData.chem)[i],
-                cstone::get<"e_fraction">(simData.chem)[i], cstone::get<"metal_fraction">(simData.chem)[i],
-                cstone::get<"volumetric_heating_rate">(simData.chem)[i],
-                cstone::get<"specific_heating_rate">(simData.chem)[i], cstone::get<"RT_heating_rate">(simData.chem)[i],
-                cstone::get<"RT_HI_ionization_rate">(simData.chem)[i],
-                cstone::get<"RT_HeI_ionization_rate">(simData.chem)[i],
-                cstone::get<"RT_HeII_ionization_rate">(simData.chem)[i],
-                cstone::get<"RT_H2_dissociation_rate">(simData.chem)[i],
-                cstone::get<"H2_self_shielding_length">(simData.chem)[i]);
+                d.minDt, d.rho[i], u_cool, get<"HI_fraction">(simData.chem)[i], get<"HII_fraction">(simData.chem)[i],
+                get<"HM_fraction">(simData.chem)[i], get<"HeI_fraction">(simData.chem)[i],
+                get<"HeII_fraction">(simData.chem)[i], get<"HeIII_fraction">(simData.chem)[i],
+                get<"H2I_fraction">(simData.chem)[i], get<"H2II_fraction">(simData.chem)[i],
+                get<"DI_fraction">(simData.chem)[i], get<"DII_fraction">(simData.chem)[i],
+                get<"HDI_fraction">(simData.chem)[i], get<"e_fraction">(simData.chem)[i],
+                get<"metal_fraction">(simData.chem)[i], get<"volumetric_heating_rate">(simData.chem)[i],
+                get<"specific_heating_rate">(simData.chem)[i], get<"RT_heating_rate">(simData.chem)[i],
+                get<"RT_HI_ionization_rate">(simData.chem)[i], get<"RT_HeI_ionization_rate">(simData.chem)[i],
+                get<"RT_HeII_ionization_rate">(simData.chem)[i], get<"RT_H2_dissociation_rate">(simData.chem)[i],
+                get<"H2_self_shielding_length">(simData.chem)[i]);
             const T du = (u_cool - u_old) / d.minDt;
             d.du[i] += du;
         }
