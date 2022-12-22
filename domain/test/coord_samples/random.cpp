@@ -37,9 +37,9 @@ using namespace cstone;
 
 TEST(CoordinateSamples, randomContainerIsSorted)
 {
-    using real = double;
+    using real        = double;
     using IntegerType = unsigned;
-    int n = 10;
+    int n             = 10;
 
     Box<real> box{0, 1, -1, 2, 0, 5};
     RandomCoordinates<real, SfcKind<IntegerType>> c(n, box);

@@ -27,7 +27,6 @@
  * @brief A Propagator class for modern SPH with generalized volume elements
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Jose A. Escartin <ja.escartin@gmail.com>
  */
 
 #pragma once
@@ -53,10 +52,10 @@ using namespace sph;
 using cstone::FieldStates;
 
 //! @brief VE hydro propagator that adds turbulence stirring to the acceleration prior to position update
-template<class DomainType, class DataType>
-class TurbVeProp final : public HydroVeProp<DomainType, DataType>
+template<bool avClean, class DomainType, class DataType>
+class TurbVeProp final : public HydroVeProp<avClean, DomainType, DataType>
 {
-    using Base = HydroVeProp<DomainType, DataType>;
+    using Base = HydroVeProp<avClean, DomainType, DataType>;
     using Base::ng0_;
     using Base::ngmax_;
     using Base::rank_;

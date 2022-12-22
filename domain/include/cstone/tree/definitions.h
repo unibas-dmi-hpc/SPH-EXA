@@ -81,7 +81,6 @@ struct maxTreeLevel<unsigned long> : stl::integral_constant<unsigned, 21>
 {
 };
 
-
 //! @brief maximum integer coordinate
 template<class KeyType>
 struct maxCoord : stl::integral_constant<unsigned, (1u << maxTreeLevel<KeyType>{})>

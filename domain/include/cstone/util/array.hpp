@@ -182,6 +182,18 @@ HOST_DEVICE_FUN constexpr const T& get(const array<T, N>& a_)
     return a_[I];
 }
 
+template<std::size_t I, class T, std::size_t N>
+HOST_DEVICE_FUN constexpr T&& get(array<T, N>&& a_)
+{
+    return std::move(a_[I]);
+}
+
+template<std::size_t I, class T, std::size_t N>
+HOST_DEVICE_FUN constexpr const T&& get(const array<T, N>&& a_)
+{
+    return std::move(a_[I]);
+}
+
 template<class T, std::size_t N>
 HOST_DEVICE_FUN constexpr array<T, N> operator+(const array<T, N>& a, const array<T, N>& b)
 {
@@ -390,3 +402,21 @@ constexpr HOST_DEVICE_FUN array<T, 3> makeVec3(array<T, 4> v)
 }
 
 } // namespace util
+
+//! @brief specializations of tuple traits in std:: namespace to make structured binding work with arrays
+namespace std
+{
+
+template<size_t N, class T, size_t N2>
+struct tuple_element<N, util::array<T, N2>>
+{
+    typedef T type;
+};
+
+template<class T, size_t N>
+struct tuple_size<util::array<T, N>>
+{
+    static const size_t value = N;
+};
+
+} // namespace std

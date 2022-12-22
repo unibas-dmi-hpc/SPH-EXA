@@ -46,7 +46,8 @@ HOST_DEVICE_FUN inline void
 divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
                 unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz,
                 const T* h, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
-                const T* wh, const T* whd, const T* kx, const T* xm, T* divv, T* curlv)
+                const T* wh, const T* whd, const T* kx, const T* xm, T* divv, T* curlv, T* dV11, T* dV12, T* dV13,
+                T* dV22, T* dV23, T* dV33, bool doGradV)
 {
     auto xi  = x[i];
     auto yi  = y[i];
@@ -55,14 +56,13 @@ divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& b
     auto vyi = vy[i];
     auto vzi = vz[i];
     auto hi  = h[i];
+    auto kxi = kx[i];
 
     auto hiInv  = T(1) / hi;
     auto hiInv3 = hiInv * hiInv * hiInv;
 
-    T divvi   = 0.0;
-    T curlv_x = 0.0;
-    T curlv_y = 0.0;
-    T curlv_z = 0.0;
+    // the 3 components of these vectors will be the derivatives in x,y,z directions
+    cstone::Vec3<T> dVxi{0., 0., 0.}, dVyi{0., 0., 0.}, dVzi{0., 0., 0.};
 
     auto c11i = c11[i];
     auto c12i = c12[i];
@@ -91,21 +91,33 @@ divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& b
         T v1 = dist * hiInv;
         T Wi = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
 
-        T termA1 = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
-        T termA2 = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
-        T termA3 = -(c13i * rx + c23i * ry + c33i * rz) * Wi;
+        cstone::Vec3<T> termA;
+        termA[0] = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
+        termA[1] = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
+        termA[2] = -(c13i * rx + c23i * ry + c33i * rz) * Wi;
 
         T xmassj = xm[j];
 
-        divvi += (vx_ji * termA1 + vy_ji * termA2 + vz_ji * termA3) * xmassj;
-
-        curlv_x += (vz_ji * termA2 - vy_ji * termA3) * xmassj;
-        curlv_y += (vx_ji * termA3 - vz_ji * termA1) * xmassj;
-        curlv_z += (vy_ji * termA1 - vx_ji * termA2) * xmassj;
+        dVxi += (vx_ji * xmassj) * termA;
+        dVyi += (vy_ji * xmassj) * termA;
+        dVzi += (vz_ji * xmassj) * termA;
     }
 
-    divv[i]  = K * hiInv3 * divvi / kx[i];
-    curlv[i] = K * hiInv3 * std::abs(std::sqrt(curlv_x * curlv_x + curlv_y * curlv_y + curlv_z * curlv_z)) / kx[i];
+    T norm_kxi = K * hiInv3 / kxi;
+    divv[i]    = norm_kxi * (dVxi[0] + dVyi[1] + dVzi[2]);
+
+    cstone::Vec3<T> curlV{dVzi[1] - dVyi[2], dVxi[2] - dVzi[0], dVyi[0] - dVxi[1]};
+    curlv[i] = norm_kxi * std::sqrt(norm2(curlV));
+
+    if (doGradV)
+    {
+        dV11[i] = norm_kxi * dVxi[0];
+        dV12[i] = norm_kxi * (dVxi[1] + dVyi[0]);
+        dV13[i] = norm_kxi * (dVxi[2] + dVzi[0]);
+        dV22[i] = norm_kxi * dVyi[1];
+        dV23[i] = norm_kxi * (dVyi[2] + dVzi[1]);
+        dV33[i] = norm_kxi * dVzi[2];
+    }
 }
 
 } // namespace sph

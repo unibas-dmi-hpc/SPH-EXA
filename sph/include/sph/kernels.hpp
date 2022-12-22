@@ -1,7 +1,7 @@
 #pragma once
 
-#include "math.hpp"
 #include "cstone/cuda/annotation.hpp"
+#include "math.hpp"
 
 namespace sph
 {
