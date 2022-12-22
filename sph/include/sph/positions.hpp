@@ -55,7 +55,7 @@ HOST_DEVICE_FUN double energyUpdate(double u_old, double dt, double dt_m1, T du,
 {
     double deltaA = 0.5 * dt * dt / dt_m1;
     double deltaB = dt + deltaA;
-    double u_new = u_old + du * deltaB - du_m1 * deltaA;
+    double u_new  = u_old + du * deltaB - du_m1 * deltaA;
     // To prevent u < 0 (when cooling with GRACKLE is active)
     if (u_new < 0.) { u_new = u_old * std::exp(u_new * dt / u_old); }
     return u_new;

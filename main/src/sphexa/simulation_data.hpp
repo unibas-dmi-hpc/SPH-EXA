@@ -35,30 +35,31 @@
 #include "cooling/chemistry_data.hpp"
 #include "sph/particles_data.hpp"
 
-namespace sphexa {
+namespace sphexa
+{
 
 //! @brief the place to store hydro, chemistry, nuclear and other simulation data
-    template<typename T, typename KeyType_, class AccType>
-    class SimulationData {
-    public:
-        using AcceleratorType = AccType;
-        using KeyType = KeyType_;
-        using RealType = T;
+template<typename T, typename KeyType_, class AccType>
+class SimulationData
+{
+public:
+    using AcceleratorType = AccType;
+    using KeyType         = KeyType_;
+    using RealType        = T;
 
-        using HydroData = ParticlesData<RealType, KeyType, AccType>;
-        using ChemData = cooling::ChemistryData<T>;
+    using HydroData = ParticlesData<RealType, KeyType, AccType>;
+    using ChemData  = cooling::ChemistryData<T>;
 
+    //! @brief spacially distributed data for hydrodynamics and gravity
+    HydroData hydro;
 
-        //! @brief spacially distributed data for hydrodynamics and gravity
-        HydroData hydro;
+    //! @brief chemistry data for radiative cooling, e.g. for GRACKLE
+    ChemData chem;
 
-        //! @brief chemistry data for radiative cooling, e.g. for GRACKLE
-        ChemData chem;
+    //! @brief non-spacially distributed nuclear abundances
+    // NuclearData nuclear;
 
-        //! @brief non-spacially distributed nuclear abundances
-        // NuclearData nuclear;
-
-        MPI_Comm comm;
-    };
+    MPI_Comm comm;
+};
 
 } // namespace sphexa
