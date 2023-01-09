@@ -39,6 +39,7 @@
 #include "time_energies.hpp"
 #include "gravitational_waves.hpp"
 #include "wind_bubble_fraction.hpp"
+#include "turbulence_mach_rms.hpp"
 
 namespace sphexa
 {
@@ -98,7 +99,7 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
     std::string khGrowthRate = "KelvinHelmholtzGrowthRate";
     std::string gravWaves    = "observeGravWaves";
 
-    if (haveH5Attribute(testCase, khGrowthRate, H5PART_INT64))
+    if (haveH5Attribute(testCase, khGrowthRate, H5PART_INT64) || testCase == "kelvin-helmholtz")
     {
         h5part_int64_t attrValue;
         H5PartFile*    h5_file = nullptr;
@@ -106,7 +107,10 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
         H5PartReadFileAttrib(h5_file, khGrowthRate.c_str(), &attrValue);
         H5PartCloseFile(h5_file);
 
-        if (attrValue) { return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile); }
+        if (attrValue || testCase == "kelvin-helmholtz")
+        {
+            return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
+        }
     }
 
     if (haveH5Attribute(testCase, gravWaves, H5PART_FLOAT64))
@@ -121,6 +125,7 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
             return std::make_unique<GravWaves<Dataset>>(constantsFile, attrValue[1], attrValue[2]);
         }
     }
+#endif
 
     if (testCase == "wind-shock")
     {
@@ -130,7 +135,11 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
         double bubbleMass   = bubbleVolume * rhoInt;
         return std::make_unique<WindBubble<Dataset>>(constantsFile, rhoInt, uExt, bubbleMass);
     }
-#endif
+
+    if (testCase == "turbulence")
+    {
+        return std::make_unique<TurbulenceMachRMS<Dataset>>(constantsFile);
+    }
 
     if (testCase == "nbody") { return std::make_unique<IObservables<Dataset>>(); }
 
