@@ -84,26 +84,6 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     return std::make_tuple(0.5 * eKin, eInt, linmom, angmom);
 }
 
-template<class Dataset>
-double localMachSquareSum(size_t first, size_t last, Dataset& d)
-{
-    const auto* vx = d.vx.data();
-    const auto* vy = d.vy.data();
-    const auto* vz = d.vz.data();
-    const auto* c  = d.c.data();
-
-    double localMachSquareSum = 0.0;
-
-#pragma omp parallel for reduction(+ : localMachSquareSum)
-    for (size_t i = first; i < last; ++i)
-    {
-        util::array<double, 3> V{vx[i], vy[i], vz[i]};
-        localMachSquareSum += norm2(V) / (c[i] * c[i]);
-    }
-
-    return localMachSquareSum;
-}
-
 /*! @brief Computation of globally conserved quantities
  *
  * @tparam        T            float or double
@@ -126,9 +106,6 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
             sph::idealGasCv(d.muiConst, d.gamma), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
             rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.temp),
             rawPtr(d.devData.m), startIndex, endIndex);
-
-        machSqSum = machSquareSumGpu(rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
-                                     rawPtr(d.devData.c), startIndex, endIndex);
     }
     else
     {
@@ -139,10 +116,9 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
         }
 
         std::tie(eKin, eInt, linmom, angmom) = localConservedQuantities(startIndex, endIndex, d);
-        machSqSum                            = localMachSquareSum(startIndex, endIndex, d);
     }
 
-    util::array<double, 11> quantities, globalQuantities;
+    util::array<double, 10> quantities, globalQuantities;
     std::fill(globalQuantities.begin(), globalQuantities.end(), double(0));
 
     quantities[0]  = eKin;
@@ -155,7 +131,6 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     quantities[7]  = angmom[1];
     quantities[8]  = angmom[2];
     quantities[9]  = double(ncsum);
-    quantities[10] = machSqSum;
 
     int rootRank = 0;
     MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<double>{}, MPI_SUM, rootRank,
@@ -171,7 +146,6 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     d.linmom         = std::sqrt(norm2(globalLinmom));
     d.angmom         = std::sqrt(norm2(globalAngmom));
     d.totalNeighbors = size_t(globalQuantities[9]);
-    d.machRMS        = std::sqrt(globalQuantities[10] / d.numParticlesGlobal);
 }
 
 } // namespace sphexa

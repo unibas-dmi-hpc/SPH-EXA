@@ -35,6 +35,7 @@
 #include "iobservables.hpp"
 #include "io/ifile_writer.hpp"
 #include "sph/math.hpp"
+#include "gpu_reductions.h"
 
 namespace sphexa
 {
@@ -72,17 +73,28 @@ size_t localSurvivors(size_t first, size_t last, const Tt* temp, const T* kx, co
  * @return                fraction of particles surviving in the bubble
  *
  */
-template<class Tu, class Thydro, class Tm>
-double calculateSurvivingFraction(size_t first, size_t last, const Tu* u, const Thydro* kx, const Thydro* xmass,
-                                  const Tm* m, double rhoBubble, double uWind, double initialMass)
+template<class Dataset>
+double calculateSurvivingFraction(size_t first, size_t last, double rhoBubble, double uWind, double initialMass,
+                                  Dataset& d)
 {
-    size_t localSurvived = localSurvivors(first, last, u, kx, xmass, m, rhoBubble, uWind);
+    size_t localSurvived;
+
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        localSurvived = survivorsGpu(rawPtr(d.devData.temp), rawPtr(d.devData.kx), rawPtr(d.devData.xm),
+                                     rawPtr(d.devData.m), rhoBubble, uWind, first, last);
+    }
+    else
+    {
+        localSurvived =
+            localSurvivors(first, last, d.temp.data(), d.kx.data(), d.xm.data(), d.m.data(), rhoBubble, uWind);
+    }
 
     int    rootRank = 0;
     size_t globalSurvivors;
     MPI_Reduce(&localSurvived, &globalSurvivors, 1, MpiType<size_t>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
 
-    return globalSurvivors * m[0] / initialMass;
+    return globalSurvivors * d.m[0] / initialMass;
 }
 
 //! @brief Observables that includes times, energies and bubble surviving fraction
@@ -115,11 +127,9 @@ public:
             throw std::runtime_error(
                 "kx was empty. Wind Shock surviving fraction is only supported with volume elements (--prop ve)\n");
         }
-        transferToHost(d, firstIndex, lastIndex, {"temp", "kx", "xm"});
 
         T    tempWind       = uWind * sph::idealGasCv(d.muiConst, d.gamma);
-        auto bubbleFraction = calculateSurvivingFraction(firstIndex, lastIndex, d.temp.data(), d.kx.data(), d.xm.data(),
-                                                         d.m.data(), rhoBubble, tempWind, initialMass);
+        auto bubbleFraction = calculateSurvivingFraction(firstIndex, lastIndex, rhoBubble, tempWind, initialMass, d);
         int  rank;
         MPI_Comm_rank(simData.comm, &rank);
 

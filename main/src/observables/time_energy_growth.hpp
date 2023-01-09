@@ -33,10 +33,10 @@
 #include <array>
 #include <mpi.h>
 
-#include "conserved_quantities.hpp"
-#include "iobservables.hpp"
 #include "io/ifile_writer.hpp"
-#include "sph/math.hpp"
+#include "conserved_quantities.hpp"
+#include "gpu_reductions.h"
+#include "iobservables.hpp"
 
 namespace sphexa
 {
@@ -47,9 +47,9 @@ std::array<Tc, 3> localGrowthRate(size_t startIndex, size_t endIndex, const Tc* 
 {
     const Tc ybox = box.ly();
 
-    Tc sumsi = 0.0;
-    Tc sumci = 0.0;
-    Tc sumdi = 0.0;
+    double sumsi = 0.0;
+    double sumci = 0.0;
+    double sumdi = 0.0;
 
 #pragma omp parallel for reduction(+ : sumsi, sumci, sumdi)
     for (size_t i = startIndex; i < endIndex; i++)
@@ -83,17 +83,28 @@ std::array<Tc, 3> localGrowthRate(size_t startIndex, size_t endIndex, const Tc* 
 template<typename T, class Dataset>
 T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box, MPI_Comm comm)
 {
+    std::array<double, 3> localSum; // contains sumsi, sumci, sumdi
+
     if (d.kx.empty())
     {
         throw std::runtime_error("kx was empty. KHGrowthRate only supported with volume elements (--prop ve)\n");
     }
 
-    std::array<T, 3> localSum =
-        localGrowthRate(startIndex, endIndex, d.x.data(), d.y.data(), d.vy.data(), d.xm.data(), d.kx.data(), box);
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        std::tie(localSum[0], localSum[1], localSum[2]) =
+            gpuGrowthRate(rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.vy), rawPtr(d.devData.xm),
+                          rawPtr(d.devData.kx), box, startIndex, endIndex);
+    }
+    else
+    {
+        localSum =
+            localGrowthRate(startIndex, endIndex, d.x.data(), d.y.data(), d.vy.data(), d.xm.data(), d.kx.data(), box);
+    }
 
-    int              rootRank = 0;
-    std::array<T, 3> sum{0.0, 0.0, 0.0};
-    MPI_Reduce(localSum.data(), sum.data(), 3, MpiType<T>{}, MPI_SUM, rootRank, comm);
+    int                   rootRank = 0;
+    std::array<double, 3> sum{0.0, 0.0, 0.0};
+    MPI_Reduce(localSum.data(), sum.data(), 3, MpiType<double>{}, MPI_SUM, rootRank, comm);
 
     return 2.0 * std::sqrt(sum[0] * sum[0] + sum[1] * sum[1]) / sum[2];
 }
@@ -114,13 +125,12 @@ public:
 
     void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
+        auto& d = simData.hydro;
+        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
+        double khgr = computeKHGrowthRate<T>(firstIndex, lastIndex, d, box, simData.comm);
+
         int rank;
         MPI_Comm_rank(simData.comm, &rank);
-        auto& d = simData.hydro;
-
-        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
-        transferToHost(d, firstIndex, lastIndex, {"x", "y", "vy", "kx", "xm"});
-        T khgr = computeKHGrowthRate<T>(firstIndex, lastIndex, d, box, simData.comm);
 
         if (rank == 0)
         {
