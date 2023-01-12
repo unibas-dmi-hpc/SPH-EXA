@@ -70,6 +70,9 @@ public:
     template<class ValueType>
     using FieldVector = std::vector<ValueType, std::allocator<ValueType>>;
 
+    using FieldVariant =
+        std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
+
     ParticlesData()                     = default;
     ParticlesData(const ParticlesData&) = delete;
 
@@ -96,6 +99,20 @@ public:
 
     //! @brief Fraction of Courant condition for timestep
     T Kcour{0.2};
+
+    template<class Archive>
+    void loadOrStoreAttributes(Archive* ar)
+    {
+        ar->stepAttribute("iteration", &iteration, 1);
+        ar->stepAttribute("numParticlesGlobal", &numParticlesGlobal, 1);
+        ar->stepAttribute("time", &ttot, 1);
+        ar->stepAttribute("minDt", &minDt, 1);
+        ar->stepAttribute("minDt_m1", &minDt_m1, 1);
+        ar->stepAttribute("gravConstant", &g, 1);
+        ar->stepAttribute("gamma", &gamma, 1);
+        ar->stepAttribute("muiConst", &muiConst, 1);
+        ar->stepAttribute("Kcour", &Kcour, 1);
+    }
 
     /*! @brief Particle fields
      *
@@ -169,10 +186,7 @@ public:
      */
     auto data()
     {
-        using FieldType =
-            std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
-
-        return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
+        return std::apply([](auto&... fields) { return std::array<FieldVariant, sizeof...(fields)>{&fields...}; },
                           dataTuple());
     }
 

@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2023 CSCS, ETH Zurich, University of Basel, University of Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,45 +23,29 @@
  */
 
 /*! @file
- * @brief output time and energies each iteration (default)
- * @author Lukas Schmidt
+ * @brief file I/O interface
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <fstream>
+#pragma once
 
-#include "conserved_quantities.hpp"
-#include "iobservables.hpp"
-#include "io/file_utils.hpp"
+#include "ifile_io.hpp"
+#include "ifile_io_ascii.hpp"
+#ifdef SPH_EXA_HAVE_H5PART
+#include "ifile_io_hdf5.hpp"
+#endif
 
 namespace sphexa
 {
 
-template<class Dataset>
-class TimeAndEnergy : public IObservables<Dataset>
+std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm)
 {
-    std::ofstream& constantsFile;
-    using T = typename Dataset::RealType;
-
-public:
-    TimeAndEnergy(std::ofstream& constPath)
-        : constantsFile(constPath)
-    {
-    }
-
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box) override
-    {
-        int rank;
-        MPI_Comm_rank(simData.comm, &rank);
-        auto& d = simData.hydro;
-
-        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
-
-        if (rank == 0)
-        {
-            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
-                                    d.linmom, d.angmom);
-        }
-    }
-};
+    if (ascii) { return std::make_unique<AsciiWriterNew>(comm); }
+#ifdef SPH_EXA_HAVE_H5PART
+    else { return std::make_unique<H5PartWriter>(comm); }
+#endif
+    throw std::runtime_error("unsupported file i/o choice\n");
+}
 
 } // namespace sphexa

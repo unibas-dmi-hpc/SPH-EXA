@@ -84,6 +84,34 @@ public:
     DeviceVector d_phasesReal;
     DeviceVector d_phasesImag;
 
+    /*! @brief load or store turbulence data with file-based IO
+     *
+     * @tparam Archive
+     * @param ar
+     *
+     * Note: Only the @a gen and @a phases members are stored and restored, the modes and amplitudes
+     *       are set in the constructor and considered immutable afterwards.
+     */
+    template<class Archive>
+    void loadOrStore(Archive* ar)
+    {
+        ar->stepAttribute("turbulencePhases", phases.data(), phases.size());
+
+        std::stringstream s;
+        s << gen;
+        std::string engineState = s.str();
+
+        int64_t rngStateSize = ar->stepAttributeSize("rngEngineState");
+        rngStateSize         = (rngStateSize) ? rngStateSize : engineState.size();
+
+        engineState.resize(rngStateSize);
+        ar->stepAttribute("rngEngineState", engineState.data(), rngStateSize);
+
+        s = std::stringstream{};
+        s << engineState;
+        s >> gen;
+    }
+
 private:
     void resize(size_t numModes_)
     {

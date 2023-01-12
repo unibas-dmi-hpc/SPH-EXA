@@ -94,7 +94,7 @@ HOST_DEVICE_FUN constexpr int pbcDistance(int x)
     return (ret > R / 2) ? ret - R : ret;
 }
 
-enum class BoundaryType
+enum class BoundaryType : char
 {
     open     = 0,
     periodic = 1,
@@ -163,6 +163,16 @@ public:
 
     //! @brief return the longes coordinate range in any dimension
     HOST_DEVICE_FUN constexpr T maxExtent() const { return stl::max(stl::max(lengths_[0], lengths_[1]), lengths_[2]); }
+
+    template<class Archive>
+    void loadOrStore(Archive* ar)
+    {
+        ar->stepAttribute("box", limits, 6);
+        ar->stepAttribute("boundaryType", (char*)boundaries, 3);
+
+        *this = Box<T>(limits[0], limits[1], limits[2], limits[3], limits[4], limits[5], boundaries[0], boundaries[1],
+                       boundaries[2]);
+    }
 
 private:
     HOST_DEVICE_FUN

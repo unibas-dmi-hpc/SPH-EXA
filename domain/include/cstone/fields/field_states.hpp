@@ -75,6 +75,7 @@ public:
     }
 
     bool isAllocated(size_t fieldIdx) const { return fieldStates_[fieldIdx] != State::unused; }
+    bool isConserved(size_t fieldIdx) const { return fieldStates_[fieldIdx] == State::conserved; }
 
     bool isAllocated(const std::string& field) const
     {

@@ -31,7 +31,7 @@
 #include <array>
 #include "mpi.h"
 #include "iobservables.hpp"
-#include "io/ifile_writer.hpp"
+#include "io/file_utils.hpp"
 #include "grav_waves_calculations.hpp"
 
 namespace sphexa

@@ -41,7 +41,7 @@
 
 #include "init/factory.hpp"
 #include "io/arg_parser.hpp"
-#include "io/ifile_writer.hpp"
+#include "io/factory.hpp"
 #include "observables/factory.hpp"
 #include "propagator/factory.hpp"
 #include "util/timer.hpp"
@@ -103,7 +103,7 @@ int main(int argc, char** argv)
     //! @brief evaluate user choice for different kind of actions
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, ngmax, ng0, output, rank);
-    auto fileWriter  = fileWriterFactory<Dataset>(ascii);
+    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
     Dataset simData;
@@ -114,7 +114,7 @@ int main(int argc, char** argv)
     totalTimer.start();
 
     propagator->activateFields(simData);
-    propagator->restoreState(initCond, simData.comm);
+    propagator->load(initCond, simData.comm);
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, simData);
 
     auto& d = simData.hydro;
@@ -143,6 +143,7 @@ int main(int argc, char** argv)
     for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
     {
         propagator->step(domain, simData);
+        box = domain.box();
 
         observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
         propagator->printIterationTimings(domain, simData);
@@ -154,10 +155,15 @@ int main(int argc, char** argv)
             isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) ||
             (isWallClockReached && writeEnabled))
         {
-            propagator->prepareOutput(simData, domain.startIndex(), domain.endIndex(), domain.box());
-            fileWriter->dump(simData, domain.startIndex(), domain.endIndex(), box, outFile);
-            propagator->dump(d.iteration, outFile);
-            propagator->finishOutput(simData);
+            fileWriter->addStep(domain.startIndex(), domain.endIndex(), outFile);
+
+            simData.hydro.loadOrStoreAttributes(fileWriter.get());
+            box.loadOrStore(fileWriter.get());
+
+            propagator->saveFields(fileWriter.get(), domain.startIndex(), domain.endIndex(), simData, box);
+            propagator->save(fileWriter.get());
+
+            fileWriter->closeStep();
         }
 
         viz::execute(d, domain.startIndex(), domain.endIndex());

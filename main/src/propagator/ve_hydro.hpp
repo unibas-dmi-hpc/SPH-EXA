@@ -74,23 +74,16 @@ protected:
      */
     using ConservedFields = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha">;
 
-    //! @brief list of dependent fields on CPU and GPU, these may be used as scratch space during domain sync
+    //! @brief list of dependent fields, these may be used as scratch space during domain sync
     using DependentFields_ =
         FieldList<"prho", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "xm", "kx", "nc">;
 
     //! @brief velocity gradient fields will only be allocated when avClean is true
     using GradVFields = FieldList<"dV11", "dV12", "dV13", "dV22", "dV23", "dV33">;
 
-    using ExtraFieldsCpu = FieldList<"divv", "curlv">;
-
-    //! @brief what will be allocated on the Cpu
-    using DependentFieldsCpu =
-        std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{} + ExtraFieldsCpu{}),
-                           decltype(DependentFields_{} + ExtraFieldsCpu{})>;
-
-    //! @brief what will be allocated on the GPU
-    using DependentFieldsGpu =
-        std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{}), DependentFields_>;
+    //! @brief what will be allocated based AV cleaning choice
+    using DependentFields =
+        std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{}), decltype(DependentFields_{})>;
 
 public:
     HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
@@ -113,12 +106,12 @@ public:
         d.setConserved("x", "y", "z", "h", "m");
         d.setDependent("keys");
         std::apply([&d](auto... f) { d.setConserved(f.value...); }, make_tuple(ConservedFields{}));
-        std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFieldsCpu{}));
+        std::apply([&d](auto... f) { d.setDependent(f.value...); }, make_tuple(DependentFields{}));
 
         d.devData.setConserved("x", "y", "z", "h", "m");
         d.devData.setDependent("keys");
         std::apply([&d](auto... f) { d.devData.setConserved(f.value...); }, make_tuple(ConservedFields{}));
-        std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFieldsGpu{}));
+        std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
     }
 
     void sync(DomainType& domain, DataType& simData) override
@@ -127,12 +120,12 @@ public:
         if (d.g != 0.0)
         {
             domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                            get<ConservedFields>(d), get<DependentFieldsGpu>(d));
+                            get<ConservedFields>(d), get<DependentFields>(d));
         }
         else
         {
             domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFieldsGpu>(d));
+                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d));
         }
     }
 
@@ -161,8 +154,8 @@ public:
         timer.step("mpi::synchronizeHalos");
 
         d.release("ax");
-        d.acquire("gradh");
         d.devData.release("ax");
+        d.acquire("gradh");
         d.devData.acquire("gradh");
         computeVeDefGradh(first, last, ngmax_, d, domain.box());
         timer.step("Normalization & Gradh");
@@ -173,9 +166,9 @@ public:
         domain.exchangeHalos(get<"vx", "vy", "vz", "prho", "c", "kx">(d), get<"gradh">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
 
-        d.release("gradh");
-        d.acquire("ax");
+        d.release("gradh", "ay");
         d.devData.release("gradh", "ay");
+        d.acquire("divv", "curlv");
         d.devData.acquire("divv", "curlv");
         computeIadDivvCurlv(first, last, ngmax_, d, domain.box());
         timer.step("IadVelocityDivCurl");
@@ -193,7 +186,9 @@ public:
         else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"az">(d), get<"du">(d)); }
         timer.step("mpi::synchronizeHalos");
 
+        d.release("divv", "curlv");
         d.devData.release("divv", "curlv");
+        d.acquire("ax", "ay");
         d.devData.acquire("ax", "ay");
         computeMomentumEnergy<avClean>(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
@@ -225,39 +220,57 @@ public:
         timer.stop();
     }
 
-    //! @brief configure the dataset for output by calling EOS again to recover rho and p
-    void prepareOutput(DataType& simData, size_t startIndex, size_t endIndex, const cstone::Box<T>& box) override
+    void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
+                    const cstone::Box<T>& box) override
     {
-        auto& d = simData.hydro;
-        transferToHost(d, startIndex, endIndex, conservedFields());
-        transferToHost(d, startIndex, endIndex, {"ax", "ay", "az", "du", "kx", "xm", "nc"});
-        d.release("c11", "c12", "c13");
-        d.acquire("rho", "p", "gradh");
-        computeEOS_Impl(startIndex, endIndex, d);
+        auto&            d             = simData.hydro;
+        auto             fieldPointers = d.data();
+        std::vector<int> outputFields  = d.outputFieldIndices;
 
-        if constexpr (cstone::HaveGpu<typename DataType::AcceleratorType>{})
+        auto output = [&]()
         {
-            const auto& outFields = d.outputFieldNames;
-            bool        outDiv    = std::find(outFields.begin(), outFields.end(), "divv") != outFields.end();
-            bool        outCurl   = std::find(outFields.begin(), outFields.end(), "curlv") != outFields.end();
-            if (outDiv || outCurl)
+            for (int i = int(outputFields.size()) - 1; i >= 0; --i)
             {
-                d.devData.release("ax", "ay");
-                d.devData.acquire("divv", "curlv");
-                computeIadDivvCurlv(startIndex, endIndex, ngmax_, d, box);
-                transferToHost(d, startIndex, endIndex, {"divv", "curlv"});
-                d.devData.release("divv", "curlv");
-                d.devData.acquire("ax", "ay");
+                int fidx = outputFields[i];
+                if (d.isAllocated(fidx))
+                {
+                    int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
+                                 d.outputFieldIndices.begin();
+                    transferToHost(d, first, last, {d.fieldNames[fidx]});
+                    std::visit([writer, c = column, key = d.fieldNames[fidx]](auto field)
+                               { writer->writeField(key, field->data(), c); },
+                               fieldPointers[fidx]);
+                    outputFields.erase(outputFields.begin() + i);
+                }
             }
-        }
-    }
+        };
 
-    //! @brief undo output configuration and restore compute configuration
-    void finishOutput(DataType& simData) override
-    {
-        auto& d = simData.hydro;
+        // first output pass: write everything allocated at the end of the step
+        output();
+
+        d.release("ax", "ay", "az");
+        d.devData.release("ax", "ay", "az");
+
+        // second output pass: write temporary quantities produced by the EOS
+        d.acquire("rho", "p", "gradh");
+        d.devData.acquire("rho", "p", "gradh");
+        computeEOS(first, last, d);
+        output();
+        d.devData.release("rho", "p", "gradh");
         d.release("rho", "p", "gradh");
-        d.acquire("c11", "c12", "c13");
+
+        // third output pass: curlv and divv
+        d.acquire("divv", "curlv");
+        d.devData.acquire("divv", "curlv");
+        if (!outputFields.empty()) { computeIadDivvCurlv(first, last, ngmax_, d, box); }
+        output();
+        d.release("divv", "curlv");
+        d.devData.release("divv", "curlv");
+
+        d.acquire("ax", "ay", "az");
+        d.devData.acquire("ax", "ay", "az");
+
+        if (!outputFields.empty()) { std::cout << "WARNING: not all fields were output" << std::endl; }
     }
 };
 

@@ -301,7 +301,7 @@ def loadTimesteps(h5File):
 
 def loadStepNumbers(h5File):
     """ Load the iteration count of each recorded time step """
-    return np.array(sorted([h5File[step].attrs["step"][0] for step in list(h5File["/"])]))
+    return np.array(sorted([h5File[step].attrs["iteration"][0] for step in list(h5File["/"])]))
 
 
 def determineTimestep(time, timesteps):

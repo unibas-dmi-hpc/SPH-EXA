@@ -35,6 +35,7 @@
 #include <variant>
 
 #include "util/timer.hpp"
+#include "io/ifile_io.hpp"
 
 namespace sphexa
 {
@@ -60,18 +61,20 @@ public:
     //! @brief Marks conserved and dependent fields inside the particle dataset as active, enabling memory allocation
     virtual void activateFields(ParticleDataType& d) = 0;
 
+    //! @brief synchronize computational domain
     virtual void sync(DomainType& domain, ParticleDataType& d) = 0;
 
+    //! @brief advance one time-step
     virtual void step(DomainType& domain, ParticleDataType& d) = 0;
 
-    virtual void prepareOutput(ParticleDataType& d, size_t startIndex, size_t endIndex, const cstone::Box<T>&){};
-    virtual void finishOutput(ParticleDataType& d){};
+    //! @brief save particle data fields to file
+    virtual void saveFields(IFileWriter*, size_t, size_t, ParticleDataType&, const cstone::Box<T>&){};
 
-    //! @brief this allows the possibility of saving propagator data to file if it is stateful
-    virtual void dump(size_t, const std::string&){};
+    //! @brief save internal state to file
+    virtual void save(IFileWriter*){};
 
-    //! @brief restore state from file if supported and it exists
-    virtual void restoreState(const std::string&, MPI_Comm){};
+    //! @brief load internal state from file
+    virtual void load(const std::string& path, MPI_Comm comm){};
 
     virtual ~Propagator() = default;
 
