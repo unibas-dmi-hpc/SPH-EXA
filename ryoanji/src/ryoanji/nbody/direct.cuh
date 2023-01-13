@@ -34,6 +34,10 @@
 
 #pragma once
 
+#include "cstone/cuda/gpu_config.cuh"
+#include "cstone/primitives/warpscan.cuh"
+#include "cstone/util/util.hpp"
+
 #include "kahan.hpp"
 #include "kernel.hpp"
 #include "types.h"
@@ -99,6 +103,56 @@ __global__ void directKernel(int numSource, const T* __restrict__ x, const T* __
 }
 
 template<class T>
+__global__ void directKernelShfl(int numSource, const T* __restrict__ x, const T* __restrict__ y,
+                                 const T* __restrict__ z, const T* __restrict__ m, const T* __restrict__ h, T* p, T* ax,
+                                 T* ay, T* az)
+{
+    unsigned targetIdx = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned laneIdx = threadIdx.x & (cstone::GpuConfig::warpSize - 1);
+
+    Vec3<T> pos_i = {T(0), T(0), T(0)};
+    T       h_i   = 1.0;
+    if (targetIdx < numSource)
+    {
+        pos_i = {x[targetIdx], y[targetIdx], z[targetIdx]};
+        h_i   = h[targetIdx];
+    }
+
+    util::array<T, 4> acc{0, 0, 0, 0};
+    unsigned sourceUpperBound = round_up(numSource, cstone::GpuConfig::warpSize);
+
+    for (unsigned sourceIdx = laneIdx; sourceIdx < sourceUpperBound; sourceIdx += cstone::GpuConfig::warpSize)
+    {
+        util::array<T, 5> sourceBody;
+        if (sourceIdx < numSource)
+            sourceBody = {x[sourceIdx], y[sourceIdx], z[sourceIdx], m[sourceIdx], h[sourceIdx]};
+        else
+            sourceBody = {0, 0, 0, 0, 1.0};
+
+        for (int j = 0; j < cstone::GpuConfig::warpSize; ++j)
+        {
+            Vec3<T> pos_j{
+                cstone::shflSync(sourceBody[0], j),
+                cstone::shflSync(sourceBody[1], j),
+                cstone::shflSync(sourceBody[2], j),
+            };
+            T q_j = cstone::shflSync(sourceBody[3], j);
+            T h_j = cstone::shflSync(sourceBody[4], j);
+
+            acc = P2P(acc, pos_i, pos_j, q_j, h_i, h_j);
+        }
+    }
+
+    if (targetIdx < numSource)
+    {
+        p[targetIdx]  = m[targetIdx] * T(acc[0]);
+        ax[targetIdx] = T(acc[1]);
+        ay[targetIdx] = T(acc[2]);
+        az[targetIdx] = T(acc[3]);
+    }
+}
+
+template<class T>
 void directSum(std::size_t numBodies, const T* x, const T* y, const T* z, const T* m, const T* h, T* p, T* ax, T* ay,
                T* az)
 {
@@ -106,6 +160,7 @@ void directSum(std::size_t numBodies, const T* x, const T* y, const T* z, const 
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
     directKernel<<<numBlock, numThreads>>>(numBodies, x, y, z, m, h, p, ax, ay, az);
+    //directKernelShfl<<<numBlock, numThreads>>>(numBodies, x, y, z, m, h, p, ax, ay, az);
     kernelSuccess("direct sum");
 }
 
