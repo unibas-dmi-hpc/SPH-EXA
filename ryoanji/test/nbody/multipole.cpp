@@ -39,6 +39,18 @@
 
 using namespace ryoanji;
 
+TEST(Gravity, P2PselfInteraction)
+{
+    using T = double;
+
+    Vec3<T> pos_i{0, 0, 0};
+    T       h = 0.1;
+    Vec4<T> acc{0, 0, 0, 0};
+
+    auto self = P2P(acc, pos_i, pos_i, 1.0, h, h);
+    EXPECT_EQ(self, acc);
+}
+
 TEST(Multipole, P2M)
 {
     int numBodies = 1023;

@@ -269,9 +269,9 @@ __device__ util::tuple<unsigned, unsigned>
         }
 
         // Direct
-        bool      directTodo    = isDirect;
         const int firstBody     = layout[leafIdx];
         const int numBodies     = (layout[leafIdx + 1] - firstBody) & -int(isDirect); // Number of bodies in cell
+        bool      directTodo    = numBodies;
         const int numBodiesScan = inclusiveScanInt(numBodies);                        // Inclusive scan of numBodies
         int       numBodiesLane = numBodiesScan - numBodies;                          // Exclusive scan of numBodies
         int       numBodiesWarp = shflSync(numBodiesScan, GpuConfig::warpSize - 1);   // Total numBodies of current warp

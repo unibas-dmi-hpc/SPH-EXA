@@ -148,7 +148,7 @@ public:
         findNeighborsSfc(first, last, ngmax_, d, domain.octreeNsViewAcc(), domain.box());
         timer.step("FindNeighbors");
 
-        computeXMass(first, last, ngmax_, d, domain.box());
+        computeXMass(first, last, ngmax_, d, domain.octreeNsViewAcc(), domain.box());
         timer.step("XMass");
         domain.exchangeHalos(std::tie(get<"xm">(d)), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");

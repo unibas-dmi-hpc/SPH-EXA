@@ -452,17 +452,15 @@ public:
 
     void updateGeoCenters(const Box<RealType>& box)
     {
+        reallocate(geoCentersAcc_, treeData_.numNodes, 1.01);
+        reallocate(geoSizesAcc_, treeData_.numNodes, 1.01);
+
         if constexpr (HaveGpu<Accelerator>{})
         {
-            reallocate(geoCentersAcc_, octreeAcc_.numNodes, 1.01);
-            reallocate(geoSizesAcc_, octreeAcc_.numNodes, 1.01);
+            computeGeoCentersGpu(rawPtr(octreeAcc_.prefixes), treeData_.numNodes, rawPtr(geoCentersAcc_),
+                                 rawPtr(geoSizesAcc_), box);
         }
-        else
-        {
-            reallocate(geoCentersAcc_, treeData_.numNodes, 1.01);
-            reallocate(geoSizesAcc_, treeData_.numNodes, 1.01);
-            nodeFpCenters<KeyType>(treeData_.prefixes, geoCentersAcc_.data(), geoSizesAcc_.data(), box);
-        }
+        else { nodeFpCenters<KeyType>(treeData_.prefixes, geoCentersAcc_.data(), geoSizesAcc_.data(), box); }
     }
 
     //! @brief update until converged with a simple min-distance MAC

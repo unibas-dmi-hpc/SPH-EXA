@@ -44,20 +44,20 @@ namespace cstone
 struct TravConfig
 {
     //! @brief size of global workspace memory per warp
-    static constexpr int memPerWarp = 2048 * GpuConfig::warpSize;
+    static constexpr unsigned memPerWarp = 64 * GpuConfig::warpSize;
     //! @brief number of threads per block for the traversal kernel
-    static constexpr int numThreads = 256;
+    static constexpr unsigned numThreads = 128;
 
-    static constexpr int numWarpsPerSm = 20;
+    static constexpr unsigned numWarpsPerSm = 40;
     //! @brief maximum number of simultaneously active blocks
-    inline static int maxNumActiveBlocks =
+    inline static unsigned maxNumActiveBlocks =
         GpuConfig::smCount * (TravConfig::numWarpsPerSm / (TravConfig::numThreads / GpuConfig::warpSize));
 
     //! @brief number of particles per target, i.e. per warp
-    static constexpr int targetSize = 64;
+    static constexpr unsigned targetSize = GpuConfig::warpSize;
 
     //! @brief number of warps per target, used all over the place, hence the short name
-    static constexpr int nwt = targetSize / GpuConfig::warpSize;
+    static constexpr unsigned nwt = targetSize / GpuConfig::warpSize;
 };
 
 __device__ __forceinline__ int ringAddr(const int i) { return i & (TravConfig::memPerWarp - 1); }
@@ -86,7 +86,7 @@ __device__ void countNeighbors(Vec3<Tc> sourceBody,
                                unsigned nc_i[TravConfig::nwt],
                                unsigned* nidx_i)
 {
-    const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
+    unsigned laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
     for (int j = 0; j < numLanesValid; j++)
     {
@@ -383,18 +383,18 @@ warpBbox(const util::array<Vec4<Tc>, TravConfig::nwt>& pos_i)
 }
 
 template<class Tc, class Th, class KeyType>
-__device__ util::array<unsigned, 2> traverseNeighbors(cstone::LocalIndex bodyBegin,
-                                                      cstone::LocalIndex bodyEnd,
-                                                      const int2 rootRange,
-                                                      const Tc* __restrict__ x,
-                                                      const Tc* __restrict__ y,
-                                                      const Tc* __restrict__ z,
-                                                      const Th* __restrict__ h,
-                                                      const OctreeNsView<Tc, KeyType>& tree,
-                                                      const Box<Tc> box,
-                                                      unsigned* warpNidx,
-                                                      unsigned ngmax,
-                                                      int* globalPool)
+__device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::LocalIndex bodyBegin,
+                                                                    cstone::LocalIndex bodyEnd,
+                                                                    const int2 rootRange,
+                                                                    const Tc* __restrict__ x,
+                                                                    const Tc* __restrict__ y,
+                                                                    const Tc* __restrict__ z,
+                                                                    const Th* __restrict__ h,
+                                                                    const OctreeNsView<Tc, KeyType>& tree,
+                                                                    const Box<Tc> box,
+                                                                    cstone::LocalIndex* warpNidx,
+                                                                    unsigned ngmax,
+                                                                    TreeNodeIndex* globalPool)
 {
     const unsigned laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const unsigned warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
@@ -422,8 +422,8 @@ __device__ util::array<unsigned, 2> traverseNeighbors(cstone::LocalIndex bodyBeg
     bool anyPbc = box.boundaryX() == pbc || box.boundaryY() == pbc || box.boundaryZ() == pbc;
     bool usePbc = anyPbc && !insideBox(targetCenter, targetSize, box);
 
-    util::array<unsigned, 2> nc_i;
-    nc_i *= 0u;
+    util::array<unsigned, TravConfig::nwt> nc_i;
+    nc_i *= 0;
 
     unsigned numP2P;
     if (usePbc)
@@ -536,18 +536,18 @@ auto findNeighborsBT(size_t firstBody,
                      unsigned* nidx,
                      unsigned ngmax)
 {
-    constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
+    constexpr unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
-    int numBodies = lastBody - firstBody;
+    unsigned numBodies = lastBody - firstBody;
 
     // each target gets a warp (numWarps == numTargets)
-    int numWarps  = (numBodies - 1) / TravConfig::targetSize + 1;
-    int numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
-    numBlocks     = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+    unsigned numWarps  = (numBodies - 1) / TravConfig::targetSize + 1;
+    unsigned numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
+    numBlocks          = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
     printf("launching %d blocks\n", numBlocks);
 
-    const int poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
+    unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
     thrust::device_vector<int> globalPool(poolSize);
 
     resetTraversalCounters<<<1, 1>>>();

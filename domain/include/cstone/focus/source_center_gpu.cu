@@ -141,4 +141,32 @@ void upsweepCentersGpu(int numLevels,
 template void upsweepCentersGpu(int, const TreeNodeIndex*, const TreeNodeIndex*, SourceCenterType<float>*);
 template void upsweepCentersGpu(int, const TreeNodeIndex*, const TreeNodeIndex*, SourceCenterType<double>*);
 
+template<class KeyType, class T>
+__global__ void computeGeoCentersKernel(
+    const KeyType* prefixes, TreeNodeIndex numNodes, Vec3<T>* centers, Vec3<T>* sizes, const Box<T> box)
+{
+    unsigned i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= numNodes) { return; }
+
+    KeyType prefix                  = prefixes[i];
+    KeyType startKey                = decodePlaceholderBit(prefix);
+    unsigned level                  = decodePrefixLength(prefix) / 3;
+    auto nodeBox                    = sfcIBox(sfcKey(startKey), level);
+    util::tie(centers[i], sizes[i]) = centerAndSize<KeyType>(nodeBox, box);
+}
+
+template<class KeyType, class T>
+void computeGeoCentersGpu(
+    const KeyType* prefixes, TreeNodeIndex numNodes, Vec3<T>* centers, Vec3<T>* sizes, const Box<T>& box)
+{
+    unsigned numThreads = 256;
+    unsigned numBlocks  = iceil(numNodes, numThreads);
+    computeGeoCentersKernel<<<numBlocks, numThreads>>>(prefixes, numNodes, centers, sizes, box);
+}
+
+template void computeGeoCentersGpu(const uint32_t*, TreeNodeIndex, Vec3<float>*, Vec3<float>*, const Box<float>&);
+template void computeGeoCentersGpu(const uint32_t*, TreeNodeIndex, Vec3<double>*, Vec3<double>*, const Box<double>&);
+template void computeGeoCentersGpu(const uint64_t*, TreeNodeIndex, Vec3<float>*, Vec3<float>*, const Box<float>&);
+template void computeGeoCentersGpu(const uint64_t*, TreeNodeIndex, Vec3<double>*, Vec3<double>*, const Box<double>&);
+
 } // namespace cstone
