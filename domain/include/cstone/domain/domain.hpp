@@ -345,7 +345,7 @@ public:
                 v.childOffsets,
                 v.internalToLeaf,
                 v.levelRange,
-                layout_.data(),
+                rawPtr(layoutAcc_),
                 focusTree_.geoCentersAcc().data(),
                 focusTree_.geoSizesAcc().data()};
     }

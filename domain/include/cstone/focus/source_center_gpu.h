@@ -70,4 +70,9 @@ extern void upsweepCentersGpu(int numLevels,
                               const TreeNodeIndex* childOffsets,
                               SourceCenterType<T>* centers);
 
+//! @brief compute geometric node center and sizes based on node SFC keys
+template<class KeyType, class T>
+extern void computeGeoCentersGpu(
+    const KeyType* prefixes, TreeNodeIndex numNodes, Vec3<T>* centers, Vec3<T>* sizes, const Box<T>& box);
+
 } // namespace cstone

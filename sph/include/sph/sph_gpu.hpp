@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cstone/sfc/box.hpp"
+#include "cstone/tree/octree.hpp"
 
 //! @brief maximum number of neighbors supported in GPU kernels
 #define NGMAX 150
@@ -21,7 +22,9 @@ extern void computeMomentumEnergySTD(size_t, size_t, unsigned, Dataset& d,
                                      const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeXMass(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeXMass(size_t, size_t, unsigned, Dataset& d,
+                         cstone::OctreeNsView<typename Dataset::RealType, typename Dataset::KeyType> treeView,
+                         const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
 extern void computeVeDefGradh(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);

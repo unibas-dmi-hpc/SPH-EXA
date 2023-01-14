@@ -237,6 +237,6 @@ void benchmarkGpu()
 
 int main()
 {
-    // benchmarkGpu<double, MortonKey<uint64_t>>();
+    //benchmarkGpu<double, HilbertKey<uint64_t>>();
     benchmarkGpu<float, HilbertKey<uint64_t>>();
 }
