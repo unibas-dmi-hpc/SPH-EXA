@@ -227,11 +227,32 @@ public:
         timer.stop();
     }
 
-    void prepareOutput(DataType& simData, size_t first, size_t last, const cstone::Box<T>& box) override
+    void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
+                    const cstone::Box<T>& box) override
     {
-        auto& d = simData.hydro;
-        transferToHost(d, first, last, conservedFields());
-        transferToHost(d, first, last, {"rho", "p", "c", "du", "ax", "ay", "az", "nc"});
+        auto&            d             = simData.hydro;
+        auto             fieldPointers = d.data();
+        std::vector<int> outputFields  = d.outputFieldIndices;
+
+        auto output = [&]()
+        {
+            for (int i = int(outputFields.size()) - 1; i >= 0; --i)
+            {
+                int fidx = outputFields[i];
+                if (d.isAllocated(fidx))
+                {
+                    int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
+                                 d.outputFieldIndices.begin();
+                    transferToHost(d, first, last, {d.fieldNames[fidx]});
+                    std::visit([writer, c = column, key = d.fieldNames[fidx]](auto field)
+                               { writer->writeField(key, field->data(), c); },
+                               fieldPointers[fidx]);
+                    outputFields.erase(outputFields.begin() + i);
+                }
+            }
+        };
+
+        output();
     }
 };
 

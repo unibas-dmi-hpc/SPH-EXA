@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 CSCS, ETH Zurich
+ * Copyright (c) 2023 CSCS, ETH Zurich, University of Basel, University of Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,14 +30,72 @@
 
 #pragma once
 
-#include <filesystem>
-#include <variant>
+#include <vector>
+
 #include "H5Part.h"
 
 namespace sphexa
 {
 namespace fileutils
 {
+
+template<class T>
+struct H5PartType
+{
+};
+
+std::string H5PartTypeToString(h5part_int64_t type)
+{
+    if (type == H5PART_FLOAT64) { return "C++: double / python: np.float64"; }
+    if (type == H5PART_FLOAT32) { return "C++: float / python: np.float32"; }
+    if (type == H5PART_INT32) { return "C++: int / python: np.int32"; }
+    if (type == H5PART_INT64) { return "C++: int64_t / python: np.int64"; }
+    if (type == H5PART_CHAR) { return "C++: char / python: np.int8"; }
+
+    return "H5PART_UNKNOWN";
+}
+
+template<>
+struct H5PartType<double>
+{
+    operator decltype(H5PART_FLOAT64)() const noexcept { return H5PART_FLOAT64; }
+};
+
+template<>
+struct H5PartType<float>
+{
+    operator decltype(H5PART_FLOAT32)() const noexcept { return H5PART_FLOAT32; }
+};
+
+template<>
+struct H5PartType<char>
+{
+    operator decltype(H5PART_CHAR)() const noexcept { return H5PART_CHAR; }
+};
+
+template<>
+struct H5PartType<int>
+{
+    operator decltype(H5PART_INT32)() const noexcept { return H5PART_INT32; }
+};
+
+template<>
+struct H5PartType<unsigned>
+{
+    operator decltype(H5PART_INT32)() const noexcept { return H5PART_INT32; }
+};
+
+template<>
+struct H5PartType<int64_t>
+{
+    operator decltype(H5PART_INT64)() const noexcept { return H5PART_INT64; }
+};
+
+template<>
+struct H5PartType<uint64_t>
+{
+    operator decltype(H5PART_INT64)() const noexcept { return H5PART_INT64; }
+};
 
 //! @brief return the names of all datasets in @p h5_file
 std::vector<std::string> datasetNames(H5PartFile* h5_file)
@@ -56,7 +114,7 @@ std::vector<std::string> datasetNames(H5PartFile* h5_file)
     return setNames;
 }
 
-//! @brief return the names of all datasets in @p h5_file
+//! @brief return the names of all file attributes in @p h5_file
 std::vector<std::string> fileAttributeNames(H5PartFile* h5_file)
 {
     auto numAttributes = H5PartGetNumFileAttribs(h5_file);
@@ -68,17 +126,38 @@ std::vector<std::string> fileAttributeNames(H5PartFile* h5_file)
         char           attrName[maxlen];
         h5part_int64_t typeId, attrSize;
 
-        H5PartGetFileAttribInfo(h5_file, fi, attrName, 256, &typeId, &attrSize);
+        H5PartGetFileAttribInfo(h5_file, fi, attrName, maxlen, &typeId, &attrSize);
         setNames[fi] = std::string(attrName);
     }
 
     return setNames;
 }
 
-inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, int* field)
+//! @brief return the names of all file attributes in @p h5_file
+std::vector<std::string> stepAttributeNames(H5PartFile* h5_file)
 {
-    static_assert(std::is_same_v<int, h5part_int32_t>);
-    return H5PartReadDataInt32(h5_file, fieldName.c_str(), field);
+    auto numAttributes = H5PartGetNumStepAttribs(h5_file);
+
+    std::vector<std::string> setNames(numAttributes);
+    for (size_t fi = 0; fi < numAttributes; ++fi)
+    {
+        int            maxlen = 256;
+        char           attrName[maxlen];
+        h5part_int64_t typeId, attrSize;
+
+        H5PartGetStepAttribInfo(h5_file, fi, attrName, maxlen, &typeId, &attrSize);
+        setNames[fi] = std::string(attrName);
+    }
+
+    return setNames;
+}
+
+/* read fields */
+
+inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, double* field)
+{
+    static_assert(std::is_same_v<double, h5part_float64_t>);
+    return H5PartReadDataFloat64(h5_file, fieldName.c_str(), field);
 }
 
 inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, float* field)
@@ -87,16 +166,60 @@ inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fi
     return H5PartReadDataFloat32(h5_file, fieldName.c_str(), field);
 }
 
-inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, double* field)
+inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, char* /*field*/)
+{
+    throw std::runtime_error("H5Part read char field not implemented");
+}
+
+inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, int* field)
+{
+    static_assert(std::is_same_v<int, h5part_int32_t>);
+    return H5PartReadDataInt32(h5_file, fieldName.c_str(), field);
+}
+
+inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, int64_t* field)
+{
+    return H5PartReadDataInt64(h5_file, fieldName.c_str(), (h5part_int64_t*)field);
+}
+
+inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, unsigned* field)
+{
+    return H5PartReadDataInt32(h5_file, fieldName.c_str(), (h5part_int32_t*)field);
+}
+
+inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, uint64_t* field)
+{
+    return H5PartReadDataInt64(h5_file, fieldName.c_str(), (h5part_int64_t*)field);
+}
+
+/* write fields */
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const double* field)
 {
     static_assert(std::is_same_v<double, h5part_float64_t>);
-    return H5PartReadDataFloat64(h5_file, fieldName.c_str(), field);
+    return H5PartWriteDataFloat64(h5_file, fieldName.c_str(), field);
+}
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const float* field)
+{
+    static_assert(std::is_same_v<float, h5part_float32_t>);
+    return H5PartWriteDataFloat32(h5_file, fieldName.c_str(), field);
+}
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const char* /*field*/)
+{
+    throw std::runtime_error("H5Part write char field not implemented");
 }
 
 inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const int* field)
 {
     static_assert(std::is_same_v<int, h5part_int32_t>);
     return H5PartWriteDataInt32(h5_file, fieldName.c_str(), field);
+}
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const int64_t* field)
+{
+    return H5PartWriteDataInt64(h5_file, fieldName.c_str(), (const h5part_int64_t*)field);
 }
 
 inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const unsigned* field)
@@ -109,27 +232,44 @@ inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& f
     return H5PartWriteDataInt64(h5_file, fieldName.c_str(), (const h5part_int64_t*)field);
 }
 
-inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const float* field)
-{
-    static_assert(std::is_same_v<float, h5part_float32_t>);
-    return H5PartWriteDataFloat32(h5_file, fieldName.c_str(), field);
-}
+/* write step attributes */
 
-inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const double* field)
-{
-    static_assert(std::is_same_v<double, h5part_float64_t>);
-    return H5PartWriteDataFloat64(h5_file, fieldName.c_str(), field);
-}
-
-void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, double* value, size_t numElements)
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const double* value, size_t numElements)
 {
     H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
 }
 
-void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, float* value, size_t numElements)
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const float* value, size_t numElements)
 {
     H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
 }
+
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const char* value, size_t numElements)
+{
+    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_CHAR, value, numElements);
+}
+
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const int* value, size_t numElements)
+{
+    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT32, value, numElements);
+}
+
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const int64_t* value, size_t numElements)
+{
+    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT64, value, numElements);
+}
+
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const unsigned* value, size_t numElements)
+{
+    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT32, value, numElements);
+}
+
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const uint64_t* value, size_t numElements)
+{
+    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT64, value, numElements);
+}
+
+/* write file attributes */
 
 void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const double* value, size_t numElements)
 {
@@ -165,53 +305,6 @@ H5PartFile* openH5Part(const std::string& path, h5part_int64_t mode, MPI_Comm co
 #endif
 
     return h5_file;
-}
-
-template<class Dataset, class T>
-void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& box, const std::string& path,
-                 MPI_Comm comm)
-{
-    H5PartFile* h5_file = nullptr;
-
-    if (std::filesystem::exists(path)) { h5_file = openH5Part(path, H5PART_APPEND | H5PART_VFD_MPIIO_IND, comm); }
-    else { h5_file = openH5Part(path, H5PART_WRITE | H5PART_VFD_MPIIO_IND, comm); }
-
-    // create the next step
-    h5part_int64_t numSteps = H5PartGetNumSteps(h5_file);
-    H5PartSetStep(h5_file, numSteps);
-
-    sphexaWriteStepAttrib(h5_file, "time", &d.ttot, 1);
-    sphexaWriteStepAttrib(h5_file, "minDt", &d.minDt, 1);
-    sphexaWriteStepAttrib(h5_file, "minDt_m1", &d.minDt_m1, 1);
-    sphexaWriteStepAttrib(h5_file, "gravConstant", &d.g, 1);
-    sphexaWriteStepAttrib(h5_file, "gamma", &d.gamma, 1);
-    sphexaWriteStepAttrib(h5_file, "muiConst", &d.muiConst, 1);
-    sphexaWriteStepAttrib(h5_file, "Kcour", &d.Kcour, 1);
-    // record the actual SPH-iteration as step attribute
-    H5PartWriteStepAttrib(h5_file, "step", H5PART_INT64, &d.iteration, 1);
-
-    // record the global coordinate bounding box
-    double extents[6] = {box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax()};
-    H5PartWriteStepAttrib(h5_file, "box", H5PART_FLOAT64, extents, 6);
-    h5part_int32_t boundaries[3] = {static_cast<h5part_int32_t>(box.boundaryX()),
-                                    static_cast<h5part_int32_t>(box.boundaryY()),
-                                    static_cast<h5part_int32_t>(box.boundaryZ())};
-    H5PartWriteStepAttrib(h5_file, "boundaryType", H5PART_INT32, boundaries, 3);
-
-    const h5part_int64_t h5_num_particles = lastIndex - firstIndex;
-    // set number of particles that each rank will write
-    H5PartSetNumParticles(h5_file, h5_num_particles);
-
-    auto fieldPointers = getOutputArrays(d);
-    for (size_t fidx = 0; fidx < fieldPointers.size(); ++fidx)
-    {
-        const std::string& fieldName = d.outputFieldNames[fidx];
-        std::visit([&h5_file, &fieldName, firstIndex](auto& arg)
-                   { writeH5PartField(h5_file, fieldName, arg + firstIndex); },
-                   fieldPointers[fidx]);
-    }
-
-    H5PartCloseFile(h5_file);
 }
 
 //! @brief read x,y,z coordinates from an H5Part file (at step 0)

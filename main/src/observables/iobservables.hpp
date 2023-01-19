@@ -32,7 +32,6 @@
 #pragma once
 
 #include "cstone/sfc/box.hpp"
-#include "io/ifile_writer.hpp"
 
 namespace sphexa
 {

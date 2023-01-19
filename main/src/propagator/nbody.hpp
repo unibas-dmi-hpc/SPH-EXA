@@ -157,12 +157,6 @@ public:
 
         timer.stop();
     }
-
-    void prepareOutput(DataType& simData, size_t first, size_t last, const cstone::Box<T>& box) override
-    {
-        auto& d = simData.hydro;
-        transferToHost(d, first, last, conservedFields());
-    }
 };
 
 } // namespace sphexa

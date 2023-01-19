@@ -37,28 +37,6 @@
 namespace cstone
 {
 
-//! @brief extract a vector of pointers to particle fields for file output
-template<class Dataset>
-auto getOutputArrays(Dataset& dataset)
-{
-    auto fieldPointers = dataset.data();
-    using FieldType    = std::variant<float*, double*, int*, unsigned*, uint64_t*>;
-
-    std::vector<FieldType> outputFields;
-    outputFields.reserve(dataset.outputFieldIndices.size());
-
-    for (int i : dataset.outputFieldIndices)
-    {
-        if (!dataset.isAllocated(i))
-        {
-            throw std::runtime_error("Cannot output field " + std::string(dataset.fieldNames[i]) +
-                                     ", because it is not active.");
-        }
-        std::visit([&outputFields](auto& arg) { outputFields.push_back(arg->data()); }, fieldPointers[i]);
-    }
-    return outputFields;
-}
-
 //! @brief compile-time index look-up of a string literal in a list of strings
 template<class Array>
 constexpr size_t getFieldIndex(std::string_view field, const Array& fieldNames)

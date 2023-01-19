@@ -14,7 +14,7 @@ def printSteps(fname):
     print("hdf5 step number".rjust(15), "sph iteration".rjust(15), "time".rjust(15))
     for i in range(len(list(ifile["/"]))):
         h5step = ifile["Step#%d" % i]
-        print("%5d".rjust(14) % i, "%5d".rjust(14) % h5step.attrs["step"][0],
+        print("%5d".rjust(14) % i, "%5d".rjust(14) % h5step.attrs["iteration"][0],
               "%5f".rjust(14) % h5step.attrs["time"][0])
 
 
