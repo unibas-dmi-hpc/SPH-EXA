@@ -172,3 +172,30 @@ TEST(WarpScan, streamCompact)
         EXPECT_EQ(h_values[i], 2 * i);
     }
 }
+
+__global__ void spread(int* result)
+{
+    int val     = 0;
+    if (threadIdx.x < 4) val = result[threadIdx.x];
+
+    result[threadIdx.x] = spreadSeg8(val);
+}
+
+TEST(WarpScan, spreadSeg8)
+{
+    thrust::device_vector<int> d_values(GpuConfig::warpSize);
+
+    d_values[0] = 10;
+    d_values[1] = 20;
+    d_values[2] = 30;
+    d_values[3] = 40;
+
+    spread<<<1, GpuConfig::warpSize>>>(rawPtr(d_values));
+    thrust::host_vector<int> h_values = d_values;
+
+    thrust::host_vector<int> reference =
+        std::vector<int>{10, 11, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 24, 25, 26, 27,
+                         30, 31, 32, 33, 34, 35, 36, 37, 40, 41, 42, 43, 44, 45, 46, 47};
+
+    EXPECT_EQ(reference, h_values);
+}

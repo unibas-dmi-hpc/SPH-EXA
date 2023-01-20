@@ -22,9 +22,7 @@ extern void computeMomentumEnergySTD(size_t, size_t, unsigned, Dataset& d,
                                      const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeXMass(size_t, size_t, unsigned, Dataset& d,
-                         cstone::OctreeNsView<typename Dataset::RealType, typename Dataset::KeyType> treeView,
-                         const cstone::Box<typename Dataset::RealType>&);
+extern void computeXMass(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
 extern void computeVeDefGradh(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);

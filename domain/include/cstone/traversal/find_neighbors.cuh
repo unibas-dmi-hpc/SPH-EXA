@@ -196,7 +196,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
                                  const Tc* __restrict__ z,
                                  const Th* __restrict__ /*h*/,
                                  const OctreeNsView<Tc, KeyType>& tree,
-                                 int2 rootRange,
+                                 int initNodeIdx,
                                  const Box<Tc>& box,
                                  volatile int* tempQueue,
                                  int* cellQueue)
@@ -214,25 +214,29 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
     int bodyQueue; // warp queue for source body indices
 
     // populate initial cell queue
-    for (int root = rootRange.x; root < rootRange.y; root += GpuConfig::warpSize)
-    {
-        if (root + laneIdx < rootRange.y) { cellQueue[ringAddr(root - rootRange.x + laneIdx)] = root + laneIdx; }
-    }
+    if (laneIdx == 0) { cellQueue[0] = initNodeIdx; }
 
     // these variables are always identical on all warp lanes
-    int numSources   = rootRange.y - rootRange.x; // current stack size
-    int newSources   = 0;                         // stack size for next level
-    int oldSources   = 0;                         // cell indices done
+    int numSources   = 1; // current stack size
+    int newSources   = 0; // stack size for next level
+    int oldSources   = 0; // cell indices done
     int sourceOffset = 0; // current level stack pointer, once this reaches numSources, the level is done
     int bdyFillLevel = 0; // fill level of the source body warp queue
 
     while (numSources > 0) // While there are source cells to traverse
     {
-        const int sourceIdx         = sourceOffset + laneIdx;                      // Source cell index of current lane
-        int sourceQueue             = cellQueue[ringAddr(oldSources + sourceIdx)]; // Global source cell index in queue
-        const Vec3<Tc> curSrcCenter = centers[sourceQueue];                        // Current source cell center
-        const Vec3<Tc> curSrcSize   = sizes[sourceQueue];                          // Current source cell center
-        const int childBegin        = childOffsets[sourceQueue];                   // First child cell
+        int sourceIdx   = sourceOffset + laneIdx; // Source cell index of current lane
+        int sourceQueue = 0;
+        if (laneIdx < GpuConfig::warpSize / 8)
+        {
+            sourceQueue = cellQueue[ringAddr(oldSources + sourceIdx)]; // Global source cell index in queue
+        }
+        sourceQueue = spreadSeg8(sourceQueue);
+        sourceIdx   = shflSync(sourceIdx, laneIdx >> 3);
+
+        const Vec3<Tc> curSrcCenter = centers[sourceQueue];      // Current source cell center
+        const Vec3<Tc> curSrcSize   = sizes[sourceQueue];        // Current source cell center
+        const int childBegin        = childOffsets[sourceQueue]; // First child cell
         const bool isNode           = childBegin;
         const bool isClose          = cellOverlap<UsePbc>(curSrcCenter, curSrcSize, targetCenter, targetSize, box);
         const bool isSource         = sourceIdx < numSources; // Source index is within bounds
@@ -240,17 +244,14 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
         const int leafIdx           = (isDirect) ? internalToLeaf[sourceQueue] : 0; // the cstone leaf index
 
         // Split
-        const bool isSplit     = isNode && isClose && isSource; // Source cell must be split
-        const int numChild     = 8 & -int(isSplit);             // Number of child cells (masked by split flag)
-        const int numChildScan = inclusiveScanInt(numChild);    // Inclusive scan of numChild
-        const int numChildLane = numChildScan - numChild;       // Exclusive scan of numChild
-        const int numChildWarp = shflSync(numChildScan, GpuConfig::warpSize - 1); // Total numChild of current warp
-        sourceOffset += imin(GpuConfig::warpSize, numSources - sourceOffset);     // advance current level stack pointer
+        const bool isSplit     = isNode && isClose && isSource;                   // Source cell must be split
+        const int numChildLane = exclusiveScanBool(isSplit);                      // Exclusive scan of numChild
+        const int numChildWarp = reduceBool(isSplit);                             // Total numChild of current warp
+        sourceOffset += imin(GpuConfig::warpSize / 8, numSources - sourceOffset); // advance current level stack pointer
         if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp)    // If cell queue overflows
             return 0xFFFFFFFF;                                                    // Exit kernel
         int childIdx = oldSources + numSources + newSources + numChildLane;       // Child index of current lane
-        for (int i = 0; i < numChild; i++)                                        // Loop over child cells for each lane
-            cellQueue[ringAddr(childIdx + i)] = childBegin + i;                   // Queue child cells for next level
+        if (isSplit) { cellQueue[ringAddr(childIdx)] = childBegin; }              // Queue child cells for next level
         newSources += numChildWarp; //  Increment source cell count for next loop
 
         // Direct
@@ -385,7 +386,6 @@ warpBbox(const util::array<Vec4<Tc>, TravConfig::nwt>& pos_i)
 template<class Tc, class Th, class KeyType>
 __device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::LocalIndex bodyBegin,
                                                                     cstone::LocalIndex bodyEnd,
-                                                                    const int2 rootRange,
                                                                     const Tc* __restrict__ x,
                                                                     const Tc* __restrict__ y,
                                                                     const Tc* __restrict__ z,
@@ -425,16 +425,20 @@ __device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::Loca
     util::array<unsigned, TravConfig::nwt> nc_i;
     nc_i *= 0;
 
+    // start traversal with node 1 (first child of the root), implies siblings as well
+    // if traversal should be started at node x, then initNode should be set to the first child of x
+    int initNode = 1;
+
     unsigned numP2P;
     if (usePbc)
     {
         numP2P = traverseWarp<true>(nc_i.data(), warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, tree,
-                                    rootRange, box, tempQueue, cellQueue);
+                                    initNode, box, tempQueue, cellQueue);
     }
     else
     {
         numP2P = traverseWarp<false>(nc_i.data(), warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, tree,
-                                     rootRange, box, tempQueue, cellQueue);
+                                     initNode, box, tempQueue, cellQueue);
     }
     assert(numP2P != 0xFFFFFFFF);
 
@@ -470,7 +474,6 @@ __device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::Loca
 template<class Tc, class Th, class KeyType>
 __global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::LocalIndex firstBody,
                                                                      cstone::LocalIndex lastBody,
-                                                                     const int2 rootRange,
                                                                      const Tc* __restrict__ x,
                                                                      const Tc* __restrict__ y,
                                                                      const Tc* __restrict__ z,
@@ -499,7 +502,7 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::Loc
         unsigned* warpNidx                 = nidx + targetIdx * TravConfig::targetSize * ngmax;
 
         auto nc_i =
-            traverseNeighbors(bodyBegin, bodyEnd, rootRange, x, y, z, h, tree, box, warpNidx, ngmax, globalPool);
+            traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, warpNidx, ngmax, globalPool);
 
         const cstone::LocalIndex bodyIdxLane = bodyBegin + laneIdx;
         for (int i = 0; i < TravConfig::nwt; i++)
@@ -552,8 +555,8 @@ auto findNeighborsBT(size_t firstBody,
 
     resetTraversalCounters<<<1, 1>>>();
     auto t0 = std::chrono::high_resolution_clock::now();
-    traverseBT<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, {1, 9}, x, y, z, h, tree, box, nc, nidx,
-                                                      ngmax, rawPtr(globalPool));
+    traverseBT<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, x, y, z, h, tree, box, nc, nidx, ngmax,
+                                                      rawPtr(globalPool));
     kernelSuccess("traverseBT");
 
     auto t1   = std::chrono::high_resolution_clock::now();
