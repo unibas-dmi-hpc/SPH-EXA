@@ -69,8 +69,7 @@ __global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc>
 
         cstone::LocalIndex bodyBegin = first + targetIdx * TravConfig::targetSize;
         cstone::LocalIndex bodyEnd   = cstone::imin(bodyBegin + TravConfig::targetSize, last);
-
-        cstone::LocalIndex i = bodyBegin + laneIdx;
+        cstone::LocalIndex i         = bodyBegin + laneIdx;
 
         auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
 
@@ -87,11 +86,6 @@ template<class Dataset>
 void computeXMass(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
                   const cstone::Box<typename Dataset::RealType>& box)
 {
-    using T       = typename Dataset::RealType;
-    using KeyType = typename Dataset::KeyType;
-
-    size_t sizeWithHalos = d.x.size();
-
     unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
     unsigned numBodies        = endIndex - startIndex;
     unsigned numWarps         = (numBodies - 1) / TravConfig::targetSize + 1;

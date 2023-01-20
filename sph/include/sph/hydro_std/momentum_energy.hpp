@@ -39,7 +39,7 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeMomentumEnergySTDImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
+void computeMomentumEnergyStdImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
                                   const cstone::Box<T>& box)
 {
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
@@ -100,9 +100,9 @@ void computeMomentumEnergySTD(size_t startIndex, size_t endIndex, unsigned ngmax
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeMomentumEnergySTD(startIndex, endIndex, ngmax, d, box);
+        computeMomentumEnergyStdGpu(startIndex, endIndex, ngmax, d, box);
     }
-    else { computeMomentumEnergySTDImpl(startIndex, endIndex, ngmax, d, box); }
+    else { computeMomentumEnergyStdImpl(startIndex, endIndex, ngmax, d, box); }
 }
 
 } // namespace sph

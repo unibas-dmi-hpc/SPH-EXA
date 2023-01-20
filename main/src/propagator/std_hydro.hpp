@@ -118,6 +118,7 @@ public:
             domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
                         std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d));
         }
+        d.treeView = domain.octreeNsViewAcc();
     }
 
     void step(DomainType& domain, DataType& simData) override
@@ -136,8 +137,7 @@ public:
         fill(get<"m">(d), 0, first, d.m[first]);
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
-        auto nsView = domain.octreeNsViewAcc();
-        findNeighborsSfc(first, last, ngmax_, d, nsView, domain.box());
+        findNeighborsSfc(first, last, ngmax_, d, domain.box());
         timer.step("FindNeighbors");
 
         computeDensity(first, last, ngmax_, d, domain.box());

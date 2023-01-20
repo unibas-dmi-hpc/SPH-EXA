@@ -45,6 +45,7 @@
 #include "coord_samples/random.hpp"
 #include "cstone/domain/domain.hpp"
 #include "cstone/findneighbors.hpp"
+#include "unit/neighbors/all_to_all.hpp"
 
 using namespace cstone;
 
@@ -129,36 +130,19 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     int ngmax = 300;
     std::vector<cstone::LocalIndex> neighbors(localCount * ngmax);
     std::vector<unsigned> neighborsCount(localCount);
-    findNeighbors(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(), box,
-                  sfcKindPointer(keysRef.data()), neighbors.data(), neighborsCount.data(), ngmax);
+    findNeighbors(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), box,
+                  domain.octreeNsViewAcc(), ngmax, neighbors.data(), neighborsCount.data());
 
-    int neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
-    MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
+    uint64_t neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
+    MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<uint64_t>{}, MPI_SUM, MPI_COMM_WORLD);
 
     {
         // Note: global coordinates are not yet in Morton order
-        std::vector<KeyType> codesGlobal(numParticles);
-        computeSfcKeys(xGlobal.data(), yGlobal.data(), zGlobal.data(), sfcKindPointer(codesGlobal.data()), numParticles,
-                       box);
-        std::vector<LocalIndex> ordering(numParticles);
-        std::iota(begin(ordering), end(ordering), LocalIndex(0));
-        sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
-
-        std::vector<T> temp(xGlobal.size());
-        gather<LocalIndex>(ordering, xGlobal.data(), temp.data());
-        swap(temp, xGlobal);
-        gather<LocalIndex>(ordering, yGlobal.data(), temp.data());
-        swap(temp, yGlobal);
-        gather<LocalIndex>(ordering, zGlobal.data(), temp.data());
-        swap(temp, zGlobal);
-        gather<LocalIndex>(ordering, hGlobal.data(), temp.data());
-        swap(temp, hGlobal);
-
         // calculate reference neighbor sum from the full arrays
         std::vector<cstone::LocalIndex> neighborsRef(numParticles * ngmax);
         std::vector<unsigned> neighborsCountRef(numParticles);
-        findNeighbors(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), 0, numParticles, numParticles,
-                      box, sfcKindPointer(codesGlobal.data()), neighborsRef.data(), neighborsCountRef.data(), ngmax);
+        all2allNeighbors(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), numParticles,
+                         neighborsRef.data(), neighborsCountRef.data(), ngmax, box);
 
         int neighborSumRef = std::accumulate(begin(neighborsCountRef), end(neighborsCountRef), 0);
         EXPECT_EQ(neighborSum, neighborSumRef);

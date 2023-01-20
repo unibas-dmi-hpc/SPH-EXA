@@ -41,7 +41,7 @@
 namespace sph
 {
 
-template<class Tc, class T>
+template<size_t stride = 1, class Tc, class T>
 HOST_DEVICE_FUN inline void IADJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
                                      const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
                                      const Tc* y, const Tc* z, const Tc* h, const T* wh, const T* whd, const T* xm,
@@ -59,7 +59,7 @@ HOST_DEVICE_FUN inline void IADJLoop(cstone::LocalIndex i, T sincIndex, T K, con
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
-        cstone::LocalIndex j = neighbors[pj];
+        cstone::LocalIndex j = neighbors[stride * pj];
 
         T rx = (xi - x[j]);
         T ry = (yi - y[j]);

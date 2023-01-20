@@ -140,10 +140,8 @@ void benchmarkGpu()
 #pragma omp parallel for
         for (LocalIndex i = 0; i < n; ++i)
         {
-            // findNeighbors(i, x, y, z, h.data(), box, sfcKindPointer(codes), neighborsCPU.data() + i * ngmax,
-            //               neighborsCountCPU.data() + i, n, ngmax);
-            findNeighborsT(i, x, y, z, h.data(), nsView, box, ngmax, neighborsCPU.data() + i * ngmax,
-                           neighborsCountCPU.data() + i);
+            findNeighbors(i, x, y, z, h.data(), nsView, box, ngmax, neighborsCPU.data() + i * ngmax,
+                          neighborsCountCPU.data() + i);
         }
     };
 

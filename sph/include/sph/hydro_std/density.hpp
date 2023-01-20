@@ -86,7 +86,7 @@ void computeDensity(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset&
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeDensity(startIndex, endIndex, ngmax, d, box);
+        computeDensityGpu(startIndex, endIndex, ngmax, d, box);
     }
     else { computeDensityImpl(startIndex, endIndex, ngmax, d, box); }
 }

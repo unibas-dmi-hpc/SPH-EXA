@@ -175,7 +175,7 @@ TEST(WarpScan, streamCompact)
 
 __global__ void spread(int* result)
 {
-    int val     = 0;
+    int val = 0;
     if (threadIdx.x < 4) val = result[threadIdx.x];
 
     result[threadIdx.x] = spreadSeg8(val);

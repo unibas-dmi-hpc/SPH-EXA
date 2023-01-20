@@ -31,6 +31,7 @@
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/findneighbors.hpp"
+#include "cstone/traversal/find_neighbors.cuh"
 
 #include "sph/sph_gpu.hpp"
 #include "sph/particles_data.hpp"
@@ -41,51 +42,67 @@ namespace sph
 namespace cuda
 {
 
+using cstone::GpuConfig;
+using cstone::TravConfig;
+using cstone::TreeNodeIndex;
+
 template<typename Tc, class Tm, class T, class KeyType>
 __global__ void veDefGradhGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc> box, size_t first, size_t last,
-                              size_t numParticles, const KeyType* particleKeys, const Tc* x, const Tc* y, const Tc* z,
-                              const T* h, const Tm* m, const T* wh, const T* whd, const T* xm, T* kx, T* gradh)
+                              const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x, const Tc* y, const Tc* z,
+                              const T* h, const Tm* m, const T* wh, const T* whd, const T* xm, T* kx, T* gradh,
+                              cstone::LocalIndex* nidx, TreeNodeIndex* globalPool)
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned i   = tid + first;
+    unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
+    unsigned numTargets  = (last - first - 1) / TravConfig::targetSize + 1;
+    unsigned targetIdx   = 0;
+    unsigned warpIdxGrid = (blockDim.x * blockIdx.x + threadIdx.x) >> GpuConfig::warpSizeLog2;
 
-    if (i >= last) return;
+    cstone::LocalIndex* neighborsWarp = nidx + ngmax * TravConfig::targetSize * warpIdxGrid;
 
-    // need to hard-code ngmax stack allocation for now
-    assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired size");
-    cstone::LocalIndex neighbors[NGMAX];
-    unsigned           neighborsCount;
+    while (true)
+    {
+        // first thread in warp grabs next target
+        if (laneIdx == 0) { targetIdx = atomicAdd(&cstone::targetCounterGlob, 1); }
+        targetIdx = cstone::shflSync(targetIdx, 0);
 
-    // starting from CUDA 11.3, dynamic stack allocation is available with the following command
-    // int* neighbors = (int*)alloca(ngmax * sizeof(int));
+        if (targetIdx >= numTargets) return;
 
-    cstone::findNeighbors(i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount,
-                          numParticles, ngmax);
-    neighborsCount = stl::min(neighborsCount, ngmax);
+        cstone::LocalIndex bodyBegin = first + targetIdx * TravConfig::targetSize;
+        cstone::LocalIndex bodyEnd   = cstone::imin(bodyBegin + TravConfig::targetSize, last);
+        cstone::LocalIndex i         = bodyBegin + laneIdx;
 
-    auto [kxi, gradhi] = veDefGradhJLoop(i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, wh, whd, xm);
+        auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
 
-    kx[i]    = kxi;
-    gradh[i] = gradhi;
+        if (i >= last) continue;
+
+        unsigned ncCapped          = stl::min(ncTrue[0], ngmax);
+        util::tie(kx[i], gradh[i]) = veDefGradhJLoop<TravConfig::targetSize>(
+            i, sincIndex, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, h, m, wh, whd, xm);
+    }
 }
 
 template<class Dataset>
 void computeVeDefGradh(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
                        const cstone::Box<typename Dataset::RealType>& box)
 {
-    using T = typename Dataset::RealType;
+    unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
+    unsigned numBodies        = endIndex - startIndex;
+    unsigned numWarps         = (numBodies - 1) / TravConfig::targetSize + 1;
+    unsigned numBlocks        = (numWarps - 1) / numWarpsPerBlock + 1;
+    numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
-    // number of locally present particles, including halos
-    size_t sizeWithHalos       = d.x.size();
-    size_t numParticlesCompute = endIndex - startIndex;
+    unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
+    unsigned nidxSize = ngmax * numBlocks * TravConfig::numThreads;
+    reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
+    auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
+    auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
 
-    unsigned numThreads = 128;
-    unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
+    cstone::resetTraversalCounters<<<1, 1>>>();
 
-    veDefGradhGpu<<<numBlocks, numThreads>>>(
-        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, sizeWithHalos, rawPtr(d.devData.keys), rawPtr(d.devData.x),
-        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh),
-        rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx), rawPtr(d.devData.gradh));
+    veDefGradhGpu<<<numBlocks, TravConfig::numThreads>>>(
+        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x), rawPtr(d.devData.y),
+        rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd),
+        rawPtr(d.devData.xm), rawPtr(d.devData.kx), rawPtr(d.devData.gradh), nidxPool, traversalPool);
 
     checkGpuErrors(cudaDeviceSynchronize());
 }

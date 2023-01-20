@@ -121,16 +121,16 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     util::array<double, 10> quantities, globalQuantities;
     std::fill(globalQuantities.begin(), globalQuantities.end(), double(0));
 
-    quantities[0]  = eKin;
-    quantities[1]  = eInt;
-    quantities[2]  = d.egrav;
-    quantities[3]  = linmom[0];
-    quantities[4]  = linmom[1];
-    quantities[5]  = linmom[2];
-    quantities[6]  = angmom[0];
-    quantities[7]  = angmom[1];
-    quantities[8]  = angmom[2];
-    quantities[9]  = double(ncsum);
+    quantities[0] = eKin;
+    quantities[1] = eInt;
+    quantities[2] = d.egrav;
+    quantities[3] = linmom[0];
+    quantities[4] = linmom[1];
+    quantities[5] = linmom[2];
+    quantities[6] = angmom[0];
+    quantities[7] = angmom[1];
+    quantities[8] = angmom[2];
+    quantities[9] = double(ncsum);
 
     int rootRank = 0;
     MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<double>{}, MPI_SUM, rootRank,

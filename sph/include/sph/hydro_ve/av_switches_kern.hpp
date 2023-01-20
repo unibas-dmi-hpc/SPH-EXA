@@ -41,7 +41,7 @@
 namespace sph
 {
 
-template<class Tc, class T>
+template<size_t stride = 1, class Tc, class T>
 HOST_DEVICE_FUN inline T
 AVswitchesJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
                 unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz,
@@ -79,7 +79,7 @@ AVswitchesJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& bo
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
-        cstone::LocalIndex j = neighbors[pj];
+        cstone::LocalIndex j = neighbors[stride * pj];
 
         T rx = xi - x[j];
         T ry = yi - y[j];
