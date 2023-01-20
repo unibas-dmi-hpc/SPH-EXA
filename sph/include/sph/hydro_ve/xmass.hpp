@@ -69,15 +69,12 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Datase
     }
 }
 
-template<typename Tc, class KeyType, class Dataset>
-void computeXMass(size_t startIndex, size_t endIndex, int ngmax,
-                  Dataset& d,
-                  cstone::OctreeNsView<Tc, KeyType> treeView,
-                  const cstone::Box<Tc>& box)
+template<typename Tc, class Dataset>
+void computeXMass(size_t startIndex, size_t endIndex, int ngmax, Dataset& d, const cstone::Box<Tc>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeXMass(startIndex, endIndex, ngmax, d, treeView, box);
+        cuda::computeXMass(startIndex, endIndex, ngmax, d, box);
     }
     else { computeXMassImpl(startIndex, endIndex, ngmax, d, box); }
 }

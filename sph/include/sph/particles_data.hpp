@@ -37,6 +37,7 @@
 #include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/tree/accel_switch.hpp"
 #include "cstone/tree/definitions.h"
+#include "cstone/tree/octree.hpp"
 #include "cstone/util/reallocate.hpp"
 
 #include "sph/kernels.hpp"
@@ -146,6 +147,7 @@ public:
 
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
     std::vector<cstone::LocalIndex> neighbors;
+    cstone::OctreeNsView<RealType, KeyType> treeView;
 
     DeviceData_t<AccType, T, KeyType> devData;
 

@@ -72,8 +72,7 @@ __global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc>
 
         cstone::LocalIndex i = bodyBegin + laneIdx;
 
-        auto ncTrue =
-            traverseNeighbors(bodyBegin, bodyEnd, {1, 9}, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
+        auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
 
         if (i >= last) continue;
 
@@ -86,8 +85,7 @@ __global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc>
 
 template<class Dataset>
 void computeXMass(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
-                  cstone::OctreeNsView<typename Dataset::RealType, typename Dataset::KeyType> treeView,
-                  const cstone::Box<typename Dataset::RealType>&                              box)
+                  const cstone::Box<typename Dataset::RealType>& box)
 {
     using T       = typename Dataset::RealType;
     using KeyType = typename Dataset::KeyType;
@@ -109,7 +107,7 @@ void computeXMass(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     xmassGpu<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, treeView, rawPtr(d.devData.nc), rawPtr(d.devData.x),
+        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.nc), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh),
         rawPtr(d.devData.whd), rawPtr(d.devData.xm), nidxPool, traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
@@ -117,7 +115,7 @@ void computeXMass(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d
 
 #define COMPUTE_XMASS_GPU(RealType, KeyType)                                                                           \
     template void computeXMass(size_t, size_t, unsigned, sphexa::ParticlesData<RealType, KeyType, cstone::GpuTag>& d,  \
-                               cstone::OctreeNsView<RealType, KeyType>, const cstone::Box<RealType>&)
+                               const cstone::Box<RealType>&)
 
 COMPUTE_XMASS_GPU(double, unsigned);
 COMPUTE_XMASS_GPU(double, uint64_t);

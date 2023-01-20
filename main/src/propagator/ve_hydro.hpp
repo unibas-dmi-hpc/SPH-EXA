@@ -127,6 +127,7 @@ public:
             domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
                         std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d));
         }
+        d.treeView = domain.octreeNsViewAcc();
     }
 
     void computeForces(DomainType& domain, DataType& simData)
@@ -148,7 +149,7 @@ public:
         findNeighborsSfc(first, last, ngmax_, d, domain.octreeNsViewAcc(), domain.box());
         timer.step("FindNeighbors");
 
-        computeXMass(first, last, ngmax_, d, domain.octreeNsViewAcc(), domain.box());
+        computeXMass(first, last, ngmax_, d, domain.box());
         timer.step("XMass");
         domain.exchangeHalos(std::tie(get<"xm">(d)), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
