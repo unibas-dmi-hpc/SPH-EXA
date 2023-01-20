@@ -33,3 +33,21 @@
 #include "cstone/sfc/sfc.hpp"
 
 using namespace cstone;
+
+TEST(SFC, commonNodePrefix)
+{
+    using T       = double;
+    using KeyType = unsigned;
+
+    Box<T> box(0, 1);
+
+    {
+        auto key = commonNodePrefix<HilbertKey<KeyType>>(Vec3<T>{0.7, 0.2, 0.2}, Vec3<T>{0.01, 0.01, 0.01}, box);
+        EXPECT_EQ(key, 0000176134);
+    }
+    {
+        auto key = commonNodePrefix<HilbertKey<KeyType>>(Vec3<T>{0.2393, 0.3272, 0.29372},
+                                                         Vec3<T>{0.0012, 0.0011, 0.00098}, box);
+        EXPECT_EQ(key, 0000104322);
+    }
+}

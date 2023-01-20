@@ -56,207 +56,10 @@ TEST(FindNeighbors, distanceSqPbc)
     }
 }
 
-TEST(FindNeighbors, treeLevel)
-{
-    EXPECT_EQ(3, radiusToTreeLevel(0.124, 1.));
-    EXPECT_EQ(2, radiusToTreeLevel(0.126, 1.));
-}
-
-/*! @brief find neighbor boxes around a particles centered in (1,1,1) box
- *
- * The particles (x,y,z) is centered in the (ix,iy,iz) = (1,1,1) node
- * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<KeyType>{}]
- * The minimum radius to hit all neighboring (ix+-1,iy+-1,iz+-1) nodes is sqrt(3/4)
- * and this is checked.
- */
-template<class KeyType>
-void findNeighborBoxesInterior()
-{
-    using T = double;
-    // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / (1u << maxTreeLevel<KeyType>{});
-
-    Box<T> bbox(0, 1);
-
-    T x            = 1.5 * uL;
-    T y            = 1.5 * uL;
-    T z            = 1.5 * uL;
-    T radius       = 0.867 * uL;
-    T radiusSq     = radius * radius;
-    unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
-
-    KeyType neighborCodes[27];
-    auto pbi   = findNeighborBoxes(x, y, z, radiusSq, level, bbox, neighborCodes);
-    int nBoxes = pbi[0];
-
-    EXPECT_EQ(nBoxes, 27);
-    std::sort(neighborCodes, neighborCodes + nBoxes);
-
-    std::vector<KeyType> refBoxes;
-    for (int ix = 0; ix < 3; ++ix)
-        for (int iy = 0; iy < 3; ++iy)
-            for (int iz = 0; iz < 3; ++iz)
-            {
-                refBoxes.push_back(iSfcKey<KeyType>(ix, iy, iz));
-            }
-    std::sort(begin(refBoxes), end(refBoxes));
-
-    std::vector<KeyType> probeBoxes(neighborCodes, neighborCodes + nBoxes);
-    EXPECT_EQ(probeBoxes, refBoxes);
-
-    // now, the 8 farthest corners are not hit any more
-    radius   = 0.866 * uL;
-    radiusSq = radius * radius;
-    level    = radiusToTreeLevel(radius, bbox.minExtent());
-    pbi      = findNeighborBoxes(x, y, z, radiusSq, level, bbox, neighborCodes);
-    EXPECT_EQ(pbi[0], 19);
-}
-
-TEST(FindNeighbors, findNeighborBoxesInterior)
-{
-    findNeighborBoxesInterior<MortonKey<unsigned>>();
-    findNeighborBoxesInterior<MortonKey<uint64_t>>();
-    findNeighborBoxesInterior<HilbertKey<unsigned>>();
-    findNeighborBoxesInterior<HilbertKey<uint64_t>>();
-}
-
-/*! @brief find neighbor boxes around a particles centered in (1,1,1) box
- *
- * The particle (x,y,z) is centered in the (ix,iy,iz) = (0,0,0) node
- * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<KeyType>{}]
- * The minimum radius to hit all neighboring (ix+1,iy+1,iz+1) nodes is sqrt(3/4)
- * and this is checked. All negative offsets correspond to non-existing boxes
- * for this case that doesn't use PBC, such that there are only 8 boxes found.
- */
-template<class KeyType>
-void findNeighborBoxesCorner()
-{
-    using T = double;
-    // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / (1u << maxTreeLevel<KeyType>{});
-
-    Box<T> bbox(0, 1);
-    T halfUnitDiagonal = 0.867; // slightly more than sqrt(3) / 2
-
-    T x            = 0.5 * uL;
-    T y            = 0.5 * uL;
-    T z            = 0.5 * uL;
-    T radius       = halfUnitDiagonal * uL;
-    unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
-
-    KeyType neighborCodes[27];
-    auto pbi   = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
-    int nBoxes = pbi[0];
-
-    EXPECT_EQ(nBoxes, 8);
-    std::sort(neighborCodes, neighborCodes + nBoxes);
-
-    std::vector<KeyType> refBoxes;
-    for (int ix = 0; ix < 2; ++ix)
-        for (int iy = 0; iy < 2; ++iy)
-            for (int iz = 0; iz < 2; ++iz)
-            {
-                refBoxes.push_back(iSfcKey<KeyType>(ix, iy, iz));
-            }
-    std::sort(begin(refBoxes), end(refBoxes));
-
-    std::vector<KeyType> probeBoxes(neighborCodes, neighborCodes + nBoxes);
-    EXPECT_EQ(probeBoxes, refBoxes);
-}
-
-TEST(FindNeighbors, findNeighborBoxesCorner)
-{
-    findNeighborBoxesCorner<MortonKey<unsigned>>();
-    findNeighborBoxesCorner<MortonKey<uint64_t>>();
-    findNeighborBoxesCorner<HilbertKey<unsigned>>();
-    findNeighborBoxesCorner<HilbertKey<uint64_t>>();
-}
-
-template<class KeyType>
-void findNeighborBoxesUpperCorner()
-{
-    using T = double;
-    // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / (1u << maxTreeLevel<KeyType>{});
-
-    Box<T> bbox(0, 1);
-    T halfUnitDiagonal = 0.867; // slightly more than sqrt(3) / 2
-
-    unsigned level    = 3;
-    unsigned nodeEdge = 1u << (maxTreeLevel<KeyType>{} - level);
-    T nodeEdgeF       = nodeEdge * uL;
-
-    // point centered in the level-3 box with coordinates (0, 0, 7)
-    T x      = nodeEdgeF / 2;
-    T y      = nodeEdgeF / 2;
-    T z      = 7.5 * nodeEdgeF;
-    T radius = halfUnitDiagonal * nodeEdgeF;
-
-    KeyType neighborCodes[27];
-    auto pbi   = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
-    int nBoxes = pbi[0];
-
-    EXPECT_EQ(nBoxes, 8);
-    std::sort(neighborCodes, neighborCodes + nBoxes);
-
-    // all level-3 boxes that touch (0, 0, 7)
-    std::vector<KeyType> refBoxes;
-    for (int ix = 0; ix < 2; ++ix)
-        for (int iy = 0; iy < 2; ++iy)
-            for (int iz = 6; iz < 8; ++iz)
-            {
-                KeyType refKey = enclosingBoxCode(iSfcKey<KeyType>(ix * nodeEdge, iy * nodeEdge, iz * nodeEdge), level);
-                refBoxes.push_back(refKey);
-            }
-    std::sort(begin(refBoxes), end(refBoxes));
-
-    std::vector<KeyType> probeBoxes(neighborCodes, neighborCodes + nBoxes);
-    EXPECT_EQ(probeBoxes, refBoxes);
-}
-
-TEST(FindNeighbors, findNeighborBoxesUpperCorner)
-{
-    findNeighborBoxesUpperCorner<MortonKey<unsigned>>();
-    findNeighborBoxesUpperCorner<MortonKey<uint64_t>>();
-    findNeighborBoxesUpperCorner<HilbertKey<unsigned>>();
-    findNeighborBoxesUpperCorner<HilbertKey<uint64_t>>();
-}
-
-template<class KeyType>
-void findNeighborBoxesCornerPbc()
-{
-    using T = double;
-    // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / (1u << maxTreeLevel<KeyType>{});
-
-    Box<T> bbox(0, 1, BoundaryType::periodic);
-
-    T x            = 0.5 * uL;
-    T y            = 0.5 * uL;
-    T z            = 0.5 * uL;
-    T radius       = 0.867 * uL;
-    unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
-
-    KeyType neighborCodes[27];
-    auto pbi    = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
-    int nBoxes  = pbi[0];
-    int iBoxPbc = pbi[1];
-
-    EXPECT_EQ(nBoxes, 8);
-    EXPECT_EQ(iBoxPbc, 8);
-}
-
-TEST(FindNeighbors, findNeighborBoxesCornerPbc)
-{
-    findNeighborBoxesCornerPbc<MortonKey<unsigned>>();
-    findNeighborBoxesCornerPbc<MortonKey<uint64_t>>();
-    findNeighborBoxesCornerPbc<HilbertKey<unsigned>>();
-    findNeighborBoxesCornerPbc<HilbertKey<uint64_t>>();
-}
-
 template<class Coordinates, class T>
 void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
 {
+    using KeyType        = typename Coordinates::KeyType::ValueType;
     cstone::LocalIndex n = coords.x().size();
     unsigned ngmax       = n;
 
@@ -271,9 +74,31 @@ void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
     std::vector<LocalIndex> neighborsProbe(n * ngmax);
     std::vector<unsigned> neighborsCountProbe(n);
 
-    auto particleKeys = (typename Coordinates::KeyType*)(coords.particleKeys().data());
-    findNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), 0, n, n, box, particleKeys,
-                  neighborsProbe.data(), neighborsCountProbe.data(), ngmax);
+    auto sfcKeys = coords.particleKeys().data();
+
+    unsigned bucketSize   = 64;
+    auto [csTree, counts] = computeOctree(sfcKeys, sfcKeys + n, bucketSize);
+    OctreeData<KeyType, CpuTag> octree;
+    octree.resize(nNodes(csTree));
+    updateInternalTree<KeyType>(csTree, octree.data());
+
+    std::vector<LocalIndex> layout(nNodes(csTree) + 1);
+    std::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), 0);
+
+    gsl::span<const KeyType> nodeKeys(octree.prefixes.data(), octree.numNodes);
+    std::vector<Vec3<T>> centers(octree.numNodes), sizes(octree.numNodes);
+    nodeFpCenters<KeyType>(nodeKeys, centers.data(), sizes.data(), box);
+
+    OctreeNsView<T, KeyType> nsView{octree.prefixes.data(),
+                                    octree.childOffsets.data(),
+                                    octree.internalToLeaf.data(),
+                                    octree.levelRange.data(),
+                                    layout.data(),
+                                    centers.data(),
+                                    sizes.data()};
+
+    findNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), 0, n, box, nsView, ngmax,
+                  neighborsProbe.data(), neighborsCountProbe.data());
     sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
 
     EXPECT_EQ(neighborsRef, neighborsProbe);
@@ -299,12 +124,8 @@ public:
     }
 };
 
-TEST_P(FindNeighborsRandom, MortonUniform32) { check<MortonKey<uint32_t>, RandomCoordinates>(); }
-// TEST_P(FindNeighborsRandom, MortonUniform64)   { check<MortonKey<uint64_t>, RandomCoordinates>(); }
-// TEST_P(FindNeighborsRandom, MortonGaussian32)  { check<MortonKey<uint32_t>, RandomGaussianCoordinates>(); }
-// TEST_P(FindNeighborsRandom, MortonGaussian64)  { check<MortonKey<uint64_t>, RandomGaussianCoordinates>(); }
 TEST_P(FindNeighborsRandom, HilbertUniform32) { check<HilbertKey<uint32_t>, RandomCoordinates>(); }
-// TEST_P(FindNeighborsRandom, HilbertUniform64)  { check<HilbertKey<uint64_t>, RandomCoordinates>(); }
+TEST_P(FindNeighborsRandom, HilbertUniform64) { check<HilbertKey<uint64_t>, RandomCoordinates>(); }
 TEST_P(FindNeighborsRandom, HilbertGaussian32) { check<HilbertKey<uint32_t>, RandomGaussianCoordinates>(); }
 TEST_P(FindNeighborsRandom, HilbertGaussian64) { check<HilbertKey<uint64_t>, RandomGaussianCoordinates>(); }
 

@@ -211,17 +211,17 @@ void adjustSmoothingLength(LocalIndex numParticles,
                            std::vector<Th>& hGlob,
                            const Box<Tc>& box)
 {
-    std::vector<KeyType> codesGlobal(numParticles);
+    std::vector<KeyType> sfcKeys(numParticles);
 
     std::vector<Tc> x = xGlob;
     std::vector<Tc> y = yGlob;
     std::vector<Tc> z = zGlob;
     std::vector<Tc> h = hGlob;
 
-    computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(codesGlobal.data()), numParticles, box);
+    computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(sfcKeys.data()), numParticles, box);
     std::vector<LocalIndex> ordering(numParticles);
     std::iota(ordering.begin(), ordering.end(), LocalIndex(0));
-    sort_by_key(codesGlobal.begin(), codesGlobal.end(), ordering.begin());
+    sort_by_key(sfcKeys.begin(), sfcKeys.end(), ordering.begin());
 
     std::vector<Tc> temp(x.size());
     gather<LocalIndex>(ordering, x.data(), temp.data());
@@ -241,14 +241,36 @@ void adjustSmoothingLength(LocalIndex numParticles,
     std::vector<cstone::LocalIndex> neighbors(numParticles * ngmax);
     std::vector<unsigned> neighborCounts(numParticles);
 
+    unsigned bucketSize   = 64;
+    auto [csTree, counts] = computeOctree(sfcKeys.data(), sfcKeys.data() + numParticles, bucketSize);
+    OctreeData<KeyType, CpuTag> octree;
+    octree.resize(nNodes(csTree));
+    updateInternalTree<KeyType>(csTree, octree.data());
+
+    std::vector<LocalIndex> layout(nNodes(csTree) + 1);
+    std::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), 0);
+
+    gsl::span<const KeyType> nodeKeys(octree.prefixes.data(), octree.numNodes);
+    std::vector<Vec3<Tc>> centers(octree.numNodes), sizes(octree.numNodes);
+    nodeFpCenters<KeyType>(nodeKeys, centers.data(), sizes.data(), box);
+
+    OctreeNsView<Tc, KeyType> nsView{octree.prefixes.data(),
+                                     octree.childOffsets.data(),
+                                     octree.internalToLeaf.data(),
+                                     octree.levelRange.data(),
+                                     layout.data(),
+                                     centers.data(),
+                                     sizes.data()};
+
     // adjust h[i] such that each particle has between ng0/2 and ngmax neighbors
+#pragma omp parallel for
     for (LocalIndex i = 0; i < numParticles; ++i)
     {
         int iteration = 0;
         do
         {
-            findNeighbors(i, x.data(), y.data(), z.data(), h.data(), box, sfcKindPointer(codesGlobal.data()),
-                          neighbors.data() + i * ngmax, neighborCounts.data() + i, numParticles, ngmax);
+            findNeighbors(i, x.data(), y.data(), z.data(), h.data(), nsView, box, ngmax, neighbors.data() + i * ngmax,
+                          neighborCounts.data() + i);
 
             const Tc c0 = 7.0;
             unsigned nn = std::max(neighborCounts[i], 1u);

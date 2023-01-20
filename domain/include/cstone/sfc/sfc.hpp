@@ -219,6 +219,19 @@ HOST_DEVICE_FUN inline IBox sfcIBox(KeyType keyStart, KeyType keyEnd) noexcept
     return sfcIBox(keyStart, treeLevel(keyEnd - keyStart));
 }
 
+//! @brief Compute the smallest octree node in placeholder-bit format that contains the given floating point box
+template<class KeyType, class T>
+HOST_DEVICE_FUN inline KeyType commonNodePrefix(Vec3<T> center, Vec3<T> size, const cstone::Box<T>& box)
+{
+    KeyType lowerKey = cstone::sfc3D<KeyType>(center[0] - size[0], center[1] - size[1], center[2] - size[2], box);
+    KeyType upperKey = cstone::sfc3D<KeyType>(center[0] + size[0], center[1] + size[1], center[2] + size[2], box);
+
+    unsigned level  = commonPrefix(lowerKey, upperKey) / 3;
+    KeyType nodeKey = enclosingBoxCode(lowerKey, level);
+
+    return KeyType(encodePlaceholderBit(nodeKey.value(), 3 * level));
+}
+
 /*! @brief returns the smallest Hilbert key contained in the shifted box
  *
  * @tparam KeyType  32- or 64-bit unsigned integer

@@ -41,7 +41,7 @@
 namespace sph
 {
 
-template<typename Tc, class T>
+template<size_t stride = 1, typename Tc, class T>
 HOST_DEVICE_FUN inline void
 divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
                 unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz,
@@ -73,7 +73,7 @@ divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& b
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
-        cstone::LocalIndex j = neighbors[pj];
+        cstone::LocalIndex j = neighbors[stride * pj];
 
         T rx = xi - x[j];
         T ry = yi - y[j];

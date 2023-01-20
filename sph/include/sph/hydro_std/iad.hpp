@@ -79,7 +79,7 @@ void computeIAD(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, 
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeIAD(startIndex, endIndex, ngmax, d, box);
+        computeIADGpu(startIndex, endIndex, ngmax, d, box);
     }
     else { computeIADImpl(startIndex, endIndex, ngmax, d, box); }
 }

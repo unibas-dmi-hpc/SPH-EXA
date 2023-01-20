@@ -136,10 +136,7 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
         return std::make_unique<WindBubble<Dataset>>(constantsFile, rhoInt, uExt, bubbleMass);
     }
 
-    if (testCase == "turbulence")
-    {
-        return std::make_unique<TurbulenceMachRMS<Dataset>>(constantsFile);
-    }
+    if (testCase == "turbulence") { return std::make_unique<TurbulenceMachRMS<Dataset>>(constantsFile); }
 
     if (testCase == "nbody") { return std::make_unique<IObservables<Dataset>>(); }
 

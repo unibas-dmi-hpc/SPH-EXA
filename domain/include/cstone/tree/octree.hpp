@@ -494,7 +494,6 @@ public:
     }
 
 private:
-
     void resize(TreeNodeIndex numCsLeafNodes)
     {
         numLeafNodes_          = numCsLeafNodes;
