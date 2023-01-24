@@ -17,8 +17,8 @@ private:
     std::vector<float>  I_2PerStep;   // distance to zero for vector based metric, name tentative
     std::vector<float>  g1PerStep;    // skewness
     std::vector<float>  g2PerStep;    // kurtosis
-    int _numRanks;
-    int _rank;
+    int                 _numRanks;
+    int                 _rank;
 
 public:
     Profiler(int rank)
