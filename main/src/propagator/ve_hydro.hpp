@@ -55,6 +55,7 @@ protected:
     using Base::ng0_;
     using Base::ngmax_;
     using Base::timer;
+    using Base::profiler;
 
     using T             = typename DataType::RealType;
     using KeyType       = typename DataType::KeyType;
@@ -217,6 +218,7 @@ public:
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 
+        profiler.gatherTimings(timer.duration(), d.iteration);
         timer.stop();
     }
 
@@ -272,6 +274,11 @@ public:
 
         if (!outputFields.empty()) { std::cout << "WARNING: not all fields were output" << std::endl; }
     }
+    
+    void printProfilingInfo() override
+    {
+        profiler.printProfilingInfo();
+    } 
 };
 
 } // namespace sphexa

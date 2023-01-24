@@ -58,6 +58,7 @@ class TurbVeProp final : public HydroVeProp<avClean, DomainType, DataType>
     using Base::ngmax_;
     using Base::rank_;
     using Base::timer;
+    using Base::profiler;
 
     using RealType = typename DataType::RealType;
 
@@ -88,6 +89,7 @@ public:
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 
+        profiler.gatherTimings(timer.duration(), d.iteration);
         timer.stop();
     }
 
@@ -107,6 +109,11 @@ public:
         if (rank_ == 0) { std::cout << "Restored phases and RNG state from file" << std::endl; }
         reader->closeStep();
     }
+
+    void printProfilingInfo() override
+    {
+        profiler.printProfilingInfo();
+    } 
 };
 
 } // namespace sphexa
