@@ -100,8 +100,8 @@ public:
 
 protected:
     ProfilingTimer timer;
-    std::ostream&      out;
-    Profiler profiler;
+    std::ostream&  out;
+    Profiler       profiler;
 
     size_t rank_;
     //! maximum number of neighbors per particle

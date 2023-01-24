@@ -56,9 +56,9 @@ class TurbVeProp final : public HydroVeProp<avClean, DomainType, DataType>
     using Base = HydroVeProp<avClean, DomainType, DataType>;
     using Base::ng0_;
     using Base::ngmax_;
+    using Base::profiler;
     using Base::rank_;
     using Base::timer;
-    using Base::profiler;
 
     using RealType = typename DataType::RealType;
 
@@ -110,10 +110,7 @@ public:
         reader->closeStep();
     }
 
-    void printProfilingInfo() override
-    {
-        profiler.printProfilingInfo();
-    } 
+    void printProfilingInfo() override { profiler.printProfilingInfo(); }
 };
 
 } // namespace sphexa
