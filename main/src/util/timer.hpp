@@ -89,7 +89,7 @@ public:
 
     void step(const std::string& name)
     {
-        std::string name_per_rank = "RANK" +std::to_string(rank) + " " + name;
+        std::string name_per_rank = "RANK" + std::to_string(rank) + " " + name;
         Timer::step(name_per_rank);
     }
 
