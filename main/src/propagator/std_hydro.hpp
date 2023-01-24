@@ -52,6 +52,7 @@ class HydroProp final : public Propagator<DomainType, DataType>
 {
     using Base = Propagator<DomainType, DataType>;
     using Base::timer;
+    using Base::profiler;
 
     using T             = typename DataType::RealType;
     using KeyType       = typename DataType::KeyType;
@@ -172,6 +173,7 @@ public:
         updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");
 
+        profiler.gatherTimings(timer.duration(), d.iteration);
         timer.stop();
     }
 
@@ -202,6 +204,11 @@ public:
 
         output();
     }
+
+    void printProfilingInfo() override
+    {
+        profiler.printProfilingInfo();
+    } 
 };
 
 } // namespace sphexa

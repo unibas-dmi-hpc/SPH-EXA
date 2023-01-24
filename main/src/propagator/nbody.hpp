@@ -52,6 +52,7 @@ class NbodyProp final : public Propagator<DomainType, DataType>
 {
     using Base = Propagator<DomainType, DataType>;
     using Base::timer;
+    using Base::profiler;
 
     using T             = typename DataType::RealType;
     using KeyType       = typename DataType::KeyType;
@@ -152,6 +153,11 @@ public:
 
         timer.stop();
     }
+
+    void printProfilingInfo() override
+    {
+        profiler.printProfilingInfo();
+    } 
 };
 
 } // namespace sphexa

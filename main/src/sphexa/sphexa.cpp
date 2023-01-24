@@ -178,6 +178,7 @@ int main(int argc, char** argv)
     {
         totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
                         initCond + " up to t = " + std::to_string(d.ttot));
+        propagator->printProfilingInfo();
     }
 
     constantsFile.close();

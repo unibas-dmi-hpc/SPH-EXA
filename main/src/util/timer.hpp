@@ -78,4 +78,28 @@ private:
     int rank;
 };
 
+class ProfilingTimer : public Timer
+{
+public:
+    ProfilingTimer(std::ostream& out, int rank)
+        : Timer(out)
+        , rank(rank)
+    {
+    }
+
+    void step(const std::string& name)
+    {
+        std::string name_per_rank = "RANK" +std::to_string(rank) + " " + name;
+        Timer::step(name_per_rank);
+    }
+
+    void stop()
+    {
+        if (rank == 0) Timer::stop();
+    }
+
+private:
+    int rank;
+};
+
 } // namespace sphexa
