@@ -275,7 +275,7 @@ public:
 
         if (!outputFields.empty()) { std::cout << "WARNING: not all fields were output" << std::endl; }
     }
-    
+
     void printProfilingInfo() override { profiler.printProfilingInfo(); }
 };
 

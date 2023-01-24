@@ -54,7 +54,7 @@ public:
             std::cout << std::endl;
         }
     }
-    
+
     void gatherTimings(float duration, size_t iteration)
     {
         // float* dur = timeSteps.at(iteration-1);
