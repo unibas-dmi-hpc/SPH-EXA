@@ -3,6 +3,7 @@
 #include <chrono>
 #include <iostream>
 #include <functional>
+#include "profiler.hpp"
 
 #if defined(USE_PROFILING_NVTX) || defined(USE_PROFILING_SCOREP)
 
@@ -84,6 +85,7 @@ public:
     ProfilingTimer(std::ostream& out, int rank)
         : Timer(out)
         , rank(rank)
+        , profiler(rank)
     {
     }
 
@@ -93,13 +95,25 @@ public:
         Timer::step(name_per_rank);
     }
 
+    void profilingStop(size_t iteration)
+    {
+        profiler.gatherTimings(duration(), iteration);
+        stop();
+    }
+
     void stop()
     {
         if (rank == 0) Timer::stop();
     }
 
+    void printProfilingInfo()
+    {
+        profiler.printProfilingInfo();
+    }
+
 private:
     int rank;
+    Profiler profiler;
 };
 
 } // namespace sphexa

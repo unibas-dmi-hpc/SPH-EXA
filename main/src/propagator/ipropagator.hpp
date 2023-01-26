@@ -36,7 +36,6 @@
 
 #include "util/timer.hpp"
 #include "io/ifile_io.hpp"
-#include "util/profiler.hpp"
 
 namespace sphexa
 {
@@ -76,7 +75,7 @@ public:
     virtual void load(const std::string& path, MPI_Comm comm){};
 
     //! @brief print timing info and calculated metrics
-    virtual void printProfilingInfo(){};
+    void printProfilingInfo(){ timer.printProfilingInfo(); };
 
     virtual ~Propagator() = default;
 

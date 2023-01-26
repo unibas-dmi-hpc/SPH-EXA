@@ -174,8 +174,9 @@ public:
         updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");
 
-        profiler.gatherTimings(timer.duration(), d.iteration);
-        timer.stop();
+        // profiler.gatherTimings(timer.duration(), d.iteration);
+        // timer.stop();
+        timer.profilingStop(d.iteration);
     }
 
     void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
@@ -205,8 +206,6 @@ public:
 
         output();
     }
-
-    void printProfilingInfo() override { profiler.printProfilingInfo(); }
 };
 
 } // namespace sphexa

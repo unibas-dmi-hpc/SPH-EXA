@@ -10,13 +10,15 @@ namespace sphexa
 class Profiler
 {
 private:
-    std::vector<float*> timeSteps;    // vector of timesteps for all ranks
-    std::vector<float>  meanPerStep;  // mean (average)
-    std::vector<float>  stdevPerStep; // standard deviation
-    std::vector<float>  covPerStep;   // c.o.v = std / mean
-    std::vector<float>  I_2PerStep;   // distance to zero for vector based metric, name tentative
-    std::vector<float>  g1PerStep;    // skewness
-    std::vector<float>  g2PerStep;    // kurtosis
+    std::vector<float*> timeSteps;     // vector of timesteps for all ranks
+    std::vector<float>  meanPerStep;   // mean (average)
+    std::vector<float>  stdevPerStep;  // standard deviation
+    std::vector<float>  covPerStep;    // c.o.v = std / mean
+    std::vector<float>  lambdaPerStep; // lambda = (Lmax / Lmean - 1) * 100%
+    std::vector<float*> vectorMetric;  // vector based metric calculation
+    std::vector<float>  I_2PerStep;    // distance to zero for vector based metric, name tentative
+    std::vector<float>  g1PerStep;     // skewness
+    std::vector<float>  g2PerStep;     // kurtosis
     int                 _numRanks;
     int                 _rank;
 
@@ -41,15 +43,24 @@ public:
         if (_rank == 0)
         {
             size_t iter = 1;
+            // std::cout << std::setw(15) << "TIME-STEPS";
+            for (int i = 0; i < _numRanks; i++)
+            {
+                std::cout << std::setw(15) << "RANK" << i;
+            }
+            std::cout << std::setw(15) << " mean" << std::setw(15) << " stdev";
+            std::cout << std::setw(15) << " C.o.V." << std::setw(15) << " I_2";
+            std::cout << std::endl;
             for (auto& element : timeSteps)
             {
-                std::cout << std::endl << "time-step = " << iter << ",\t";
+                // std::cout << std::endl << std::setw(15) << "step = " << iter;
                 for (int i = 0; i < _numRanks; i++)
                 {
                     std::cout << std::setw(15) << element[i] << ",";
                 }
                 printMetrics(iter - 1);
                 iter++;
+                std::cout << std::endl;
             }
             std::cout << std::endl;
         }
@@ -75,16 +86,27 @@ public:
     // LiB metrics calculations
     void calculateMetrics(float* durations)
     {
-        std::vector<float> durData(durations, durations + _numRanks);
+        const std::vector<float> durData(durations, durations + _numRanks);
+        float* vecMetric = new float[_numRanks];
 
         float mean   = std::reduce(durData.begin(), durData.end()) / durData.size();
         float sq_sum = std::inner_product(durData.begin(), durData.end(), durData.begin(), 0.0);
         float stdev  = std::sqrt(sq_sum / durData.size() - mean * mean);
+        float Lmax   = *std::max_element(durData.begin(), durData.end());
+        float lambda = (Lmax/mean - 1.0f) * 100;
+
+        for (int i = 0; i < _numRanks; i++)
+        {
+            vecMetric[i] = 1 - (durData.at(i) / mean);
+        }
+        float sumsqVector = std::inner_product(vecMetric, vecMetric + _numRanks, vecMetric, 0.0);
 
         meanPerStep.push_back(mean);
         stdevPerStep.push_back(stdev);
+        lambdaPerStep.push_back(lambda);
         covPerStep.push_back(stdev / mean);
-        I_2PerStep.push_back(std::sqrt(sq_sum));
+        vectorMetric.push_back(vecMetric);
+        I_2PerStep.push_back(std::sqrt(sumsqVector));
     }
 };
 

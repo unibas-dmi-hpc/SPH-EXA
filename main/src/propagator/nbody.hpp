@@ -154,8 +154,6 @@ public:
 
         timer.stop();
     }
-
-    void printProfilingInfo() override { profiler.printProfilingInfo(); }
 };
 
 } // namespace sphexa
