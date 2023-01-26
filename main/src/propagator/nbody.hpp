@@ -51,7 +51,6 @@ class NbodyProp final : public Propagator<DomainType, DataType>
     using Base = Propagator<DomainType, DataType>;
     using Base::ng0_;
     using Base::ngmax_;
-    using Base::profiler;
     using Base::timer;
 
     using T             = typename DataType::RealType;
@@ -156,11 +155,10 @@ public:
                       << stats[3] << " maxP2Pglobal " << maxP2Pglobal << std::endl;
         }
 
-        profiler.gatherTimings(timer.duration(), d.iteration);
-        timer.stop();
+        // profiler.gatherTimings(timer.duration(), d.iteration);
+        // timer.stop();
+        timer.profilingStop(d.iteration);
     }
-
-    void printProfilingInfo() override { profiler.printProfilingInfo(); }
 };
 
 } // namespace sphexa

@@ -36,7 +36,6 @@
 
 #include "util/timer.hpp"
 #include "io/ifile_io.hpp"
-#include "util/profiler.hpp"
 
 namespace sphexa
 {
@@ -53,7 +52,6 @@ public:
         , rank_(rank)
         , ngmax_(ngmax)
         , ng0_(ng0)
-        , profiler(rank)
     {
     }
 
@@ -79,7 +77,7 @@ public:
     virtual void load(const std::string& path, MPI_Comm comm){};
 
     //! @brief print timing info and calculated metrics
-    virtual void printProfilingInfo(){};
+    void printProfilingInfo(){ timer.printProfilingInfo(); };
 
     virtual ~Propagator() = default;
 
@@ -101,7 +99,6 @@ public:
 protected:
     ProfilingTimer timer;
     std::ostream&  out;
-    Profiler       profiler;
 
     size_t rank_;
     //! maximum number of neighbors per particle

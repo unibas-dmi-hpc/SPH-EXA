@@ -55,7 +55,6 @@ class HydroGrackleProp final : public Propagator<DomainType, DataType>
     using Base = Propagator<DomainType, DataType>;
     using Base::ng0_;
     using Base::ngmax_;
-    using Base::profiler;
     using Base::timer;
 
     using T             = typename DataType::RealType;
@@ -225,8 +224,9 @@ public:
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 
-        profiler.gatherTimings(timer.duration(), d.iteration);
-        timer.stop();
+        // profiler.gatherTimings(timer.duration(), d.iteration);
+        // timer.stop();
+        timer.profilingStop(d.iteration);
     }
 
     void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
@@ -256,8 +256,6 @@ public:
 
         output();
     }
-
-    void printProfilingInfo() override { profiler.printProfilingInfo(); }
 };
 
 } // namespace sphexa
