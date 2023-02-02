@@ -74,8 +74,8 @@ class NbodyProp final : public Propagator<DomainType, DataType>
     using DependentFields = FieldList<"ax", "ay", "du", "az">;
 
 public:
-    NbodyProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : Base(ngmax, ng0, output, rank)
+    NbodyProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool isProfilingEnabled)
+        : Base(ngmax, ng0, output, rank, isProfilingEnabled)
     {
     }
 

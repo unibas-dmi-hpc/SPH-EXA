@@ -64,8 +64,8 @@ class TurbVeProp final : public HydroVeProp<avClean, DomainType, DataType>
     sph::TurbulenceData<RealType, typename DataType::AcceleratorType> turbulenceData;
 
 public:
-    TurbVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : Base(ngmax, ng0, output, rank)
+    TurbVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool isProfilingEnabled)
+        : Base(ngmax, ng0, output, rank, isProfilingEnabled)
         , turbulenceData(TurbulenceConstants(), rank == 0)
     {
     }

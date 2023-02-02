@@ -46,8 +46,8 @@ class Propagator
     using T = typename ParticleDataType::RealType;
 
 public:
-    Propagator(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : timer(output, rank)
+    Propagator(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool isProfilingEnabled)
+        : timer(output, rank, isProfilingEnabled)
         , out(output)
         , rank_(rank)
         , ngmax_(ngmax)

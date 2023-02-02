@@ -87,8 +87,8 @@ class HydroGrackleProp final : public Propagator<DomainType, DataType>
                   "RT_H2_dissociation_rate", "H2_self_shielding_length">;
 
 public:
-    HydroGrackleProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : Base(ngmax, ng0, output, rank)
+    HydroGrackleProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool isProfilingEnabled)
+        : Base(ngmax, ng0, output, rank, isProfilingEnabled)
     {
         constexpr float                 ms_sim = 1e16;
         constexpr float                 kp_sim = 46400.;

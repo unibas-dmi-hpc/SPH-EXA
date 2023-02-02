@@ -92,6 +92,7 @@ int main(int argc, char** argv)
     const bool               avClean           = parser.exists("--avclean");
     const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
     const bool               writeEnabled      = writeFrequencyStr != "0" || !writeExtra.empty();
+    const bool               profilingEnabled  = parser.exists("--profiling");
 
     size_t ngmax = 150;
     size_t ng0   = 100;
@@ -102,7 +103,7 @@ int main(int argc, char** argv)
 
     //! @brief evaluate user choice for different kind of actions
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
-    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, ngmax, ng0, output, rank);
+    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, ngmax, ng0, output, rank, profilingEnabled);
     auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
@@ -178,7 +179,7 @@ int main(int argc, char** argv)
     {
         totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
                         initCond + " up to t = " + std::to_string(d.ttot));
-        propagator->printProfilingInfo();
+        if (profilingEnabled) propagator->printProfilingInfo();
     }
 
     constantsFile.close();
