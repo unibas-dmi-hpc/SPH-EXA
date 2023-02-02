@@ -27,22 +27,24 @@ private:
     int                 _numFunctions;
     int                 _numRanks;
     int                 _rank;
+    std::ofstream       profilingFile;
 
 public:
     Profiler(int rank)
         : _rank(rank)
     {
         MPI_Comm_size(MPI_COMM_WORLD, &_numRanks);
+        if (_rank == 0) profilingFile.open("profiling.txt");
     }
     ~Profiler() {}
 
     void printMetrics(int iteration)
     {
-        std::cout << std::setw(15) << meanPerStep.at(iteration) << "," << std::setw(15) << stdevPerStep.at(iteration)
+        profilingFile << std::setw(15) << meanPerStep.at(iteration) << "," << std::setw(15) << stdevPerStep.at(iteration)
                   << ",";
-        std::cout << std::setw(15) << covPerStep.at(iteration) << "," << std::setw(15) << I_2PerStep.at(iteration)
+        profilingFile << std::setw(15) << covPerStep.at(iteration) << "," << std::setw(15) << I_2PerStep.at(iteration)
                   << ",";
-        std::cout << std::setw(15) << lambdaPerStep.at(iteration); // << ","; << std::setw(15) << I_2PerStep.at(iteration) << ",";
+        profilingFile << std::setw(15) << lambdaPerStep.at(iteration); // << ","; << std::setw(15) << I_2PerStep.at(iteration) << ",";
     }
 
     void printProfilingInfo()
@@ -50,28 +52,30 @@ public:
         if (_rank == 0)
         {
             size_t iter = 1;
-            std::cout << std::setw(3) << " ";
+            profilingFile << std::setw(3) << " ";
             for (int i = 0; i < _numRanks; i++)
             {
-                std::cout << std::setw(15) << "RANK" << i;
+                profilingFile << std::setw(15) << "RANK" << i;
             }
-            std::cout << std::setw(16) << " mean" << std::setw(16) << " stdev";
-            std::cout << std::setw(16) << " C.o.V." << std::setw(16) << " I_2";
-            std::cout << std::setw(16) << " lambda" << std::endl;
+            profilingFile << std::setw(16) << " mean" << std::setw(16) << " stdev";
+            profilingFile << std::setw(16) << " C.o.V." << std::setw(16) << " I_2";
+            profilingFile << std::setw(16) << " lambda" << std::endl;
             for (auto& element : timeSteps)
             {
                 calculateMetrics(element);
-                std::cout << std::setw(3) << iter << " ";
+                profilingFile << std::setw(3) << iter << " ";
                 for (int i = 0; i < _numRanks; i++)
                 {
-                    std::cout << std::setw(15) << element[i] << ",";
+                    profilingFile << std::setw(15) << element[i] << ",";
                 }
                 printMetrics(iter - 1);
                 iter++;
-                std::cout << std::endl;
+                profilingFile << std::endl;
             }
-            std::cout << std::endl;
+            profilingFile << std::endl;
+            std::cout << "Profiling data written." << std::endl;
         }
+        profilingFile.close();
     }
 
     void gatherTimings(float duration)
