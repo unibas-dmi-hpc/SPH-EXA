@@ -7,18 +7,24 @@
 namespace sphexa
 {
 
+class TimeStepProfilingData
+{
+
+};
+
 class Profiler
 {
 private:
     std::vector<float*> timeSteps;     // vector of timesteps for all ranks
     std::vector<float>  meanPerStep;   // mean (average)
-    std::vector<float>  stdevPerStep;  // standard deviation
-    std::vector<float>  covPerStep;    // c.o.v = std / mean
-    std::vector<float>  lambdaPerStep; // lambda = (Lmax / Lmean - 1) * 100%
+    std::vector<double> stdevPerStep;  // standard deviation
+    std::vector<double> covPerStep;    // c.o.v = std / mean
+    std::vector<double> lambdaPerStep; // lambda = (Lmax / Lmean - 1) * 100%
     std::vector<float*> vectorMetric;  // vector based metric calculation
-    std::vector<float>  I_2PerStep;    // distance to zero for vector based metric, name tentative
+    std::vector<double> I_2PerStep;    // distance to zero for vector based metric, name tentative
     std::vector<float>  g1PerStep;     // skewness
     std::vector<float>  g2PerStep;     // kurtosis
+    int                 _numFunctions;
     int                 _numRanks;
     int                 _rank;
 
@@ -36,6 +42,7 @@ public:
                   << ",";
         std::cout << std::setw(15) << covPerStep.at(iteration) << "," << std::setw(15) << I_2PerStep.at(iteration)
                   << ",";
+        std::cout << std::setw(15) << lambdaPerStep.at(iteration); // << ","; << std::setw(15) << I_2PerStep.at(iteration) << ",";
     }
 
     void printProfilingInfo()
@@ -43,17 +50,18 @@ public:
         if (_rank == 0)
         {
             size_t iter = 1;
-            // std::cout << std::setw(15) << "TIME-STEPS";
+            std::cout << std::setw(3) << " ";
             for (int i = 0; i < _numRanks; i++)
             {
                 std::cout << std::setw(15) << "RANK" << i;
             }
-            std::cout << std::setw(15) << " mean" << std::setw(15) << " stdev";
-            std::cout << std::setw(15) << " C.o.V." << std::setw(15) << " I_2";
-            std::cout << std::endl;
+            std::cout << std::setw(16) << " mean" << std::setw(16) << " stdev";
+            std::cout << std::setw(16) << " C.o.V." << std::setw(16) << " I_2";
+            std::cout << std::setw(16) << " lambda" << std::endl;
             for (auto& element : timeSteps)
             {
-                // std::cout << std::endl << std::setw(15) << "step = " << iter;
+                calculateMetrics(element);
+                std::cout << std::setw(3) << iter << " ";
                 for (int i = 0; i < _numRanks; i++)
                 {
                     std::cout << std::setw(15) << element[i] << ",";
@@ -66,7 +74,7 @@ public:
         }
     }
 
-    void gatherTimings(float duration, size_t iteration)
+    void gatherTimings(float duration)
     {
         // float* dur = timeSteps.at(iteration-1);
         // float x = dur[iteration-1];
@@ -77,7 +85,7 @@ public:
         {
             timeSteps.push_back(durations);
             // calculate mean, stdev, c.o.v, g1, g2, I_2
-            calculateMetrics(durations);
+            // calculateMetrics(durations);
             // std::cout << "dur1 = " << durations[0] << " , dur2 = " << durations[1] << std::endl;
             // std::cout << "ts1 = " << timeSteps.back()[0] << " , ts2 = " << timeSteps.back()[1] << std::endl;
         }

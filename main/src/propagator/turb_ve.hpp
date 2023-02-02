@@ -86,7 +86,6 @@ public:
         updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");
 
-        // profiler.gatherTimings(timer.duration(), d.iteration);
         // timer.stop();
         timer.profilingStop(d.iteration);
     }

@@ -49,6 +49,14 @@ public:
 
     void stop() { tstop = Clock::now(); }
 
+    void step()
+    {
+        stop();
+        tlast = tstop;
+    }
+
+    float stepDuration() { return std::chrono::duration_cast<Time>(Clock::now() - tlast).count(); }
+
     void step(const std::string& name)
     {
         stop();
@@ -91,19 +99,15 @@ public:
 
     void step(const std::string& name)
     {
-        std::string name_per_rank = "RANK" + std::to_string(rank) + " " + name;
-        Timer::step(name_per_rank);
+        profiler.gatherTimings(stepDuration());
+        if (rank == 0) Timer::step(name);
+        else Timer::step();
     }
 
     void profilingStop(size_t iteration)
     {
-        profiler.gatherTimings(duration(), iteration);
         stop();
-    }
-
-    void stop()
-    {
-        if (rank == 0) Timer::stop();
+        profiler.gatherTimings(duration());
     }
 
     void printProfilingInfo()
