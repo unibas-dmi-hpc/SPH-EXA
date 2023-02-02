@@ -140,10 +140,10 @@ Example usage:
   Runs Sedov with 100^3 particles for 1000 iterations (time-steps) with 4 OpenMP
   threads and dumps particle xyz-coordinates, density and pressure data every 10 iterations
 * ```OMP_NUM_THREADS=4 ./sphexa-cuda --init -n 100 -s 1000 -w 10 -f x,y,z,rho,p```
-  Runs Sedov with 100^3 million particles for 1000 iterations (time-steps) with 4 OpenMP
+  Runs Sedov with 100^3 particles for 1000 iterations (time-steps) with 4 OpenMP
   threads. Uses the GPU for most of the compute work.
 * ```OMP_NUM_THREADS=4 mpiexec -np 2 ./sphexa --init noh -n 100 -s 1000 -w 10```
-  Runs Noh with 100^3 million particles for 1000 iterations (time-steps) with 2 MPI ranks of 4 OpenMP
+  Runs Noh with 100^3 particles for 1000 iterations (time-steps) with 2 MPI ranks of 4 OpenMP
   threads each. Works when using MPICH. For OpenMPI, use ```mpirun```  instead.
 * ```OMP_NUM_THREADS=12 srun -Cgpu -A<your account> -n<nnodes> -c12 ./sphexa-cuda --init sedov -n 100 -s 1000 -w 10```
   Optimal runtime configuration on Piz Daint for `nnodes` GPU compute nodes. Launches 1 MPI rank with
