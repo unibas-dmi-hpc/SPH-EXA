@@ -77,8 +77,8 @@ class HydroProp final : public Propagator<DomainType, DataType>
         FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
 
 public:
-    HydroProp(std::ostream& output, size_t rank)
-        : Base(output, rank)
+    HydroProp(std::ostream& output, size_t rank, bool isProfilingEnabled)
+        : Base(output, rank, isProfilingEnabled)
     {
     }
 
