@@ -155,7 +155,6 @@ public:
                       << stats[3] << " maxP2Pglobal " << maxP2Pglobal << std::endl;
         }
 
-        // profiler.gatherTimings(timer.duration(), d.iteration);
         // timer.stop();
         timer.profilingStop(d.iteration);
     }
