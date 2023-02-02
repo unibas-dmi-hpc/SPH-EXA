@@ -238,5 +238,7 @@ void printHelp(char* name, int rank)
         printf("\t--quiet \t Don't print anything to stdout\n\n");
 
         printf("\t--duration \t Maximum wall-clock run time of the simulation in seconds.[MAX_INT]\n\n");
+
+        printf("\t--profiling \t Collect function timings and write into profiling.txt file\n\n");
     }
 }
