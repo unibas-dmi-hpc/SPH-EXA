@@ -87,7 +87,7 @@ public:
         timer.step("UpdateSmoothingLength");
 
         // timer.stop();
-        timer.profilingStop(d.iteration);
+        timer.profilingStop(d.iteration, d.x.size());
     }
 
     void save(IFileWriter* writer) override { turbulenceData.loadOrStore(writer); }
