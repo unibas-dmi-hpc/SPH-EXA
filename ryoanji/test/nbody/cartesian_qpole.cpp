@@ -28,74 +28,19 @@
 #include "gtest/gtest.h"
 
 #include "cstone/focus/source_center.hpp"
-#include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
+#include "ryoanji/nbody/kernel.hpp"
 
 using namespace cstone;
 using namespace ryoanji;
-
-//! @brief Tests direct particle-to-particle gravity interactions with mass softening
-TEST(Gravity, P2PmsoftBase)
-{
-    using T = double;
-
-    // target
-    T x = 1;
-    T y = 1;
-    T z = 1;
-    T h = std::sqrt(3) / 2 - 0.001;
-
-    // source
-    T xs[2] = {2, -2};
-    T ys[2] = {2, -2};
-    T zs[2] = {2, -2};
-    T hs[2] = {h, h};
-    T m[2]  = {1, 1};
-
-    auto [xacc, yacc, zacc, pot] = particle2Particle(x, y, z, h, xs, ys, zs, hs, m, 2);
-
-    // h too small to trigger softening, so results should match the non-softened numbers
-    EXPECT_NEAR(xacc, 0.17106674642655587, 1e-10);
-    EXPECT_NEAR(yacc, 0.17106674642655587, 1e-10);
-    EXPECT_NEAR(zacc, 0.17106674642655587, 1e-10);
-    EXPECT_NEAR(pot, -0.76980035891950138, 1e-10);
-}
-
-//! @brief Tests direct particle-to-particle gravity interactions with mass softening
-TEST(Gravity, P2PmsoftH)
-{
-    using T                  = double;
-    constexpr int numSources = 2;
-
-    // target
-    T x = 1;
-    T y = 1;
-    T z = 1;
-    // distance to first source is sqrt(3)/2, so here r < hi + hj
-    T h = std::sqrt(3) / 2 + 0.001;
-
-    // source
-    T xs[numSources] = {2, -2};
-    T ys[numSources] = {2, -2};
-    T zs[numSources] = {2, -2};
-    T hs[numSources] = {h, h};
-    T m[numSources]  = {1, 1};
-
-    auto [xacc, yacc, zacc, pot] = particle2Particle(x, y, z, h, xs, ys, zs, hs, m, numSources);
-
-    EXPECT_NEAR(xacc, 0.1704016164027678, 1e-10);
-    EXPECT_NEAR(yacc, 0.1704016164027678, 1e-10);
-    EXPECT_NEAR(zacc, 0.1704016164027678, 1e-10);
-    EXPECT_NEAR(pot, -0.7678049688481372, 1e-10);
-}
 
 /*! @brief Tests the gravity interaction of a multipole with a target particle
  *
  * The gravity on the target particle is first evaluated with the direct P2P sum as a reference.
  * This is compared to the gravity on the target particle that arises from the M2P operation.
  */
-TEST(Gravity, M2P)
+TEST(Gravity, Cartesian_M2P)
 {
     using T = double;
 
@@ -115,32 +60,35 @@ TEST(Gravity, M2P)
 
     SourceCenterType<T>    center = massCenter<T>(x, y, z, masses.data(), 0, numParticles);
     CartesianQuadrupole<T> multipole;
-    particle2Multipole(x, y, z, masses.data(), 0, numParticles, makeVec3(center), multipole);
+    P2M(x, y, z, masses.data(), 0, numParticles, center, multipole);
 
     // target particle coordinates
-    std::array<T, 3> target = {-8, 0, 0};
+    util::array<T, 3> target{-8, 0, 0};
 
     // reference direct gravity on target
-    auto [axDirect, ayDirect, azDirect, potDirect] =
-        particle2Particle(target[0], target[1], target[2], 0.0, x, y, z, h.data(), masses.data(), numParticles);
+    cstone::Vec4<T> accP2P{0, 0, 0, 0};
+    for (unsigned s = 0; s < numParticles; ++s)
+    {
+        accP2P = P2P(accP2P, target, cstone::Vec3<T>{x[s], y[s], z[s]}, masses[s], 0.0, h[s]);
+    }
 
     // approximate gravity with multipole interaction
-    auto [axApprox, ayApprox, azApprox, potApprox] =
-        multipole2Particle(target[0], target[1], target[2], makeVec3(center), multipole);
+    cstone::Vec4<T> accApprox{0, 0, 0, 0};
+    accApprox = M2P(accApprox, target, makeVec3(center), multipole);
 
     // std::cout << std::fixed;
     // std::cout.precision(8);
     // std::cout << "direct: " << accDirect[0] << " " << accDirect[1] << " " << accDirect[2] << std::endl;
     // std::cout << "approx: " << accApprox[0] << " " << accApprox[1] << " " << accApprox[2] << std::endl;
 
-    EXPECT_NEAR(potDirect, potApprox, 1e-3);
-    EXPECT_TRUE(std::abs(axApprox - axDirect) < 1e-3);
-    EXPECT_TRUE(std::abs(ayApprox - ayDirect) < 1e-3);
-    EXPECT_TRUE(std::abs(azApprox - azDirect) < 1e-3);
+    EXPECT_NEAR(accP2P[0], accApprox[0], 1e-3);
+    EXPECT_TRUE(std::abs(accApprox[1] - accP2P[1]) < 1e-3);
+    EXPECT_TRUE(std::abs(accApprox[2] - accP2P[2]) < 1e-3);
+    EXPECT_TRUE(std::abs(accApprox[3] - accP2P[3]) < 1e-3);
 
-    EXPECT_NEAR(axApprox, 0.74358243303934313, 1e-10);
-    EXPECT_NEAR(ayApprox, 9.1306187450872109e-05, 1e-10);
-    EXPECT_NEAR(azApprox, 0.0095252528595820823, 1e-10);
+    EXPECT_NEAR(accApprox[1], 0.74358243303934313, 1e-10);
+    EXPECT_NEAR(accApprox[2], 9.1306187450872109e-05, 1e-10);
+    EXPECT_NEAR(accApprox[3], 0.0095252528595820823, 1e-10);
 }
 
 /*! @brief tests aggregation of multipoles into a composite multipole
@@ -149,7 +97,7 @@ TEST(Gravity, M2P)
  * while the subcell multipoles are constructed from 1/8th of the particles each.
  * The subcells are then aggregated with the M2M operation and compared to the reference.
  */
-TEST(Gravity, M2M)
+TEST(Gravity, Cartesian_M2M)
 {
     using T = double;
 
@@ -168,7 +116,7 @@ TEST(Gravity, M2M)
     // reference directly constructed from particles
     SourceCenterType<T>    refCenter = massCenter<T>(x, y, z, masses.data(), 0, numParticles);
     CartesianQuadrupole<T> reference;
-    particle2Multipole(x, y, z, masses.data(), 0, numParticles, makeVec3(refCenter), reference);
+    P2M(x, y, z, masses.data(), 0, numParticles, refCenter, reference);
 
     LocalIndex             eighth = numParticles / 8;
     CartesianQuadrupole<T> sc[8];
@@ -176,12 +124,12 @@ TEST(Gravity, M2M)
     for (int i = 0; i < 8; ++i)
     {
         centers[i] = massCenter<T>(x, y, z, masses.data(), i * eighth, (i + 1) * eighth);
-        particle2Multipole(x, y, z, masses.data(), i * eighth, (i + 1) * eighth, makeVec3(centers[i]), sc[i]);
+        P2M(x, y, z, masses.data(), i * eighth, (i + 1) * eighth, centers[i], sc[i]);
     }
 
     // aggregate subcell multipoles
     CartesianQuadrupole<T> composite;
-    multipole2Multipole(0, 8, refCenter, centers, sc, composite);
+    M2M(0, 8, refCenter, centers, sc, composite);
 
     EXPECT_NEAR(reference[Cqi::mass], composite[Cqi::mass], 1e-10);
     EXPECT_NEAR(reference[Cqi::qxx], composite[Cqi::qxx], 1e-10);

@@ -33,7 +33,7 @@
 
 #include "cstone/focus/source_center.hpp"
 #include "cartesian_qpole.hpp"
-#include "kernel_wrapper.hpp"
+#include "kernel.hpp"
 
 namespace ryoanji
 {
@@ -63,7 +63,7 @@ void computeLeafMultipoles(const T1* x, const T1* y, const T1* z, const T2* m,
     for (size_t leafIdx = 0; leafIdx < leafToInternal.size(); ++leafIdx)
     {
         TreeNodeIndex i = leafToInternal[leafIdx];
-        particle2Multipole(x, y, z, m, layout[leafIdx], layout[leafIdx + 1], makeVec3(centers[i]), multipoles[i]);
+        P2M(x, y, z, m, layout[leafIdx], layout[leafIdx + 1], centers[i], multipoles[i]);
     }
 }
 
@@ -83,7 +83,7 @@ void upsweepMultipoles(gsl::span<const cstone::TreeNodeIndex> levelOffset, const
             cstone::TreeNodeIndex firstChild = childOffsets[i];
             if (firstChild)
             {
-                multipole2Multipole(firstChild, firstChild + 8, centers[i], centers, multipoles, multipoles[i]);
+                M2M(firstChild, firstChild + cstone::eightSiblings, centers[i], centers, multipoles, multipoles[i]);
             }
         }
     }

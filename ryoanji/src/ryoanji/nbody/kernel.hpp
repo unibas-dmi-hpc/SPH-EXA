@@ -456,12 +456,13 @@ struct Kernels<0, 0, 0>
  * @param[out] Mout     output multipole to add contributions to
  *
  */
-template<class T, class Tm, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& Xout, const T* x, const T* y, const T* z,
-                                       const Tm* m, MType& Mout)
+template<class T, class Tm, class MType, std::enable_if_t<IsSpherical<MType>{}, int> = 0>
+HOST_DEVICE_FUN DEVICE_INLINE void P2M(const T* x, const T* y, const T* z, const Tm* m, int begin, int end,
+                                       const Vec4<T>& Xout, MType& Mout)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
+    Mout = 0;
     for (int i = begin; i < end; i++)
     {
         Vec4<T> body = {x[i], y[i], z[i], T(m[i])};
@@ -484,12 +485,13 @@ HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& Xout, 
  * @param[in]   Msrc     input multipoles
  * @param[out]  Mout     the aggregated output multipole
  */
-template<class T, class MType>
+template<class T, class MType, std::enable_if_t<IsSpherical<MType>{}, int> = 0>
 HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc,
                                        MType& Mout)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
+    Mout = 0;
     for (int i = begin; i < end; i++)
     {
         const MType& Mi = Msrc[i];

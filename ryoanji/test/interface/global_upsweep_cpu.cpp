@@ -90,8 +90,8 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
 
     // compute reference root cell multipole from global particle data
     MultipoleType reference;
-    particle2Multipole(coords.x().data(), coords.y().data(), coords.z().data(), globalMasses.data(), 0,
-                       numParticles * numRanks, makeVec3(centers[octree.levelRange[0]]), reference);
+    P2M(coords.x().data(), coords.y().data(), coords.z().data(), globalMasses.data(), 0, numParticles * numRanks,
+        centers[octree.levelRange[0]], reference);
 
     double maxDiff = max(abs(reference - globalRootMultipole));
 
