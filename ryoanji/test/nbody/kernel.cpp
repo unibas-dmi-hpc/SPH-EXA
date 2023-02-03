@@ -39,6 +39,48 @@
 
 using namespace ryoanji;
 
+//! @brief Tests direct particle-to-particle gravity interactions with mass softening
+TEST(Gravity, P2PmsoftBase)
+{
+    using T = double;
+
+    cstone::Vec3<T> target{1, 1, 1};
+    T               h = std::sqrt(3) / 2 - 0.001;
+
+    cstone::Vec3<T> source1{2, 2, 2}, source2{-2, -2, -2};
+
+    cstone::Vec4<T> acc{0, 0, 0, 0};
+    acc = P2P(acc, target, source1, 1.0, h, h);
+    acc = P2P(acc, target, source2, 1.0, h, h);
+
+    // h too small to trigger softening, so results should match the non-softened numbers
+    EXPECT_NEAR(acc[0], -0.76980035891950138, 1e-10);
+    EXPECT_NEAR(acc[1], 0.17106674642655587, 1e-10);
+    EXPECT_NEAR(acc[2], 0.17106674642655587, 1e-10);
+    EXPECT_NEAR(acc[3], 0.17106674642655587, 1e-10);
+}
+
+//! @brief Tests direct particle-to-particle gravity interactions with mass softening
+TEST(Gravity, P2PmsoftH)
+{
+    using T = double;
+
+    cstone::Vec3<T> target{1, 1, 1};
+    T               h = std::sqrt(3) / 2 + 0.001;
+
+    cstone::Vec3<T> source1{2, 2, 2}, source2{-2, -2, -2};
+
+    cstone::Vec4<T> acc{0, 0, 0, 0};
+    acc = P2P(acc, target, source1, 1.0, h, h);
+    acc = P2P(acc, target, source2, 1.0, h, h);
+
+    EXPECT_NEAR(acc[0], -0.7678049688481372, 1e-10);
+    EXPECT_NEAR(acc[1], 0.1704016164027678, 1e-10);
+    EXPECT_NEAR(acc[2], 0.1704016164027678, 1e-10);
+    EXPECT_NEAR(acc[3], 0.1704016164027678, 1e-10);
+}
+
+//! @brief The traversal code relies on P2P self interaction being zero
 TEST(Gravity, P2PselfInteraction)
 {
     using T = double;
@@ -66,17 +108,16 @@ TEST(Multipole, P2M)
     CartesianQuadrupole<double>      cartesianQuadrupole;
     cstone::SourceCenterType<double> csCenter =
         cstone::massCenter<double>(x.data(), y.data(), z.data(), m.data(), 0, numBodies);
-    particle2Multipole(x.data(), y.data(), z.data(), m.data(), 0, numBodies, util::makeVec3(csCenter),
-                       cartesianQuadrupole);
+    P2M(x.data(), y.data(), z.data(), m.data(), 0, numBodies, csCenter, cartesianQuadrupole);
 
     Vec4<double> centerMass = ryoanji::setCenter(0, numBodies, x.data(), y.data(), z.data(), m.data());
 
-    ryoanji::SphericalMultipole<double, 4> sphericalOctopole;
-    std::fill(sphericalOctopole.begin(), sphericalOctopole.end(), 0.0);
+    ryoanji::SphericalMultipole<double, 4> multipole;
+    std::fill(multipole.begin(), multipole.end(), 0.0);
 
-    ryoanji::P2M(0, numBodies, centerMass, x.data(), y.data(), z.data(), m.data(), sphericalOctopole);
+    ryoanji::P2M(x.data(), y.data(), z.data(), m.data(), 0, numBodies, centerMass, multipole);
 
-    EXPECT_NEAR(sphericalOctopole[0], cartesianQuadrupole[Cqi::mass], 1e-6);
+    EXPECT_NEAR(multipole[0], cartesianQuadrupole[Cqi::mass], 1e-6);
 
     EXPECT_NEAR(centerMass[0], csCenter[0], 1e-6);
     EXPECT_NEAR(centerMass[1], csCenter[1], 1e-6);
@@ -87,8 +128,8 @@ TEST(Multipole, P2M)
     {
         Vec3<double> testTarget{-8, -8, -8};
 
-        Vec4<double> acc{0, 0, 0, 0};
-        acc = ryoanji::M2P(acc, testTarget, util::makeVec3(centerMass), sphericalOctopole);
+        Vec4<double> accM2P{0, 0, 0, 0};
+        accM2P = ryoanji::M2P(accM2P, testTarget, util::makeVec3(centerMass), multipole);
         // printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
 
         // cstone is less precise
@@ -99,15 +140,17 @@ TEST(Multipole, P2M)
         //    testTarget[0], testTarget[1], testTarget[2], cstoneMultipole, eps2, &ax, &ay, &az);
         // printf("cstone test acceleration: %f %f %f\n", ax, ay, az);
 
-        auto [axd, ayd, azd, pot] =
-            particle2Particle(double(testTarget[0]), double(testTarget[1]), double(testTarget[2]), 0.0, x.data(),
-                              y.data(), z.data(), h.data(), m.data(), numBodies);
+        Vec4<double> accP2P{0, 0, 0, 0};
+        for (int i = 0; i < numBodies; ++i)
+        {
+            accP2P = P2P(accP2P, testTarget, Vec3<double>{x[i], y[i], z[i]}, m[i], 0.0, 0.0);
+        }
         // printf("direct acceleration: %f %f %f\n", axd, ayd, azd);
 
         // compare ryoanji against the direct sum reference
-        EXPECT_NEAR(acc[0], pot, 3e-5);
-        EXPECT_NEAR(acc[1], axd, 1e-5);
-        EXPECT_NEAR(acc[2], ayd, 1e-5);
-        EXPECT_NEAR(acc[3], azd, 1e-5);
+        EXPECT_NEAR(accM2P[0], accP2P[0], 3e-5);
+        EXPECT_NEAR(accM2P[1], accP2P[1], 1e-5);
+        EXPECT_NEAR(accM2P[2], accP2P[2], 1e-5);
+        EXPECT_NEAR(accM2P[3], accP2P[3], 1e-5);
     }
 }

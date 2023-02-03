@@ -65,10 +65,11 @@ public:
         //! the focused octree, structure only
         cstone::OctreeView<const KeyType> octree = focusTree.octreeViewAcc();
 
-        d.egrav = ryoanji::computeGravity(
-            octree.childOffsets, octree.internalToLeaf, focusTree.expansionCenters().data(), multipoles_.data(),
-            domain.layout().data(), domain.startCell(), domain.endCell(), d.x.data(), d.y.data(), d.z.data(),
-            d.h.data(), d.m.data(), domain.box(), d.g, d.ax.data(), d.ay.data(), d.az.data());
+        d.egrav = 0;
+        ryoanji::computeGravity(octree.childOffsets, octree.internalToLeaf, focusTree.expansionCenters().data(),
+                                multipoles_.data(), domain.layout().data(), domain.startCell(), domain.endCell(),
+                                d.x.data(), d.y.data(), d.z.data(), d.h.data(), d.m.data(), domain.box(), d.g,
+                                d.ax.data(), d.ay.data(), d.az.data(), &d.egrav);
     }
 
     util::array<uint64_t, 4> readStats() const { return {0, 0, 0, 0}; }

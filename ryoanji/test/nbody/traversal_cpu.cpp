@@ -100,11 +100,12 @@ TEST(Gravity, TreeWalk)
     std::vector<T> az(numParticles, 0);
 
     auto   t0       = std::chrono::high_resolution_clock::now();
-    double egravTot = computeGravity(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(),
-                                     multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(),
-                                     masses.data(), box, G, ax.data(), ay.data(), az.data());
-    auto   t1       = std::chrono::high_resolution_clock::now();
-    double elapsed  = std::chrono::duration<double>(t1 - t0).count();
+    double egravTot = 0;
+    computeGravity(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(), multipoles.data(),
+                   layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(), masses.data(), box, G, ax.data(),
+                   ay.data(), az.data(), &egravTot);
+    auto   t1      = std::chrono::high_resolution_clock::now();
+    double elapsed = std::chrono::duration<double>(t1 - t0).count();
 
     std::cout << "Time elapsed for " << numParticles << " particles: " << elapsed << " s, "
               << double(numParticles) / 1e6 / elapsed << " million particles/second" << std::endl;

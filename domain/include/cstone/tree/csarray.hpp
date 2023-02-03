@@ -67,6 +67,14 @@
 namespace cstone
 {
 
+/*! @brief Fixed number of children per node
+ *
+ * This is beneficial for performance as long as the bucket-size, which is the minimum particle count of an internal
+ * node and the maximum count of a leaf, remains well above 8 and becomes very disadvantageous when resolving
+ * every particle in its own leaf node.
+ */
+constexpr inline TreeNodeIndex eightSiblings = 8;
+
 //! @brief return first node that starts at or below (contains) key
 template<class KeyType>
 HOST_DEVICE_FUN inline TreeNodeIndex findNodeBelow(const KeyType* tree, TreeNodeIndex numNodes, KeyType key)

@@ -36,7 +36,6 @@
 
 #include "cstone/cuda/gpu_config.cuh"
 
-#include "kernel_wrapper.hpp"
 #include "kernel.hpp"
 
 namespace ryoanji
@@ -56,7 +55,7 @@ __global__ void computeLeafMultipoles(const Tc* x, const Tc* y, const Tc* z, con
     if (leafIdx < numLeaves)
     {
         TreeNodeIndex i = leafToInternal[leafIdx];
-        particle2Multipole(x, y, z, m, layout[leafIdx], layout[leafIdx + 1], makeVec3(centers[i]), multipoles[i]);
+        P2M(x, y, z, m, layout[leafIdx], layout[leafIdx + 1], centers[i], multipoles[i]);
     }
 }
 
@@ -82,7 +81,7 @@ __global__ void upsweepMultipoles(TreeNodeIndex firstCell, TreeNodeIndex lastCel
     // firstChild is zero if the cell is a leaf
     if (firstChild)
     {
-        multipole2Multipole(firstChild, firstChild + 8, centers[cellIdx], centers, multipoles, multipoles[cellIdx]);
+        M2M(firstChild, firstChild + 8, centers[cellIdx], centers, multipoles, multipoles[cellIdx]);
     }
 }
 

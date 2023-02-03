@@ -37,7 +37,7 @@
 #include <cmath>
 
 #include "cstone/util/tuple.hpp"
-#include "types.h"
+#include "kernel.hpp"
 
 namespace ryoanji
 {
@@ -72,24 +72,26 @@ struct Cqi
 
 /*! @brief Compute the monopole and quadruple moments from particle coordinates
  *
- * @tparam       T1             float or double
- * @tparam       T2             float or double
- * @tparam       T3             float or double
- * @param[in]    x              x coordinate array
- * @param[in]    y              y coordinate array
- * @param[in]    z              z coordinate array
- * @param[in]    m              masses array
- * @param[in]    numParticles   number of particles to read from coordinate arrays
- * @param[out]   gv             output quadrupole
+ * @tparam      T1     float or double
+ * @tparam      T2     float or double
+ * @tparam      T3     float or double
+ * @param[in]   x      x coordinate array
+ * @param[in]   y      y coordinate array
+ * @param[in]   z      z coordinate array
+ * @param[in]   m      masses array
+ * @param[in]   begin  first particle to access in coordinate arrays
+ * @param[in]   end    last particle to access in coordinate arrays
+ * @param[in]   center center of mass of particles in input range
+ * @param[out]  gv     output quadrupole
  */
 template<class T1, class T2, class T3>
-HOST_DEVICE_FUN void particle2Multipole(const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex first,
-                                        LocalIndex last, const Vec3<T1>& center, CartesianQuadrupole<T3>& gv)
+HOST_DEVICE_FUN void P2M(const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex begin, LocalIndex end,
+                         const Vec4<T1>& center, CartesianQuadrupole<T3>& gv)
 {
     gv = T3(0);
-    if (first == last) { return; }
+    if (begin == end) { return; }
 
-    for (LocalIndex i = first; i < last; ++i)
+    for (LocalIndex i = begin; i < end; ++i)
     {
         T1 xx  = x[i];
         T1 yy  = y[i];
@@ -146,92 +148,6 @@ void moveExpansionCenter(Vec3<T> Xold, Vec3<T> Xnew, CartesianQuadrupole<T>& gv)
     gv[Cqi::qyz] *= 3;
 }
 
-/*! @brief compute a single particle-particle gravitational interaction
- *
- * @tparam T1   float or double
- * @tparam T2   float or double
- * @param tx    target x coord
- * @param ty    target y coord
- * @param tz    target z coord
- * @param th    target h smoothing length
- * @param sx    source x coord
- * @param sy    source y coord
- * @param sz    source z coord
- * @param sh    source h coord
- * @param sm    source mass
- * @return      tuple(ax, ay, az, ugrav)
- */
-template<class T1, class T2, class Tm>
-HOST_DEVICE_FUN inline __attribute__((always_inline)) util::tuple<T1, T1, T1, T1>
-particle2Particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, Tm sm)
-{
-    T1 rx  = sx - tx;
-    T1 ry  = sy - ty;
-    T1 rz  = sz - tz;
-    T1 r_2 = rx * rx + ry * ry + rz * rz;
-
-    T2 h_st  = th + sh;
-    T2 h_st2 = h_st * h_st;
-
-    T1 R2eff  = (r_2 < h_st2) ? h_st2 : r_2;
-    T1 invR   = T1(1.0) / std::sqrt(R2eff);
-    T1 invR2  = invR * invR;
-    T1 invR3m = sm * invR * invR2;
-
-    return {invR3m * rx, invR3m * ry, invR3m * rz, -invR3m * r_2};
-}
-
-/*! @brief direct gravity calculation with particle-particle interactions
- *
- * @tparam       T1          float or double
- * @tparam       T2          float or double
- * @param[in]    tx          target particle x coordinate
- * @param[in]    ty          target particle y coordinate
- * @param[in]    tz          target particle z coordinate
- * @param[in]    hi          target particle smoothing length
- * @param[in]    sx          source particle x coordinates
- * @param[in]    sy          source particle y coordinates
- * @param[in]    sz          source particle z coordinates
- * @param[in]    h           source particle smoothing lengths
- * @param[in]    m           source particle masses
- * @param[in]    numSources  number of source particles
- * @return                   tuple(ax, ay, az, ugrav)
- *
- * Computes direct particle-particle gravitational interaction according to
- *
- *      vec(a_t) = - sum_{j} m_j / (r_tj^2 + eps2)^(3/2)) * (r_t - r_j)
- *
- * Notes:
- *  - Source particles MUST NOT contain the target. If the source is a cell that contains the target,
- *    the target must be located and this function called twice, with all particles before target and
- *    all particles that follow it.
- */
-template<class T1, class T2, class Tm>
-HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2Particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy,
-                                                              const T1* sz, const T2* h, const Tm* m,
-                                                              LocalIndex numSources)
-{
-    T1 axLoc = 0;
-    T1 ayLoc = 0;
-    T1 azLoc = 0;
-    T1 uLoc  = 0;
-
-#if defined(__llvm__) || defined(__clang__)
-#pragma clang loop vectorize(enable)
-#endif
-    for (LocalIndex j = 0; j < numSources; ++j)
-    {
-        auto [ax_, ay_, az_, u_] = particle2Particle(tx, ty, tz, hi, sx[j], sy[j], sz[j], h[j], m[j]);
-
-        axLoc += ax_;
-        ayLoc += ay_;
-        azLoc += az_;
-        uLoc += u_;
-    }
-
-    return {axLoc, ayLoc, azLoc, uLoc};
-}
-
 /*! @brief apply gravitational interaction with a multipole to a particle
  *
  * @tparam        T1         float or double
@@ -251,31 +167,30 @@ HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2Particle(T1 tx, T1 ty, T1 t
  * monopole:   -M/r^3 * vec(r)
  * quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
-template<class T1, class T2>
-HOST_DEVICE_FUN DEVICE_INLINE util::tuple<T1, T1, T1, T1>
-multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, const CartesianQuadrupole<T2>& multipole)
+template<class Ta, class Tc, class Tmp>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> M2P(Vec4<Ta> acc, const Vec3<Tc>& target, const Vec3<Tc>& center,
+                                           const CartesianQuadrupole<Tmp>& multipole)
 {
-    T2 rx = tx - center[0];
-    T2 ry = ty - center[1];
-    T2 rz = tz - center[2];
+    auto r = target - center;
 
-    T2 r_2      = rx * rx + ry * ry + rz * rz;
-    T2 r_minus1 = T2(1) / std::sqrt(r_2);
-    T2 r_minus2 = r_minus1 * r_minus1;
-    T2 r_minus5 = r_minus2 * r_minus2 * r_minus1;
+    auto r2       = norm2(r);
+    auto r_minus1 = inverseSquareRoot(r2);
+    auto r_minus2 = r_minus1 * r_minus1;
+    auto r_minus5 = r_minus2 * r_minus2 * r_minus1;
 
-    T2 Qrx = rx * multipole[Cqi::qxx] + ry * multipole[Cqi::qxy] + rz * multipole[Cqi::qxz];
-    T2 Qry = rx * multipole[Cqi::qxy] + ry * multipole[Cqi::qyy] + rz * multipole[Cqi::qyz];
-    T2 Qrz = rx * multipole[Cqi::qxz] + ry * multipole[Cqi::qyz] + rz * multipole[Cqi::qzz];
+    auto Qrx = r[0] * multipole[Cqi::qxx] + r[1] * multipole[Cqi::qxy] + r[2] * multipole[Cqi::qxz];
+    auto Qry = r[0] * multipole[Cqi::qxy] + r[1] * multipole[Cqi::qyy] + r[2] * multipole[Cqi::qyz];
+    auto Qrz = r[0] * multipole[Cqi::qxz] + r[1] * multipole[Cqi::qyz] + r[2] * multipole[Cqi::qzz];
 
-    T2 rQr = rx * Qrx + ry * Qry + rz * Qrz;
+    auto rQr = r[0] * Qrx + r[1] * Qry + r[2] * Qrz;
     //                  rQr quad-term           mono-term
     //                      |                     |
-    T2 rQrAndMonopole = (T2(-2.5) * rQr * r_minus5 - multipole[Cqi::mass] * r_minus1) * r_minus2;
+    auto rQrAndMonopole = (Ta(-2.5) * rQr * r_minus5 - multipole[Cqi::mass] * r_minus1) * r_minus2;
 
     //       Qr Quad-term
-    return {r_minus5 * Qrx + rQrAndMonopole * rx, r_minus5 * Qry + rQrAndMonopole * ry,
-            r_minus5 * Qrz + rQrAndMonopole * rz, -(multipole[Cqi::mass] * r_minus1 + T2(0.5) * r_minus5 * rQr)};
+    return acc + Vec4<Ta>{-(multipole[Cqi::mass] * r_minus1 + Ta(0.5) * r_minus5 * rQr),
+                          r_minus5 * Qrx + rQrAndMonopole * r[0], r_minus5 * Qry + rQrAndMonopole * r[1],
+                          r_minus5 * Qrz + rQrAndMonopole * r[2]};
 }
 
 /*! @brief add a multipole contribution to the composite multipole
@@ -322,8 +237,7 @@ HOST_DEVICE_FUN void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<Tc> d
  * @param[out]  Mout     the aggregated output multipole
  */
 template<class T, class MType, std::enable_if_t<IsCartesian<MType>{}, int> = 0>
-HOST_DEVICE_FUN void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc,
-                                         const MType* Msrc, MType& Mout)
+HOST_DEVICE_FUN void M2M(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
 {
     Mout = 0;
     for (int i = begin; i < end; i++)

@@ -20,7 +20,7 @@ endif ()
 set(testname ryoanji_cpu_unit_tests)
 add_executable(${testname}
         nbody/cartesian_qpole.cpp
-        nbody/multipole.cpp
+        nbody/kernel.cpp
         nbody/traversal_cpu.cpp
         test_main.cpp)
 

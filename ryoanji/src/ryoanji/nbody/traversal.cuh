@@ -35,8 +35,8 @@
 #include <algorithm>
 #include "cstone/cuda/gpu_config.cuh"
 #include "cstone/primitives/warpscan.cuh"
+#include "cartesian_qpole.hpp"
 #include "kernel.hpp"
-#include "kernel_wrapper.hpp"
 
 namespace ryoanji
 {
@@ -92,8 +92,7 @@ __host__ __device__ __forceinline__ bool applyMAC(Vec3<T> sourceCenter, T MAC, V
     Vec3<T> dX = abs(targetCenter - sourceCenter) - targetSize;
     dX += abs(dX);
     dX *= T(0.5);
-    T R2 = norm2(dX);
-    return R2 < MAC;
+    return norm2(dX) < MAC;
 }
 
 /*! @brief apply M2P kernel with GpuConfig::warpSize different multipoles to the target bodies
@@ -422,11 +421,9 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
     // warp-common global mem storage
     int* cellQueue = globalPool + TravConfig::memPerWarp * ((blockIdx.x * numWarpsPerBlock) + warpIdx);
 
-    // int targetIdx = (blockIdx.x * numWarpsPerBlock) + warpIdx;
     int targetIdx = 0;
 
     while (true)
-    // for(; targetIdx < numTargets; targetIdx += (gridDim.x * numWarpsPerBlock))
     {
         // first thread in warp grabs next target
         if (laneIdx == 0)
