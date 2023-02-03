@@ -7,9 +7,25 @@
 namespace sphexa
 {
 
-class TimeStepProfilingData
+class FunctionProfilingData
 {
+private:
+    std::vector<float*> funcTimes;        // vector of timesteps for all ranks
+    std::vector<float>  funcMean;         // mean (average)
+    std::vector<double> funcStdev;        // standard deviation
+    std::vector<double> funcCov;          // c.o.v = std / mean
+    std::vector<double> funcLambda;       // lambda = (Lmax / Lmean - 1) * 100%
+    std::vector<float*> funcVectorMetric; // vector based metric calculation
+    std::vector<double> funcI_2PerStep;   // distance to zero for vector based metric, name tentative
+    std::vector<float>  funcSkewness;     // skewness
+    std::vector<float>  funcKurtosis;     // kurtosis
+    std::vector<float>  totalTimeStep;    // total time-step durations
+    std::vector<size_t> numLocalParts;    // number of local particles
 
+public:
+    FunctionProfilingData() {}
+
+    ~FunctionProfilingData() {}
 };
 
 class Profiler
@@ -34,7 +50,8 @@ public:
         : _rank(rank)
     {
         MPI_Comm_size(MPI_COMM_WORLD, &_numRanks);
-        if (_rank == 0) profilingFile.open("profiling.txt");
+        std::string filename = "profiling-" + std::to_string(_numRanks) + "Ranks.txt";
+        if (_rank == 0) profilingFile.open(filename);
     }
     ~Profiler() {}
 
@@ -76,6 +93,23 @@ public:
             std::cout << "Profiling data written." << std::endl;
         }
         profilingFile.close();
+    }
+
+    void saveTimings(float duration)
+    {
+        // float* dur = timeSteps.at(iteration-1);
+        // float x = dur[iteration-1];
+        float* durations = new float[_numRanks];
+        MPI_Gather(&duration, 1, MPI_FLOAT, &durations[_rank], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+
+        if (_rank == 0)
+        {
+            timeSteps.push_back(durations);
+            // calculate mean, stdev, c.o.v, g1, g2, I_2
+            // calculateMetrics(durations);
+            // std::cout << "dur1 = " << durations[0] << " , dur2 = " << durations[1] << std::endl;
+            // std::cout << "ts1 = " << timeSteps.back()[0] << " , ts2 = " << timeSteps.back()[1] << std::endl;
+        }
     }
 
     void gatherTimings(float duration)

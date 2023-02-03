@@ -156,7 +156,7 @@ public:
         }
 
         // timer.stop();
-        timer.profilingStop(d.iteration);
+        timer.profilingStop(d.iteration, d.x.size());
     }
 };
 

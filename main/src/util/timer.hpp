@@ -102,19 +102,20 @@ public:
     {
         if (isProfilingEnabled)
         {
-            profiler.gatherTimings(stepDuration());
+            profiler.saveTimings(stepDuration());
             if (rank == 0) Timer::step(name);
             else Timer::step();
         }
         else if (rank == 0) Timer::step(name);
     }
 
-    void profilingStop(size_t iteration)
+    void profilingStop(size_t , size_t numLocalParticles)
     {
         if (isProfilingEnabled)
         {
             stop();
             profiler.gatherTimings(duration());
+            profiler.gatherTimings((float)numLocalParticles);
         }
         else stop();
     }
