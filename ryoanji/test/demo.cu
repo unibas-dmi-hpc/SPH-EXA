@@ -94,10 +94,10 @@ int main(int argc, char** argv)
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    auto interactions = computeAcceleration(
-        0, numBodies, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h), G, rawPtr(d_p), rawPtr(d_ax),
-        rawPtr(d_ay), rawPtr(d_az), treeBuilder.childOffsets(), treeBuilder.internalToLeaf(), treeBuilder.layout(),
-        rawPtr(sourceCenter), rawPtr(Multipole), levelRange.data());
+    auto interactions = computeAcceleration(0, numBodies, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m),
+                                            rawPtr(d_h), G, rawPtr(d_p), rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az),
+                                            treeBuilder.childOffsets(), treeBuilder.internalToLeaf(),
+                                            treeBuilder.layout(), rawPtr(sourceCenter), rawPtr(Multipole));
 
     auto   t1    = std::chrono::high_resolution_clock::now();
     double dt    = std::chrono::duration<double>(t1 - t0).count();

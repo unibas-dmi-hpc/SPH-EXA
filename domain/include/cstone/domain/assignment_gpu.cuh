@@ -91,7 +91,7 @@ public:
     {
         // number of locally assigned particles to consider for global tree building
         LocalIndex numParticles = bufDesc.end - bufDesc.start;
-        LocalIndex start = bufDesc.start;
+        LocalIndex start        = bufDesc.start;
 
         box_ = makeGlobalBox<T, MinMaxGpu<T>>(x + start, y + start, z + start, numParticles, box_);
         gsl::span<KeyType> keyView(particleKeys + start, numParticles);

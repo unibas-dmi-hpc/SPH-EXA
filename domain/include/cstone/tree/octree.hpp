@@ -260,6 +260,7 @@ struct OctreeView
 template<class T, class KeyType>
 struct OctreeNsView
 {
+    //! @brief see OctreeData
     const KeyType* prefixes;
     const TreeNodeIndex* childOffsets;
     const TreeNodeIndex* internalToLeaf;

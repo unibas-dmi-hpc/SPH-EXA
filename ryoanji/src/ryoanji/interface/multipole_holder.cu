@@ -125,9 +125,9 @@ public:
         LocalIndex poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
         reallocateGeneric(globalPool_, poolSize, 1.05);
-        traverse<<<numBlocks, TravConfig::numThreads>>>(
-            firstBody, lastBody, {1, 9}, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_, centers_,
-            rawPtr(multipoles_), G, (int*)(nullptr), ax, ay, az, rawPtr(globalPool_));
+        traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, 1, x, y, z, m, h, octree_.childOffsets,
+                                                        octree_.internalToLeaf, layout_, centers_, rawPtr(multipoles_),
+                                                        G, (int*)(nullptr), ax, ay, az, rawPtr(globalPool_));
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
 
