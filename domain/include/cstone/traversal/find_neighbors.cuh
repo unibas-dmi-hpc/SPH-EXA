@@ -44,7 +44,7 @@ namespace cstone
 struct TravConfig
 {
     //! @brief size of global workspace memory per warp
-    static constexpr unsigned memPerWarp = 64 * GpuConfig::warpSize;
+    static constexpr unsigned memPerWarp = 512 * GpuConfig::warpSize;
     //! @brief number of threads per block for the traversal kernel
     static constexpr unsigned numThreads = 128;
 
@@ -140,7 +140,7 @@ __device__ __forceinline__ bool tightOverlap(int laneIdx,
     GpuConfig::ThreadMask closeLanes = ballotSync(isClose);
 
     bool isTightClose = isClose;
-    for (unsigned lane = 0 ; lane < GpuConfig::warpSize; ++lane)
+    for (unsigned lane = 0; lane < GpuConfig::warpSize; ++lane)
     {
         // skip if this lane does not have a close source
         if (!((GpuConfig::ThreadMask(1) << lane) & closeLanes)) { continue; }
@@ -161,24 +161,22 @@ __device__ __forceinline__ bool tightOverlap(int laneIdx,
     return isTightClose;
 }
 
-/*! @brief traverse one warp with up to 64 target bodies down the tree
+/*! @brief traverse one warp with up to TravConfig::targetSize target bodies down the tree
  *
- * @param[inout] acc_i          acceleration of target to add to, TravConfig::nwt Vec4 per lane
- * @param[in]    pos_i          target positions, and smoothing lengths, TravConfig::nwt per lane
+ * @param[inout] nc_i           output neighbor counts to add to, TravConfig::nwt per lane
+ * @param[in]    nidx_i         output neighbor indices, up to @p ngmax * TravConfig::nwt per lane will be stored
+ * @param[in]    ngmax          maximum number of neighbor particle indices to store in @p nidx_i
+ * @param[in]    pos_i          target x,y,z,4h^2, TravConfig::nwt per lane
  * @param[in]    targetCenter   geometrical target center
  * @param[in]    targetSize     geometrical target bounding box size
- * @param[in]    x,y,z,m,h      source bodies as referenced by tree cells
- * @param[in]    childOffsets   location (index in [0:numTreeNodes]) of first child of each cell, 0 indicates a leaf
- * @param[in]    internalToLeaf for each cell in [0:numTreeNodes], stores the leaf cell (cstone) index in [0:numLeaves]
- *                              if the cell is not a leaf, the value is negative
- * @param[in]    layout         for each leaf cell in [0:numLeaves], stores the index of the first body in the cell
- * @param[in]    sourceCenter   x,y,z center and square MAC radius of each cell in [0:numTreeNodes]
- * @param[in]    Multipoles     the multipole expansions in the same order as srcCells
- * @param[in]    rootRange      source cell indices indices of the top 8 octants
+ * @param[in]    x,y,z,h        source bodies as referenced by tree cells
+ * @param[in]    tree           octree data view
+ * @param[in]    initNodeIdx    traversal will be started with all children of the parent of @p initNodeIdx
+ * @param[in]    box            global coordinate bounding box
  * @param[-]     tempQueue      shared mem int pointer to GpuConfig::warpSize ints, uninitialized
- * @param[-]     cellQueue      pointer to global memory, 4096 ints per thread, uninitialized
- * @return                      Number of M2P and P2P interactions applied to the group of target particles.
- *                              The totals for the warp are the numbers returned here times the number of valid
+ * @param[-]     cellQueue      pointer to global memory, size defined by TravConfig::memPerWarp, uninitialized
+ * @return                      Number of P2P interactions tested to the group of target particles.
+ *                              The total for the warp is the numbers returned here times the number of valid
  *                              targets in the warp.
  *
  * Constant input pointers are additionally marked __restrict__ to indicate to the compiler that loads
@@ -332,8 +330,8 @@ static __device__ unsigned targetCounterGlob      = 0;
 
 static __global__ void resetTraversalCounters()
 {
-    sumNcP2PGlob = 0;
-    maxNcP2PGlob = 0;
+    sumNcP2PGlob      = 0;
+    maxNcP2PGlob      = 0;
     targetCounterGlob = 0;
 }
 
@@ -409,7 +407,7 @@ __device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::Loca
     int* cellQueue = globalPool + TravConfig::memPerWarp * ((blockIdx.x * numWarpsPerBlock) + warpIdx);
 
     util::array<Vec4<Tc>, TravConfig::nwt> pos_i = loadTarget(bodyBegin, bodyEnd, laneIdx, x, y, z, h);
-    const auto [targetCenter, targetSize] = warpBbox(pos_i);
+    const auto [targetCenter, targetSize]        = warpBbox(pos_i);
 
 #pragma unroll
     for (int k = 0; k < TravConfig::nwt; ++k)
@@ -501,8 +499,7 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::Loc
         const cstone::LocalIndex bodyEnd   = imin(bodyBegin + TravConfig::targetSize, lastBody);
         unsigned* warpNidx                 = nidx + targetIdx * TravConfig::targetSize * ngmax;
 
-        auto nc_i =
-            traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, warpNidx, ngmax, globalPool);
+        auto nc_i = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, warpNidx, ngmax, globalPool);
 
         const cstone::LocalIndex bodyIdxLane = bodyBegin + laneIdx;
         for (int i = 0; i < TravConfig::nwt; i++)

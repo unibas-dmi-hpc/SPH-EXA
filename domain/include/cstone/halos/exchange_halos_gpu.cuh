@@ -80,7 +80,7 @@ void haloExchangeGpu(int epoch,
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
         const auto& outHalos = outgoingHalos[destinationRank];
-        size_t sendCount = outHalos.totalCount();
+        size_t sendCount     = outHalos.totalCount();
         if (sendCount == 0) continue;
 
         checkGpuErrors(

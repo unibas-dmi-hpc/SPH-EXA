@@ -52,43 +52,17 @@ __global__ void findNeighborsKernel(const T* x,
                                     const T* h,
                                     LocalIndex firstId,
                                     LocalIndex lastId,
-                                    LocalIndex n,
-                                    cstone::Box<T> box,
-                                    const KeyType* particleKeys,
-                                    cstone::LocalIndex* neighbors,
-                                    unsigned* neighborsCount,
-                                    unsigned ngmax)
+                                    const Box<T> box,
+                                    const OctreeNsView<T, KeyType> treeView,
+                                    unsigned ngmax,
+                                    LocalIndex* neighbors,
+                                    unsigned* neighborsCount)
 {
     cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
     cstone::LocalIndex id  = firstId + tid;
     if (id >= lastId) { return; }
 
-    findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + tid * ngmax, neighborsCount + tid, n, ngmax);
-}
-
-template<class T>
-__global__ void findNeighborsTKernel(const T* x,
-                                     const T* y,
-                                     const T* z,
-                                     const T* h,
-                                     const TreeNodeIndex* childOffsets,
-                                     const TreeNodeIndex* toLeafOrder,
-                                     const LocalIndex* layout,
-                                     const Vec3<T>* centers,
-                                     const Vec3<T>* sizes,
-                                     cstone::Box<T> box,
-                                     LocalIndex firstId,
-                                     LocalIndex lastId,
-                                     unsigned ngmax,
-                                     cstone::LocalIndex* neighbors,
-                                     unsigned* neighborsCount)
-{
-    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
-    cstone::LocalIndex id  = firstId + tid;
-    if (id >= lastId) { return; }
-
-    findNeighborsT(id, x, y, z, h, childOffsets, toLeafOrder, layout, centers, sizes, box, ngmax,
-                   neighbors + tid * ngmax, neighborsCount + id);
+    findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + tid * ngmax, neighborsCount + id);
 }
 
 template<class T, class StrongKeyType>
@@ -101,6 +75,9 @@ void benchmarkGpu()
 
     RandomCoordinates<T, StrongKeyType> coords(n, box);
     std::vector<T> h(n, 0.012);
+
+    // RandomGaussianCoordinates<T, StrongKeyType> coords(n, box);
+    // adjustSmoothingLength<KeyType>(n, 100, 200, coords.x(), coords.y(), coords.z(), h, box);
 
     int ngmax = 200;
 
@@ -179,13 +156,8 @@ void benchmarkGpu()
 
     auto findNeighborsLambda = [&]()
     {
-        // findNeighborsKernel<<<iceil(n, 256), 256>>>(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_h), 0, n, n, box,
-        //                                             deviceKeys, rawPtr(d_neighbors), rawPtr(d_neighborsCount),
-        //                                             ngmax);
-        // findNeighborsTKernel<<<iceil(n, 128), 128>>>(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_h),
-        //                                              rawPtr(d_childOffsets), rawPtr(d_toLeafOrder), rawPtr(d_layout),
-        //                                              rawPtr(d_centers), rawPtr(d_sizes), box, 0, n, ngmax,
-        //                                              rawPtr(d_neighbors), rawPtr(d_neighborsCount));
+        // findNeighborsKernel<<<iceil(n, 128), 128>>>(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_h), 0, n, box,
+        //                                             nsViewGpu, ngmax, rawPtr(d_neighbors), rawPtr(d_neighborsCount));
 
         findNeighborsBT(0, n, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_h), nsViewGpu, box,
                         rawPtr(d_neighborsCount), rawPtr(d_neighbors), ngmax);
@@ -212,6 +184,9 @@ void benchmarkGpu()
             size_t warpOffset = (i / TravConfig::targetSize) * TravConfig::targetSize * ngmax;
             size_t laneOffset = i % TravConfig::targetSize;
             nilist[j]         = neighborsGPU[warpOffset + TravConfig::targetSize * j + laneOffset];
+            nilist[j]         = neighborsGPU[warpOffset + TravConfig::targetSize * j + laneOffset];
+
+            // nilist[j] = neighborsGPU[i * ngmax + j];
         }
         std::sort(nilist.begin(), nilist.end());
 
@@ -233,8 +208,4 @@ void benchmarkGpu()
     std::cout << "numFailsList " << numFailsList << std::endl;
 }
 
-int main()
-{
-    // benchmarkGpu<double, HilbertKey<uint64_t>>();
-    benchmarkGpu<float, HilbertKey<uint64_t>>();
-}
+int main() { benchmarkGpu<double, HilbertKey<uint64_t>>(); }
