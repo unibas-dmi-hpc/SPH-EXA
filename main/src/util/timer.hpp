@@ -114,8 +114,7 @@ public:
         if (isProfilingEnabled)
         {
             stop();
-            profiler.gatherTimings(duration());
-            profiler.gatherTimings((float)numLocalParticles);
+            profiler.gatherTimings(duration(), numLocalParticles);
         }
         else stop();
     }
