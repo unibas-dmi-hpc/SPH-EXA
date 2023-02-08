@@ -42,8 +42,8 @@ namespace sphexa
 {
 
 template<class Tc, class Tm>
-std::array<Tc, 3> localGrowthRate(size_t startIndex, size_t endIndex, const Tc* x, const Tc* y, const Tm* vy,
-                                  const Tm* xm, const Tm* kx, const cstone::Box<Tc>& box)
+std::array<double, 3> localGrowthRate(size_t startIndex, size_t endIndex, const Tc* x, const Tc* y, const Tm* vy,
+                                      const Tm* xm, const Tm* kx, const cstone::Box<Tc>& box)
 {
     const Tc ybox = box.ly();
 
