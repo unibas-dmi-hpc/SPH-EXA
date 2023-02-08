@@ -38,7 +38,7 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeAVswitchesImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeAVswitchesImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
@@ -78,21 +78,21 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, unsigned ngmax, D
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t   ni = i - startIndex;
-        unsigned nc = std::min(neighborsCount[i], ngmax);
-        alpha[i]    = AVswitchesJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, c, c11,
-                                      c12, c13, c22, c23, c33, wh, whd, kx, xm, divv, d.minDt, alphamin, alphamax,
-                                      decay_constant, alpha[i]);
+        unsigned nc = std::min(neighborsCount[i], d.ngmax);
+        alpha[i] = AVswitchesJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, vx, vy, vz, h, c, c11,
+                                   c12, c13, c22, c23, c33, wh, whd, kx, xm, divv, d.minDt, alphamin, alphamax,
+                                   decay_constant, alpha[i]);
     }
 }
 
 template<class T, class Dataset>
-void computeAVswitches(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeAVswitches(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeAVswitches(startIndex, endIndex, ngmax, d, box);
+        cuda::computeAVswitches(startIndex, endIndex, d, box);
     }
-    else { computeAVswitchesImpl(startIndex, endIndex, ngmax, d, box); }
+    else { computeAVswitchesImpl(startIndex, endIndex, d, box); }
 }
 
 } // namespace sph

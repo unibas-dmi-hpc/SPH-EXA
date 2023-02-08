@@ -109,8 +109,7 @@ __global__ void IADGpuKernel(T sincIndex, T K, unsigned ngmax, cstone::Box<T> bo
 }
 
 template<class Dataset>
-void computeIADGpu(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
-                   const cstone::Box<typename Dataset::RealType>& box)
+void computeIADGpu(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
     unsigned numBodies        = endIndex - startIndex;
@@ -119,7 +118,7 @@ void computeIADGpu(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& 
     numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
     unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    unsigned nidxSize = ngmax * numBlocks * TravConfig::numThreads;
+    unsigned nidxSize = d.ngmax * numBlocks * TravConfig::numThreads;
     reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
     auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
     auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
@@ -127,20 +126,20 @@ void computeIADGpu(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& 
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     IADGpuKernel<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x), rawPtr(d.devData.y),
+        d.sincIndex, d.K, d.ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x), rawPtr(d.devData.y),
         rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho), rawPtr(d.devData.wh),
         rawPtr(d.devData.whd), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13),
         rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), nidxPool, traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeIADGpu(size_t, size_t, unsigned, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeIADGpu(size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                             const cstone::Box<double>&);
-template void computeIADGpu(size_t, size_t, unsigned, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeIADGpu(size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                             const cstone::Box<double>&);
-template void computeIADGpu(size_t, size_t, unsigned, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeIADGpu(size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                             const cstone::Box<float>&);
-template void computeIADGpu(size_t, size_t, unsigned, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeIADGpu(size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                             const cstone::Box<float>&);
 
 } // namespace sph

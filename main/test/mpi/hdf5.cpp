@@ -161,6 +161,7 @@ TEST(HDF5IO, particleData)
         Dataset data;
         data.iteration = 42;
         data.ttot      = 3.14159;
+        data.ngmax     = 1000;
         H5PartWriter writer(MPI_COMM_WORLD);
         writer.addStep(0, 1, testfile);
         data.loadOrStoreAttributes(&writer);
@@ -173,6 +174,7 @@ TEST(HDF5IO, particleData)
         data.loadOrStoreAttributes(&reader);
         EXPECT_EQ(data.iteration, 42);
         EXPECT_EQ(data.ttot, 3.14159);
+        EXPECT_EQ(data.ngmax, 1000);
         reader.closeStep();
     }
 }

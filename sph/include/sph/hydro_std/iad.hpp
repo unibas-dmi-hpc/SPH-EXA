@@ -39,7 +39,7 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeIADImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIADImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
@@ -68,20 +68,17 @@ void computeIADImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset&
     for (cstone::LocalIndex i = startIndex; i < endIndex; ++i)
     {
         size_t   ni = i - startIndex;
-        unsigned nc = std::min(neighborsCount[i], ngmax);
-        IADJLoopSTD(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22,
+        unsigned nc = std::min(neighborsCount[i], d.ngmax);
+        IADJLoopSTD(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22,
                     c23, c33);
     }
 }
 
 template<class T, class Dataset>
-void computeIAD(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIAD(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
-    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
-    {
-        computeIADGpu(startIndex, endIndex, ngmax, d, box);
-    }
-    else { computeIADImpl(startIndex, endIndex, ngmax, d, box); }
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{}) { computeIADGpu(startIndex, endIndex, d, box); }
+    else { computeIADImpl(startIndex, endIndex, d, box); }
 }
 
 } // namespace sph

@@ -49,8 +49,6 @@ template<class DomainType, class DataType>
 class NbodyProp final : public Propagator<DomainType, DataType>
 {
     using Base = Propagator<DomainType, DataType>;
-    using Base::ng0_;
-    using Base::ngmax_;
     using Base::timer;
 
     using T             = typename DataType::RealType;
@@ -74,8 +72,8 @@ class NbodyProp final : public Propagator<DomainType, DataType>
     using DependentFields = FieldList<"ax", "ay", "du", "az">;
 
 public:
-    NbodyProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : Base(ngmax, ng0, output, rank)
+    NbodyProp(std::ostream& output, size_t rank)
+        : Base(output, rank)
     {
     }
 

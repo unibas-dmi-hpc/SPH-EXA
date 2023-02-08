@@ -39,7 +39,7 @@ namespace sph
 {
 
 template<class Tc, class Dataset>
-void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<Tc>& box)
+void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box)
 {
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
@@ -83,24 +83,24 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, unsigned ngmax,
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t   ni = i - startIndex;
-        unsigned nc = std::min(neighborsCount[i], ngmax);
+        unsigned nc = std::min(neighborsCount[i], d.ngmax);
 
-        IADJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22, c23,
-                 c33);
+        IADJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22,
+                 c23, c33);
 
-        divV_curlVJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, c11, c12, c13, c22,
+        divV_curlVJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, vx, vy, vz, h, c11, c12, c13, c22,
                         c23, c33, wh, whd, kx, xm, divv, curlv, dV11, dV12, dV13, dV22, dV23, dV33, doGradV);
     }
 }
 
 template<class Tc, class Dataset>
-void computeIadDivvCurlv(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<Tc>& box)
+void computeIadDivvCurlv(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeIadDivvCurlv(startIndex, endIndex, ngmax, d, box);
+        cuda::computeIadDivvCurlv(startIndex, endIndex, d, box);
     }
-    else { computeIadDivvCurlvImpl(startIndex, endIndex, ngmax, d, box); }
+    else { computeIadDivvCurlvImpl(startIndex, endIndex, d, box); }
 }
 
 } // namespace sph

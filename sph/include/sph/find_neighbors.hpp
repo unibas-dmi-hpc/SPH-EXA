@@ -14,16 +14,16 @@ void findNeighborsSph(const T* x, const T* y, const T* z, T* h, LocalIndex first
 {
     LocalIndex numWork = lastId - firstId;
 
-    unsigned ngmin = ngmax / 5;
+    unsigned ngmin = ng0 / 4;
 
 #pragma omp parallel for
     for (LocalIndex i = 0; i < numWork; ++i)
     {
         LocalIndex id = i + firstId;
-        nc[i] = findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
+        nc[i]         = findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
 
         int iteration    = 0;
-        int maxIteration = 20;
+        int maxIteration = 10;
         while (ngmin > nc[i] || nc[i] > ngmax && iteration++ < maxIteration)
         {
             h[id] = updateH(ng0, nc[i], h[id]);
@@ -34,15 +34,14 @@ void findNeighborsSph(const T* x, const T* y, const T* z, T* h, LocalIndex first
 
 //! @brief perform neighbor search together with updating the smoothing lengths
 template<class T, class Dataset>
-void findNeighborsSfc(size_t startIndex, size_t endIndex, unsigned ng0, unsigned ngmax, Dataset& d,
-                      const cstone::Box<T>& box)
+void findNeighborsSfc(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{}) { return; }
 
-    if (ng0 > ngmax) { throw std::runtime_error("ng0 should be smaller than ngmax\n"); }
+    if (d.ng0 > d.ngmax) { throw std::runtime_error("ng0 should be smaller than ngmax\n"); }
 
-    findNeighborsSph(d.x.data(), d.y.data(), d.z.data(), d.h.data(), startIndex, endIndex, box, d.treeView, ng0, ngmax,
-                     d.neighbors.data(), d.nc.data() + startIndex);
+    findNeighborsSph(d.x.data(), d.y.data(), d.z.data(), d.h.data(), startIndex, endIndex, box, d.treeView, d.ng0,
+                     d.ngmax, d.neighbors.data(), d.nc.data() + startIndex);
 }
 
 } // namespace sph

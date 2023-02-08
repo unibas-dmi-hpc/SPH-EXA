@@ -81,6 +81,12 @@ public:
     size_t numParticlesGlobal;
     size_t totalNeighbors;
 
+    //! @brief mean desired number of neighbors per particle
+    unsigned ng0{100};
+
+    //! @brief maximum number of neighbors per particle before additional h-adjustment will be triggered
+    unsigned ngmax{150};
+
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
     T linmom{0.0}, angmom{0.0};
 
@@ -106,6 +112,8 @@ public:
     {
         ar->stepAttribute("iteration", &iteration, 1);
         ar->stepAttribute("numParticlesGlobal", &numParticlesGlobal, 1);
+        ar->stepAttribute("ng0", &ng0, 1);
+        ar->stepAttribute("ngmax", &ngmax, 1);
         ar->stepAttribute("time", &ttot, 1);
         ar->stepAttribute("minDt", &minDt, 1);
         ar->stepAttribute("minDt_m1", &minDt_m1, 1);

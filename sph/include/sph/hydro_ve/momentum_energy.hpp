@@ -38,8 +38,7 @@ namespace sph
 {
 
 template<bool avClean, class T, class Dataset>
-void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
-                               const cstone::Box<T>& box)
+void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
@@ -92,11 +91,11 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, unsigned ngma
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t   ni = i - startIndex;
-        unsigned nc = stl::min(neighborsCount[i], ngmax);
+        unsigned nc = stl::min(neighborsCount[i], d.ngmax);
 
         T maxvsignal = 0;
 
-        momentumAndEnergyJLoop<avClean>(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, vx, vy, vz, h, m,
+        momentumAndEnergyJLoop<avClean>(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, vx, vy, vz, h, m,
                                         prho, c, c11, c12, c13, c22, c23, c33, Atmin, Atmax, ramp, wh, whd, kx, xm,
                                         alpha, dV11, dV12, dV13, dV22, dV23, dV33, grad_P_x, grad_P_y, grad_P_z, du,
                                         &maxvsignal);
@@ -109,13 +108,13 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, unsigned ngma
 }
 
 template<bool avClean, class T, class Dataset>
-void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeMomentumEnergy<avClean>(startIndex, endIndex, ngmax, d, box);
+        cuda::computeMomentumEnergy<avClean>(startIndex, endIndex, d, box);
     }
-    else { computeMomentumEnergyImpl<avClean>(startIndex, endIndex, ngmax, d, box); }
+    else { computeMomentumEnergyImpl<avClean>(startIndex, endIndex, d, box); }
 }
 
 } // namespace sph

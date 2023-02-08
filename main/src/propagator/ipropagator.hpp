@@ -46,12 +46,10 @@ class Propagator
     using T = typename ParticleDataType::RealType;
 
 public:
-    Propagator(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+    Propagator(std::ostream& output, size_t rank)
         : timer(output, rank)
         , out(output)
         , rank_(rank)
-        , ngmax_(ngmax)
-        , ng0_(ng0)
     {
     }
 
@@ -96,12 +94,7 @@ public:
 protected:
     MasterProcessTimer timer;
     std::ostream&      out;
-
-    size_t rank_;
-    //! maximum number of neighbors per particle
-    size_t ngmax_;
-    //! target number of neighbors per particle
-    size_t ng0_;
+    size_t             rank_;
 
     void printTotalIterationTime(size_t iteration, float duration)
     {

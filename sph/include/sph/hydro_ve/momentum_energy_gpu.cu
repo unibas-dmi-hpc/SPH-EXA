@@ -109,7 +109,7 @@ momentumEnergyGpu(T sincIndex, T K, T Kcour, T Atmin, T Atmax, T ramp, unsigned 
 }
 
 template<bool avClean, class Dataset>
-void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
+void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
                            const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
@@ -119,7 +119,7 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, D
     numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
     unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    unsigned nidxSize = ngmax * numBlocks * TravConfig::numThreads;
+    unsigned nidxSize = d.ngmax * numBlocks * TravConfig::numThreads;
     reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
     auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
     auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
@@ -129,7 +129,7 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, D
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     momentumEnergyGpu<avClean><<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, ngmax, box, startIndex, endIndex, d.treeView,
+        d.sincIndex, d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, d.ngmax, box, startIndex, endIndex, d.treeView,
         rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
         rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.prho), rawPtr(d.devData.c),
         rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
@@ -146,8 +146,8 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, unsigned ngmax, D
 }
 
 #define MOM_ENERGY(avc, real, key)                                                                                     \
-    template void computeMomentumEnergy<avc>(                                                                          \
-        size_t, size_t, unsigned, sphexa::ParticlesData<real, key, cstone::GpuTag>& d, const cstone::Box<real>&)
+    template void computeMomentumEnergy<avc>(size_t, size_t, sphexa::ParticlesData<real, key, cstone::GpuTag> & d,     \
+                                             const cstone::Box<real>&)
 
 MOM_ENERGY(true, double, uint32_t);
 MOM_ENERGY(true, double, uint64_t);
