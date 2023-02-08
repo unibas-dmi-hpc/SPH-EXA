@@ -269,12 +269,12 @@ void adjustSmoothingLength(LocalIndex numParticles,
         int iteration = 0;
         do
         {
-            findNeighbors(i, x.data(), y.data(), z.data(), h.data(), nsView, box, ngmax, neighbors.data() + i * ngmax,
-                          neighborCounts.data() + i);
+            neighborCounts[i] = findNeighbors(i, x.data(), y.data(), z.data(), h.data(), nsView, box, ngmax,
+                                              neighbors.data() + i * ngmax);
 
-            const Tc c0 = 7.0;
+            const Tc c0 = 1023;
             unsigned nn = std::max(neighborCounts[i], 1u);
-            h[i]        = h[i] * 0.5 * pow(1.0 + (c0 * ng0) / nn, 1.0 / 3.0);
+            h[i]        = h[i] * 0.5 * pow(1.0 + (c0 * ng0) / nn, 1.0 / 10.0);
         } while ((neighborCounts[i] < ng0 / 4u || neighborCounts[i] >= ngmax) && iteration++ < 10);
     }
 

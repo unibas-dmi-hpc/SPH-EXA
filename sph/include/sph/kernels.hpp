@@ -28,6 +28,22 @@ HOST_DEVICE_FUN inline auto tsKCourant(T1 maxvsignal, T2 h, T3 c, double Kcour)
     return T(Kcour * h / v);
 }
 
+/*! @brief estimate updated smoothing length to bring the neighbor count closer to ng0
+ *
+ * @tparam T    float or double
+ * @param ng0   target neighbor count
+ * @param nc    current neighbor count
+ * @param h     current smoothing length
+ * @return      updated smoothing length
+ */
+template<class T>
+HOST_DEVICE_FUN T updateH(unsigned ng0, unsigned nc, T h)
+{
+    constexpr T c0  = 1023.0;
+    constexpr T exp = 1.0 / 10.0;
+    return h * T(0.5) * std::pow(T(1) + c0 * ng0 / T(nc), exp);
+}
+
 //! @brief sinc(PI/2 * v)
 template<typename T>
 HOST_DEVICE_FUN inline T wharmonic_std(T v)

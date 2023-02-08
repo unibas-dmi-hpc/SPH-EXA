@@ -75,8 +75,8 @@ TEST(HDF5IO, stepAttribute)
         reader.stepAttribute("int8Attr", &int8Attr, 1);
 
         // providing a wrong type should produce a runtime exception, HDF5 does not do conversions for attributes
-        float ttotFloat;
-        EXPECT_THROW(reader.stepAttribute("float64Attr", &ttotFloat, 1), std::runtime_error);
+        int ttotInt;
+        EXPECT_THROW(reader.stepAttribute("float64Attr", &ttotInt, 1), std::runtime_error);
 
         EXPECT_EQ(float64Attr, 0.5);
         EXPECT_EQ(int64Attr, 42);

@@ -32,6 +32,7 @@
 
 #include "cstone/util/util.hpp"
 #include "cstone/tree/definitions.h"
+#include "sph/kernels.hpp"
 
 namespace sph
 {
@@ -42,12 +43,7 @@ __global__ void updateSmoothingLengthGpuKernel(size_t first, size_t last, unsign
     cstone::LocalIndex i = first + blockDim.x * blockIdx.x + threadIdx.x;
     if (i >= last) { return; }
 
-    // Note: these constants are duplicated in the CPU version, so don't forget to change them there as well
-    constexpr double c0  = 7.0;
-    constexpr double exp = 1.0 / 3.0;
-
-    unsigned nn = nc[i];
-    h[i]        = h[i] * 0.5 * std::pow((1.0 + c0 * ng0 / nn), exp);
+    h[i] = updateH(ng0, nc[i], h[i]);
 }
 
 template<class Th>
