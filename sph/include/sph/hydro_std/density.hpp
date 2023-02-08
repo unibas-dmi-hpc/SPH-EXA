@@ -42,7 +42,7 @@
 namespace sph
 {
 template<class T, class Dataset>
-void computeDensityImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeDensityImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
@@ -64,15 +64,10 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Data
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        // int neighLoc[ngmax];
-        // int count;
-        // cstone::findNeighbors(
-        //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
-
         size_t ni = i - startIndex;
 
-        unsigned nc = std::min(neighborsCount[i], ngmax);
-        rho[i]      = densityJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd);
+        unsigned nc = std::min(neighborsCount[i], d.ngmax);
+        rho[i]      = densityJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, h, m, wh, whd);
 
 #ifndef NDEBUG
         if (std::isnan(rho[i]))
@@ -82,13 +77,13 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Data
 }
 
 template<class T, class Dataset>
-void computeDensity(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeDensity(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        computeDensityGpu(startIndex, endIndex, ngmax, d, box);
+        computeDensityGpu(startIndex, endIndex, d, box);
     }
-    else { computeDensityImpl(startIndex, endIndex, ngmax, d, box); }
+    else { computeDensityImpl(startIndex, endIndex, d, box); }
 }
 
 } // namespace sph

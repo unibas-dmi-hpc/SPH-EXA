@@ -3,39 +3,35 @@
 #include "cstone/sfc/box.hpp"
 #include "cstone/tree/octree.hpp"
 
-//! @brief maximum number of neighbors supported in GPU kernels
-#define NGMAX 150
-
 namespace sph
 {
 
 template<class Dataset>
-extern void computeDensityGpu(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeDensityGpu(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeIADGpu(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeIADGpu(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeMomentumEnergyStdGpu(size_t, size_t, unsigned, Dataset& d,
-                                        const cstone::Box<typename Dataset::RealType>&);
+extern void computeMomentumEnergyStdGpu(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 namespace cuda
 {
 
 template<class Dataset>
-extern void computeXMass(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeXMass(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeVeDefGradh(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeVeDefGradh(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeIadDivvCurlv(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeIadDivvCurlv(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeAVswitches(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeAVswitches(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<bool avClean, class Dataset>
-extern void computeMomentumEnergy(size_t, size_t, unsigned, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeMomentumEnergy(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Tu, class Trho, class Tp, class Tc>
 extern void computeEOS_HydroStd(size_t, size_t, Tu, Tu, const Tu*, const Trho*, Tp*, Tc*);

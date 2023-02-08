@@ -24,13 +24,13 @@ void updateSmoothingLengthCpu(size_t startIndex, size_t endIndex, unsigned ng0, 
 }
 
 template<class Dataset>
-void updateSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d, unsigned ng0)
+void updateSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        updateSmoothingLengthGpu(startIndex, endIndex, ng0, rawPtr(d.devData.nc), rawPtr(d.devData.h));
+        updateSmoothingLengthGpu(startIndex, endIndex, d.ng0, rawPtr(d.devData.nc), rawPtr(d.devData.h));
     }
-    else { updateSmoothingLengthCpu(startIndex, endIndex, ng0, rawPtr(d.nc), rawPtr(d.h)); }
+    else { updateSmoothingLengthCpu(startIndex, endIndex, d.ng0, rawPtr(d.nc), rawPtr(d.h)); }
 }
 
 } // namespace sph

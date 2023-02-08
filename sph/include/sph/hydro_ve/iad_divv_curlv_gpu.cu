@@ -88,7 +88,7 @@ __global__ void iadDivvCurlvGpu(T sincIndex, T K, unsigned ngmax, const cstone::
 }
 
 template<class Dataset>
-void computeIadDivvCurlv(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
+void computeIadDivvCurlv(size_t startIndex, size_t endIndex, Dataset& d,
                          const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
@@ -98,7 +98,7 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, unsigned ngmax, Dat
     numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
     unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    unsigned nidxSize = ngmax * numBlocks * TravConfig::numThreads;
+    unsigned nidxSize = d.ngmax * numBlocks * TravConfig::numThreads;
     reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
     auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
     auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
@@ -108,7 +108,7 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, unsigned ngmax, Dat
     bool doGradV = d.devData.x.size() == d.devData.dV11.size();
 
     iadDivvCurlvGpu<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x), rawPtr(d.devData.y),
+        d.sincIndex, d.K, d.ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x), rawPtr(d.devData.y),
         rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h),
         rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx), rawPtr(d.devData.c11),
         rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22), rawPtr(d.devData.c23),
@@ -119,7 +119,7 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, unsigned ngmax, Dat
 }
 
 #define IAD_DIVV_CURLV(real, key)                                                                                      \
-    template void computeIadDivvCurlv(size_t, size_t, unsigned, sphexa::ParticlesData<real, key, cstone::GpuTag>& d,   \
+    template void computeIadDivvCurlv(size_t, size_t, sphexa::ParticlesData<real, key, cstone::GpuTag>& d,             \
                                       const cstone::Box<real>&)
 
 IAD_DIVV_CURLV(double, uint32_t);

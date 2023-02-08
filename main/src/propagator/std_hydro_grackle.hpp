@@ -53,8 +53,6 @@ template<class DomainType, class DataType>
 class HydroGrackleProp final : public Propagator<DomainType, DataType>
 {
     using Base = Propagator<DomainType, DataType>;
-    using Base::ng0_;
-    using Base::ngmax_;
     using Base::timer;
 
     using T             = typename DataType::RealType;
@@ -87,8 +85,8 @@ class HydroGrackleProp final : public Propagator<DomainType, DataType>
                   "RT_H2_dissociation_rate", "H2_self_shielding_length">;
 
 public:
-    HydroGrackleProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : Base(ngmax, ng0, output, rank)
+    HydroGrackleProp(std::ostream& output, size_t rank)
+        : Base(output, rank)
     {
         constexpr float                 ms_sim = 1e16;
         constexpr float                 kp_sim = 46400.;
@@ -154,7 +152,7 @@ public:
 
         auto& d = simData.hydro;
         d.resize(domain.nParticlesWithHalos());
-        resizeNeighbors(d, domain.nParticles() * ngmax_);
+        resizeNeighbors(d, domain.nParticles() * d.ngmax);
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
@@ -162,10 +160,10 @@ public:
         fill(get<"m">(d), 0, first, d.m[first]);
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
-        findNeighborsSfc(first, last, ng0_, ngmax_, d, domain.box());
+        findNeighborsSfc(first, last, d, domain.box());
         timer.step("FindNeighbors");
 
-        computeDensity(first, last, ngmax_, d, domain.box());
+        computeDensity(first, last, d, domain.box());
         timer.step("Density");
 
         computeEOS_HydroStd(first, last, d);
@@ -174,14 +172,14 @@ public:
 
         timer.step("mpi::synchronizeHalos");
 
-        computeIAD(first, last, ngmax_, d, domain.box());
+        computeIAD(first, last, d, domain.box());
         timer.step("IAD");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
 
         timer.step("mpi::synchronizeHalos");
 
-        computeMomentumEnergySTD(first, last, ngmax_, d, domain.box());
+        computeMomentumEnergySTD(first, last, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
         if (d.g != 0.0)
@@ -222,7 +220,7 @@ public:
 
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
-        updateSmoothingLength(first, last, d, ng0_);
+        updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");
 
         timer.stop();

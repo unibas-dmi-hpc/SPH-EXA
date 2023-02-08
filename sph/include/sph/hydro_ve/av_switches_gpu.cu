@@ -84,7 +84,7 @@ __global__ void AVswitchesGpu(T sincIndex, T K, unsigned ngmax, const cstone::Bo
 }
 
 template<class Dataset>
-void computeAVswitches(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
+void computeAVswitches(size_t startIndex, size_t endIndex, Dataset& d,
                        const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
@@ -94,7 +94,7 @@ void computeAVswitches(size_t startIndex, size_t endIndex, unsigned ngmax, Datas
     numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
     unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    unsigned nidxSize = ngmax * numBlocks * TravConfig::numThreads;
+    unsigned nidxSize = d.ngmax * numBlocks * TravConfig::numThreads;
     reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
     auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
     auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
@@ -102,7 +102,7 @@ void computeAVswitches(size_t startIndex, size_t endIndex, unsigned ngmax, Datas
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     AVswitchesGpu<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x), rawPtr(d.devData.y),
+        d.sincIndex, d.K, d.ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x), rawPtr(d.devData.y),
         rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h),
         rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
         rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.kx),
@@ -111,13 +111,13 @@ void computeAVswitches(size_t startIndex, size_t endIndex, unsigned ngmax, Datas
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeAVswitches(size_t, size_t, unsigned, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeAVswitches(size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                 const cstone::Box<double>&);
-template void computeAVswitches(size_t, size_t, unsigned, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeAVswitches(size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                 const cstone::Box<double>&);
-template void computeAVswitches(size_t, size_t, unsigned, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeAVswitches(size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                 const cstone::Box<float>&);
-template void computeAVswitches(size_t, size_t, unsigned, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeAVswitches(size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                 const cstone::Box<float>&);
 
 } // namespace sph::cuda

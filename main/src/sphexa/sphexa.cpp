@@ -73,7 +73,7 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    using Real    = float;
+    using Real    = double;
     using KeyType = uint64_t;
     using Dataset = SimulationData<Real, KeyType, AccType>;
     using Domain  = cstone::Domain<KeyType, Real, AccType>;
@@ -93,16 +93,13 @@ int main(int argc, char** argv)
     const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
     const bool               writeEnabled      = writeFrequencyStr != "0" || !writeExtra.empty();
 
-    size_t ngmax = 150;
-    size_t ng0   = 100;
-
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
     //! @brief evaluate user choice for different kind of actions
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
-    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, ngmax, ng0, output, rank);
+    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank);
     auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
@@ -120,6 +117,9 @@ int main(int argc, char** argv)
     auto& d = simData.hydro;
     transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
     d.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
+
+    d.ng0   = 100;
+    d.ngmax = 150;
 
     bool  haveGrav = (d.g != 0.0);
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);

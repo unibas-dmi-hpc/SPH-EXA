@@ -1232,6 +1232,9 @@ _H5Part_normalize_h5_type (
         if ( size==8 ) {
             return H5PART_INT64;
         }
+        else if ( size==4 ){
+            return H5PART_INT32;
+        }
         else if ( size==1 ) {
             return H5PART_CHAR;
         }

@@ -52,8 +52,6 @@ class HydroVeProp : public Propagator<DomainType, DataType>
 {
 protected:
     using Base = Propagator<DomainType, DataType>;
-    using Base::ng0_;
-    using Base::ngmax_;
     using Base::timer;
 
     using T             = typename DataType::RealType;
@@ -86,8 +84,8 @@ protected:
         std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{}), decltype(DependentFields_{})>;
 
 public:
-    HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : Base(ngmax, ng0, output, rank)
+    HydroVeProp(std::ostream& output, size_t rank)
+        : Base(output, rank)
     {
         if (avClean && rank == 0) { std::cout << "AV cleaning is activated" << std::endl; }
     }
@@ -138,7 +136,7 @@ public:
 
         auto& d = simData.hydro;
         d.resize(domain.nParticlesWithHalos());
-        resizeNeighbors(d, domain.nParticles() * ngmax_);
+        resizeNeighbors(d, domain.nParticles() * d.ngmax);
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
@@ -146,10 +144,10 @@ public:
         fill(get<"m">(d), 0, first, d.m[first]);
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
-        findNeighborsSfc(first, last, ng0_, ngmax_, d, domain.box());
+        findNeighborsSfc(first, last, d, domain.box());
         timer.step("FindNeighbors");
 
-        computeXMass(first, last, ngmax_, d, domain.box());
+        computeXMass(first, last, d, domain.box());
         timer.step("XMass");
         domain.exchangeHalos(std::tie(get<"xm">(d)), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
@@ -158,7 +156,7 @@ public:
         d.devData.release("ax");
         d.acquire("gradh");
         d.devData.acquire("gradh");
-        computeVeDefGradh(first, last, ngmax_, d, domain.box());
+        computeVeDefGradh(first, last, d, domain.box());
         timer.step("Normalization & Gradh");
 
         computeEOS(first, last, d);
@@ -171,13 +169,13 @@ public:
         d.devData.release("gradh", "ay");
         d.acquire("divv", "curlv");
         d.devData.acquire("divv", "curlv");
-        computeIadDivvCurlv(first, last, ngmax_, d, domain.box());
+        computeIadDivvCurlv(first, last, d, domain.box());
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"az">(d), get<"du">(d));
         timer.step("mpi::synchronizeHalos");
 
-        computeAVswitches(first, last, ngmax_, d, domain.box());
+        computeAVswitches(first, last, d, domain.box());
         timer.step("AVswitches");
 
         if (avClean)
@@ -191,7 +189,7 @@ public:
         d.devData.release("divv", "curlv");
         d.acquire("ax", "ay");
         d.devData.acquire("ax", "ay");
-        computeMomentumEnergy<avClean>(first, last, ngmax_, d, domain.box());
+        computeMomentumEnergy<avClean>(first, last, d, domain.box());
         timer.step("MomentumAndEnergy");
 
         if (d.g != 0.0)
@@ -215,7 +213,7 @@ public:
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
-        updateSmoothingLength(first, last, d, ng0_);
+        updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
@@ -263,7 +261,7 @@ public:
         // third output pass: curlv and divv
         d.acquire("divv", "curlv");
         d.devData.acquire("divv", "curlv");
-        if (!outputFields.empty()) { computeIadDivvCurlv(first, last, ngmax_, d, box); }
+        if (!outputFields.empty()) { computeIadDivvCurlv(first, last, d, box); }
         output();
         d.release("divv", "curlv");
         d.devData.release("divv", "curlv");

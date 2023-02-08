@@ -47,10 +47,11 @@ using cstone::TravConfig;
 using cstone::TreeNodeIndex;
 
 template<class Tc, class Tm, class T, class KeyType>
-__global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc> box, cstone::LocalIndex first,
-                         cstone::LocalIndex last, const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc,
-                         const Tc* x, const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd,
-                         T* xm, cstone::LocalIndex* nidx, TreeNodeIndex* globalPool)
+__global__ void xmassGpu(T sincIndex, T K, unsigned ng0, unsigned ngmax, const cstone::Box<Tc> box,
+                         cstone::LocalIndex first, cstone::LocalIndex last,
+                         const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc, const Tc* x, const Tc* y,
+                         const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd, T* xm,
+                         cstone::LocalIndex* nidx, TreeNodeIndex* globalPool)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
     unsigned numTargets  = (last - first - 1) / TravConfig::targetSize + 1;
@@ -68,10 +69,19 @@ __global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc>
         if (targetIdx >= numTargets) return;
 
         cstone::LocalIndex bodyBegin = first + targetIdx * TravConfig::targetSize;
-        cstone::LocalIndex bodyEnd   = cstone::imin(bodyBegin + TravConfig::targetSize, last);
+        cstone::LocalIndex bodyEnd   = bodyBegin + TravConfig::targetSize;
         cstone::LocalIndex i         = bodyBegin + laneIdx;
 
         auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
+
+        constexpr int ncMaxIteration = 10;
+        for (int ncIt = 0; ncIt < ncMaxIteration; ++ncIt)
+        {
+            bool repeat = (ncTrue[0] < ng0 / 4 || ncTrue[0] > ngmax) && i < last;
+            if (!cstone::ballotSync(repeat)) { break; }
+            if (repeat) updateH(ng0, ncTrue[0], h[i]);
+            ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
+        }
 
         if (i >= last) continue;
 
@@ -83,8 +93,7 @@ __global__ void xmassGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc>
 }
 
 template<class Dataset>
-void computeXMass(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
-                  const cstone::Box<typename Dataset::RealType>& box)
+void computeXMass(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
     unsigned numBodies        = endIndex - startIndex;
@@ -93,7 +102,7 @@ void computeXMass(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d
     numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
     unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    unsigned nidxSize = ngmax * numBlocks * TravConfig::numThreads;
+    unsigned nidxSize = d.ngmax * numBlocks * TravConfig::numThreads;
     reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
     auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
     auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
@@ -101,14 +110,14 @@ void computeXMass(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     xmassGpu<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.nc), rawPtr(d.devData.x),
-        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh),
-        rawPtr(d.devData.whd), rawPtr(d.devData.xm), nidxPool, traversalPool);
+        d.sincIndex, d.K, d.ng0, d.ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.nc),
+        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m),
+        rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), nidxPool, traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
 #define COMPUTE_XMASS_GPU(RealType, KeyType)                                                                           \
-    template void computeXMass(size_t, size_t, unsigned, sphexa::ParticlesData<RealType, KeyType, cstone::GpuTag>& d,  \
+    template void computeXMass(size_t, size_t, sphexa::ParticlesData<RealType, KeyType, cstone::GpuTag>& d,            \
                                const cstone::Box<RealType>&)
 
 COMPUTE_XMASS_GPU(double, unsigned);

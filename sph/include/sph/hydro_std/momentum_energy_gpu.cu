@@ -104,7 +104,7 @@ __global__ void cudaGradP(T sincIndex, T K, T Kcour, unsigned ngmax, cstone::Box
 }
 
 template<class Dataset>
-void computeMomentumEnergyStdGpu(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d,
+void computeMomentumEnergyStdGpu(size_t startIndex, size_t endIndex, Dataset& d,
                                  const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
@@ -114,7 +114,7 @@ void computeMomentumEnergyStdGpu(size_t startIndex, size_t endIndex, unsigned ng
     numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
     unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    unsigned nidxSize = ngmax * numBlocks * TravConfig::numThreads;
+    unsigned nidxSize = d.ngmax * numBlocks * TravConfig::numThreads;
     reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
     auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
     auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
@@ -124,7 +124,7 @@ void computeMomentumEnergyStdGpu(size_t startIndex, size_t endIndex, unsigned ng
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     cudaGradP<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, d.Kcour, ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x),
+        d.sincIndex, d.K, d.Kcour, d.ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
         rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho), rawPtr(d.devData.p), rawPtr(d.devData.c),
         rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
@@ -138,17 +138,13 @@ void computeMomentumEnergyStdGpu(size_t startIndex, size_t endIndex, unsigned ng
     d.minDt_loc = minDt;
 }
 
-template void computeMomentumEnergyStdGpu(size_t, size_t, unsigned,
-                                          sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
                                           const cstone::Box<double>&);
-template void computeMomentumEnergyStdGpu(size_t, size_t, unsigned,
-                                          sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                           const cstone::Box<double>&);
-template void computeMomentumEnergyStdGpu(size_t, size_t, unsigned,
-                                          sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
+template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
                                           const cstone::Box<float>&);
-template void computeMomentumEnergyStdGpu(size_t, size_t, unsigned,
-                                          sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
                                           const cstone::Box<float>&);
 
 } // namespace sph

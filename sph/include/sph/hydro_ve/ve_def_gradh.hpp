@@ -37,7 +37,7 @@
 namespace sph
 {
 template<class Tc, class Dataset>
-void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<Tc>& box)
+void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box)
 {
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
@@ -63,9 +63,9 @@ void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, unsigned ngmax, D
     for (size_t i = startIndex; i < endIndex; i++)
     {
         size_t   ni = i - startIndex;
-        unsigned nc = std::min(neighborsCount[i], ngmax);
+        unsigned nc = std::min(neighborsCount[i], d.ngmax);
         auto [kxi, gradhi] =
-            veDefGradhJLoop(i, sincIndex, K, box, neighbors + ngmax * ni, nc, x, y, z, h, m, wh, whd, xm);
+            veDefGradhJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, h, m, wh, whd, xm);
 
         kx[i]    = kxi;
         gradh[i] = gradhi;
@@ -79,13 +79,13 @@ void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, unsigned ngmax, D
 }
 
 template<typename Tc, class Dataset>
-void computeVeDefGradh(size_t startIndex, size_t endIndex, unsigned ngmax, Dataset& d, const cstone::Box<Tc>& box)
+void computeVeDefGradh(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        cuda::computeVeDefGradh(startIndex, endIndex, ngmax, d, box);
+        cuda::computeVeDefGradh(startIndex, endIndex, d, box);
     }
-    else { computeVeDefGradhImpl(startIndex, endIndex, ngmax, d, box); }
+    else { computeVeDefGradhImpl(startIndex, endIndex, d, box); }
 }
 
 } // namespace sph
