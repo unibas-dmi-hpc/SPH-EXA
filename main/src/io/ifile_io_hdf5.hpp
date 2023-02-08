@@ -194,15 +194,33 @@ public:
     {
         if (size != stepAttributeSize(key)) { throw std::runtime_error("step attribute size is inconsistent: " + key); }
         auto err = std::visit(
-            [this, &key](auto arg)
+            [this, size, &key](auto arg)
             {
                 int64_t memTypeId  = fileutils::H5PartType<std::decay_t<decltype(*arg)>>{};
                 int64_t fileTypeId = stepAttributeType(key);
                 if (memTypeId != fileTypeId)
                 {
-                    throw std::runtime_error("attribute type of " + key + " in file is " +
-                                             fileutils::H5PartTypeToString(fileTypeId) + ", but should be " +
-                                             fileutils::H5PartTypeToString(memTypeId) + "\n");
+                    if (memTypeId == fileutils::H5PartType<float>{} && fileTypeId == fileutils::H5PartType<double>{})
+                    {
+                        double tmp[size];
+                        auto   err = H5PartReadStepAttrib(h5File_, key.c_str(), tmp);
+                        std::copy_n(tmp, size, arg);
+                        return err;
+                    }
+                    else if (memTypeId == fileutils::H5PartType<double>{} &&
+                             fileTypeId == fileutils::H5PartType<float>{})
+                    {
+                        float tmp[size];
+                        auto  err = H5PartReadStepAttrib(h5File_, key.c_str(), tmp);
+                        std::copy_n(tmp, size, arg);
+                        return err;
+                    }
+                    else
+                    {
+                        throw std::runtime_error("attribute type of " + key + " in file is " +
+                                                 fileutils::H5PartTypeToString(fileTypeId) + ", but should be " +
+                                                 fileutils::H5PartTypeToString(memTypeId) + "\n");
+                    }
                 }
 
                 return H5PartReadStepAttrib(h5File_, key.c_str(), arg);
