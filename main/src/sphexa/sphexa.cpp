@@ -73,7 +73,7 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    using Real    = double;
+    using Real    = float;
     using KeyType = uint64_t;
     using Dataset = SimulationData<Real, KeyType, AccType>;
     using Domain  = cstone::Domain<KeyType, Real, AccType>;

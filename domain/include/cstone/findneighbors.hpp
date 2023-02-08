@@ -90,19 +90,18 @@ HOST_DEVICE_FUN constexpr T distanceSq(T x1, T y1, T z1, T x2, T y2, T z2, const
  * @param[in]  box             coordinate bounding box that was used to calculate the Morton codes
  * @param[in]  ngmax           maximum number of neighbors per particle
  * @param[out] neighbors       output to store the neighbors
- * @param[out] nc              output to store the number of neighbors
+ * @return                     neighbor count of particle @p i
  */
 template<class T, class KeyType>
-HOST_DEVICE_FUN void findNeighbors(LocalIndex i,
-                                   const T* x,
-                                   const T* y,
-                                   const T* z,
-                                   const T* h,
-                                   const OctreeNsView<T, KeyType>& tree,
-                                   const Box<T>& box,
-                                   unsigned ngmax,
-                                   LocalIndex* neighbors,
-                                   unsigned* nc)
+HOST_DEVICE_FUN unsigned findNeighbors(LocalIndex i,
+                                       const T* x,
+                                       const T* y,
+                                       const T* z,
+                                       const T* h,
+                                       const OctreeNsView<T, KeyType>& tree,
+                                       const Box<T>& box,
+                                       unsigned ngmax,
+                                       LocalIndex* neighbors)
 {
     T xi = x[i];
     T yi = y[i];
@@ -169,7 +168,7 @@ HOST_DEVICE_FUN void findNeighbors(LocalIndex i,
     if (usePbc) { singleTraversal(tree.childOffsets, overlapsPbc, searchBoxPbc); }
     else { singleTraversal(tree.childOffsets, overlaps, searchBox); }
 
-    *nc = numNeighbors;
+    return numNeighbors;
 }
 
 template<class T, class KeyType>
@@ -190,8 +189,8 @@ void findNeighbors(const T* x,
 #pragma omp parallel for
     for (LocalIndex i = 0; i < numWork; ++i)
     {
-        LocalIndex id = i + firstId;
-        findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax, neighborsCount + i);
+        LocalIndex id     = i + firstId;
+        neighborsCount[i] = findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
     }
 }
 
