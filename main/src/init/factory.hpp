@@ -48,6 +48,7 @@
 #endif
 #ifdef USE_NUCLEAR_NETWORKS
 #include "nuclear_sedov_init.hpp"
+#include "nuclear_detonation_init.hpp"
 #endif
 
 namespace sphexa
@@ -69,6 +70,20 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for nuclear sedov test case\n"); }
 #ifdef SPH_EXA_HAVE_H5PART
         else { return std::make_unique<NuclearSedovGlass<Dataset>>(glassBlock, testCase == "sedov-nuclear-attached"); }
+#endif
+    }
+    if (testCase == "nuclear-detonation" || testCase == "nuclear-detonation-attached")
+    {
+        if (glassBlock.empty())
+        {
+            throw std::runtime_error("need a valid glass block for nuclear detonation test case\n");
+        }
+#ifdef SPH_EXA_HAVE_H5PART
+        else
+        {
+            return std::make_unique<NuclearDetonationGlass<Dataset>>(glassBlock,
+                                                                     testCase == "nuclear-detonation-attached");
+        }
 #endif
     }
 #endif
