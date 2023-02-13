@@ -16,19 +16,28 @@ void findNeighborsSph(const T* x, const T* y, const T* z, T* h, LocalIndex first
 
     unsigned ngmin = ng0 / 4;
 
-#pragma omp parallel for
+    size_t        numFails     = 0;
+    constexpr int maxIteration = 10;
+
+#pragma omp parallel for reduction(+ : numFails)
     for (LocalIndex i = 0; i < numWork; ++i)
     {
         LocalIndex id = i + firstId;
         nc[i]         = findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
 
-        int iteration    = 0;
-        int maxIteration = 10;
+        int iteration = 0;
         while (ngmin > nc[i] || nc[i] > ngmax && iteration++ < maxIteration)
         {
             h[id] = updateH(ng0, nc[i], h[id]);
             nc[i] = findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
         }
+        numFails += (iteration == maxIteration);
+    }
+
+    if (numFails)
+    {
+        std::cout << "Coupled h-neighbor count updated failed to converge for " << numFails << " particles"
+                  << std::endl;
     }
 }
 
