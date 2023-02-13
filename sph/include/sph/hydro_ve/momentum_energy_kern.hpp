@@ -90,10 +90,6 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
     auto xmassi = xm[i];
     auto rhoi   = kxi * mi / xmassi;
     auto prhoi  = prho[i];
-    auto voli   = xmassi / kxi;
-
-    T mark_ramp = 0.0;
-    T a_mom, b_mom, sigma_ij;
 
     T hiInv  = T(1) / hi;
     T hiInv3 = hiInv * hiInv * hiInv;
@@ -166,8 +162,6 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
         auto xmassj = xm[j];
         auto rhoj   = kxj * mj / xmassj;
 
-        T alpha_j = alpha[j];
-
         T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
         if constexpr (avClean)
         {
@@ -176,50 +170,45 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
         }
 
         T wij          = rv / dist;
-        T viscosity_ij = artificial_viscosity(alpha_i, alpha_j, ci, cj, wij);
-        T viscosity_jj = viscosity_ij;
+        T viscosity_ij = artificial_viscosity(alpha_i, alpha[j], ci, cj, wij);
 
         // For time-step calculations
         T vijsignal = ci + cj - T(3) * wij;
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
-        T prhoj = prho[j];
-
+        T a_mom, b_mom;
         T Atwood = (std::abs(rhoi - rhoj)) / (rhoi + rhoj);
         if (Atwood < Atmin)
         {
-            a_mom = mj * xmassi * xmassi;
-            b_mom = mj * xmassj * xmassj;
+            a_mom = xmassi * xmassi;
+            b_mom = xmassj * xmassj;
         }
         else if (Atwood > Atmax)
         {
-            a_mom = mj * xmassi * xmassj;
+            a_mom = xmassi * xmassj;
             b_mom = a_mom;
-            mark_ramp += T(1);
         }
         else
         {
-            sigma_ij = ramp * (Atwood - Atmin);
-            a_mom    = mj * pow(xmassi, T(2) - sigma_ij) * pow(xmassj, sigma_ij);
-            b_mom    = mj * pow(xmassj, T(2) - sigma_ij) * pow(xmassi, sigma_ij);
-            mark_ramp += sigma_ij;
+            T sigma_ij = ramp * (Atwood - Atmin);
+            a_mom      = pow(xmassi, T(2) - sigma_ij) * pow(xmassj, sigma_ij);
+            b_mom      = pow(xmassj, T(2) - sigma_ij) * pow(xmassi, sigma_ij);
         }
 
-        auto volj       = xmassj / kxj;
-        auto a_visc     = voli * mj / mi * viscosity_ij;
-        auto b_visc     = volj * viscosity_jj;
-        auto momentum_i = prhoi * a_mom; // + 0.5 * a_visc;
-        auto momentum_j = prhoj * b_mom; // + 0.5 * b_visc;
-        T    a_visc_x   = T(0.5) * (a_visc * termA1_i + b_visc * termA1_j);
-        T    a_visc_y   = T(0.5) * (a_visc * termA2_i + b_visc * termA2_j);
-        T    a_visc_z   = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
+        auto a_visc   = mj / rhoi * viscosity_ij;
+        auto b_visc   = mj / rhoj * viscosity_ij;
+        T    a_visc_x = T(0.5) * (a_visc * termA1_i + b_visc * termA1_j);
+        T    a_visc_y = T(0.5) * (a_visc * termA2_i + b_visc * termA2_j);
+        T    a_visc_z = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
+        a_visc_energy += a_visc_x * vx_ij + a_visc_y * vy_ij + a_visc_z * vz_ij;
 
+        auto momentum_i = mj * prhoi * a_mom;
+        energy += momentum_i * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
+
+        auto momentum_j = mj * prho[j] * b_mom;
         momentum_x += momentum_i * termA1_i + momentum_j * termA1_j + a_visc_x;
         momentum_y += momentum_i * termA2_i + momentum_j * termA2_j + a_visc_y;
         momentum_z += momentum_i * termA3_i + momentum_j * termA3_j + a_visc_z;
-
-        a_visc_energy += a_visc_x * vx_ij + a_visc_y * vy_ij + a_visc_z * vz_ij;
-        energy += momentum_i * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
     }
 
     a_visc_energy = stl::max(T(0), a_visc_energy);
