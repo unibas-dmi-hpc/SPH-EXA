@@ -52,6 +52,9 @@ struct MinMaxGpu
 };
 
 template<class T>
+T maxNormSquareGpu(const T* x, const T* y, const T* z, size_t numElements);
+
+template<class T>
 extern size_t lowerBoundGpu(const T* first, const T* last, T value);
 
 template<class T, class IndexType>

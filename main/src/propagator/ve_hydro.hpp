@@ -209,7 +209,7 @@ public:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        computeTimestep(d);
+        computeTimestep(first, last, d);
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");

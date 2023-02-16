@@ -56,9 +56,6 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     const auto* m    = d.m.data();
     const auto* temp = d.temp.data();
 
-    double eKin = 0.0;
-    double eInt = 0.0;
-
     util::array<double, 3> linmom{0.0, 0.0, 0.0};
     util::array<double, 3> angmom{0.0, 0.0, 0.0};
 
@@ -67,18 +64,30 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 
 #pragma omp declare reduction(+ : util::array <double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
 
-#pragma omp parallel for reduction(+ : eKin, eInt, linmom, angmom)
+    double eKin = 0.0;
+#pragma omp parallel for reduction(+ : eKin, linmom, angmom)
     for (size_t i = startIndex; i < endIndex; i++)
     {
         util::array<double, 3> X{x[i], y[i], z[i]};
         util::array<double, 3> V{vx[i], vy[i], vz[i]};
         auto                   mi = m[i];
 
-        auto cv = haveMui ? sph::idealGasCv(d.mui[i], d.gamma) : sharedCv;
         eKin += mi * norm2(V);
-        eInt += cv * temp[i] * mi;
         linmom += mi * V;
         angmom += mi * cross(X, V);
+    }
+
+    double eInt = 0.0;
+
+    if (!d.temp.empty())
+    {
+#pragma omp parallel for reduction(+ : eInt)
+        for (size_t i = startIndex; i < endIndex; i++)
+        {
+            auto cv = haveMui ? sph::idealGasCv(d.mui[i], d.gamma) : sharedCv;
+            auto mi = m[i];
+            eInt += cv * temp[i] * mi;
+        }
     }
 
     return std::make_tuple(0.5 * eKin, eInt, linmom, angmom);
@@ -101,7 +110,10 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
 
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        ncsum = cstone::reduceGpu(rawPtr(d.devData.nc) + startIndex, endIndex - startIndex, size_t(0));
+        if (!d.devData.nc.empty())
+        {
+            ncsum = cstone::reduceGpu(rawPtr(d.devData.nc) + startIndex, endIndex - startIndex, size_t(0));
+        }
         std::tie(eKin, eInt, linmom, angmom) = conservedQuantitiesGpu(
             sph::idealGasCv(d.muiConst, d.gamma), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
             rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.temp),
@@ -109,10 +121,13 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     }
     else
     {
-#pragma omp parallel for reduction(+ : ncsum)
-        for (size_t i = startIndex; i < endIndex; i++)
+        if (!d.nc.empty())
         {
-            ncsum += d.nc[i];
+#pragma omp parallel for reduction(+ : ncsum)
+            for (size_t i = startIndex; i < endIndex; i++)
+            {
+                ncsum += d.nc[i];
+            }
         }
 
         std::tie(eKin, eInt, linmom, angmom) = localConservedQuantities(startIndex, endIndex, d);

@@ -137,9 +137,6 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
 #endif
 
     if (testCase == "turbulence") { return std::make_unique<TurbulenceMachRMS<Dataset>>(constantsFile); }
-
-    if (testCase == "nbody") { return std::make_unique<IObservables<Dataset>>(); }
-
     if (testCase == "kelvin-helmholtz") { return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile); }
 
     return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);

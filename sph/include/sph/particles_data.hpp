@@ -97,6 +97,10 @@ public:
 
     //! @brief gravitational constant
     T g{0.0};
+    //! @brief gravitational smoothing
+    T eps{0.005};
+    //! @brief acceleration based time-step control
+    T etaAcc{0.2};
 
     //! @brief adiabatic index
     T gamma{5.0 / 3.0};
@@ -133,6 +137,8 @@ public:
         ar->stepAttribute("minDt_m1", &minDt_m1, 1);
         ar->stepAttribute("gravConstant", &g, 1);
         optionalIO("gamma", &gamma, 1);
+        optionalIO("eps", &eps, 1);
+        optionalIO("etaAcc", &etaAcc, 1);
         optionalIO("muiConst", &muiConst, 1);
         optionalIO("Kcour", &Kcour, 1);
     }

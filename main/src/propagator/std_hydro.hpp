@@ -165,7 +165,7 @@ public:
             timer.step("Gravity");
         }
 
-        computeTimestep(d);
+        computeTimestep(first, last, d);
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");

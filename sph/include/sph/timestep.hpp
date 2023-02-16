@@ -32,10 +32,9 @@
 
 #pragma once
 
-#include <vector>
-#include <math.h>
 #include <algorithm>
-
+#include <cmath>
+#include <vector>
 #include <mpi.h>
 
 #include "kernels.hpp"
@@ -43,12 +42,38 @@
 namespace sph
 {
 
+//! @brief limit time-step based on accelerations when gravity is enabled
 template<class Dataset>
-void computeTimestep(Dataset& d)
+auto accelerationTimestep(size_t first, size_t last, const Dataset& d)
 {
     using T = typename Dataset::RealType;
 
-    T minDt = std::min(d.minDt_loc, d.maxDtIncrease * d.minDt);
+    T maxAccSq = 0.0;
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        maxAccSq = cstone::maxNormSquareGpu(rawPtr(d.devData.x) + first, rawPtr(d.devData.y) + first,
+                                            rawPtr(d.devData.z) + first, last - first);
+    }
+    else
+    {
+#pragma omp parallel for reduction(max : maxAccSq)
+        for (size_t i = first; i < last; ++i)
+        {
+            cstone::Vec3<T> X{d.x[i], d.y[i], d.z[i]};
+            maxAccSq = std::max(norm2(X), maxAccSq);
+        }
+    }
+
+    return d.etaAcc * std::sqrt(d.eps / std::sqrt(maxAccSq));
+}
+
+template<class Dataset>
+void computeTimestep(size_t first, size_t last, Dataset& d)
+{
+    using T = typename Dataset::RealType;
+
+    T minDtAcc = (d.g != 0.0) ? accelerationTimestep(first, last, d) : INFINITY;
+    T minDt    = std::min(std::min(minDtAcc, d.minDt_loc), d.maxDtIncrease * d.minDt);
 
     MPI_Allreduce(MPI_IN_PLACE, &minDt, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
 
