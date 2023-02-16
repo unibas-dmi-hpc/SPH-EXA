@@ -69,7 +69,7 @@ __global__ void xmassGpu(T sincIndex, T K, unsigned ng0, unsigned ngmax, const c
         if (targetIdx >= numTargets) return;
 
         cstone::LocalIndex bodyBegin = first + targetIdx * TravConfig::targetSize;
-        cstone::LocalIndex bodyEnd   = bodyBegin + TravConfig::targetSize;
+        cstone::LocalIndex bodyEnd   = cstone::imin(bodyBegin + TravConfig::targetSize, last);
         cstone::LocalIndex i         = bodyBegin + laneIdx;
 
         auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
