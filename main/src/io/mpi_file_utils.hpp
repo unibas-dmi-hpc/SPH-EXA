@@ -234,56 +234,56 @@ inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& f
 
 /* write step attributes */
 
-void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const double* value, size_t numElements)
+auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const double* value, size_t numElements)
 {
-    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
+    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
 }
 
-void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const float* value, size_t numElements)
+auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const float* value, size_t numElements)
 {
-    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
+    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
 }
 
-void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const char* value, size_t numElements)
+auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const char* value, size_t numElements)
 {
-    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_CHAR, value, numElements);
+    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_CHAR, value, numElements);
 }
 
-void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const int* value, size_t numElements)
+auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const int* value, size_t numElements)
 {
-    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT32, value, numElements);
+    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT32, value, numElements);
 }
 
-void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const int64_t* value, size_t numElements)
+auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const int64_t* value, size_t numElements)
 {
-    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT64, value, numElements);
+    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT64, value, numElements);
 }
 
-void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const unsigned* value, size_t numElements)
+auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const unsigned* value, size_t numElements)
 {
-    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT32, value, numElements);
+    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT32, value, numElements);
 }
 
-void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const uint64_t* value, size_t numElements)
+auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const uint64_t* value, size_t numElements)
 {
-    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT64, value, numElements);
+    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT64, value, numElements);
 }
 
 /* write file attributes */
 
-void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const double* value, size_t numElements)
+auto sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const double* value, size_t numElements)
 {
-    H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
+    return H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
 }
 
-void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const float* value, size_t numElements)
+auto sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const float* value, size_t numElements)
 {
-    H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
+    return H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
 }
 
-void sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const char* value, size_t numElements)
+auto sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const char* value, size_t numElements)
 {
-    H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_CHAR, value, numElements);
+    return H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_CHAR, value, numElements);
 }
 
 //! @brief Open in parallel mode if supported, otherwise serial if numRanks == 1

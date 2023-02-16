@@ -175,8 +175,10 @@ public:
 
     int64_t stepAttributeSize(const std::string& key) override
     {
-        auto           attributes = fileutils::stepAttributeNames(h5File_);
-        size_t         attrIndex  = std::find(attributes.begin(), attributes.end(), key) - attributes.begin();
+        auto   attributes = fileutils::stepAttributeNames(h5File_);
+        size_t attrIndex  = std::find(attributes.begin(), attributes.end(), key) - attributes.begin();
+        if (attrIndex == attributes.size()) { throw std::out_of_range("Attribute " + key + " does not exist\n"); }
+
         h5part_int64_t typeId, attrSize;
         char           dummy[256];
         H5PartGetStepAttribInfo(h5File_, attrIndex, dummy, 256, &typeId, &attrSize);
@@ -187,7 +189,7 @@ public:
     {
         if (size != fileAttributeSize(key)) { throw std::runtime_error("File attribute size is inconsistent: " + key); }
         auto err = std::visit([this, &key](auto arg) { return H5PartReadFileAttrib(h5File_, key.c_str(), arg); }, val);
-        if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read file attribute: " + key); }
+        if (err != H5PART_SUCCESS) { throw std::out_of_range("Could not read file attribute: " + key); }
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
