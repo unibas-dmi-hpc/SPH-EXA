@@ -110,17 +110,31 @@ public:
     template<class Archive>
     void loadOrStoreAttributes(Archive* ar)
     {
+        //! @brief load or store an attribute, skips non-existing attributes on load.
+        auto optionalIO = [ar](const std::string& attribute, auto* location, size_t attrSize)
+        {
+            try
+            {
+                ar->stepAttribute(attribute, location, attrSize);
+            }
+            catch (std::out_of_range&)
+            {
+                std::cout << "Attribute " << attribute << " not set in file, setting to default value " << *location
+                          << std::endl;
+            }
+        };
+
         ar->stepAttribute("iteration", &iteration, 1);
         ar->stepAttribute("numParticlesGlobal", &numParticlesGlobal, 1);
-        ar->stepAttribute("ng0", &ng0, 1);
-        ar->stepAttribute("ngmax", &ngmax, 1);
+        optionalIO("ng0", &ng0, 1);
+        optionalIO("ngmax", &ngmax, 1);
         ar->stepAttribute("time", &ttot, 1);
         ar->stepAttribute("minDt", &minDt, 1);
         ar->stepAttribute("minDt_m1", &minDt_m1, 1);
         ar->stepAttribute("gravConstant", &g, 1);
-        ar->stepAttribute("gamma", &gamma, 1);
-        ar->stepAttribute("muiConst", &muiConst, 1);
-        ar->stepAttribute("Kcour", &Kcour, 1);
+        optionalIO("gamma", &gamma, 1);
+        optionalIO("muiConst", &muiConst, 1);
+        optionalIO("Kcour", &Kcour, 1);
     }
 
     /*! @brief Particle fields
