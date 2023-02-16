@@ -190,7 +190,7 @@ public:
             timer.step("Gravity");
         }
 
-        computeTimestep(d);
+        computeTimestep(first, last, d);
         timer.step("Timestep");
 
 #pragma omp parallel for schedule(static)

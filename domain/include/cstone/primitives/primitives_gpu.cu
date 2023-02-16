@@ -131,6 +131,31 @@ std::tuple<T, T> MinMaxGpu<T>::operator()(const T* first, const T* last)
 template class MinMaxGpu<double>;
 template class MinMaxGpu<float>;
 
+using thrust::get;
+
+template<class T>
+struct NormSquare3D
+{
+    HOST_DEVICE_FUN T operator()(const thrust::tuple<T, T, T>& X)
+    {
+        return get<0>(X) * get<0>(X) + get<1>(X) * get<1>(X) + get<2>(X) * get<2>(X);
+    }
+};
+
+template<class T>
+T maxNormSquareGpu(const T* x, const T* y, const T* z, size_t numElements)
+{
+    auto it1 = thrust::make_zip_iterator(x, y, z);
+    auto it2 = thrust::make_zip_iterator(x + numElements, y + numElements, z + numElements);
+
+    T init = 0;
+
+    return thrust::transform_reduce(thrust::device, it1, it2, NormSquare3D<T>{}, init, thrust::maximum<T>{});
+}
+
+template float maxNormSquareGpu(const float*, const float*, const float*, size_t);
+template double maxNormSquareGpu(const double*, const double*, const double*, size_t);
+
 template<class T>
 size_t lowerBoundGpu(const T* first, const T* last, T value)
 {

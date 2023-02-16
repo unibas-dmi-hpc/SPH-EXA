@@ -95,7 +95,7 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     if (testCase == "nbody")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for nbody\n"); }
-        return std::make_unique<SedovGlass<Dataset>>(glassBlock);
+        return std::make_unique<EvrardGlassSphere<Dataset>>(glassBlock);
     }
     if (testCase == "turbulence")
     {
