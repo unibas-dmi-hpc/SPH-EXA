@@ -67,6 +67,32 @@ auto accelerationTimestep(size_t first, size_t last, const Dataset& d)
     return d.etaAcc * std::sqrt(d.eps / std::sqrt(maxAccSq));
 }
 
+//! @brief limit time-step based on divergence of velocity
+template<class Dataset>
+auto rhoTimestep(size_t first, size_t last, const Dataset& d)
+{
+    using T = typename Dataset::RealType;
+
+    T maxDivv = -INFINITY;
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        if (d.devData.divv.empty()) { throw std::runtime_error("Divv needs to be available in rhoTimestep\n"); }
+        auto minmax = cstone::MinMaxGpu<T>{}(rawPtr(d.devData.divv) + first, rawPtr(d.devData.divv) + last);
+        maxDivv     = std::get<1>(minmax);
+    }
+    else
+    {
+        if (d.divv.empty()) { throw std::runtime_error("Divv needs to be available in rhoTimestep\n"); }
+
+#pragma omp parallel for reduction(max : maxDivv)
+        for (size_t i = first; i < last; ++i)
+        {
+            maxDivv = std::max(d.divv[i], maxDivv);
+        }
+    }
+    return d.Krho / std::abs(maxDivv);
+}
+
 template<class Dataset>
 void computeTimestep(size_t first, size_t last, Dataset& d)
 {
@@ -74,7 +100,7 @@ void computeTimestep(size_t first, size_t last, Dataset& d)
 
     T minDtAcc = (d.g != 0.0) ? accelerationTimestep(first, last, d) : INFINITY;
 
-    T minDtLoc = std::min({minDtAcc, d.minDtCourant, d.maxDtIncrease * d.minDt});
+    T minDtLoc = std::min({minDtAcc, d.minDtCourant, d.minDtRho, d.maxDtIncrease * d.minDt});
 
     T minDtGlobal;
     MPI_Allreduce(&minDtLoc, &minDtGlobal, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);

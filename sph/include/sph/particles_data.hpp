@@ -94,9 +94,11 @@ public:
     T minDt, minDt_m1;
 
     //! temporary MPI rank local timesteps;
-    T minDtCourant;
+    T minDtCourant{INFINITY}, minDtRho{INFINITY};
     //! @brief Fraction of Courant condition for timestep
     T Kcour{0.2};
+    //! @brief Fraction of 1/|divv| condition for timestep
+    T Krho{0.06};
 
     //! @brief gravitational constant
     T g{0.0};
@@ -135,12 +137,13 @@ public:
         ar->stepAttribute("time", &ttot, 1);
         ar->stepAttribute("minDt", &minDt, 1);
         ar->stepAttribute("minDt_m1", &minDt_m1, 1);
+        optionalIO("Kcour", &Kcour, 1);
+        optionalIO("Krho", &Krho, 1);
         ar->stepAttribute("gravConstant", &g, 1);
         optionalIO("gamma", &gamma, 1);
         optionalIO("eps", &eps, 1);
         optionalIO("etaAcc", &etaAcc, 1);
         optionalIO("muiConst", &muiConst, 1);
-        optionalIO("Kcour", &Kcour, 1);
     }
 
     /*! @brief Particle fields
