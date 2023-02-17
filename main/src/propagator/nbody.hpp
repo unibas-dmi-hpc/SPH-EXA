@@ -35,6 +35,8 @@
 
 #include "cstone/fields/particles_get.hpp"
 #include "sph/particles_data.hpp"
+#include "sph/positions.hpp"
+#include "sph/timestep.hpp"
 
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"
@@ -66,10 +68,10 @@ class NbodyProp final : public Propagator<DomainType, DataType>
      *
      * x, y, z, h and m are automatically considered conserved and must not be specified in this list
      */
-    using ConservedFields = FieldList<"vx", "vy", "vz">;
+    using ConservedFields = FieldList<"vx", "vy", "vz", "x_m1", "y_m1", "z_m1">;
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
-    using DependentFields = FieldList<"ax", "ay", "du", "az">;
+    using DependentFields = FieldList<"ax", "ay", "du_m1", "az">;
 
 public:
     NbodyProp(std::ostream& output, size_t rank)
@@ -140,6 +142,13 @@ public:
             std::cout << "numP2P " << stats[0] / n << " maxP2P " << stats[1] << " numM2P " << stats[2] / n << " maxM2P "
                       << stats[3] << std::endl;
         }
+
+        d.minDt_loc = INFINITY;
+        computeTimestep(first, last, d);
+        computePositions(first, last, d, domain.box());
+        timer.step("UpdateQuantities");
+
+        timer.step("Timestep");
 
         timer.stop();
     }

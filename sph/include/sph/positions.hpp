@@ -114,7 +114,13 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
         util::tie(d.x[i], d.y[i], d.z[i])          = util::tie(X[0], X[1], X[2]);
         util::tie(d.x_m1[i], d.y_m1[i], d.z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
         util::tie(d.vx[i], d.vy[i], d.vz[i])       = util::tie(V[0], V[1], V[2]);
+    }
 
+    if (d.temp.empty()) { return; }
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = startIndex; i < endIndex; i++)
+    {
         T cv       = haveMui ? idealGasCv(d.mui[i], d.gamma) : constCv;
         T u_old    = cv * d.temp[i];
         d.temp[i]  = energyUpdate(u_old, dt, dt_m1, d.du[i], d.du_m1[i]) / cv;
