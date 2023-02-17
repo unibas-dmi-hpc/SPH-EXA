@@ -73,14 +73,16 @@ void computeTimestep(size_t first, size_t last, Dataset& d)
     using T = typename Dataset::RealType;
 
     T minDtAcc = (d.g != 0.0) ? accelerationTimestep(first, last, d) : INFINITY;
-    T minDt    = std::min(std::min(minDtAcc, d.minDt_loc), d.maxDtIncrease * d.minDt);
 
-    MPI_Allreduce(MPI_IN_PLACE, &minDt, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
+    T minDtLoc = std::min({minDtAcc, d.minDtCourant, d.maxDtIncrease * d.minDt});
 
-    d.ttot += minDt;
+    T minDtGlobal;
+    MPI_Allreduce(&minDtLoc, &minDtGlobal, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
+
+    d.ttot += minDtGlobal;
 
     d.minDt_m1 = d.minDt;
-    d.minDt    = minDt;
+    d.minDt    = minDtGlobal;
 }
 
 } // namespace sph
