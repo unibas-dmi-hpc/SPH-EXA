@@ -68,10 +68,13 @@ __global__ void computePositionsKernel(size_t first, size_t last, double dt, dou
     util::tie(x_m1[i], y_m1[i], z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
     util::tie(vx[i], vy[i], vz[i])       = util::tie(V[0], V[1], V[2]);
 
-    Thydro cv    = (constCv < 0) ? idealGasCv(mui[i], gamma) : constCv;
-    auto   u_old = temp[i] * cv;
-    temp[i]      = energyUpdate(u_old, dt, dt_m1, du[i], du_m1[i]) / cv;
-    du_m1[i]     = du[i];
+    if (temp != nullptr)
+    {
+        Thydro cv    = (constCv < 0) ? idealGasCv(mui[i], gamma) : constCv;
+        auto   u_old = temp[i] * cv;
+        temp[i]      = energyUpdate(u_old, dt, dt_m1, du[i], du_m1[i]) / cv;
+        du_m1[i]     = du[i];
+    }
 }
 
 template<class Tc, class Tv, class Ta, class Tm1, class Tt, class Thydro>

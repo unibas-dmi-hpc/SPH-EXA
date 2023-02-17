@@ -59,8 +59,7 @@ struct EMom
      * @return    Tuple<kinetic energy, internal energy, linear momentum, angular momentum>
      */
     HOST_DEVICE_FUN
-    thrust::tuple<double, Vec3<double>, Vec3<double>>
-    operator()(const thrust::tuple<Tc, Tc, Tc, Tm, Tv, Tv, Tv>& p)
+    thrust::tuple<double, Vec3<double>, Vec3<double>> operator()(const thrust::tuple<Tc, Tc, Tc, Tm, Tv, Tv, Tv>& p)
     {
         Vec3<double> X{get<0>(p), get<1>(p), get<2>(p)};
         Vec3<double> V{get<4>(p), get<5>(p), get<6>(p)};
