@@ -142,7 +142,7 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
 
     float minDt;
     checkGpuErrors(cudaMemcpyFromSymbol(&minDt, minDt_ve_device, sizeof(minDt)));
-    d.minDt_loc = minDt;
+    d.minDtCourant = minDt;
 }
 
 #define MOM_ENERGY(avc, real, key)                                                                                     \

@@ -135,7 +135,7 @@ void computeMomentumEnergyStdGpu(size_t startIndex, size_t endIndex, Dataset& d,
 
     float minDt;
     checkGpuErrors(cudaMemcpyFromSymbol(&minDt, minDt_device, sizeof(minDt)));
-    d.minDt_loc = minDt;
+    d.minDtCourant = minDt;
 }
 
 template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,

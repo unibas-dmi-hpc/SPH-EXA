@@ -92,8 +92,11 @@ public:
 
     //! current and previous (global) time-steps
     T minDt, minDt_m1;
-    //! temporary MPI rank local timestep;
-    T minDt_loc;
+
+    //! temporary MPI rank local timesteps;
+    T minDtCourant;
+    //! @brief Fraction of Courant condition for timestep
+    T Kcour{0.2};
 
     //! @brief gravitational constant
     T g{0.0};
@@ -107,9 +110,6 @@ public:
 
     //! @brief mean molecular weight of ions for models that use one value for all particles
     T muiConst{10.0};
-
-    //! @brief Fraction of Courant condition for timestep
-    T Kcour{0.2};
 
     template<class Archive>
     void loadOrStoreAttributes(Archive* ar)

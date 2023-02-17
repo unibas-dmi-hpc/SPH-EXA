@@ -143,7 +143,7 @@ public:
                       << stats[3] << std::endl;
         }
 
-        d.minDt_loc = INFINITY;
+        d.minDtCourant = INFINITY;
         computeTimestep(first, last, d);
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");

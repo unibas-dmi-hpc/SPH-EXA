@@ -104,7 +104,7 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, Dataset& d, c
         minDt  = std::min(minDt, dt_i);
     }
 
-    d.minDt_loc = minDt;
+    d.minDtCourant = minDt;
 }
 
 template<bool avClean, class T, class Dataset>
