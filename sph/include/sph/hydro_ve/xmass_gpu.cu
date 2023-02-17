@@ -50,8 +50,8 @@ template<class Tc, class Tm, class T, class KeyType>
 __global__ void xmassGpu(T sincIndex, T K, unsigned ng0, unsigned ngmax, const cstone::Box<Tc> box,
                          cstone::LocalIndex first, cstone::LocalIndex last,
                          const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc, const Tc* x, const Tc* y,
-                         const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd, T* xm,
-                         cstone::LocalIndex* nidx, TreeNodeIndex* globalPool)
+                         const Tc* z, T* h, const Tm* m, const T* wh, const T* whd, T* xm, cstone::LocalIndex* nidx,
+                         TreeNodeIndex* globalPool)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
     unsigned numTargets  = (last - first - 1) / TravConfig::targetSize + 1;
@@ -79,7 +79,7 @@ __global__ void xmassGpu(T sincIndex, T K, unsigned ng0, unsigned ngmax, const c
         {
             bool repeat = (ncTrue[0] < ng0 / 4 || ncTrue[0] > ngmax) && i < last;
             if (!cstone::ballotSync(repeat)) { break; }
-            if (repeat) updateH(ng0, ncTrue[0], h[i]);
+            if (repeat) h[i] = updateH(ng0, ncTrue[0], h[i]);
             ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
         }
 
