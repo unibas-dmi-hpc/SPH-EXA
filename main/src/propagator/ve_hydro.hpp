@@ -170,6 +170,7 @@ public:
         d.acquire("divv", "curlv");
         d.devData.acquire("divv", "curlv");
         computeIadDivvCurlv(first, last, d, domain.box());
+        d.minDtRho = rhoTimestep(first, last, d);
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"az">(d), get<"du">(d));
