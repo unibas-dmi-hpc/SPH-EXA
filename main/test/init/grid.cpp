@@ -44,8 +44,8 @@ TEST(Grids, intersect)
     using T = double;
     cstone::FBox<T> box{0.12, 0.50, 0.26, 0.44, 0.55, 0.8};
 
-    int multiplicity = 4;
-    auto [l, u]      = gridIntersection(box, multiplicity);
+    std::tuple<int, int, int> multiplicity = {4, 4, 4};
+    auto [l, u]                            = gridIntersection(box, multiplicity);
 
     cstone::Vec3<int> refLower{0, 1, 2};
     cstone::Vec3<int> refUpper{2, 2, 4};
@@ -59,7 +59,7 @@ TEST(Grids, scaleToGlobal)
     using T = double;
     cstone::Box<T> box{-1, 1};
 
-    int multiplicity = 4;
+    std::tuple<int, int, int> multiplicity = {4, 4, 4};
 
     {
         cstone::Vec3<T> testX{0.0, 0.0, 0.0};
@@ -95,13 +95,13 @@ TEST(Grids, scaleToGlobal)
     }
 }
 
-TEST(Grids, assembleCube)
+TEST(Grids, assembleRectangle)
 {
     using T       = double;
     using KeyType = unsigned;
     cstone::Box<T> box{-1, 1};
 
-    int multiplicity = 2;
+    std::tuple<int, int, int> multiplicity = {20, 20, 20};
 
     std::vector<T> xb{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
     std::vector<T> yb{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
@@ -112,17 +112,17 @@ TEST(Grids, assembleCube)
     KeyType k2 = 05123456701;
 
     std::vector<T> x1, y1, z1;
-    assembleCube<T>(KeyType(0), k1, box, multiplicity, xb, yb, zb, x1, y1, z1);
+    assembleRectangle<T>(KeyType(0), k1, box, multiplicity, xb, yb, zb, x1, y1, z1);
 
     std::vector<T> x2, y2, z2;
-    assembleCube<T>(k1, k2, box, multiplicity, xb, yb, zb, x2, y2, z2);
+    assembleRectangle<T>(k1, k2, box, multiplicity, xb, yb, zb, x2, y2, z2);
 
     std::vector<T> x3, y3, z3;
-    assembleCube<T>(k2, cstone::nodeRange<KeyType>(0), box, multiplicity, xb, yb, zb, x3, y3, z3);
+    assembleRectangle<T>(k2, cstone::nodeRange<KeyType>(0), box, multiplicity, xb, yb, zb, x3, y3, z3);
 
     // total number of particles in the 3 segments together should be initBlock.size() * multiplicity^3
     size_t totalSize = x1.size() + x2.size() + x3.size();
-    EXPECT_EQ(totalSize, multiplicity * multiplicity * multiplicity * xb.size());
+    EXPECT_EQ(totalSize, std::get<0>(multiplicity) * std::get<1>(multiplicity) * std::get<2>(multiplicity) * xb.size());
 
     std::vector<KeyType> keys(totalSize);
     auto                 ksfc = cstone::sfcKindPointer(keys.data());
@@ -130,6 +130,29 @@ TEST(Grids, assembleCube)
     cstone::computeSfcKeys(x1.data(), y1.data(), z1.data(), ksfc, x1.size(), box);
     cstone::computeSfcKeys(x2.data(), y2.data(), z2.data(), ksfc + x1.size(), x2.size(), box);
     cstone::computeSfcKeys(x3.data(), y3.data(), z3.data(), ksfc + x1.size() + x2.size(), x3.size(), box);
+
+    // explicit construction
+    std::vector<T> X, Y, Z;
+    for (int i = 0; i < std::get<0>(multiplicity); i++)
+    {
+        for (int j = 0; j < std::get<1>(multiplicity); ++j)
+        {
+            for (int k = 0; k < std::get<2>(multiplicity); ++k)
+            {
+                auto selectBox = cstone::FBox<T>(
+                    box.lx() / std::get<0>(multiplicity) * i - 1, box.lx() / std::get<0>(multiplicity) * (i + 1) - 1,
+                    box.ly() / std::get<1>(multiplicity) * j - 1, box.ly() / std::get<1>(multiplicity) * (j + 1) - 1,
+                    box.lz() / std::get<2>(multiplicity) * k - 1, box.lz() / std::get<2>(multiplicity) * (k + 1) - 1);
+                extractBlock(selectBox, box, {i, j, k}, multiplicity, (gsl::span<const T>)xb, (gsl::span<const T>)yb,
+                             (gsl::span<const T>)zb, X, Y, Z);
+            }
+        }
+    }
+
+    std::vector<KeyType> keys2(X.size());
+    auto                 ksfc2 = cstone::sfcKindPointer(keys2.data());
+    cstone::computeSfcKeys(X.data(), Y.data(), Z.data(), ksfc2, X.size(), box);
+
 
     for (size_t i = 0; i < x1.size(); ++i)
     {
