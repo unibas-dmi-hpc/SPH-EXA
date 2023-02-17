@@ -46,10 +46,11 @@ namespace sphexa
 
 #ifdef SPH_EXA_HAVE_H5PART
 
-//! @brief return true if the specified attribute exists and has the specified type
-static bool haveH5Attribute(const std::string& fname, const std::string& attributeToRead, h5part_int64_t h5Type)
+//! @brief reads a specified attribute if exists and has the specified type
+template<class AttrType>
+void findH5Attribute(const std::string& fname, const std::string& attributeToRead, AttrType* attribute,
+                           h5part_int64_t h5Type)
 {
-    bool found = false;
 
     if (std::filesystem::exists(fname))
     {
@@ -68,14 +69,13 @@ static bool haveH5Attribute(const std::string& fname, const std::string& attribu
             H5PartGetFileAttribInfo(h5_file, i, attributeName, maxlen, &attributeType, &attributeLength);
             if (attributeName == attributeToRead && attributeType == h5Type)
             {
-                found = true;
+
+                H5PartReadFileAttrib(h5_file, attributeName, attribute);
                 break;
             }
         }
         H5PartCloseFile(h5_file);
     }
-
-    return found;
 }
 
 #else
@@ -96,34 +96,21 @@ template<class Dataset>
 std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& testCase, std::ofstream& constantsFile)
 {
 #ifdef SPH_EXA_HAVE_H5PART
-    std::string khGrowthRate = "KelvinHelmholtzGrowthRate";
-    std::string gravWaves    = "observeGravWaves";
 
-    if (haveH5Attribute(testCase, khGrowthRate, H5PART_INT64) || testCase == "kelvin-helmholtz")
+    std::string    khGrowthRate = "KelvinHelmholtzGrowthRate";
+    h5part_int64_t khAttribute;
+    findH5Attribute<h5part_int64_t>(testCase, khGrowthRate, &khAttribute, H5PART_INT64);
+    if (khAttribute != 0 || testCase == "kelvin-helmholtz")
     {
-        h5part_int64_t attrValue;
-        H5PartFile*    h5_file = nullptr;
-        h5_file                = H5PartOpenFile(testCase.c_str(), H5PART_READ);
-        H5PartReadFileAttrib(h5_file, khGrowthRate.c_str(), &attrValue);
-        H5PartCloseFile(h5_file);
-
-        if (attrValue || testCase == "kelvin-helmholtz")
-        {
-            return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
-        }
+        return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
     }
 
-    if (haveH5Attribute(testCase, gravWaves, H5PART_FLOAT64))
+    std::string gravWaves = "observeGravWaves";
+    double      gravWaveAttribute[3];
+    findH5Attribute<h5part_float64_t>(testCase, gravWaves, gravWaveAttribute, H5PART_FLOAT64);
+    if (gravWaveAttribute[0] != 0.0)
     {
-        double      attrValue[3];
-        H5PartFile* h5_file = nullptr;
-        h5_file             = H5PartOpenFile(testCase.c_str(), H5PART_READ);
-        H5PartReadFileAttrib(h5_file, gravWaves.c_str(), attrValue);
-        H5PartCloseFile(h5_file);
-        if (attrValue[0] != 0)
-        {
-            return std::make_unique<GravWaves<Dataset>>(constantsFile, attrValue[1], attrValue[2]);
-        }
+        return std::make_unique<GravWaves<Dataset>>(constantsFile, gravWaveAttribute[1], gravWaveAttribute[2]);
     }
 
     if (testCase == "wind-shock")

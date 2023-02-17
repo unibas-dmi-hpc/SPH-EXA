@@ -176,7 +176,8 @@ public:
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
-        size_t multiplicity = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        size_t                    multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        std::tuple<int, int, int> multiplicity = {multi1D, multi1D, multi1D};
 
         auto           pbc = cstone::BoundaryType::periodic;
         cstone::Box<T> globalBox(0, 8 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
@@ -186,10 +187,10 @@ public:
         cstone::Box<T> boxD(6 * r, 8 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
-        assembleCube<T>(keyStart, keyEnd, boxA, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-        assembleCube<T>(keyStart, keyEnd, boxB, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-        assembleCube<T>(keyStart, keyEnd, boxC, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-        assembleCube<T>(keyStart, keyEnd, boxD, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        assembleRectangle<T>(keyStart, keyEnd, boxA, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        assembleRectangle<T>(keyStart, keyEnd, boxB, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        assembleRectangle<T>(keyStart, keyEnd, boxC, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        assembleRectangle<T>(keyStart, keyEnd, boxD, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
         auto cutSphereOut = [r, rSphere](auto x, auto y, auto z)
         {
@@ -203,7 +204,7 @@ public:
         // create the high-density blob
         std::vector<T> xBlob, yBlob, zBlob;
         cstone::Box<T> boxS(r - blobMultiplier * rSphere, r + blobMultiplier * rSphere);
-        assembleCube<T>(keyStart, keyEnd, boxS, multiplicity, xBlock, yBlock, zBlock, xBlob, yBlob, zBlob);
+        assembleRectangle<T>(keyStart, keyEnd, boxS, multiplicity, xBlock, yBlock, zBlock, xBlob, yBlob, zBlob);
         auto keepSphere = [r, rSphere](auto x, auto y, auto z)
         {
             using T_ = decltype(x);
