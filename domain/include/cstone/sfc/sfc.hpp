@@ -154,11 +154,19 @@ HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, KeyType> iSfcKey(u
 template<class KeyType, class T>
 HOST_DEVICE_FUN inline KeyType sfc3D(T x, T y, T z, T xmin, T ymin, T zmin, T mx, T my, T mz)
 {
-    constexpr unsigned mcoord = (1u << maxTreeLevel<typename KeyType::ValueType>{}) - 1;
+    constexpr int mcoord = (1u << maxTreeLevel<typename KeyType::ValueType>{}) - 1;
 
-    unsigned ix = stl::min(unsigned((x - xmin) * mx), mcoord);
-    unsigned iy = stl::min(unsigned((y - ymin) * my), mcoord);
-    unsigned iz = stl::min(unsigned((z - zmin) * mz), mcoord);
+    int ix = std::floor(x * mx) - xmin * mx;
+    int iy = std::floor(y * my) - ymin * my;
+    int iz = std::floor(z * mz) - zmin * mz;
+
+    ix = stl::min(ix, mcoord);
+    iy = stl::min(iy, mcoord);
+    iz = stl::min(iz, mcoord);
+
+    assert(ix >= 0);
+    assert(iy >= 0);
+    assert(iz >= 0);
 
     return iSfcKey<KeyType>(ix, iy, iz);
 }

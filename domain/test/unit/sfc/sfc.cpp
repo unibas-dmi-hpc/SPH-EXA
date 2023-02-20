@@ -51,3 +51,26 @@ TEST(SFC, commonNodePrefix)
         EXPECT_EQ(key, 0000104322);
     }
 }
+
+TEST(SFC, center)
+{
+    using T       = double;
+    using KeyType = unsigned;
+
+    Box<T> box(-1, 1);
+
+    {
+        // The exact center belongs to octant farthest from the origin
+        T x           = 0.0;
+        KeyType probe = sfc3D<HilbertKey<KeyType>>(x, x, x, box);
+        KeyType ref   = sfc3D<HilbertKey<KeyType>>(1.0, 1.0, 1.0, box);
+        EXPECT_EQ(octalDigit(probe, 1), octalDigit(ref, 1));
+    }
+    {
+        // Center - epsilon should be in the octant closest to the origin
+        T x           = -1e-40;
+        KeyType probe = sfc3D<HilbertKey<KeyType>>(x, x, x, box);
+        KeyType ref   = sfc3D<HilbertKey<KeyType>>(-1.0, -1.0, -1.0, box);
+        EXPECT_EQ(octalDigit(probe, 1), octalDigit(ref, 1));
+    }
+}
