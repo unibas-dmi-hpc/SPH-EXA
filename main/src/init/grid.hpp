@@ -116,18 +116,12 @@ void regularGrid(double r, size_t side, size_t first, size_t last, Vector& x, Ve
  * @return     two integer triples marking which grid cells intersected with @p a
  */
 template<class T>
-auto gridIntersection(const cstone::FBox<T>& a, std::tuple<int, int, int> m)
+auto gridIntersection(const cstone::FBox<T>& a, cstone::Vec3<int> m)
 {
-    auto l = util::array<T, 3>{a.xmin(), a.ymin(), a.zmin()};
-    l[0] *= T(std::get<0>(m));
-    l[1] *= T(std::get<1>(m));
-    l[2] *= T(std::get<2>(m));
+    auto                l = util::array<T, 3>{a.xmin() * m[0], a.ymin() * m[1], a.zmin() * m[2]};
     util::array<int, 3> lowerIdx{int(l[0]), int(l[1]), int(l[2])};
 
-    auto u = util::array<T, 3>{a.xmax(), a.ymax(), a.zmax()};
-    u[0] *= T(std::get<0>(m));
-    u[1] *= T(std::get<1>(m));
-    u[2] *= T(std::get<2>(m));
+    auto                u = util::array<T, 3>{a.xmax() * m[0], a.ymax() * m[1], a.zmax() * m[2]};
     util::array<int, 3> upperIdx{int(std::ceil(u[0])), int(std::ceil(u[1])), int(std::ceil(u[2]))};
 
     return std::make_tuple(lowerIdx, upperIdx);
@@ -148,21 +142,18 @@ auto gridIntersection(const cstone::FBox<T>& a, std::tuple<int, int, int> m)
  * of the global box.
  */
 template<class T>
-cstone::Vec3<T> scaleBlockToGlobal(cstone::Vec3<T> uX, cstone::Vec3<int> gridIdx, std::tuple<int, int, int> m,
+cstone::Vec3<T> scaleBlockToGlobal(cstone::Vec3<T> uX, cstone::Vec3<int> gridIdx, cstone::Vec3<int> m,
                                    const cstone::Box<T>& globalBox)
 {
 
-    cstone::Vec3<T> blockOrigin{gridIdx[0] * globalBox.lx(), gridIdx[1] * globalBox.ly(), gridIdx[2] * globalBox.lz()};
-    blockOrigin[0] /= T(std::get<0>(m));
-    blockOrigin[1] /= T(std::get<1>(m));
-    blockOrigin[2] /= T(std::get<2>(m));
-
+    cstone::Vec3<T> blockOrigin{gridIdx[0] * globalBox.lx() / m[0], gridIdx[1] * globalBox.ly() / m[1],
+                                gridIdx[2] * globalBox.lz() / m[2]};
     cstone::Vec3<T> globalOrigin{globalBox.xmin(), globalBox.ymin(), globalBox.zmin()};
 
     auto gX = uX;
-    gX[0] *= globalBox.lx() / std::get<0>(m);
-    gX[1] *= globalBox.ly() / std::get<1>(m);
-    gX[2] *= globalBox.lz() / std::get<2>(m);
+    gX[0] *= globalBox.lx() / m[0];
+    gX[1] *= globalBox.ly() / m[1];
+    gX[2] *= globalBox.lz() / m[2];
 
     gX += globalOrigin + blockOrigin;
 
@@ -186,8 +177,8 @@ cstone::Vec3<T> scaleBlockToGlobal(cstone::Vec3<T> uX, cstone::Vec3<int> gridIdx
  */
 template<class T, class Vector>
 void extractBlock(const cstone::FBox<T>& selectBox, const cstone::Box<T>& globalBox, cstone::Vec3<int> gridIdx,
-                  std::tuple<int, int, int> m, gsl::span<const T> xBlock, gsl::span<const T> yBlock,
-                  gsl::span<const T> zBlock, Vector& x, Vector& y, Vector& z)
+                  cstone::Vec3<int> m, gsl::span<const T> xBlock, gsl::span<const T> yBlock, gsl::span<const T> zBlock,
+                  Vector& x, Vector& y, Vector& z)
 {
     for (size_t i = 0; i < xBlock.size(); ++i)
     {
@@ -222,9 +213,9 @@ void extractBlock(const cstone::FBox<T>& selectBox, const cstone::Box<T>& global
  * @param[out] z            output z-coords with SFC keys in @p [keyStart:keyEnd]
  */
 template<class T, class KeyType, class Vector>
-void assembleRectangle(KeyType keyStart, KeyType keyEnd, const cstone::Box<T>& globalBox,
-                       std::tuple<int, int, int> multiplicity, gsl::span<const T> xBlock, gsl::span<const T> yBlock,
-                       gsl::span<const T> zBlock, Vector& x, Vector& y, Vector& z)
+void assembleCuboid(KeyType keyStart, KeyType keyEnd, const cstone::Box<T>& globalBox, cstone::Vec3<int> multiplicity,
+                    gsl::span<const T> xBlock, gsl::span<const T> yBlock, gsl::span<const T> zBlock, Vector& x,
+                    Vector& y, Vector& z)
 {
     // span the assigned SFC range with valid octree cells
     int                  numCells = cstone::spanSfcRange(keyStart, keyEnd);
