@@ -44,11 +44,11 @@ TEST(Grids, intersect)
     using T = double;
     cstone::FBox<T> box{0.12, 0.50, 0.26, 0.44, 0.55, 0.8};
 
-    std::tuple<int, int, int> multiplicity = {4, 4, 4};
+    std::tuple<int, int, int> multiplicity = {1, 2, 3};
     auto [l, u]                            = gridIntersection(box, multiplicity);
 
-    cstone::Vec3<int> refLower{0, 1, 2};
-    cstone::Vec3<int> refUpper{2, 2, 4};
+    cstone::Vec3<int> refLower{0, 0, 1};
+    cstone::Vec3<int> refUpper{1, 1, 3};
 
     EXPECT_EQ(l, refLower);
     EXPECT_EQ(u, refUpper);
@@ -101,7 +101,7 @@ TEST(Grids, assembleRectangle)
     using KeyType = unsigned;
     cstone::Box<T> box{-1, 1};
 
-    std::tuple<int, int, int> multiplicity = {20, 20, 20};
+    std::tuple<int, int, int> multiplicity = {3, 3, 3};
 
     std::vector<T> xb{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
     std::vector<T> yb{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
@@ -131,20 +131,40 @@ TEST(Grids, assembleRectangle)
     cstone::computeSfcKeys(x2.data(), y2.data(), z2.data(), ksfc + x1.size(), x2.size(), box);
     cstone::computeSfcKeys(x3.data(), y3.data(), z3.data(), ksfc + x1.size() + x2.size(), x3.size(), box);
 
+    for (size_t i = 0; i < x1.size(); ++i)
+    {
+        EXPECT_LT(keys[i], k1);
+    }
+    for (size_t i = x1.size(); i < x1.size() + x2.size(); ++i)
+    {
+        EXPECT_LE(k1, keys[i]);
+        EXPECT_LT(keys[i], k2);
+    }
+    for (size_t i = x1.size() + x2.size(); i < keys.size(); ++i)
+    {
+        EXPECT_LE(k2, keys[i]);
+    }
+
+    std::sort(keys.begin(), keys.end());
+    auto uit = std::unique(keys.begin(), keys.end());
+
+    // combined particles from duplicates should not contain any duplicate particles
+    EXPECT_EQ(uit, keys.end());
+
     // explicit construction
     std::vector<T> X, Y, Z;
-    for (int i = 0; i < std::get<0>(multiplicity); i++)
+    cstone::Vec3<int> mult{std::get<0>(multiplicity), std::get<1>(multiplicity), std::get<2>(multiplicity)};
+    cstone::Vec3<T>   frag{box.lx() / mult[0], box.ly() / mult[1], box.lz() / mult[2]};
+    for (int i = 0; i < mult[0]; i++)
     {
-        for (int j = 0; j < std::get<1>(multiplicity); ++j)
+        for (int j = 0; j < mult[1]; ++j)
         {
-            for (int k = 0; k < std::get<2>(multiplicity); ++k)
+            for (int k = 0; k < mult[2]; ++k)
             {
-                auto selectBox = cstone::FBox<T>(
-                    box.lx() / std::get<0>(multiplicity) * i - 1, box.lx() / std::get<0>(multiplicity) * (i + 1) - 1,
-                    box.ly() / std::get<1>(multiplicity) * j - 1, box.ly() / std::get<1>(multiplicity) * (j + 1) - 1,
-                    box.lz() / std::get<2>(multiplicity) * k - 1, box.lz() / std::get<2>(multiplicity) * (k + 1) - 1);
-                extractBlock(selectBox, box, {i, j, k}, multiplicity, (gsl::span<const T>)xb, (gsl::span<const T>)yb,
-                             (gsl::span<const T>)zb, X, Y, Z);
+                auto selectBox = cstone::FBox<T>(box.xmin() + i * frag[0], box.xmin() + (i + 1) * frag[0],
+                                                 box.ymin() + j * frag[1], box.ymin() + (j + 1) * frag[1],
+                                                 box.zmin() + k * frag[2], box.zmin() + (k + 1) * frag[2]);
+                extractBlock<T>(selectBox, box, {i, j, k}, multiplicity, xb, yb, zb, X, Y, Z);
             }
         }
     }
@@ -153,23 +173,10 @@ TEST(Grids, assembleRectangle)
     auto                 ksfc2 = cstone::sfcKindPointer(keys2.data());
     cstone::computeSfcKeys(X.data(), Y.data(), Z.data(), ksfc2, X.size(), box);
 
+    std::sort(keys2.begin(), keys2.end());
 
-    for (size_t i = 0; i < x1.size(); ++i)
+    for (size_t i = 0; i < keys2.size(); ++i)
     {
-        EXPECT_TRUE(keys[i] < k1);
+        EXPECT_EQ(keys[i], keys2[i]);
     }
-    for (size_t i = x1.size(); i < x1.size() + x2.size(); ++i)
-    {
-        EXPECT_TRUE(k1 <= keys[i] && keys[i] < k2);
-    }
-    for (size_t i = x1.size() + x2.size(); i < keys.size(); ++i)
-    {
-        EXPECT_TRUE(k2 <= keys[i]);
-    }
-
-    std::sort(keys.begin(), keys.end());
-    auto uit = std::unique(keys.begin(), keys.end());
-
-    // combined particles from duplicates should not contain any duplicate particles
-    EXPECT_EQ(uit, keys.end());
 }
