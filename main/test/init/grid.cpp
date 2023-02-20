@@ -44,8 +44,8 @@ TEST(Grids, intersect)
     using T = double;
     cstone::FBox<T> box{0.12, 0.50, 0.26, 0.44, 0.55, 0.8};
 
-    std::tuple<int, int, int> multiplicity = {1, 2, 3};
-    auto [l, u]                            = gridIntersection(box, multiplicity);
+    cstone::Vec3<int> multiplicity = {1, 2, 3};
+    auto [l, u]                    = gridIntersection(box, multiplicity);
 
     cstone::Vec3<int> refLower{0, 0, 1};
     cstone::Vec3<int> refUpper{1, 1, 3};
@@ -59,7 +59,7 @@ TEST(Grids, scaleToGlobal)
     using T = double;
     cstone::Box<T> box{-1, 1};
 
-    std::tuple<int, int, int> multiplicity = {4, 4, 4};
+    cstone::Vec3<int> multiplicity = {4, 4, 4};
 
     {
         cstone::Vec3<T> testX{0.0, 0.0, 0.0};
@@ -95,13 +95,13 @@ TEST(Grids, scaleToGlobal)
     }
 }
 
-TEST(Grids, assembleRectangle)
+TEST(Grids, assembleCuboid)
 {
     using T       = double;
     using KeyType = unsigned;
     cstone::Box<T> box{-1, 1};
 
-    std::tuple<int, int, int> multiplicity = {3, 3, 3};
+    cstone::Vec3<int> multiplicity = {1, 3, 4};
 
     std::vector<T> xb{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
     std::vector<T> yb{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
@@ -112,17 +112,17 @@ TEST(Grids, assembleRectangle)
     KeyType k2 = 05123456701;
 
     std::vector<T> x1, y1, z1;
-    assembleRectangle<T>(KeyType(0), k1, box, multiplicity, xb, yb, zb, x1, y1, z1);
+    assembleCuboid<T>(KeyType(0), k1, box, multiplicity, xb, yb, zb, x1, y1, z1);
 
     std::vector<T> x2, y2, z2;
-    assembleRectangle<T>(k1, k2, box, multiplicity, xb, yb, zb, x2, y2, z2);
+    assembleCuboid<T>(k1, k2, box, multiplicity, xb, yb, zb, x2, y2, z2);
 
     std::vector<T> x3, y3, z3;
-    assembleRectangle<T>(k2, cstone::nodeRange<KeyType>(0), box, multiplicity, xb, yb, zb, x3, y3, z3);
+    assembleCuboid<T>(k2, cstone::nodeRange<KeyType>(0), box, multiplicity, xb, yb, zb, x3, y3, z3);
 
     // total number of particles in the 3 segments together should be initBlock.size() * multiplicity^3
     size_t totalSize = x1.size() + x2.size() + x3.size();
-    EXPECT_EQ(totalSize, std::get<0>(multiplicity) * std::get<1>(multiplicity) * std::get<2>(multiplicity) * xb.size());
+    EXPECT_EQ(totalSize, multiplicity[0] * multiplicity[1] * multiplicity[2] * xb.size());
 
     std::vector<KeyType> keys(totalSize);
     auto                 ksfc = cstone::sfcKindPointer(keys.data());
@@ -152,14 +152,13 @@ TEST(Grids, assembleRectangle)
     EXPECT_EQ(uit, keys.end());
 
     // explicit construction
-    std::vector<T> X, Y, Z;
-    cstone::Vec3<int> mult{std::get<0>(multiplicity), std::get<1>(multiplicity), std::get<2>(multiplicity)};
-    cstone::Vec3<T>   frag{box.lx() / mult[0], box.ly() / mult[1], box.lz() / mult[2]};
-    for (int i = 0; i < mult[0]; i++)
+    std::vector<T>  X, Y, Z;
+    cstone::Vec3<T> frag{box.lx() / multiplicity[0], box.ly() / multiplicity[1], box.lz() / multiplicity[2]};
+    for (int i = 0; i < multiplicity[0]; i++)
     {
-        for (int j = 0; j < mult[1]; ++j)
+        for (int j = 0; j < multiplicity[1]; ++j)
         {
-            for (int k = 0; k < mult[2]; ++k)
+            for (int k = 0; k < multiplicity[2]; ++k)
             {
                 auto selectBox = cstone::FBox<T>(box.xmin() + i * frag[0], box.xmin() + (i + 1) * frag[0],
                                                  box.ymin() + j * frag[1], box.ymin() + (j + 1) * frag[1],

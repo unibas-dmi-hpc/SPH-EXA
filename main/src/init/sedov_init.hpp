@@ -166,9 +166,9 @@ public:
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
-        size_t                    multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
-        std::tuple<int, int, int> multiplicity = {multi1D, multi1D, multi1D};
-        d.numParticlesGlobal                   = multi1D * multi1D * multi1D * blockSize;
+        int               multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        cstone::Vec3<int> multiplicity = {multi1D, multi1D, multi1D};
+        d.numParticlesGlobal           = multi1D * multi1D * multi1D * blockSize;
 
         T              r = constants_.at("r1");
         cstone::Box<T> globalBox(-r, r, cstone::BoundaryType::periodic);
@@ -178,7 +178,7 @@ public:
         KeyType  keyStart          = initialBoundaries[rank];
         KeyType  keyEnd            = initialBoundaries[rank + 1];
 
-        assembleRectangle<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        assembleCuboid<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
         d.resize(d.x.size());
         initSedovFields(d, constants_);

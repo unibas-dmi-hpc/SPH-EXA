@@ -140,9 +140,9 @@ public:
 
         auto [xHalf, yHalf, zHalf] = makeLessDenseTemplate<T, Dataset>(2, xBlock, yBlock, zBlock, blockSize);
 
-        size_t                    multi1D    = std::rint(cbrtNumPart / std::cbrt(blockSize));
-        std::tuple<int, int, int> innerMulti = {16 * multi1D, 8 * multi1D, multi1D};
-        std::tuple<int, int, int> outerMulti = {16 * multi1D, 4 * multi1D, multi1D};
+        int               multi1D    = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        cstone::Vec3<int> innerMulti = {16 * multi1D, 8 * multi1D, multi1D};
+        cstone::Vec3<int> outerMulti = {16 * multi1D, 4 * multi1D, multi1D};
 
         cstone::Box<T> layer1(0, 1, 0, 0.25, 0, 0.0625, cstone::BoundaryType::periodic, cstone::BoundaryType::periodic,
                               cstone::BoundaryType::periodic);
@@ -151,9 +151,9 @@ public:
         cstone::Box<T> layer3(0, 1, 0.75, 1, 0, 0.0625, cstone::BoundaryType::periodic, cstone::BoundaryType::periodic,
                               cstone::BoundaryType::periodic);
 
-        assembleRectangle<T>(keyStart, keyEnd, layer1, outerMulti, xHalf, yHalf, zHalf, d.x, d.y, d.z);
-        assembleRectangle<T>(keyStart, keyEnd, layer2, innerMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-        assembleRectangle<T>(keyStart, keyEnd, layer3, outerMulti, xHalf, yHalf, zHalf, d.x, d.y, d.z);
+        assembleCuboid<T>(keyStart, keyEnd, layer1, outerMulti, xHalf, yHalf, zHalf, d.x, d.y, d.z);
+        assembleCuboid<T>(keyStart, keyEnd, layer2, innerMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        assembleCuboid<T>(keyStart, keyEnd, layer3, outerMulti, xHalf, yHalf, zHalf, d.x, d.y, d.z);
 
         size_t npartInner   = 128 * xBlock.size();
         T      volumeHD     = 0.5 * 0.0625;
