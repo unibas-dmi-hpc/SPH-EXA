@@ -127,29 +127,23 @@ public:
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
         auto& d       = simData.hydro;
-
-        T rhoInt = constants_.at("rhoInt");
+        auto  pbc     = cstone::BoundaryType::periodic;
 
         std::vector<T> xBlock, yBlock, zBlock;
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
-        size_t blockSize = xBlock.size();
+        sortBySfcKey<KeyType>(xBlock, yBlock, zBlock);
+        auto [xHalf, yHalf, zHalf] = makeLessDenseTemplate(2, xBlock, yBlock, zBlock);
 
-        cstone::Box<T> globalBox(0, 1, 0, 1, 0, 0.0625, cstone::BoundaryType::periodic, cstone::BoundaryType::periodic,
-                                 cstone::BoundaryType::periodic);
+        cstone::Box<T> globalBox(0, 1, 0, 1, 0, 0.0625, pbc, pbc, pbc);
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
 
-        auto [xHalf, yHalf, zHalf] = makeLessDenseTemplate<T, Dataset>(2, xBlock, yBlock, zBlock, blockSize);
-
-        int               multi1D    = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        int               multi1D    = std::rint(cbrtNumPart / std::cbrt(xBlock.size()));
         cstone::Vec3<int> innerMulti = {16 * multi1D, 8 * multi1D, multi1D};
         cstone::Vec3<int> outerMulti = {16 * multi1D, 4 * multi1D, multi1D};
 
-        cstone::Box<T> layer1(0, 1, 0, 0.25, 0, 0.0625, cstone::BoundaryType::periodic, cstone::BoundaryType::periodic,
-                              cstone::BoundaryType::periodic);
-        cstone::Box<T> layer2(0, 1, 0.25, 0.75, 0, 0.0625, cstone::BoundaryType::periodic,
-                              cstone::BoundaryType::periodic, cstone::BoundaryType::periodic);
-        cstone::Box<T> layer3(0, 1, 0.75, 1, 0, 0.0625, cstone::BoundaryType::periodic, cstone::BoundaryType::periodic,
-                              cstone::BoundaryType::periodic);
+        cstone::Box<T> layer1(0, 1, 0, 0.25, 0, 0.0625, pbc, pbc, pbc);
+        cstone::Box<T> layer2(0, 1, 0.25, 0.75, 0, 0.0625, pbc, pbc, pbc);
+        cstone::Box<T> layer3(0, 1, 0.75, 1, 0, 0.0625, pbc, pbc, pbc);
 
         assembleCuboid<T>(keyStart, keyEnd, layer1, outerMulti, xHalf, yHalf, zHalf, d.x, d.y, d.z);
         assembleCuboid<T>(keyStart, keyEnd, layer2, innerMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
@@ -157,7 +151,7 @@ public:
 
         size_t npartInner   = 128 * xBlock.size();
         T      volumeHD     = 0.5 * 0.0625;
-        T      particleMass = volumeHD * rhoInt / npartInner;
+        T      particleMass = volumeHD * constants_.at("rhoInt") / npartInner;
 
         // size_t totalNPart = 128 * (xBlock.size() + xHalf.size());
         d.resize(d.x.size());
