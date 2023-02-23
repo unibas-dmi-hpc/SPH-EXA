@@ -239,6 +239,26 @@ locateNode(KeyType startKey, KeyType endKey, const KeyType* prefixes, const Tree
     return locateNode(encodePlaceholderBit(startKey, prefixLength), prefixes, levelRange);
 }
 
+//! @brief return the smallest node that contains @p nodeKey
+template<class KeyType>
+HOST_DEVICE_FUN TreeNodeIndex containingNode(KeyType nodeKey,
+                                             const KeyType* prefixes,
+                                             const TreeNodeIndex* childOffsets)
+{
+    int nodeLevel = decodePrefixLength(nodeKey) / 3;
+    KeyType key = decodePlaceholderBit(nodeKey);
+
+    TreeNodeIndex ret = 0;
+    for (int i = 1; i <= nodeLevel; ++i)
+    {
+        if (childOffsets[ret] == 0 || nodeKey == prefixes[ret]) { break; }
+
+        ret = childOffsets[ret] + octalDigit(key, i);
+    }
+
+    return ret;
+}
+
 //! Octree data view, compatible with GPU data
 template<class KeyType>
 struct OctreeView

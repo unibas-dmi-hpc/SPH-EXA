@@ -294,6 +294,32 @@ TEST(InternalOctree, locate)
 }
 
 template<class KeyType>
+static void containingNodeTrav()
+{
+    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
+
+    OctreeData<KeyType, CpuTag> tree;
+    tree.resize(nNodes(spanningTree));
+    updateInternalTree<KeyType>(spanningTree, tree.data());
+
+    for (TreeNodeIndex i = 0; i < tree.numNodes; ++i)
+    {
+        EXPECT_EQ(i, containingNode(tree.prefixes[i], tree.prefixes.data(), tree.childOffsets.data()));
+    }
+
+    EXPECT_EQ(011, tree.prefixes[containingNode(KeyType(0110), tree.prefixes.data(), tree.childOffsets.data())]);
+    EXPECT_EQ(012, tree.prefixes[containingNode(KeyType(01202374), tree.prefixes.data(), tree.childOffsets.data())]);
+    EXPECT_EQ(01001, tree.prefixes[containingNode(KeyType(010017), tree.prefixes.data(), tree.childOffsets.data())]);
+}
+
+TEST(InternalOctree, containingNode)
+{
+    containingNodeTrav<unsigned>();
+    containingNodeTrav<uint64_t>();
+}
+
+template<class KeyType>
 static void cstoneIndex()
 {
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};

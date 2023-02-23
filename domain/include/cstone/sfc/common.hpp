@@ -242,6 +242,19 @@ HOST_DEVICE_FUN constexpr unsigned octalDigit(KeyType code, unsigned position)
     return (code >> (3u * (maxTreeLevel<KeyType>{} - position))) & 7u;
 }
 
+//! @brief return true if a is an ancestor of b or if a is a sibling of an ancestor of b
+template<class KeyType>
+HOST_DEVICE_FUN constexpr bool isAncestor(KeyType a, KeyType b)
+{
+    int alen = decodePrefixLength(a);
+    int blen = decodePrefixLength(b);
+
+    a <<= stl::max(0, blen - alen);
+    auto commonBits = countLeadingZeros(a ^ b);
+
+    return commonBits >= 1 + countLeadingZeros(b) + stl::max(0, alen - 3);
+}
+
 //! @brief return the offset octal digit weight for binary tree <-> octree index correspondence
 HOST_DEVICE_FUN constexpr int digitWeight(int digit)
 {
@@ -301,6 +314,16 @@ HOST_DEVICE_FUN constexpr int lastNzPlace(KeyType x)
         return maxTreeLevel<KeyType>{} - countTrailingZeros(x) / 3;
     else
         return maxTreeLevel<KeyType>{};
+}
+
+//! @brief compute the placeholder-bit prefix for the biggest possible node that starts at @p a
+template<class KeyType>
+HOST_DEVICE_FUN constexpr KeyType makePrefix(KeyType a)
+{
+    if (a == 0) { return 1; }
+
+    int level = lastNzPlace(a);
+    return encodePlaceholderBit(a, 3 * level);
 }
 
 /*! @brief return the power of 8 for the octal place at position @p pos

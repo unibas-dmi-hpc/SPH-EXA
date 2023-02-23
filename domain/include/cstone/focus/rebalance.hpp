@@ -90,6 +90,38 @@ inline HOST_DEVICE_FUN int mergeCountAndMacOp(TreeNodeIndex nodeIdx,
     return 1; // default: do nothing
 }
 
+/*! @brief Overrides a 0-value of nodeOps[nodeIdx] if @p nodeIdx is the left-most descendant of a non-zero ancestor
+ *
+ * @tparam KeyType
+ * @param nodeIdx   index of a leaf node to check
+ * @param prefixes  node SFC keys in placeholder-bit format
+ * @param parents   parent node indices per group of 8 siblings
+ * @param nodeOps   node transformation operation in {0, 1, 8}
+ * @return          0 or nodeOps[closestNonZeroAncestor]
+ *
+ * If @p nodeIdx is the left-most descendant of the closest ancestor with a non-zero nodeOps value, return
+ * the nodeOps value of the ancestor, 0 otherwise
+ */
+template<class KeyType>
+inline HOST_DEVICE_FUN TreeNodeIndex
+nzAncestorOp(TreeNodeIndex nodeIdx, const KeyType* prefixes, const TreeNodeIndex* parents, const TreeNodeIndex* nodeOps)
+{
+    if (nodeIdx == 0) { return nodeOps[0]; }
+
+    TreeNodeIndex closestNonZeroAncestor = nodeIdx;
+    while (nodeOps[closestNonZeroAncestor] == 0)
+    {
+        closestNonZeroAncestor = parents[(closestNonZeroAncestor - 1) / 8];
+    }
+
+    if (decodePlaceholderBit(prefixes[nodeIdx]) == decodePlaceholderBit(prefixes[closestNonZeroAncestor]))
+    {
+        return nodeOps[closestNonZeroAncestor];
+    }
+
+    return 0;
+}
+
 /*! @brief Compute locally essential split or fuse decision for each octree node in parallel
  *
  * @tparam    KeyType          32- or 64-bit unsigned integer type
