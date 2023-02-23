@@ -38,40 +38,41 @@ namespace cstone
 {
 
 template<class KeyType>
-static auto computeNodeOps(const Octree<KeyType>& octree,
+static auto computeNodeOps(const OctreeView<KeyType>& octree,
                            const std::vector<unsigned>& leafCounts,
                            const std::vector<char>& csMacs,
                            KeyType focusStart,
                            KeyType focusEnd,
                            unsigned bucketSize,
-                           const std::vector<std::tuple<int, int, int>>& imacs)
+                           const std::vector<std::tuple<KeyType, int>>& imacs)
 {
-    std::vector<unsigned> counts(octree.numTreeNodes());
-    scatter(octree.internalOrder(), leafCounts.data(), counts.data());
-    upsweep(octree.levelRange(), octree.childOffsets(), counts.data(), NodeCount<unsigned>{});
+    std::vector<unsigned> counts(octree.numNodes);
 
-    std::vector<char> macs(octree.numTreeNodes());
-    scatter(octree.internalOrder(), csMacs.data() + octree.numInternalNodes(), macs.data());
-    upsweep(octree.levelRange(), octree.childOffsets(), macs.data(), SumCombination<char>{});
+    gsl::span<const TreeNodeIndex> leafToInternal(octree.leafToInternal + octree.numInternalNodes, octree.numLeafNodes);
+    gsl::span<const TreeNodeIndex> childOffsets{octree.childOffsets, size_t(octree.numNodes)};
+    gsl::span<const TreeNodeIndex> levelRange(octree.levelRange, maxTreeLevel<KeyType>{} + 2);
+
+    scatter(leafToInternal, leafCounts.data(), counts.data());
+    upsweep(levelRange, childOffsets, counts.data(), NodeCount<unsigned>{});
+
+    std::vector<char> macs(octree.numNodes);
+    scatter(leafToInternal, csMacs.data(), macs.data());
 
     // transfer values for internal node macs
     for (auto t : imacs)
     {
-        auto [keyStub, level, value] = t;
-
-        KeyType keyStart  = pad(KeyType(keyStub), 3 * level);
-        TreeNodeIndex idx = locateNode(keyStart, keyStart + nodeRange<KeyType>(level), octree.nodeKeys().data(),
-                                       octree.levelRange().data());
+        auto [key, value] = t;
+        TreeNodeIndex idx = locateNode(key, octree.prefixes, octree.levelRange);
         macs[idx]         = value;
     }
 
-    std::vector<int> nodeOps(octree.numTreeNodes());
+    std::vector<int> nodeOps(octree.numNodes);
     bool converged =
-        rebalanceDecisionEssential(octree.nodeKeys(), octree.childOffsets().data(), octree.parents().data(),
+        rebalanceDecisionEssential({octree.prefixes, size_t(octree.numNodes)}, octree.childOffsets, octree.parents,
                                    counts.data(), macs.data(), focusStart, focusEnd, bucketSize, nodeOps.data());
 
-    std::vector<int> ret(octree.numLeafNodes());
-    gather(octree.internalOrder(), nodeOps.data(), ret.data());
+    std::vector<int> ret(octree.numLeafNodes);
+    gather(leafToInternal, nodeOps.data(), ret.data());
 
     return std::make_tuple(ret, converged);
 }
@@ -80,58 +81,69 @@ static auto computeNodeOps(const Octree<KeyType>& octree,
 template<class KeyType>
 static void rebalanceDecision()
 {
-    std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
-    Octree<KeyType> tdtree;
-    tdtree.update(cstree.data(), nNodes(cstree));
-
     unsigned bucketSize = 1;
 
     {
+        std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
+        OctreeData<KeyType, CpuTag> octree;
+        octree.resize(nNodes(cstree));
+        updateInternalTree<KeyType>(cstree, octree.data());
+
         // nodes 14-21 should be fused based on counts, and 14 should be split based on MACs. counts win, nodes are
         // fused
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-        std::vector<char> macs{1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char> macs{/*     */ 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> reference{1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
-        // (keyStub, level, value) tuples for internal cell macs
-        std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {7, 1, 1}};
+        // internal cell macs in placeholder bit format
+        std::vector<std::tuple<KeyType, int>> internalMacs{{1, 1}, {010, 1}, {017, 1}};
         auto [nodeOps, converged] =
-            computeNodeOps(tdtree, leafCounts, macs, cstree[0], cstree[8], bucketSize, internalMacs);
+            computeNodeOps(octree.data(), leafCounts, macs, cstree[0], cstree[8], bucketSize, internalMacs);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_FALSE(converged);
     }
     {
+        std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
+        OctreeData<KeyType, CpuTag> octree;
+        octree.resize(nNodes(cstree));
+        updateInternalTree<KeyType>(cstree, octree.data());
+
         // nodes 14-21 should be split/stay based on counts, and should stay based on MACs.
         // MAC wins, nodes stay, but are not split
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
-        std::vector<char> macs{1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char> macs{/*     */ 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
         //                            ^
         //                            parent of leaf nodes 14-21
         std::vector<int> reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
-        std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {7, 1, 1}};
+        std::vector<std::tuple<KeyType, int>> internalMacs{{1, 1}, {010, 1}, {017, 1}};
         auto [nodeOps, converged] =
-            computeNodeOps(tdtree, leafCounts, macs, cstree[0], cstree[8], bucketSize, internalMacs);
+            computeNodeOps(octree.data(), leafCounts, macs, cstree[0], cstree[8], bucketSize, internalMacs);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_TRUE(converged);
     }
     {
+        std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
+        OctreeData<KeyType, CpuTag> octree;
+        octree.resize(nNodes(cstree));
+        updateInternalTree<KeyType>(cstree, octree.data());
+
         // nodes 14-21 should stay based on counts, and should be fused based on MACs. MAC wins, nodes are fused
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
-        std::vector<char> macs{1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char> macs{/*     */ 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
         //                            ^
         //                            parent of leaf nodes 14-21
         std::vector<int> reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
-        std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {7, 1, 0}};
+        std::vector<std::tuple<KeyType, int>> internalMacs{{1, 1}, {010, 1}, {017, 0}};
         auto [nodeOps, converged] =
-            computeNodeOps(tdtree, leafCounts, macs, cstree[0], cstree[8], bucketSize, internalMacs);
+            computeNodeOps(octree.data(), leafCounts, macs, cstree[0], cstree[8], bucketSize, internalMacs);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_FALSE(converged);
@@ -139,13 +151,14 @@ static void rebalanceDecision()
     {
         // this example has a focus area that cuts through sets of 8 neighboring sibling nodes
         std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(1).makeTree();
+        OctreeData<KeyType, CpuTag> octree;
+        octree.resize(nNodes(cstree));
+        updateInternalTree<KeyType>(cstree, octree.data());
 
-        Octree<KeyType> octree;
-        octree.update(cstree.data(), nNodes(cstree));
         //                               |                     |                       |
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 2, 1, 2, 1, 1, 2, 1, 1};
-        std::vector<char> macs{1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0};
+        std::vector<char> macs{/*     */ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0};
         //                 root ^  ^  ^
         //   parent of leaves 0-7  |  | parent of leaf nodes 8-15                  ^ here count says split, mac says
         //                                                                           merge, result: stay
@@ -154,31 +167,33 @@ static void rebalanceDecision()
         //                   these nodes are kept alive because their siblings (8 and 9) are inside the focus and are
         //                   staying
 
-        std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {1, 1, 0}};
+        //                                               root  parent of leaves 0-7
+        //                                                  |       |           . parent of leaves 8-15
+        std::vector<std::tuple<KeyType, int>> internalMacs{{1, 1}, {010, 1}, {011, 0}};
         auto [nodeOps, converged] =
-            computeNodeOps(octree, leafCounts, macs, cstree[2], cstree[10], bucketSize, internalMacs);
+            computeNodeOps(octree.data(), leafCounts, macs, cstree[2], cstree[10], bucketSize, internalMacs);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_FALSE(converged);
     }
     {
         std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(6).divide(7).makeTree();
-
-        Octree<KeyType> octree;
-        octree.update(cstree.data(), nNodes(cstree));
+        OctreeData<KeyType, CpuTag> octree;
+        octree.resize(nNodes(cstree));
+        updateInternalTree<KeyType>(cstree, octree.data());
 
         //                                                                        focus
         //                               |                |                      |-----------------------
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-        std::vector<char> macs{1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char> macs{/*     */ 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> reference{1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
         // Check that nodes 6-13, directly adjacent to the focus area can be merged
 
-        std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {6, 1, 0}, {7, 1, 0}};
+        std::vector<std::tuple<KeyType, int>> internalMacs{{1, 1}, {016, 0}, {017, 0}};
         auto [nodeOps, converged] =
-            computeNodeOps(octree, leafCounts, macs, cstree[14], cstree[22], bucketSize, internalMacs);
+            computeNodeOps(octree.data(), leafCounts, macs, cstree[14], cstree[22], bucketSize, internalMacs);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_FALSE(converged);
@@ -189,6 +204,40 @@ TEST(FocusedOctree, rebalanceDecision)
 {
     rebalanceDecision<unsigned>();
     rebalanceDecision<uint64_t>();
+}
+
+template<class KeyType>
+static void nodeOpsKeepAlive()
+{
+    {
+        std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
+        OctreeData<KeyType, CpuTag> octree;
+        octree.resize(nNodes(cstree));
+        updateInternalTree<KeyType>(cstree, octree.data());
+
+        // | 0 | 1 2 3 4 5 6 7 8 |
+        //       |             |
+        //       |             17 18 19 20 21 22 23 24
+        //       9 10 11 12 13 14 15 16
+        //                                 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
+        std::vector<TreeNodeIndex> nodeOps{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+        for (size_t i = 0; i < nodeOps.size(); ++i)
+        {
+            nodeOps[i] = nzAncestorOp(i, octree.prefixes.data(), octree.parents.data(), nodeOps.data());
+        }
+
+        //                                   0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
+        std::vector<TreeNodeIndex> reference{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+        EXPECT_EQ(nodeOps, reference);
+    }
+}
+
+TEST(FocusedOctree, nodeOpsKeepAlive)
+{
+    nodeOpsKeepAlive<unsigned>();
+    nodeOpsKeepAlive<uint64_t>();
 }
 
 template<class KeyType>
@@ -326,7 +375,7 @@ std::vector<TreeNodeIndex> octantNodeCount(gsl::span<const KeyType> tree)
     std::vector<TreeNodeIndex> counts;
     for (int octant = 0; octant < 8; ++octant)
     {
-        KeyType range = nodeRange<KeyType>(1);
+        auto range = nodeRange<KeyType>(1);
         counts.push_back(numNodesInRange(tree, octant * range, octant * range + range));
     }
 

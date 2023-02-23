@@ -228,6 +228,31 @@ TEST(SfcCode, octalDigit64)
     EXPECT_EQ(7, octalDigit(0123456701200000000007ul, 21));
 }
 
+TEST(SfcCode, isAncestor)
+{
+    unsigned b = 010001;
+    EXPECT_TRUE(isAncestor(1u, b));
+    EXPECT_TRUE(isAncestor(010u, b));
+    EXPECT_TRUE(isAncestor(011u, b));
+    EXPECT_TRUE(isAncestor(017u, b));
+    EXPECT_TRUE(isAncestor(0100u, b));
+    EXPECT_TRUE(isAncestor(0107u, b));
+    EXPECT_TRUE(isAncestor(010000u, b));
+    EXPECT_TRUE(isAncestor(010001u, b));
+    EXPECT_TRUE(isAncestor(010007u, b));
+
+    EXPECT_FALSE(isAncestor(0111u, b));
+    EXPECT_FALSE(isAncestor(010017u, b));
+    EXPECT_FALSE(isAncestor(0100007u, b));
+}
+
+TEST(SfcCode, makePrefix)
+{
+    EXPECT_EQ(makePrefix(0u), 1u);
+    EXPECT_EQ(makePrefix(1u), 010000000001u);
+    EXPECT_EQ(makePrefix(01000000000u), 011u);
+}
+
 TEST(SfcCode, digitWeight)
 {
     EXPECT_EQ(digitWeight(0), 0);
