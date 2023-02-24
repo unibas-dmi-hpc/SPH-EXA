@@ -62,6 +62,19 @@ if (CMAKE_CUDA_COMPILER)
     enableNuclearNetworks(${exename}-cuda)
     install(TARGETS ${exename}-cuda RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+
+    add_executable(${exename}-cuda-cpu sphexa.cpp)
+    target_include_directories(${exename}-cuda-cpu PRIVATE ${SPH_EXA_INCLUDE_DIRS})
+    target_include_directories(${exename}-cuda-cpu PUBLIC ${CMAKE_BINARY_DIR}/main/src)
+    target_compile_definitions(${exename}-cuda-cpu PRIVATE USE_MPI USE_CUDA CUDA_CPU_TEST)
+    target_link_libraries(${exename}-cuda-cpu PRIVATE cstone_gpu ryoanji sph_gpu observables_gpu OpenMP::OpenMP_CXX
+                          ${MPI_CXX_LIBRARIES} CUDA::cudart)
+    enableH5Part(${exename}-cuda-cpu)
+    enableInSituViz(${exename}-cuda-cpu)
+    enableGpuDirect(${exename}-cuda-cpu)
+    enableNuclearNetworks(${exename}-cuda-cpu)
+    install(TARGETS ${exename}-cuda-cpu RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 elseif (CMAKE_HIP_COMPILER)
     add_executable(${exename}-hip sphexa.cpp)
     target_include_directories(${exename}-hip PRIVATE ${SPH_EXA_INCLUDE_DIRS})
@@ -74,4 +87,17 @@ elseif (CMAKE_HIP_COMPILER)
     enableGpuDirect(${exename}-hip)
     enableNuclearNetworks(${exename}-hip)
     install(TARGETS ${exename}-hip RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+
+    add_executable(${exename}-hip-cpu sphexa.cpp)
+    target_include_directories(${exename}-hip-cpu PRIVATE ${SPH_EXA_INCLUDE_DIRS})
+    target_compile_definitions(${exename}-hip-cpu PRIVATE USE_MPI USE_CUDA CUDA_CPU_TEST THRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_HIP)
+    target_link_libraries(${exename}-hip-cpu PRIVATE cstone_gpu ryoanji sph_gpu observables_gpu OpenMP::OpenMP_CXX
+                          ${MPI_CXX_LIBRARIES} hip::host)
+    set_target_properties(${exename}-hip-cpu PROPERTIES LINKER_LANGUAGE CXX)
+    enableH5Part(${exename}-hip-cpu)
+    enableInSituViz(${exename}-hip-cpu)
+    enableGpuDirect(${exename}-hip-cpu)
+    enableNuclearNetworks(${exename}-hip-cpu)
+    install(TARGETS ${exename}-hip-cpu RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif ()
