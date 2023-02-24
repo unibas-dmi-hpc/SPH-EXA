@@ -56,7 +56,7 @@
 
 #include "insitu_viz.h"
 
-#ifdef USE_CUDA
+#if defined(USE_CUDA) && !defined(CUDA_CPU_TEST)
 using AccType = cstone::GpuTag;
 #else
 using AccType = cstone::CpuTag;
