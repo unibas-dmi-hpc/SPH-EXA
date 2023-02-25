@@ -246,7 +246,7 @@ HOST_DEVICE_FUN TreeNodeIndex containingNode(KeyType nodeKey,
                                              const TreeNodeIndex* childOffsets)
 {
     int nodeLevel = decodePrefixLength(nodeKey) / 3;
-    KeyType key = decodePlaceholderBit(nodeKey);
+    KeyType key   = decodePlaceholderBit(nodeKey);
 
     TreeNodeIndex ret = 0;
     for (int i = 1; i <= nodeLevel; ++i)

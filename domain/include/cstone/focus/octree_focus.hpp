@@ -93,19 +93,20 @@ struct CombinedUpdate
 
         // take op decision per node
         gsl::span<TreeNodeIndex> nodeOpsAll(tree.internalToLeaf);
-        bool converged = rebalanceDecisionEssential<KeyType>(tree.prefixes, tree.childOffsets.data(),
-                                                             tree.parents.data(), counts.data(), macs.data(),
-                                                             focusStart, focusEnd, bucketSize, nodeOpsAll.data());
+        rebalanceDecisionEssential<KeyType>(tree.prefixes, tree.childOffsets.data(), tree.parents.data(), counts.data(),
+                                            macs.data(), focusStart, focusEnd, bucketSize, nodeOpsAll.data());
+
+        std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
+        std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
+        auto status = enforceKeys<KeyType>(allMandatoryKeys, tree.prefixes.data(), tree.childOffsets.data(),
+                                           tree.parents.data(), nodeOpsAll.data());
+
+        bool converged = protectAncestors<KeyType>(tree.prefixes, tree.parents.data(), nodeOpsAll.data());
 
         // extract leaf decision, using childOffsets at temp storage, require +1 for exclusive scan last element
         assert(tree.childOffsets.size() >= size_t(tree.numLeafNodes + 1));
         gsl::span<TreeNodeIndex> nodeOps(tree.childOffsets.data(), tree.numLeafNodes + 1);
         gather(leafToInternal(tree), nodeOpsAll.data(), nodeOps.data());
-
-        std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
-        std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
-
-        auto status = enforceKeys<KeyType>(leaves, allMandatoryKeys, nodeOps.subspan(0, tree.numLeafNodes));
 
         if (status == ResolutionStatus::cancelMerge)
         {
@@ -164,24 +165,25 @@ struct CombinedUpdate
 
         // take op decision per node
         gsl::span<TreeNodeIndex> nodeOpsAll(rawPtr(tree.internalToLeaf), numNodes);
-        bool converged = rebalanceDecisionEssentialGpu(rawPtr(tree.prefixes), rawPtr(tree.childOffsets),
-                                                       rawPtr(tree.parents), counts.data(), macs.data(), focusStart,
-                                                       focusEnd, bucketSize, nodeOpsAll.data(), numNodes);
+        rebalanceDecisionEssentialGpu(rawPtr(tree.prefixes), rawPtr(tree.childOffsets), rawPtr(tree.parents),
+                                      counts.data(), macs.data(), focusStart, focusEnd, bucketSize, nodeOpsAll.data(),
+                                      numNodes);
 
-        // extract leaf decision, using childOffsets at temp storage
+        auto status = ResolutionStatus::converged;
+        if (!mandatoryKeys.empty())
+        {
+            thrust::device_vector<KeyType, Alloc> d_mandatoryKeys;
+            reallocate(d_mandatoryKeys, mandatoryKeys.size(), 1.0);
+            memcpyH2D(mandatoryKeys.data(), mandatoryKeys.size(), rawPtr(d_mandatoryKeys));
+            status = enforceKeysGpu(rawPtr(d_mandatoryKeys), d_mandatoryKeys.size(), rawPtr(tree.prefixes),
+                                    rawPtr(tree.childOffsets), rawPtr(tree.parents), nodeOpsAll.data());
+        }
+        bool converged = protectAncestorsGpu(rawPtr(tree.prefixes), rawPtr(tree.parents), nodeOpsAll.data(), numNodes);
+
+        // extract leaf decision, using childOffsets as temp storage
         assert(tree.childOffsets.size() >= size_t(tree.numLeafNodes + 1));
         gsl::span<TreeNodeIndex> nodeOps(rawPtr(tree.childOffsets), tree.numLeafNodes + 1);
         gatherGpu(leafToInternal(tree).data(), nNodes(leaves), nodeOpsAll.data(), nodeOps.data());
-
-        auto status = ResolutionStatus::converged;
-        if (mandatoryKeys.size())
-        {
-            auto& d_mandatoryKeys = tree.prefixes;
-            reallocate(d_mandatoryKeys, mandatoryKeys.size(), 1.0);
-            memcpyH2D(mandatoryKeys.data(), mandatoryKeys.size(), rawPtr(d_mandatoryKeys));
-            status = enforceKeysGpu(rawPtr(leaves), nodeOps.data(), tree.numLeafNodes, rawPtr(d_mandatoryKeys),
-                                    d_mandatoryKeys.size());
-        }
 
         if (status == ResolutionStatus::cancelMerge)
         {

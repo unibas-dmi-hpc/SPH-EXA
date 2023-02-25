@@ -67,9 +67,10 @@ static auto computeNodeOps(const OctreeView<KeyType>& octree,
     }
 
     std::vector<int> nodeOps(octree.numNodes);
+    rebalanceDecisionEssential({octree.prefixes, size_t(octree.numNodes)}, octree.childOffsets, octree.parents,
+                               counts.data(), macs.data(), focusStart, focusEnd, bucketSize, nodeOps.data());
     bool converged =
-        rebalanceDecisionEssential({octree.prefixes, size_t(octree.numNodes)}, octree.childOffsets, octree.parents,
-                                   counts.data(), macs.data(), focusStart, focusEnd, bucketSize, nodeOps.data());
+        protectAncestors(gsl::span<const KeyType>(octree.prefixes, octree.numNodes), octree.parents, nodeOps.data());
 
     std::vector<int> ret(octree.numLeafNodes);
     gather(leafToInternal, nodeOps.data(), ret.data());
@@ -240,121 +241,72 @@ TEST(FocusedOctree, nodeOpsKeepAlive)
     nodeOpsKeepAlive<uint64_t>();
 }
 
-template<class KeyType>
-static void enforceKeys()
+TEST(FocusedOctree, keyEnforcement)
 {
-    auto tree = OctreeMaker<KeyType>{}.divide().divide(1).makeTree();
+    using KeyType = unsigned;
 
     {
-        std::vector<int> nodeOps(nNodes(tree), 1);
-        std::vector<KeyType> injectKeys{pad(KeyType(024), 6)};
+        auto cstree = OctreeMaker<KeyType>{}.divide().divide(1).makeTree();
+        OctreeData<KeyType, CpuTag> octree_;
+        octree_.resize(nNodes(cstree));
+        updateInternalTree<KeyType>(cstree, octree_.data());
+        auto octree = octree_.data();
 
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-        EXPECT_EQ(status, ResolutionStatus::rebalance);
-        EXPECT_EQ(nodeOps[9], 8);
+        // | 0 | 1 2 3 4 5 6 7 8 |
+        //         |
+        //         |
+        //         9 10 11 12 13 14 15 16
+        {
+            //                       0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+            std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+            auto status = enforceKeySingle(decodePlaceholderBit(0111u), octree.prefixes, octree.childOffsets,
+                                           octree.parents, nodeOps.data());
+
+            std::vector<int> ref{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+            EXPECT_EQ(status, ResolutionStatus::cancelMerge);
+            EXPECT_EQ(nodeOps, ref);
+        }
+        {
+            //                       0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+            std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+            auto status = enforceKeySingle(decodePlaceholderBit(01112u), octree.prefixes, octree.childOffsets,
+                                           octree.parents, nodeOps.data());
+
+            //                   0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+            std::vector<int> ref{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1};
+            EXPECT_EQ(status, ResolutionStatus::rebalance);
+            EXPECT_EQ(nodeOps, ref);
+        }
+        {
+            //                       0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+            std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+            auto status = enforceKeySingle(decodePlaceholderBit(0101u), octree.prefixes, octree.childOffsets,
+                                           octree.parents, nodeOps.data());
+
+            //                   0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+            std::vector<int> ref{1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+            protectAncestors(gsl::span<const KeyType>(octree.prefixes, octree.numNodes), octree.parents,
+                             nodeOps.data());
+            EXPECT_EQ(status, ResolutionStatus::rebalance);
+            EXPECT_EQ(nodeOps, ref);
+        }
+        {
+            // this tests that the splitting of node 1 does not invalidate the merge of nodes 9-16
+            //                       0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+            std::vector<int> nodeOps{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+            //                          ^ injection splits node 1
+            auto status = enforceKeySingle(decodePlaceholderBit(0101u), octree.prefixes, octree.childOffsets,
+                                           octree.parents, nodeOps.data());
+            EXPECT_EQ(status, ResolutionStatus::rebalance);
+
+            status = enforceKeySingle(decodePlaceholderBit(01011u), octree.prefixes, octree.childOffsets,
+                                      octree.parents, nodeOps.data());
+            EXPECT_EQ(status, ResolutionStatus::failed);
+
+            std::vector<int> ref{1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+            EXPECT_EQ(nodeOps, ref);
+        }
     }
-    {
-        std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
-        std::vector<KeyType> injectKeys{pad(KeyType(014), 6)};
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-
-        std::vector<int> reference(nNodes(tree), 1);
-        EXPECT_EQ(status, ResolutionStatus::cancelMerge);
-        EXPECT_EQ(nodeOps, reference);
-    }
-    {
-        std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
-        std::vector<KeyType> injectKeys{pad(KeyType(01), 3)};
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-
-        std::vector<int> reference{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
-        EXPECT_EQ(status, ResolutionStatus::converged);
-        EXPECT_EQ(nodeOps, reference);
-    }
-    {
-        std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
-        std::vector<KeyType> injectKeys{pad(KeyType(0101), 9)};
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-
-        std::vector<int> reference(nNodes(tree), 1);
-        reference[1] = 8;
-        EXPECT_EQ(status, ResolutionStatus::rebalance);
-        EXPECT_EQ(nodeOps, reference);
-    }
-    {
-        std::vector<int> nodeOps(nNodes(tree), 1);
-        std::vector<KeyType> injectKeys{pad(KeyType(014), 6)};
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-
-        std::vector<int> reference(nNodes(tree), 1);
-        EXPECT_EQ(status, ResolutionStatus::converged);
-        EXPECT_EQ(nodeOps, reference);
-    }
-    {
-        std::vector<int> nodeOps(nNodes(tree), 1);
-        std::vector<KeyType> injectKeys{pad(KeyType(0141), 9)};
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-
-        std::vector<int> reference(nNodes(tree), 1);
-        reference[5] = 8;
-        EXPECT_EQ(status, ResolutionStatus::rebalance);
-        EXPECT_EQ(nodeOps, reference);
-    }
-    {
-        // this tests that the splitting of node i does not invalidate the merge of node i+1
-        std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
-        //                       ^ injection splits the first node
-        std::vector<KeyType> injectKeys{pad(KeyType(01), 6)}; // 010000000000
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-
-        std::vector<int> reference{8, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
-        EXPECT_EQ(status, ResolutionStatus::rebalance);
-        EXPECT_EQ(nodeOps, reference);
-    }
-    // two injections affection the same node index
-    {
-        std::vector<int> nodeOps(nNodes(tree), 1);
-        std::vector<KeyType> injectKeys{pad(KeyType(0241), 9), pad(KeyType(024), 6)};
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-
-        EXPECT_EQ(status, ResolutionStatus::failed);
-        EXPECT_EQ(nodeOps[9], 8);
-    }
-    {
-        tree = makeRootNodeTree<KeyType>();
-        std::vector<int> nodeOps(nNodes(tree), 1);
-        std::vector<KeyType> injectKeys{1};
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-
-        EXPECT_EQ(status, ResolutionStatus::failed);
-        EXPECT_EQ(nodeOps[0], 8);
-    }
-    {
-        tree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
-        std::vector<int> nodeOps{1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1};
-        std::vector<KeyType> injectKeys{1};
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-
-        std::vector<int> reference(nNodes(tree), 1);
-        reference[0] = 8;
-        EXPECT_EQ(status, ResolutionStatus::failed);
-        EXPECT_EQ(nodeOps, reference);
-    }
-}
-
-TEST(FocusedOctree, enforceKeys)
-{
-    enforceKeys<unsigned>();
-    enforceKeys<uint64_t>();
 }
 
 template<class KeyType>

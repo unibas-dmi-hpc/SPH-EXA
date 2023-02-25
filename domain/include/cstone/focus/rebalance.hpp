@@ -34,6 +34,7 @@
 
 #include "cstone/traversal/boxoverlap.hpp"
 #include "cstone/tree/csarray.hpp"
+#include "cstone/tree/octree.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
@@ -58,21 +59,15 @@ inline HOST_DEVICE_FUN int mergeCountAndMacOp(TreeNodeIndex nodeIdx,
 {
     TreeNodeIndex siblingGroup = (nodeIdx - 1) / 8;
     TreeNodeIndex parent       = nodeIdx ? parents[siblingGroup] : 0;
+    KeyType nodeKey            = nodeKeys[nodeIdx];
+    unsigned level             = decodePrefixLength(nodeKeys[nodeIdx]) / 3;
 
-    TreeNodeIndex firstSibling = childOffsets[parent];
-    auto g                     = childOffsets + firstSibling;
-    bool onlyLeafSiblings      = (g[0] + g[1] + g[2] + g[3] + g[4] + g[5] + g[6] + g[7]) == 0;
-
-    TreeNodeIndex siblingIdx = nodeIdx - firstSibling;
-    KeyType nodeKey          = decodePlaceholderBit(nodeKeys[nodeIdx]);
-    unsigned level           = decodePrefixLength(nodeKeys[nodeIdx]) / 3;
-
-    if (onlyLeafSiblings && siblingIdx > 0)
+    if (nodeIdx)
     {
         bool countMerge = counts[parent] <= bucketSize;
         bool macMerge   = macs[parent] == 0;
 
-        KeyType firstGroupKey = decodePlaceholderBit(nodeKeys[firstSibling]);
+        KeyType firstGroupKey = decodePlaceholderBit(nodeKeys[parent]);
         KeyType lastGroupKey  = firstGroupKey + 8 * nodeRange<KeyType>(level);
         // inFringe: nodeIdx not in focus, but at least one sibling is in the focus
         // in that case we cannot remove the nodes based on a MAC criterion
@@ -81,8 +76,10 @@ inline HOST_DEVICE_FUN int mergeCountAndMacOp(TreeNodeIndex nodeIdx,
         if (countMerge || (macMerge && !inFringe)) { return 0; } // merge
     }
 
-    bool inFocus = (nodeKey >= focusStart && nodeKey < focusEnd);
-    if (level < maxTreeLevel<KeyType>{} && counts[nodeIdx] > bucketSize && (macs[nodeIdx] || inFocus))
+    KeyType nodeStart = decodePlaceholderBit(nodeKey);
+    bool isLeaf       = childOffsets[nodeIdx] == 0;
+    bool inFocus      = (nodeStart >= focusStart && nodeStart < focusEnd);
+    if (isLeaf && level < maxTreeLevel<KeyType>{} && counts[nodeIdx] > bucketSize && (macs[nodeIdx] || inFocus))
     {
         return 8; // split
     }
@@ -144,7 +141,7 @@ nzAncestorOp(TreeNodeIndex nodeIdx, const KeyType* prefixes, const TreeNodeIndex
  *  - 8 if to be split.
  */
 template<class KeyType>
-bool rebalanceDecisionEssential(gsl::span<const KeyType> nodeKeys,
+void rebalanceDecisionEssential(gsl::span<const KeyType> nodeKeys,
                                 const TreeNodeIndex* childOffsets,
                                 const TreeNodeIndex* parents,
                                 const unsigned* counts,
@@ -154,24 +151,27 @@ bool rebalanceDecisionEssential(gsl::span<const KeyType> nodeKeys,
                                 unsigned bucketSize,
                                 TreeNodeIndex* nodeOps)
 {
-    bool converged = true;
-#pragma omp parallel
+#pragma omp parallel for
+    for (TreeNodeIndex i = 0; i < nodeKeys.ssize(); ++i)
     {
-        bool convergedThread = true;
-#pragma omp for
-        for (TreeNodeIndex i = 0; i < nodeKeys.ssize(); ++i)
-        {
-            // ignore internal nodes
-            if (childOffsets[i] != 0) { continue; }
-            int opDecision = mergeCountAndMacOp(i, nodeKeys.data(), childOffsets, parents, counts, macs, focusStart,
-                                                focusEnd, bucketSize);
-            if (opDecision != 1) { convergedThread = false; }
-
-            nodeOps[i] = opDecision;
-        }
-        if (!convergedThread) { converged = false; }
+        nodeOps[i] = mergeCountAndMacOp(i, nodeKeys.data(), childOffsets, parents, counts, macs, focusStart, focusEnd,
+                                        bucketSize);
     }
-    return converged;
+}
+
+template<class KeyType>
+bool protectAncestors(gsl::span<const KeyType> nodeKeys, const TreeNodeIndex* parents, TreeNodeIndex* nodeOps)
+{
+    int numChanges = 0;
+#pragma omp parallel for reduction(+ : numChanges)
+    for (TreeNodeIndex i = 0; i < nodeKeys.ssize(); ++i)
+    {
+        int opDecision = nzAncestorOp(i, nodeKeys.data(), parents, nodeOps);
+
+        if (opDecision != 1) { numChanges++; }
+        nodeOps[i] = opDecision;
+    }
+    return numChanges == 0;
 }
 
 enum class ResolutionStatus : int
@@ -187,31 +187,42 @@ enum class ResolutionStatus : int
 };
 
 template<class KeyType>
-HOST_DEVICE_FUN ResolutionStatus
-enforceKeySingle(const KeyType* leaves, TreeNodeIndex* nodeOps, TreeNodeIndex numLeaves, KeyType key)
+HOST_DEVICE_FUN ResolutionStatus enforceKeySingle(KeyType key,
+                                                  const KeyType* nodeKeys,
+                                                  const TreeNodeIndex* childOffsets,
+                                                  const TreeNodeIndex* parents,
+                                                  TreeNodeIndex* nodeOps)
 {
     if (key == 0 || key == nodeRange<KeyType>(0)) { return ResolutionStatus::converged; }
 
     ResolutionStatus status = ResolutionStatus::converged;
 
-    TreeNodeIndex nodeIdx    = findNodeBelow(leaves, numLeaves + 1, key);
-    auto [siblingIdx, level] = siblingAndLevel(leaves, nodeIdx);
+    KeyType nodeKeyWant    = makePrefix(key);
+    TreeNodeIndex nodeIdx  = containingNode(nodeKeyWant, nodeKeys, childOffsets);
+    KeyType nodeKeyHave    = nodeKeys[nodeIdx];
+    unsigned nodeLevelHave = decodePrefixLength(nodeKeyHave) / 3;
 
-    bool canCancel = siblingIdx > -1;
-    // need to cancel if the closest tree node would be merged or the mandatory key is not there
-    bool needToCancel = nodeOps[nodeIdx] == 0 || leaves[nodeIdx] != key;
-    if (canCancel && needToCancel)
+    // need to undo merges of all supporting ancestors if the closest tree node would be merged
+    // or the mandatory key is not there
+    bool trySplit   = nodeKeyHave != nodeKeyWant && nodeLevelHave < maxTreeLevel<KeyType>{};
+    bool undoMerges = nodeOps[nodeIdx] == 0 || trySplit;
+    if (undoMerges && nodeIdx > 0)
     {
         status = ResolutionStatus::cancelMerge;
-        // pointer to sibling-0 nodeOp
-        TreeNodeIndex* g = nodeOps + nodeIdx - siblingIdx;
-        for (int octant = 0; octant < 8; ++octant)
+        // make sure no supporting ancestor of nodeIdx will be merged
+        TreeNodeIndex parent = nodeIdx;
+        do
         {
-            if (g[octant] == 0) { g[octant] = 1; } // cancel node merge
-        }
+            parent                     = parents[(parent - 1) / 8];
+            TreeNodeIndex firstSibling = childOffsets[parent];
+            for (TreeNodeIndex i = firstSibling; i < firstSibling + eightSiblings; ++i)
+            {
+                if (nodeOps[i] == 0) { nodeOps[i] = 1; }
+            }
+        } while (parent != 0);
     }
 
-    if (leaves[nodeIdx] != key) // mandatory key is not present
+    if (trySplit)
     {
         int keyPos = lastNzPlace(key);
 
@@ -219,7 +230,7 @@ enforceKeySingle(const KeyType* leaves, TreeNodeIndex* nodeOps, TreeNodeIndex nu
         // exceeding the resolution of the global tree, which will result in a failure to compute
         // exact particle counts for those nodes
         constexpr int maxAddLevels = 1;
-        int levelDiff              = keyPos - level;
+        int levelDiff              = keyPos - nodeLevelHave;
         if (levelDiff > maxAddLevels) { status = ResolutionStatus::failed; }
         else { status = ResolutionStatus::rebalance; }
 
@@ -230,30 +241,18 @@ enforceKeySingle(const KeyType* leaves, TreeNodeIndex* nodeOps, TreeNodeIndex nu
     return status;
 }
 
-/*! @brief  modify nodeOps, such that the input tree will contain all mandatory keys after rebalancing
- *
- * @tparam KeyType                32- or 64-bit unsigned integer type
- * @param[in]    treeLeaves       cornerstone octree leaves
- * @param[in]    mandatoryKeys    sequence of keys that @p treeLeaves has to contain when
- *                                rebalancing with @p nodeOps
- * @param[inout] nodeOps          rebalance op-code sequence for @p treeLeaves
- * @return                        resolution status of @p mandatoryKeys
- *
- * After this procedure is called, newTreeLeaves generated by
- *     rebalanceTree(treeLeaves, newTreeLeaves, nodeOps);
- * will contain all the SFC keys listed in mandatoryKeys.
- */
 template<class KeyType>
-ResolutionStatus enforceKeys(gsl::span<const KeyType> treeLeaves,
-                             gsl::span<const KeyType> mandatoryKeys,
-                             gsl::span<TreeNodeIndex> nodeOps)
+ResolutionStatus enforceKeys(gsl::span<const KeyType> mandatoryKeys,
+                             const KeyType* nodeKeys,
+                             const TreeNodeIndex* childOffsets,
+                             const TreeNodeIndex* parents,
+                             TreeNodeIndex* nodeOps)
 {
-    assert(nNodes(treeLeaves) == nodeOps.size());
     ResolutionStatus status = ResolutionStatus::converged;
 
     for (KeyType key : mandatoryKeys)
     {
-        status = std::max(enforceKeySingle(treeLeaves.data(), nodeOps.data(), nNodes(treeLeaves), key), status);
+        status = std::max(enforceKeySingle(key, nodeKeys, childOffsets, parents, nodeOps), status);
     }
     return status;
 }
