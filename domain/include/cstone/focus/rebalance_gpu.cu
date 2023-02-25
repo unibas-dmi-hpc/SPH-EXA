@@ -38,8 +38,6 @@
 namespace cstone
 {
 
-__device__ int nodeOpSum;
-
 template<class KeyType>
 __global__ void rebalanceDecisionEssentialKernel(const KeyType* prefixes,
                                                  const TreeNodeIndex* childOffsets,
@@ -52,14 +50,70 @@ __global__ void rebalanceDecisionEssentialKernel(const KeyType* prefixes,
                                                  TreeNodeIndex* nodeOps,
                                                  TreeNodeIndex numNodes)
 {
+    unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < numNodes)
+    {
+        nodeOps[tid] =
+            mergeCountAndMacOp(tid, prefixes, childOffsets, parents, counts, macs, focusStart, focusEnd, bucketSize);
+    }
+}
+
+template<class KeyType>
+void rebalanceDecisionEssentialGpu(const KeyType* prefixes,
+                                   const TreeNodeIndex* childOffsets,
+                                   const TreeNodeIndex* parents,
+                                   const unsigned* counts,
+                                   const char* macs,
+                                   KeyType focusStart,
+                                   KeyType focusEnd,
+                                   unsigned bucketSize,
+                                   TreeNodeIndex* nodeOps,
+                                   TreeNodeIndex numNodes)
+{
+    constexpr unsigned numThreads = 256;
+    rebalanceDecisionEssentialKernel<<<iceil(numNodes, numThreads), numThreads>>>(
+        prefixes, childOffsets, parents, counts, macs, focusStart, focusEnd, bucketSize, nodeOps, numNodes);
+}
+
+template void rebalanceDecisionEssentialGpu(const uint32_t* prefixes,
+                                            const TreeNodeIndex* childOffsets,
+                                            const TreeNodeIndex* parents,
+                                            const unsigned* counts,
+                                            const char* macs,
+                                            uint32_t focusStart,
+                                            uint32_t focusEnd,
+                                            unsigned bucketSize,
+                                            TreeNodeIndex* nodeOps,
+                                            TreeNodeIndex numNodes);
+
+template void rebalanceDecisionEssentialGpu(const uint64_t* prefixes,
+                                            const TreeNodeIndex* childOffsets,
+                                            const TreeNodeIndex* parents,
+                                            const unsigned* counts,
+                                            const char* macs,
+                                            uint64_t focusStart,
+                                            uint64_t focusEnd,
+                                            unsigned bucketSize,
+                                            TreeNodeIndex* nodeOps,
+                                            TreeNodeIndex numNodes);
+
+__device__ int nodeOpSum;
+__global__ void resetNodeOpSum() { nodeOpSum = 0; }
+
+template<class KeyType>
+__global__ void protectAncestorsKernel(const KeyType* prefixes,
+                                       const TreeNodeIndex* parents,
+                                       TreeNodeIndex* nodeOps,
+                                       TreeNodeIndex numNodes)
+{
     int nodeOp = 1;
 
     unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
-    // ignore internal nodes
-    if (tid < numNodes && childOffsets[tid] == 0)
+    if (tid < numNodes)
     {
-        nodeOp =
-            mergeCountAndMacOp(tid, prefixes, childOffsets, parents, counts, macs, focusStart, focusEnd, bucketSize);
+        nodeOp = nzAncestorOp(tid, prefixes, parents, nodeOps);
+        // technically a race condition since nodeOps[tid] might be read by another thread,
+        // but all possible outcomes are identical
         nodeOps[tid] = nodeOp;
     }
 
@@ -73,25 +127,16 @@ __global__ void rebalanceDecisionEssentialKernel(const KeyType* prefixes,
     if (threadIdx.x == 0) { atomicAdd(&nodeOpSum, blockMin); }
 }
 
-__global__ void resetNodeOpSum() { nodeOpSum = 0; }
-
 template<class KeyType>
-bool rebalanceDecisionEssentialGpu(const KeyType* prefixes,
-                                   const TreeNodeIndex* childOffsets,
-                                   const TreeNodeIndex* parents,
-                                   const unsigned* counts,
-                                   const char* macs,
-                                   KeyType focusStart,
-                                   KeyType focusEnd,
-                                   unsigned bucketSize,
-                                   TreeNodeIndex* nodeOps,
-                                   TreeNodeIndex numNodes)
+bool protectAncestorsGpu(const KeyType* prefixes,
+                         const TreeNodeIndex* parents,
+                         TreeNodeIndex* nodeOps,
+                         TreeNodeIndex numNodes)
 {
     resetNodeOpSum<<<1, 1>>>();
 
     constexpr unsigned numThreads = 256;
-    rebalanceDecisionEssentialKernel<<<iceil(numNodes, numThreads), numThreads>>>(
-        prefixes, childOffsets, parents, counts, macs, focusStart, focusEnd, bucketSize, nodeOps, numNodes);
+    protectAncestorsKernel<<<iceil(numNodes, numThreads), numThreads>>>(prefixes, parents, nodeOps, numNodes);
 
     int numNodesModify;
     checkGpuErrors(cudaMemcpyFromSymbol(&numNodesModify, nodeOpSum, sizeof(int)));
@@ -99,65 +144,52 @@ bool rebalanceDecisionEssentialGpu(const KeyType* prefixes,
     return numNodesModify == 0;
 }
 
-template bool rebalanceDecisionEssentialGpu(const uint32_t* prefixes,
-                                            const TreeNodeIndex* childOffsets,
-                                            const TreeNodeIndex* parents,
-                                            const unsigned* counts,
-                                            const char* macs,
-                                            uint32_t focusStart,
-                                            uint32_t focusEnd,
-                                            unsigned bucketSize,
-                                            TreeNodeIndex* nodeOps,
-                                            TreeNodeIndex numNodes);
-
-template bool rebalanceDecisionEssentialGpu(const uint64_t* prefixes,
-                                            const TreeNodeIndex* childOffsets,
-                                            const TreeNodeIndex* parents,
-                                            const unsigned* counts,
-                                            const char* macs,
-                                            uint64_t focusStart,
-                                            uint64_t focusEnd,
-                                            unsigned bucketSize,
-                                            TreeNodeIndex* nodeOps,
-                                            TreeNodeIndex numNodes);
+template bool protectAncestorsGpu(const uint32_t*, const TreeNodeIndex*, TreeNodeIndex*, TreeNodeIndex);
+template bool protectAncestorsGpu(const uint64_t*, const TreeNodeIndex*, TreeNodeIndex*, TreeNodeIndex);
 
 __device__ int enforceKeyStatus_device;
 __global__ void resetEnforceKeyStatus() { enforceKeyStatus_device = static_cast<int>(ResolutionStatus::converged); }
 
 template<class KeyType>
-__global__ void
-enforceKeysKernel(const KeyType* leaves, TreeNodeIndex* nodeOps, TreeNodeIndex numLeaves, const KeyType* forcedKeys)
+__global__ void enforceKeysKernel(const KeyType* forcedKeys,
+                                  const KeyType* nodeKeys,
+                                  const TreeNodeIndex* childOffsets,
+                                  const TreeNodeIndex* parents,
+                                  TreeNodeIndex* nodeOps)
 {
     unsigned i       = blockIdx.x;
-    auto statusBlock = enforceKeySingle(leaves, nodeOps, numLeaves, forcedKeys[i]);
+    auto statusBlock = enforceKeySingle(forcedKeys[i], nodeKeys, childOffsets, parents, nodeOps);
     atomicMax(&enforceKeyStatus_device, static_cast<int>(statusBlock));
 }
 
 template<class KeyType>
-ResolutionStatus enforceKeysGpu(const KeyType* leaves,
-                                TreeNodeIndex* nodeOps,
-                                TreeNodeIndex numLeaves,
-                                const KeyType* forcedKeys,
-                                TreeNodeIndex numForcedKeys)
+ResolutionStatus enforceKeysGpu(const KeyType* forcedKeys,
+                                TreeNodeIndex numForcedKeys,
+                                const KeyType* nodeKeys,
+                                const TreeNodeIndex* childOffsets,
+                                const TreeNodeIndex* parents,
+                                TreeNodeIndex* nodeOps)
 {
     resetEnforceKeyStatus<<<1, 1>>>();
-    enforceKeysKernel<<<numForcedKeys, 1>>>(leaves, nodeOps, numLeaves, forcedKeys);
+    enforceKeysKernel<<<numForcedKeys, 1>>>(forcedKeys, nodeKeys, childOffsets, parents, nodeOps);
 
     int status;
     checkGpuErrors(cudaMemcpyFromSymbol(&status, enforceKeyStatus_device, sizeof(ResolutionStatus)));
     return static_cast<ResolutionStatus>(status);
 }
 
-template ResolutionStatus enforceKeysGpu(const uint32_t* leaves,
-                                         TreeNodeIndex* nodeOps,
-                                         TreeNodeIndex numLeaves,
-                                         const uint32_t* forcedKeys,
-                                         TreeNodeIndex numForcedKeys);
+template ResolutionStatus enforceKeysGpu(const uint32_t* forcedKeys,
+                                         TreeNodeIndex numForcedKeys,
+                                         const uint32_t* nodeKeys,
+                                         const TreeNodeIndex* childOffsets,
+                                         const TreeNodeIndex* parents,
+                                         TreeNodeIndex* nodeOps);
 
-template ResolutionStatus enforceKeysGpu(const uint64_t* leaves,
-                                         TreeNodeIndex* nodeOps,
-                                         TreeNodeIndex numLeaves,
-                                         const uint64_t* forcedKeys,
-                                         TreeNodeIndex numForcedKeys);
+template ResolutionStatus enforceKeysGpu(const uint64_t* forcedKeys,
+                                         TreeNodeIndex numForcedKeys,
+                                         const uint64_t* nodeKeys,
+                                         const TreeNodeIndex* childOffsets,
+                                         const TreeNodeIndex* parents,
+                                         TreeNodeIndex* nodeOps);
 
 } // namespace cstone

@@ -36,7 +36,7 @@ namespace cstone
 {
 
 template<class KeyType>
-extern bool rebalanceDecisionEssentialGpu(const KeyType* prefixes,
+extern void rebalanceDecisionEssentialGpu(const KeyType* prefixes,
                                           const TreeNodeIndex* childOffsets,
                                           const TreeNodeIndex* parents,
                                           const unsigned* counts,
@@ -48,10 +48,14 @@ extern bool rebalanceDecisionEssentialGpu(const KeyType* prefixes,
                                           TreeNodeIndex numNodes);
 
 template<class KeyType>
-extern ResolutionStatus enforceKeysGpu(const KeyType* leaves,
-                                       TreeNodeIndex* nodeOps,
-                                       TreeNodeIndex numLeaves,
-                                       const KeyType* forcedKeys,
-                                       TreeNodeIndex numForcedKeys);
+extern bool protectAncestorsGpu(const KeyType*, const TreeNodeIndex*, TreeNodeIndex*, TreeNodeIndex);
+
+template<class KeyType>
+extern ResolutionStatus enforceKeysGpu(const KeyType* forcedKeys,
+                                       TreeNodeIndex numForcedKeys,
+                                       const KeyType* nodeKeys,
+                                       const TreeNodeIndex* childOffsets,
+                                       const TreeNodeIndex* parents,
+                                       TreeNodeIndex* nodeOps);
 
 } // namespace cstone
