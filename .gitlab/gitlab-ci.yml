@@ -123,7 +123,7 @@ sph:build:cuda:1:
   script:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - ls -la /usr/local/games/
-    - ln -s /usr/local/sbin/hydro/example_data.txt example_data.txt
+    - ln -fs /usr/local/sbin/hydro/example_data.txt example_data.txt
     - /usr/local/sbin/coord_samples/coordinate_test
     - /usr/local/sbin/performance/scan_perf
     - /usr/local/sbin/coord_samples/coordinate_test
