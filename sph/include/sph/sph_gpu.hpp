@@ -38,7 +38,7 @@ extern void computeEOS_HydroStd(size_t, size_t, Tu, Tu, const Tu*, const Trho*, 
 
 template<class Tu, class Tm, class Thydro>
 extern void computeEOS(size_t, size_t, Tu, Tu, const Tu*, const Tm*, const Thydro*, const Thydro*, const Thydro*,
-                       Thydro*, Thydro*);
+                       Thydro*, Thydro*, Thydro*);
 
 } // namespace cuda
 
