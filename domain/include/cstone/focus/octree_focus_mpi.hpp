@@ -136,6 +136,8 @@ public:
             enforcedKeys.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
             enforcedKeys.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
         }
+        auto uniqueEnd = std::unique(enforcedKeys.begin(), enforcedKeys.end());
+        enforcedKeys.erase(uniqueEnd, enforcedKeys.end());
 
         bool converged;
         if constexpr (HaveGpu<Accelerator>{})
