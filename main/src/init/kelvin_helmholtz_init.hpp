@@ -132,7 +132,6 @@ public:
         std::vector<T> xBlock, yBlock, zBlock;
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         sortBySfcKey<KeyType>(xBlock, yBlock, zBlock);
-        auto [xHalf, yHalf, zHalf] = makeLessDenseTemplate(2, xBlock, yBlock, zBlock);
 
         cstone::Box<T> globalBox(0, 1, 0, 1, 0, 0.0625, pbc, pbc, pbc);
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
@@ -145,20 +144,46 @@ public:
         cstone::Box<T> layer2(0, 1, 0.25, 0.75, 0, 0.0625, pbc, pbc, pbc);
         cstone::Box<T> layer3(0, 1, 0.75, 1, 0, 0.0625, pbc, pbc, pbc);
 
-        assembleCuboid<T>(keyStart, keyEnd, layer1, outerMulti, xHalf, yHalf, zHalf, d.x, d.y, d.z);
+        std::vector<T> x, y, z;
+        assembleCuboid<T>(keyStart, keyEnd, layer1, outerMulti, xBlock, yBlock, zBlock, x, y, z);
+
+        T stretch = std::cbrt(2.0);
+        T topEdge = layer3.ymax();
+
+        auto inLayer1 = [b = layer1](T u, T v, T w)
+        { return u >= b.xmin() && u < b.xmax() && v >= b.ymin() && v < b.ymax() && w >= b.zmin() && w < b.zmax(); };
+
+        for (size_t i = 0; i < x.size(); ++i)
+        {
+            cstone::Vec3<T> X{x[i], y[i], z[i]};
+            // double the volume of layer1 to halve the density
+            X *= stretch;
+            // crop layer1 back to original size
+            if (inLayer1(X[0], X[1], X[2]))
+            {
+                d.x.push_back(X[0]);
+                d.y.push_back(X[1]);
+                d.z.push_back(X[2]);
+                // layer3: reflect (to preserve the relaxed PBC surface in y direction) and translate
+                T yLayer3 = -X[1] + topEdge;
+                d.x.push_back(X[0]);
+                d.y.push_back(yLayer3);
+                d.z.push_back(X[2]);
+            }
+        }
+
         assembleCuboid<T>(keyStart, keyEnd, layer2, innerMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-        assembleCuboid<T>(keyStart, keyEnd, layer3, outerMulti, xHalf, yHalf, zHalf, d.x, d.y, d.z);
+
+        d.numParticlesGlobal = d.x.size();
+        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
+        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
 
         size_t npartInner   = 128 * xBlock.size();
         T      volumeHD     = 0.5 * 0.0625;
         T      particleMass = volumeHD * constants_.at("rhoInt") / npartInner;
 
-        // size_t totalNPart = 128 * (xBlock.size() + xHalf.size());
         d.resize(d.x.size());
         initKelvinHelmholtzFields(d, constants_, particleMass);
-
-        d.numParticlesGlobal = d.x.size();
-        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
 
         return globalBox;
     }
