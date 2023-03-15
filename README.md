@@ -9,27 +9,18 @@
 # SPH
 
 The smoothed particle hydrodynamics (SPH) technique is a purely Lagrangian method.
-SPH discretizes a fluid in a series of interpolation points (SPH particles)
-whose distribution follows the mass density of the fluid and their evolution relies
+SPH discretizes a fluid in a series of interpolation points (SPH particles) whose distribution follows the mass density of the fluid and their evolution relies
 on a weighted interpolation over close neighboring particles.
 
-SPH simulations represent computationally demanding calculations.
-Therefore, trade-offs are made between temporal and spatial scales, resolution,
-dimensionality (3-D or 2-D), and approximated versions of the physics involved.
-The parallelization of SPH codes is not trivial due to their boundless nature
-and the absence of a structured grid.
-[SPHYNX](https://astro.physik.unibas.ch/sphynx/),
-[ChaNGa](http://faculty.washington.edu/trq/hpcc/tools/changa.html),
-and [SPH-flow](http://www.sph-flow.com) are the three SPH codes selected in the PASC SPH-EXA project to
-act as parent and reference codes to SPH-EXA.
-The performance of these three codes is negatively impacted by factors such as imbalanced multi-scale physics,
-individual time-stepping, halos exchange, and long-range forces.
-Therefore, the goal is to extrapolate their common basic SPH features, and consolidate them in a fully optimized,
-Exascale-ready, MPI+X, SPH code: SPH-EXA.
+The parallelization of SPH codes is not trivial due to their boundless nature and the absence of a structured grid.
 
 # SPH-EXA
 
 SPH-EXA is a C++20 simulation code for hydrodynamics simulations (with gravity and other physics), parallelized with MPI, OpenMP, CUDA, and HIP.
+
+SPH-EXA is built with high performance, scalability, portability, and resilience in mind. Its SPH implementation is based on [SPHYNX](https://astro.physik.unibas.ch/sphynx/), [ChaNGa](http://faculty.washington.edu/trq/hpcc/tools/changa.html), and [SPH-flow](http://www.sph-flow.com), three SPH codes selected in the PASC SPH-EXA project to act as parent and reference codes to SPH-EXA.
+
+The performance of standard codes is negatively impacted by factors such as imbalanced multi-scale physics, individual time-stepping, halos exchange, and long-range forces. Therefore, the goal is to extrapolate common basic SPH features, and consolidate them in a fully optimized, Exascale-ready, MPI+X, SPH code: SPH-EXA.
 
 [Check our wiki for more details](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/wiki)
 
@@ -121,19 +112,38 @@ Build everything: ```make -j```
 
 #### Running the main application
 
-The main ```sphexa``` application can either start a simulation by reading initial conditions
+The main ```sphexa``` (and `sphexa-cuda`, if GPUs are available) application can either start a simulation by reading initial conditions
 from a file or generate an initial configuration for a named test case.
 Self-gravity will be activated automatically based on named test-case choice or if the HDF5 initial
 configuration file has an HDF5 attribute with a non-zero value for the gravitational constant.
 
 Arguments:  
-* ```--init CASE/FILE ```: `sedov` for simulation the Sedov blast wave, `noh` for the Noh implosion,
-                            `evrard` for the Evrard collapse or provide an HDF5 file with valid input data
-* ```-n NUM``` : Run the simulation with NUM^3 (NUM to the cube) number of particles (for named test cases)
-* ```-s NUM``` : Run the simulation with NUM of iterations (time-steps)  
-* ```-w NUM``` : Dump particle data every NUM iterations (time-steps)  
-* ```-f FIELDS```: Comma separated list of particle fields for file output dumps
-* ```--quiet``` : Don't print any output to stdout  
+* ```--init CASE/FILE```: use the case name as seen below or provide an HDF5 file with initial conditions
+* ```-n NUM``` : Run the simulation with NUM^3 (NUM to the cube) number of particles (for named test cases). [NOTE: This might vary with the test case]
+* ```-s NUM``` : Run the simulation with NUM of iterations (time-steps) if NUM is integer. Run until the specified physical time if NUM is real. 
+* ```-w NUM``` : Dump particle data every NUM iterations (time-steps) if NUM is integer. Dump data at the specified physical time if NUM is real.
+* ```-f FIELDS```: Comma separated list of particle fields for file output dumps. See a list of common ouput fields below.
+* ```--quiet``` : Don't print any output to stdout
+
+Implemented cases:
+* ```--sedov```: spherical blast wave
+* ```--noh```: spherical implosion
+* ```--evrard```: gravitational collapse of a isothermal cloud
+* ```--turbulence```: subsonic turbulence in a box
+* ```--kelvin-helmholtz```: devlopment of the subsonic Kelvin-Helmholtz instability in a thin slice
+
+Common output fields:
+* ```x, y, z```: position
+* ```vx, vy, vz```: velocity
+* ```h```: smoothing length
+* ```rho```: density
+* ```c```: speed of sound
+* ```p```: pressure
+* ```temp```: temperature
+* ```u```: internal energy
+* ```nc```: number of neighbors
+* ```divv```: Module of the divergence of the velocity field
+* ```curlv```: Module of the curl of the velocity field
 
 Example usage:  
 * ```OMP_NUM_THREADS=4 ./sphexa --init sedov -n 100 -s 1000 -w 10 -f x,y,z,rho,p```
