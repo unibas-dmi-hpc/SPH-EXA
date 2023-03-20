@@ -295,7 +295,7 @@ calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* coun
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
         // pointer to first node in sibling group
-        auto g             = counts + nodeIdx - siblingIdx;
+        auto g = counts + nodeIdx - siblingIdx;
 #pragma GCC diagnostic ignored "-Warray-bounds"
         size_t parentCount = size_t(g[0]) + size_t(g[1]) + size_t(g[2]) + size_t(g[3]) + size_t(g[4]) + size_t(g[5]) +
                              size_t(g[6]) + size_t(g[7]);

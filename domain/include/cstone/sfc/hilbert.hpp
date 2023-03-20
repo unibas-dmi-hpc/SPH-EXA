@@ -33,6 +33,9 @@
  * Yohei Miki, Masayuki Umemura
  * GOTHIC: Gravitational oct-tree code accelerated by hierarchical time step controlling
  * https://doi.org/10.1016/j.newast.2016.10.007
+ *
+ * The 2D Hilbert curve  code is based on the book by Henry S. Warren
+ * https://learning.oreilly.com/library/view/hackers-delight-second
  */
 
 #pragma once
@@ -105,6 +108,40 @@ iHilbert(unsigned px, unsigned py, unsigned pz) noexcept
     return key;
 }
 
+/*! @brief compute the Hilbert key for a 2D point of integer coordinates
+ *
+ * @tparam     KeyType   32- or 64-bit unsigned integer
+ * @param[in]  px,py  input coordinates in [0:2^maxTreeLevel<KeyType>{}]
+ * @return               the Hilbert key
+ */
+
+template<class KeyType>
+constexpr HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert2D(unsigned px,
+                                                                                                   unsigned py) noexcept
+{
+    assert(px < (1u << maxTreeLevel<KeyType>{}));
+    assert(py < (1u << maxTreeLevel<KeyType>{}));
+
+    unsigned xi, yi;
+    unsigned temp;
+    KeyType key = 0;
+
+    for (int level = maxTreeLevel<KeyType>{} - 1; level >= 0; level--)
+    {
+        xi = (px >> level) & 1u; // Get bit level of x.
+        yi = (py >> level) & 1u; // Get bit level of y.
+
+        if (yi == 0)
+        {
+            temp = px;           // Swap x and y and,
+            px   = py ^ (-xi);   // if xi = 1,
+            py   = temp ^ (-xi); // complement them.
+        }
+        key = 4 * key + 2 * xi + (xi ^ yi); // Append two bits to key.
+    }
+    return key;
+}
+
 //! @brief inverse function of iHilbert
 template<class KeyType>
 HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key) noexcept
@@ -149,6 +186,83 @@ HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned, unsigned> decodeHilbert(K
     }
 
     return {px, py, pz};
+}
+
+// Lam and Shapiro inverse function of hilbert
+template<class KeyType>
+HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned> decodeHilbert2D(KeyType key) noexcept
+{
+    unsigned sa, sb;
+    unsigned x = 0, y = 0, temp = 0;
+    unsigned order = maxTreeLevel<KeyType>{};
+
+    for (unsigned level = 0; level < 2 * order; level += 2)
+    {
+        // Get bit level+1 of key.
+        sa = (key >> (level + 1)) & 1;
+        // Get bit level of key.
+        sb = (key >> level) & 1;
+        if ((sa ^ sb) == 0)
+        {
+            // If sa,sb = 00 or 11,
+            temp = x;
+            // swap x and y,
+            x = y ^ (-sa);
+            // and if sa = 1,
+            y = temp ^ (-sa);
+            // complement them.
+        }
+        x = (x >> 1) | (sa << 31);        // Prepend sa to x and
+        y = (y >> 1) | ((sa ^ sb) << 31); // (sa ^ sb) to y.
+    }
+    unsigned px = x >> (32 - order);
+    // Right-adjust x and y
+    unsigned py = y >> (32 - order);
+    // and return them to
+    return {px, py};
+}
+
+//! @brief inverse function of iHilbert 32 bit only up to oder 16 but works at constant time.
+template<class KeyType>
+HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned> decodeHilbert2DConstant(KeyType key) noexcept
+{
+    unsigned order = maxTreeLevel<KeyType>{};
+
+    key = key | (0x55555555 << 2 * order); // Pad key on left with 01
+
+    const unsigned sr = (key >> 1) & 0x55555555;                // (no change) groups.
+    unsigned cs       = ((key & 0x55555555) + sr) ^ 0x55555555; // Compute complement & swap info in two-bit groups.
+    // Parallel prefix xor op to propagate both complement
+    // and swap info together from left to right (there is
+    // no step "cs ^= cs >> 1", so in effect it computes
+    // two independent parallel prefix operations on two
+    // interleaved sets of sixteen bits).
+    cs                  = cs ^ (cs >> 2);
+    cs                  = cs ^ (cs >> 4);
+    cs                  = cs ^ (cs >> 8);
+    cs                  = cs ^ (cs >> 16);
+    const unsigned swap = cs & 0x55555555;        // Separate the swap and
+    const unsigned comp = (cs >> 1) & 0x55555555; // complement bits.
+
+    unsigned t = (key & swap) ^ comp;          // Calculate x and y in
+    key        = key ^ sr ^ t ^ (t << 1);      // the odd & even bit positions, resp.
+    key        = key & ((1 << 2 * order) - 1); // Clear out any junk on the left (unpad).
+
+    // Now "unshuffle" to separate the x and y bits.
+
+    t   = (key ^ (key >> 1)) & 0x22222222;
+    key = key ^ t ^ (t << 1);
+    t   = (key ^ (key >> 2)) & 0x0C0C0C0C;
+    key = key ^ t ^ (t << 2);
+    t   = (key ^ (key >> 4)) & 0x00F000F0;
+    key = key ^ t ^ (t << 4);
+    t   = (key ^ (key >> 8)) & 0x0000FF00;
+    key = key ^ t ^ (t << 8);
+
+    unsigned px = key >> 16;    // Assign the two halves
+    unsigned py = key & 0xFFFF; // of t to x and y.
+
+    return {px, py};
 }
 
 /*! @brief compute the 3D integer coordinate box that contains the key range
