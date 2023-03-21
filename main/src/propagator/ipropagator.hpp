@@ -75,7 +75,10 @@ public:
     virtual void load(const std::string& path, MPI_Comm comm){};
 
     //! @brief print timing info and calculated metrics
-    void printProfilingInfo(){ timer.printProfilingInfo(); };
+    void printProfilingInfo() { timer.printProfilingInfo(); };
+
+    //! @brief gather timing info in rank 0 for writing to file
+    void gatherProfilingInfo() { timer.gatherProfilingInfo(); };
 
     virtual ~Propagator() = default;
 

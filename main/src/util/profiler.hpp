@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <iostream>
+#include <fstream>
 #include <mpi.h>
 
 namespace sphexa
@@ -21,7 +21,7 @@ private:
     std::vector<float>  g2PerStep;     // kurtosis
     std::vector<float>  totalTimeStep; // total time-step durations
     std::vector<size_t> numLocalParts; // number of local particles
-    std::vector<float>  funcTimes;     // vector of timesteps for all ranks    
+    std::vector<float>  funcTimes;     // vector of timesteps for all ranks
     int                 _numRanks;
     int                 _rank;
     std::ofstream       profilingFile;
@@ -38,12 +38,12 @@ public:
 
     void printMetrics(int iteration)
     {
-        profilingFile << std::setw(15) << meanPerStep.at(iteration) << "," << std::setw(15) << stdevPerStep.at(iteration)
-               << "," << std::setw(15) << covPerStep.at(iteration) << "," << std::setw(15) << I_2PerStep.at(iteration)
-               << "," << std::setw(15) << lambdaPerStep.at(iteration); // << ","; << std::setw(15) << I_2PerStep.at(iteration) << ",";
+        profilingFile << meanPerStep.at(iteration) << "," << stdevPerStep.at(iteration) << ","
+                      << covPerStep.at(iteration) << "," << I_2PerStep.at(iteration) << ","
+                      << lambdaPerStep.at(iteration);
         for (int i = 0; i < _numRanks; i++)
         {
-            profilingFile << "," << std::setw(15) << vectorMetric.at(iteration)[i];
+            profilingFile << "," << vectorMetric.at(iteration)[i];
         }
     }
 
@@ -52,26 +52,28 @@ public:
         if (_rank == 0)
         {
             size_t iter = 1;
-            profilingFile << std::setw(3) << " ";
+            // profilingFile << std::setw(3) << " ";
             for (int i = 0; i < _numRanks; i++)
             {
-                profilingFile << std::setw(15) << "RANK" << i;
+                profilingFile << "RANK" << i << ",";
             }
-            profilingFile << std::setw(16) << " mean" << std::setw(16) << " stdev"
-                          << std::setw(16) << " C.o.V." << std::setw(16) << " I_2"
-                          << std::setw(16) << " lambda";
+            profilingFile << "mean,"
+                          << "stdev,"
+                          << "CoV,"
+                          << "I_2,"
+                          << "lambda";
             for (int i = 0; i < _numRanks; i++)
             {
-                profilingFile << std::setw(15) << "Vector" << i;
+                profilingFile << ",Vector" << i;
             }
             profilingFile << std::endl;
             for (auto& element : timeSteps)
             {
                 calculateMetrics(element);
-                profilingFile << std::setw(3) << iter << " ";
+                // profilingFile << std::setw(3) << iter << " ";
                 for (int i = 0; i < _numRanks; i++)
                 {
-                    profilingFile << std::setw(15) << element[i] << ",";
+                    profilingFile << element[i] << ",";
                 }
                 printMetrics(iter - 1);
                 iter++;
@@ -83,18 +85,21 @@ public:
         profilingFile.close();
     }
 
-    void saveTimings(float duration)
+    void saveTimings(float duration) { funcTimes.push_back(duration); }
+
+    void saveTimestepAndParticleNo(float duration, size_t numLocalParticles)
     {
-        funcTimes.push_back(duration);
+        funcTimes.push_back(duration);                 // save the total timestep timing
+        funcTimes.push_back((float)numLocalParticles); // save the local number of particles
     }
 
-    void gatherTimings(float duration, size_t numLocalParticles)
+    void gatherTimings()
     {
-        funcTimes.push_back(duration); // save the total timestep timing
-        funcTimes.push_back((float)numLocalParticles); // save the local number of particles
+        std::cout << "Gathering profiling data." << std::endl;
 
-        float* durations = new float[_numRanks*funcTimes.size()];
-        MPI_Gather(funcTimes.data(), funcTimes.size(), MPI_FLOAT, &durations[_rank*funcTimes.size()], funcTimes.size(), MPI_FLOAT, 0, MPI_COMM_WORLD);
+        float* durations = new float[_numRanks * funcTimes.size()];
+        MPI_Gather(funcTimes.data(), funcTimes.size(), MPI_FLOAT, &durations[_rank * funcTimes.size()],
+                   funcTimes.size(), MPI_FLOAT, 0, MPI_COMM_WORLD);
 
         if (_rank == 0)
         {
@@ -103,25 +108,24 @@ public:
                 float* funcDurations = new float[_numRanks];
                 for (int r = 0; r < _numRanks; r++)
                 {
-                    funcDurations[r] = durations[r*funcTimes.size()+i];
+                    funcDurations[r] = durations[r * funcTimes.size() + i];
                 }
                 timeSteps.push_back(funcDurations);
             }
         }
-        funcTimes.clear();
     }
 
     // LiB metrics calculations
     void calculateMetrics(float* durations)
     {
         const std::vector<float> durData(durations, durations + _numRanks);
-        float* vecMetric = new float[_numRanks];
+        float*                   vecMetric = new float[_numRanks];
 
         float mean   = std::reduce(durData.begin(), durData.end()) / durData.size();
         float sq_sum = std::inner_product(durData.begin(), durData.end(), durData.begin(), 0.0);
         float stdev  = std::sqrt(sq_sum / durData.size() - mean * mean);
         float Lmax   = *std::max_element(durData.begin(), durData.end());
-        float lambda = (Lmax/mean - 1.0f) * 100;
+        float lambda = (Lmax / mean - 1.0f) * 100;
 
         for (int i = 0; i < _numRanks; i++)
         {

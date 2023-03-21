@@ -48,7 +48,7 @@ class IFileWriter
     template<class T>
     using ToVec = const std::vector<T>;
 
-    using Types = util::TypeList<double, float, char, int, int64_t, unsigned, uint64_t>;
+    using Types = util::TypeList<double, float, char, int, int64_t, unsigned, uint64_t, size_t>;
 
 public:
     using FieldType   = util::Reduce<std::variant, util::Map<ConstPtr, Types>>;

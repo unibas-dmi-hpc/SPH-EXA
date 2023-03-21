@@ -98,35 +98,46 @@ public:
     {
     }
 
+    void addSubsteps(float t1, float t2)
+    {
+        profiler.saveTimings(t1);
+        profiler.saveTimings(t2);
+    }
+
     void step(const std::string& name)
     {
         if (isProfilingEnabled)
         {
             profiler.saveTimings(stepDuration());
-            if (rank == 0) Timer::step(name);
-            else Timer::step();
+            if (rank == 0)
+                Timer::step(name);
+            else
+                Timer::step();
         }
-        else if (rank == 0) Timer::step(name);
+        else if (rank == 0)
+            Timer::step(name);
     }
 
-    void profilingStop(size_t , size_t numLocalParticles)
+    void profilingStop(size_t, size_t numLocalParticles)
     {
         if (isProfilingEnabled)
         {
             stop();
-            profiler.gatherTimings(duration(), numLocalParticles);
+            profiler.saveTimestepAndParticleNo(duration(), numLocalParticles);
         }
-        else stop();
+        else
+            stop();
     }
 
-    void printProfilingInfo()
-    {
-        profiler.printProfilingInfo();
-    }
+    void printProfilingInfo() { profiler.printProfilingInfo(); }
+
+    void gatherProfilingInfo() { profiler.gatherTimings(); }
+
+    bool isProfEnabled() { return isProfilingEnabled; }
 
 private:
-    int rank;
-    bool isProfilingEnabled;
+    int      rank;
+    bool     isProfilingEnabled;
     Profiler profiler;
 };
 
