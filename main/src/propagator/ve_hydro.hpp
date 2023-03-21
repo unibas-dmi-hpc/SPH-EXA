@@ -149,7 +149,8 @@ public:
 
         computeXMass(first, last, d, domain.box());
         timer.step("XMass");
-        domain.exchangeHalos(std::tie(get<"xm">(d)), get<"ax">(d), get<"ay">(d));
+        auto timings = domain.exchangeHalos(std::tie(get<"xm">(d)), get<"ax">(d), get<"ay">(d));
+        if (timer.isProfEnabled()) timer.addSubsteps(std::get<0>(timings), std::get<1>(timings));
         timer.step("mpi::synchronizeHalos");
 
         d.release("ax");
@@ -162,7 +163,8 @@ public:
         computeEOS(first, last, d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(get<"vx", "vy", "vz", "prho", "c", "kx">(d), get<"gradh">(d), get<"ay">(d));
+        timings = domain.exchangeHalos(get<"vx", "vy", "vz", "prho", "c", "kx">(d), get<"gradh">(d), get<"ay">(d));
+        if (timer.isProfEnabled()) timer.addSubsteps(std::get<0>(timings), std::get<1>(timings));
         timer.step("mpi::synchronizeHalos");
 
         d.release("gradh", "ay");
@@ -173,7 +175,9 @@ public:
         d.minDtRho = rhoTimestep(first, last, d);
         timer.step("IadVelocityDivCurl");
 
-        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"az">(d), get<"du">(d));
+        timings =
+            domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"az">(d), get<"du">(d));
+        if (timer.isProfEnabled()) timer.addSubsteps(std::get<0>(timings), std::get<1>(timings));
         timer.step("mpi::synchronizeHalos");
 
         computeAVswitches(first, last, d, domain.box());
@@ -181,9 +185,11 @@ public:
 
         if (avClean)
         {
-            domain.exchangeHalos(get<"dV11", "dV12", "dV22", "dV23", "dV33", "alpha">(d), get<"az">(d), get<"du">(d));
+            timings = domain.exchangeHalos(get<"dV11", "dV12", "dV22", "dV23", "dV33", "alpha">(d), get<"az">(d),
+                                           get<"du">(d));
         }
-        else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"az">(d), get<"du">(d)); }
+        else { timings = domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"az">(d), get<"du">(d)); }
+        if (timer.isProfEnabled()) timer.addSubsteps(std::get<0>(timings), std::get<1>(timings));
         timer.step("mpi::synchronizeHalos");
 
         d.release("divv", "curlv");

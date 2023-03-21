@@ -311,10 +311,11 @@ public:
 
     //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
     template<class... Vectors, class SendBuffer, class ReceiveBuffer>
-    void exchangeHalos(std::tuple<Vectors&...> arrays, SendBuffer& sendBuffer, ReceiveBuffer& receiveBuffer) const
+    std::tuple<float, float>
+    exchangeHalos(std::tuple<Vectors&...> arrays, SendBuffer& sendBuffer, ReceiveBuffer& receiveBuffer) const
     {
         std::apply([this](auto&... arrays) { this->template checkSizesEqual(this->bufDesc_.size, arrays...); }, arrays);
-        this->halos_.exchangeHalos(arrays, sendBuffer, receiveBuffer);
+        return this->halos_.exchangeHalos(arrays, sendBuffer, receiveBuffer);
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
