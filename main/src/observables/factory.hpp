@@ -49,7 +49,7 @@ namespace sphexa
 //! @brief reads a specified attribute if exists and has the specified type
 template<class AttrType>
 void findH5Attribute(const std::string& fname, const std::string& attributeToRead, AttrType* attribute,
-                           h5part_int64_t h5Type)
+                     h5part_int64_t h5Type)
 {
 
     if (std::filesystem::exists(fname))
