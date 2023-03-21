@@ -231,7 +231,8 @@ public:
      * Note that if the ScratchVectors are on device, all arrays need to be on the device too.
      */
     template<class Scratch1, class Scratch2, class... Vectors>
-    std::tuple<float, float> exchangeHalos(std::tuple<Vectors&...> arrays, Scratch1& sendBuffer, Scratch2& receiveBuffer) const
+    std::tuple<float, float>
+    exchangeHalos(std::tuple<Vectors&...> arrays, Scratch1& sendBuffer, Scratch2& receiveBuffer) const
     {
         if constexpr (HaveGpu<Accelerator>{})
         {
