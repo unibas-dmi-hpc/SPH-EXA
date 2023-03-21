@@ -71,6 +71,8 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamax);
     std::fill(d.vz.begin(), d.vz.end(), 0.0);
 
+    d.gamma    = constants.at("gamma");
+    d.Kcour    = constants.at("Kcour");
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;
 
@@ -104,8 +106,8 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
 
 std::map<std::string, double> KelvinHelmholtzConstants()
 {
-    return {{"rhoInt", 2.},     {"rhoExt", 1.},          {"vxExt", 0.5}, {"vxInt", -0.5},
-            {"gamma", 5. / 3.}, {"firstTimeStep", 1e-7}, {"p", 2.5},     {"omega0", 0.01}};
+    return {{"rhoInt", 2.},          {"rhoExt", 1.}, {"vxExt", 0.5},   {"vxInt", -0.5}, {"gamma", 5. / 3.},
+            {"firstTimeStep", 1e-7}, {"p", 2.5},     {"omega0", 0.01}, {"Kcour", 0.4}};
 }
 
 template<class Dataset>
@@ -134,7 +136,7 @@ public:
         sortBySfcKey<KeyType>(xBlock, yBlock, zBlock);
 
         cstone::Box<T> globalBox(0, 1, 0, 1, 0, 0.0625, pbc, pbc, pbc);
-        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
+        auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
 
         int               multi1D    = std::rint(cbrtNumPart / std::cbrt(xBlock.size()));
         cstone::Vec3<int> innerMulti = {16 * multi1D, 8 * multi1D, multi1D};
