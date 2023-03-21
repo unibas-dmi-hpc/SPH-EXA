@@ -34,6 +34,7 @@
 
 #include "cooling/chemistry_data.hpp"
 #include "sph/particles_data.hpp"
+#include "cosmo/cosmology_data.hpp"
 
 namespace sphexa
 {
@@ -49,6 +50,7 @@ public:
 
     using HydroData = ParticlesData<RealType, KeyType, AccType>;
     using ChemData  = cooling::ChemistryData<T>;
+    using CosmoData = cosmo::CosmologyData<T>;
 
     //! @brief spacially distributed data for hydrodynamics and gravity
     HydroData hydro;
@@ -58,6 +60,9 @@ public:
 
     //! @brief non-spacially distributed nuclear abundances
     // NuclearData nuclear;
+
+    //! @brief cosmological parameters
+    CosmoData cosmo;
 
     MPI_Comm comm;
 };
