@@ -118,9 +118,6 @@ int main(int argc, char** argv)
     transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
     d.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
 
-    d.ng0   = 100;
-    d.ngmax = 150;
-
     bool  haveGrav = (d.g != 0.0);
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 
