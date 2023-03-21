@@ -22,6 +22,7 @@ if(CMAKE_CUDA_COMPILER)
             test_main.cpp)
     target_include_directories(${testname} PRIVATE
                                ${COOLING_DIR}
+                               ${COSMO_DIR}
                                ${SPH_DIR}
                                ${CSTONE_DIR}
                                ${PROJECT_SOURCE_DIR}/main/src)
