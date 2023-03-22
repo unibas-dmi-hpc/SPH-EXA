@@ -64,7 +64,7 @@ void exchangeAllToAll(int thisRank, int numRanks)
     {
         // A simple, but nontrivial ordering.
         // Simulates the use case where the x,y,z coordinate arrays
-        // are not sorted according to the Morton code ordering for which the
+        // are not sorted according to the Morton code ordering for which
         // the index ranges in the SendList are valid.
         int swap1 = 0;
         int swap2 = gridSize - 1;
@@ -110,6 +110,9 @@ void exchangeAllToAll(int thisRank, int numRanks)
         for (int i = 0; i < segmentSize; ++i)
             refY.push_back(seqStart++);
     }
+
+    std::sort(begin(x), end(x));
+    std::sort(begin(refX), end(refX));
 
     // received particles are in indeterminate order
     std::sort(begin(y), end(y));

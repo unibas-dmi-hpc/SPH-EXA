@@ -259,7 +259,7 @@ public:
         d.numParticlesGlobal           = multi1D * multi1D * multi1D * blockSize;
 
         cstone::Box<T> globalBox(-2 * r, 2 * r, cstone::BoundaryType::periodic);
-        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
+        auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
         assembleCuboid<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
         T s = computeStretchFactor(r, 2 * r, rhoInt / rhoExt);

@@ -183,10 +183,10 @@ constexpr auto discardLastElement(const Tuple& tuple)
     return discardLastImpl(tuple, Seq{});
 }
 
-//! @brief ceil(dividend/divisor) for integers
-HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
+//! @brief ceil(dividend/divisor) for unsigned integers
+HOST_DEVICE_FUN constexpr size_t iceil(size_t dividend, unsigned divisor)
 {
-    return (dividend + divisor - 1) / divisor;
+    return (dividend + divisor - 1lu) / divisor;
 }
 
 HOST_DEVICE_FUN constexpr size_t round_up(size_t n, unsigned multiple) { return iceil(n, multiple) * multiple; }
