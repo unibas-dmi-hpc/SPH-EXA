@@ -33,7 +33,6 @@
 
 #include <numeric>
 #include <vector>
-#include <chrono>
 
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/domain/index_ranges.hpp"
@@ -42,16 +41,8 @@ namespace cstone
 {
 
 template<class... Arrays>
-std::tuple<float, float>
-haloexchange(int epoch, const SendList& incomingHalos, const SendList& outgoingHalos, Arrays... arrays)
+void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outgoingHalos, Arrays... arrays)
 {
-    typedef std::chrono::high_resolution_clock Clock;
-    typedef std::chrono::time_point<Clock> TimePoint;
-    typedef std::chrono::duration<float> Time;
-    TimePoint tstart, tlast;
-    tstart           = Clock::now();
-    float timings[2] = {0.0, 0.0};
-
     using IndexType         = SendManifest::IndexType;
     constexpr int numArrays = sizeof...(Arrays);
     constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
@@ -89,10 +80,6 @@ haloexchange(int epoch, const SendList& incomingHalos, const SendList& outgoingH
         mpiSendAsync(buffer.data(), totalBytes, destinationRank, haloExchangeTag, sendRequests);
         sendBuffers.push_back(std::move(buffer));
     }
-    tlast      = Clock::now();
-    timings[0] = std::chrono::duration_cast<Time>(tlast - tstart).count();
-    // std::cout << "mpiSendAsync = " << timings[0] << std::endl;
-    tstart = tlast;
 
     int numMessages            = 0;
     std::size_t maxReceiveSize = 0;
@@ -132,9 +119,6 @@ haloexchange(int epoch, const SendList& incomingHalos, const SendList& outgoingH
         }
         numMessages--;
     }
-    tlast      = Clock::now();
-    timings[1] = std::chrono::duration_cast<Time>(tlast - tstart).count();
-    // std::cout << "mpiRecv = " << timings[1] << std::endl;
 
     if (not sendRequests.empty())
     {
@@ -145,7 +129,6 @@ haloexchange(int epoch, const SendList& incomingHalos, const SendList& outgoingH
     // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
     // across all ranks before calling this function again.
     // MPI_Barrier(MPI_COMM_WORLD);
-    return std::tuple<float, float>{timings[0], timings[1]};
 }
 
 } // namespace cstone

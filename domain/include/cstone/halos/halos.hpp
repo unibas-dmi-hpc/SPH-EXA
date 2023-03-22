@@ -231,26 +231,24 @@ public:
      * Note that if the ScratchVectors are on device, all arrays need to be on the device too.
      */
     template<class Scratch1, class Scratch2, class... Vectors>
-    std::tuple<float, float>
-    exchangeHalos(std::tuple<Vectors&...> arrays, Scratch1& sendBuffer, Scratch2& receiveBuffer) const
+    void exchangeHalos(std::tuple<Vectors&...> arrays, Scratch1& sendBuffer, Scratch2& receiveBuffer) const
     {
         if constexpr (HaveGpu<Accelerator>{})
         {
             static_assert(IsDeviceVector<Scratch1>{} && IsDeviceVector<Scratch2>{});
-            return std::apply(
+            std::apply(
                 [this, &sendBuffer, &receiveBuffer](auto&... arrays)
                 {
-                    return haloExchangeGpu(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, sendBuffer,
-                                           receiveBuffer, rawPtr(arrays)...);
+                    haloExchangeGpu(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, sendBuffer, receiveBuffer,
+                                    rawPtr(arrays)...);
                 },
                 arrays);
         }
         else
         {
-            return std::apply(
-                [this](auto&... arrays)
-                { return haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, rawPtr(arrays)...); },
-                arrays);
+            std::apply([this](auto&... arrays)
+                       { haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, rawPtr(arrays)...); },
+                       arrays);
         }
     }
 
