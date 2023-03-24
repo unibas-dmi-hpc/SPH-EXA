@@ -125,9 +125,9 @@ int main(int argc, char** argv)
     if (rank == 0 && writeEnabled) { fileWriter->constants(simInit->constants(), outFile); }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
-    size_t bucketSizeFocus = 64;
+    KeyType bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
-    size_t bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
+    KeyType bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
     Domain domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
 
     propagator->sync(domain, simData);
