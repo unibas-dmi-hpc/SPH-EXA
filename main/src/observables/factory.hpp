@@ -98,7 +98,7 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
 #ifdef SPH_EXA_HAVE_H5PART
 
     std::string    khGrowthRate = "KelvinHelmholtzGrowthRate";
-    h5part_int64_t khAttribute;
+    h5part_int64_t khAttribute = 0;
     findH5Attribute<h5part_int64_t>(testCase, khGrowthRate, &khAttribute, H5PART_INT64);
     if (khAttribute != 0 || testCase == "kelvin-helmholtz")
     {
