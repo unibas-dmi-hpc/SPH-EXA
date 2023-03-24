@@ -77,9 +77,9 @@ public:
     ParticlesData()                     = default;
     ParticlesData(const ParticlesData&) = delete;
 
-    size_t iteration{1};
-    size_t numParticlesGlobal;
-    size_t totalNeighbors;
+    KeyType iteration{1};
+    KeyType numParticlesGlobal;
+    KeyType totalNeighbors;
 
     //! @brief mean desired number of neighbors per particle
     unsigned ng0{100};
