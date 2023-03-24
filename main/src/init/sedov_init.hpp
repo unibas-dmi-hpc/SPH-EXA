@@ -173,11 +173,7 @@ public:
         T              r = constants_.at("r1");
         cstone::Box<T> globalBox(-r, r, cstone::BoundaryType::periodic);
 
-        unsigned level             = cstone::log8ceil<KeyType>(100 * numRanks);
-        auto     initialBoundaries = cstone::initialDomainSplits<KeyType>(numRanks, level);
-        KeyType  keyStart          = initialBoundaries[rank];
-        KeyType  keyEnd            = initialBoundaries[rank + 1];
-
+        auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
         assembleCuboid<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
         d.resize(d.x.size());

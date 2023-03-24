@@ -81,10 +81,10 @@ public:
     KeyType numParticlesGlobal;
     KeyType totalNeighbors;
 
-    //! @brief mean desired number of neighbors per particle
+    //! @brief default mean desired number of neighbors per particle, can be overriden per test case or input file
     unsigned ng0{100};
 
-    //! @brief maximum number of neighbors per particle before additional h-adjustment will be triggered
+    //! @brief default maximum number of neighbors per particle before additional h-adjustment will be triggered
     unsigned ngmax{150};
 
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};

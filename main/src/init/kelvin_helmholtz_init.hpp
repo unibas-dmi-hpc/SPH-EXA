@@ -71,6 +71,10 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamax);
     std::fill(d.vz.begin(), d.vz.end(), 0.0);
 
+    d.ng0      = std::lround(constants.at("ng0"));
+    d.ngmax    = std::lround(constants.at("ngmax"));
+    d.gamma    = constants.at("gamma");
+    d.Kcour    = constants.at("Kcour");
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;
 
@@ -90,7 +94,18 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
         }
         else
         {
-            d.h[i]    = hExt;
+            if (d.y[i] > 0.75 + 2 * hExt || d.y[i] < 0.25 - 2 * hExt)
+            {
+                // more than two smoothing lengths away from the high density band
+                d.h[i] = hExt;
+            }
+            else
+            {
+                T dist = (d.y[i] > 0.75) ? d.y[i] - 0.75 : 0.25 - d.y[i];
+                // linear interpolation from hInt to hExt for particles within 2 * hExt of the high density band
+                d.h[i] = hInt * (1 - dist / (2 * hExt)) + hExt * dist / (2 * hExt);
+            }
+
             d.temp[i] = uExt / cv;
             if (d.y[i] < 0.25) { d.vx[i] = vxExt - vDif * std::exp((d.y[i] - 0.25) / ls); }
             else { d.vx[i] = vxExt - vDif * std::exp((0.75 - d.y[i]) / ls); }
@@ -104,8 +119,9 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
 
 std::map<std::string, double> KelvinHelmholtzConstants()
 {
-    return {{"rhoInt", 2.},     {"rhoExt", 1.},          {"vxExt", 0.5}, {"vxInt", -0.5},
-            {"gamma", 5. / 3.}, {"firstTimeStep", 1e-7}, {"p", 2.5},     {"omega0", 0.01}};
+    return {{"rhoInt", 2.},          {"rhoExt", 1.}, {"vxExt", 0.5},   {"vxInt", -0.5}, {"gamma", 5. / 3.},
+            {"firstTimeStep", 1e-7}, {"p", 2.5},     {"omega0", 0.01}, {"Kcour", 0.4},  {"ng0", 100},
+            {"ngmax", 150}};
 }
 
 template<class Dataset>
@@ -134,9 +150,9 @@ public:
         sortBySfcKey<KeyType>(xBlock, yBlock, zBlock);
 
         cstone::Box<T> globalBox(0, 1, 0, 1, 0, 0.0625, pbc, pbc, pbc);
-        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
+        auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
 
-        int               multi1D    = std::rint(cbrtNumPart / std::cbrt(xBlock.size()));
+        int               multi1D    = std::lround(cbrtNumPart / std::cbrt(xBlock.size()));
         cstone::Vec3<int> innerMulti = {16 * multi1D, 8 * multi1D, multi1D};
         cstone::Vec3<int> outerMulti = {16 * multi1D, 4 * multi1D, multi1D};
 
@@ -178,8 +194,8 @@ public:
         MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
         syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
 
-        size_t npartInner   = 128 * xBlock.size();
-        T      volumeHD     = 0.5 * 0.0625;
+        size_t npartInner   = innerMulti[0] * innerMulti[1] * innerMulti[2] * xBlock.size();
+        T      volumeHD     = 0.5 * globalBox.lx() * globalBox.ly() * globalBox.lz();
         T      particleMass = volumeHD * constants_.at("rhoInt") / npartInner;
 
         d.resize(d.x.size());

@@ -105,7 +105,7 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box
     auto c23i = c23[i];
     auto c33i = c33[i];
 
-    util::array<T, 6> gradV_i;
+    [[maybe_unused]] util::array<T, 6> gradV_i;
     if constexpr (avClean) { gradV_i = {dV11[i], dV12[i], dV13[i], dV22[i], dV23[i], dV33[i]}; }
 
     // +1 is because we need to add selfparticle to neighborsCount

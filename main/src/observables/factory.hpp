@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <span>
 #include <string>
 
 #include "cstone/sfc/box.hpp"
@@ -48,15 +49,13 @@ namespace sphexa
 
 //! @brief reads a specified attribute if exists and has the specified type
 template<class AttrType>
-void findH5Attribute(const std::string& fname, const std::string& attributeToRead, AttrType* attribute,
-                           h5part_int64_t h5Type)
+void findH5Attribute(const std::string& fname, const std::string& attributeToRead, std::span<AttrType> attribute,
+                     h5part_int64_t h5Type)
 {
-
     if (std::filesystem::exists(fname))
     {
-        H5PartFile* h5_file  = nullptr;
-        h5_file              = H5PartOpenFile(fname.c_str(), H5PART_READ);
-        size_t numAttributes = H5PartGetNumFileAttribs(h5_file);
+        H5PartFile* h5_file       = H5PartOpenFile(fname.c_str(), H5PART_READ);
+        size_t      numAttributes = H5PartGetNumFileAttribs(h5_file);
 
         h5part_int64_t maxlen = 256;
         char           attributeName[maxlen];
@@ -69,8 +68,16 @@ void findH5Attribute(const std::string& fname, const std::string& attributeToRea
             H5PartGetFileAttribInfo(h5_file, i, attributeName, maxlen, &attributeType, &attributeLength);
             if (attributeName == attributeToRead && attributeType == h5Type)
             {
-
-                H5PartReadFileAttrib(h5_file, attributeName, attribute);
+                if (attributeLength <= attribute.size())
+                {
+                    H5PartReadFileAttrib(h5_file, attributeName, attribute.data());
+                }
+                else
+                {
+                    std::cout << "WARNING: Could not read attribute " << attributeToRead << "; attribute length is "
+                              << attributeLength << "in file, but only a buffer of length " << attribute.size()
+                              << " was provided" << std::endl;
+                }
                 break;
             }
         }
@@ -98,16 +105,13 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
 #ifdef SPH_EXA_HAVE_H5PART
 
     std::string    khGrowthRate = "KelvinHelmholtzGrowthRate";
-    h5part_int64_t khAttribute;
-    findH5Attribute<h5part_int64_t>(testCase, khGrowthRate, &khAttribute, H5PART_INT64);
-    if (khAttribute != 0 || testCase == "kelvin-helmholtz")
-    {
-        return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
-    }
+    h5part_int64_t khAttribute  = 0;
+    findH5Attribute<h5part_int64_t>(testCase, khGrowthRate, {&khAttribute, 1}, H5PART_INT64);
+    if (khAttribute != 0) { return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile); }
 
-    std::string gravWaves = "observeGravWaves";
-    double      gravWaveAttribute[3];
-    findH5Attribute<h5part_float64_t>(testCase, gravWaves, gravWaveAttribute, H5PART_FLOAT64);
+    std::string gravWaves            = "observeGravWaves";
+    double      gravWaveAttribute[3] = {0.0, 0.0, 0.0};
+    findH5Attribute<h5part_float64_t>(testCase, gravWaves, {gravWaveAttribute, 3}, H5PART_FLOAT64);
     if (gravWaveAttribute[0] != 0.0)
     {
         return std::make_unique<GravWaves<Dataset>>(constantsFile, gravWaveAttribute[1], gravWaveAttribute[2]);

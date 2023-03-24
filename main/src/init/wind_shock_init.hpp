@@ -61,6 +61,7 @@ std::map<std::string, double> WindShockConstants()
             {"dim", 3},
             {"gamma", 5. / 3.},
             {"firstTimeStep", 1e-10},
+            {"Kcour", 0.4},
             {"epsilon", 0.},
             {"mui", 10.}};
 }
@@ -87,6 +88,7 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
 
     d.gamma    = constants.at("gamma");
     d.muiConst = constants.at("mui");
+    d.Kcour    = constants.at("Kcour");
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;
 
@@ -176,21 +178,14 @@ public:
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
-        int               multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
-        cstone::Vec3<int> multiplicity = {multi1D, multi1D, multi1D};
+        int               multi1D          = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        cstone::Vec3<int> surroundingMulti = {4 * multi1D, multi1D, multi1D};
 
         auto           pbc = cstone::BoundaryType::periodic;
         cstone::Box<T> globalBox(0, 8 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
-        cstone::Box<T> boxA(0, 2 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
-        cstone::Box<T> boxB(2 * r, 4 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
-        cstone::Box<T> boxC(4 * r, 6 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
-        cstone::Box<T> boxD(6 * r, 8 * r, 0, 2 * r, 0, 2 * r, pbc, pbc, pbc);
 
-        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
-        assembleCuboid<T>(keyStart, keyEnd, boxA, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-        assembleCuboid<T>(keyStart, keyEnd, boxB, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-        assembleCuboid<T>(keyStart, keyEnd, boxC, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-        assembleCuboid<T>(keyStart, keyEnd, boxD, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
+        assembleCuboid<T>(keyStart, keyEnd, globalBox, surroundingMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
         auto cutSphereOut = [r, rSphere](auto x, auto y, auto z)
         {
@@ -202,9 +197,10 @@ public:
         selectParticles(d.x, d.y, d.z, cutSphereOut);
 
         // create the high-density blob
-        std::vector<T> xBlob, yBlob, zBlob;
-        cstone::Box<T> boxS(r - blobMultiplier * rSphere, r + blobMultiplier * rSphere);
-        assembleCuboid<T>(keyStart, keyEnd, boxS, multiplicity, xBlock, yBlock, zBlock, xBlob, yBlob, zBlob);
+        cstone::Vec3<int> blobMulti = {multi1D, multi1D, multi1D};
+        std::vector<T>    xBlob, yBlob, zBlob;
+        cstone::Box<T>    boxS(r - blobMultiplier * rSphere, r + blobMultiplier * rSphere);
+        assembleCuboid<T>(keyStart, keyEnd, boxS, blobMulti, xBlock, yBlock, zBlock, xBlob, yBlob, zBlob);
         auto keepSphere = [r, rSphere](auto x, auto y, auto z)
         {
             using T_ = decltype(x);
@@ -225,12 +221,17 @@ public:
         MPI_Allreduce(MPI_IN_PLACE, &numParticlesInternal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
         T massPart = innerVolume * rhoInt / numParticlesInternal;
 
+        d.numParticlesGlobal = d.x.size();
+        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
+
+        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
+        d.x.shrink_to_fit();
+        d.y.shrink_to_fit();
+        d.z.shrink_to_fit();
+
         // Initialize Wind shock domain variables
         d.resize(d.x.size());
         initWindShockFields(d, constants_, massPart);
-
-        d.numParticlesGlobal = d.x.size();
-        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
 
         return globalBox;
     }

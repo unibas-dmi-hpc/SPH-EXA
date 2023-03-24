@@ -42,13 +42,13 @@
 namespace cstone
 {
 
-//! @brief copy the value of @a count to the start the provided GPU-buffer and advance the buffer pointer by alignment
+//! @brief copy the value of @a count to the start the provided GPU-buffer
 void encodeSendCount(size_t count, char* sendPtr)
 {
     checkGpuErrors(cudaMemcpy(sendPtr, &count, sizeof(size_t), cudaMemcpyHostToDevice));
 }
 
-//! @brief extract message length count from head of received GPU buffer
+//! @brief extract message length count from head of received GPU buffer and advance the buffer pointer by alignment
 char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
 {
     checkGpuErrors(cudaMemcpy(count, recvPtr, sizeof(size_t), cudaMemcpyDeviceToHost));
@@ -74,8 +74,7 @@ char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
  *                                 The order in which the incoming ranges are grouped is random. ON DEVICE.
  * @return                         (newStart, newEnd) tuple of indices delimiting the new range of assigned
  *                                 particles post-exchange. Note: this range may contain left-over particles
- *                                 from the previous assignment. Those can be removed with a subsequent call to
- *                                 compactParticles().
+ *                                 from the previous assignment.
  *
  *  Example: If sendList[ri] contains the range [upper, lower), all elements (arrays+inputOffset)[ordering[upper:lower]]
  *           will be sent to rank ri. At the destination ri, the incoming elements
@@ -102,12 +101,15 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
     constexpr size_t alignment      = 128;
     constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
 
+    using TransferType = uint64_t;
+    static_assert(alignment % sizeof(TransferType) == 0);
+
     size_t totalSendBytes    = computeTotalSendBytes(sendList, elementSizes, thisRank, alignment);
     const size_t oldSendSize = reallocateBytes(sendScratchBuffer, totalSendBytes);
     char* const sendBuffer   = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
 
     // Not used if GPU-direct is ON
-    std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
+    std::vector<std::vector<TransferType, util::DefaultInitAdaptor<TransferType>>> sendBuffers;
     std::vector<MPI_Request> sendRequests;
 
     std::array<char*, numArrays> sourceArrays{reinterpret_cast<char*>(arrays + particleStart)...};
@@ -132,8 +134,9 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
         for_each_tuple(gatherArray, indices);
         checkGpuErrors(cudaDeviceSynchronize());
 
-        mpiSendGpuDirect(sendPtr, alignment + byteOffsets.back(), destinationRank, domainExchangeTag, sendRequests,
-                         sendBuffers);
+        mpiSendGpuDirect(reinterpret_cast<TransferType*>(sendPtr),
+                         (alignment + byteOffsets.back()) / sizeof(TransferType), destinationRank, domainExchangeTag,
+                         sendRequests, sendBuffers);
         sendPtr += alignment + byteOffsets.back();
     }
 
@@ -191,12 +194,14 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
         MPI_Status status;
         MPI_Probe(MPI_ANY_SOURCE, domainExchangeTag, MPI_COMM_WORLD, &status);
         int receiveRank = status.MPI_SOURCE;
-        int receiveCountBytes;
-        MPI_Get_count(&status, MPI_CHAR, &receiveCountBytes);
+        int receiveCountTransfer;
+        MPI_Get_count(&status, MpiType<TransferType>{}, &receiveCountTransfer);
 
+        size_t receiveCountBytes = receiveCountTransfer * sizeof(TransferType);
         reallocateBytes(receiveScratchBuffer, receiveCountBytes);
         char* receiveBuffer = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
-        mpiRecvGpuDirect(receiveBuffer, receiveCountBytes, receiveRank, domainExchangeTag, &status);
+        mpiRecvGpuDirect(reinterpret_cast<TransferType*>(receiveBuffer), receiveCountTransfer, receiveRank,
+                         domainExchangeTag, &status);
 
         size_t receiveCount;
         receiveBuffer = decodeSendCount(receiveBuffer, &receiveCount, alignment);

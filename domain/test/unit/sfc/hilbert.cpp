@@ -40,6 +40,62 @@
 
 using namespace cstone;
 
+//! @brief tests numKeys random 3D points for encoding/decoding consistency
+template<class KeyType>
+void inversionTest2D()
+{
+    int numKeys  = 1000;
+    int maxCoord = (1 << maxTreeLevel<KeyType>{}) - 1;
+
+    std::mt19937 gen;
+    std::uniform_int_distribution<unsigned> distribution(0, maxCoord);
+
+    auto getRand = [&distribution, &gen]() { return distribution(gen); };
+
+    std::vector<unsigned> x(numKeys);
+    std::vector<unsigned> y(numKeys);
+
+    std::generate(begin(x), end(x), getRand);
+    std::generate(begin(y), end(y), getRand);
+
+    for (int i = 0; i < numKeys; ++i)
+    {
+        KeyType hilbertKey = iHilbert2D<KeyType>(x[i], y[i]);
+        auto [a, b]        = decodeHilbert2D<KeyType>(hilbertKey);
+        EXPECT_EQ(x[i], a);
+        EXPECT_EQ(y[i], b);
+    }
+}
+
+TEST(HilbertCode, inversion2D)
+{
+    inversionTest2D<unsigned>();
+    inversionTest2D<uint64_t>();
+}
+
+//! @brief 2D test the 2D Hilbert curve of order 1 and 2
+template<class KeyType>
+void Hilbert2D(int order)
+{
+    for (unsigned xi = 0; xi < pow(2, order); ++xi)
+    {
+        for (unsigned yi = 0; yi < pow(2, order); ++yi)
+        {
+
+            KeyType key = iHilbert2D<KeyType>(xi, yi);
+            auto t      = decodeHilbert2D<KeyType>(key);
+            EXPECT_EQ(xi, util::get<0>(t));
+            EXPECT_EQ(yi, util::get<1>(t));
+        }
+    }
+}
+
+TEST(HilbertCode, Hilbert2D)
+{
+    Hilbert2D<unsigned>(2);
+    Hilbert2D<uint64_t>(1);
+}
+
 //! @brief test the curve on the first eight octants
 template<class KeyType>
 void firstOrderCurve()

@@ -39,7 +39,6 @@ private:
 
     void initOptions(const std::map<std::string, std::any>& grackle_options);
 
-    // void initOptions(const std::string &grackle_options_file_path);
     struct GlobalValues
     {
         code_units             units;
@@ -72,119 +71,19 @@ private:
                             T& volumetric_heating_rate, T& specific_heating_rate, T& RT_heating_rate,
                             T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
                             T& RT_H2_dissociation_rate, T& H2_self_shielding_length);
+
+    T pressure(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction, T& HeII_fraction,
+               T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction, T& DII_fraction, T& HDI_fraction,
+               T& e_fraction, T& metal_fraction, T& volumetric_heating_rate, T& specific_heating_rate,
+               T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
+               T& RT_H2_dissociation_rate, T& H2_self_shielding_length);
+
+    T adiabatic_index(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction, T& HeII_fraction,
+                      T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction, T& DII_fraction,
+                      T& HDI_fraction, T& e_fraction, T& metal_fraction, T& volumetric_heating_rate,
+                      T& specific_heating_rate, T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate,
+                      T& RT_HeII_ionization_rate, T& RT_H2_dissociation_rate, T& H2_self_shielding_length);
 };
-
-template<typename T>
-void Cooler<T>::Impl::cool_particle(const T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction,
-                                    T& HeI_fraction, T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction,
-                                    T& H2II_fraction, T& DI_fraction, T& DII_fraction, T& HDI_fraction, T& e_fraction,
-                                    T& metal_fraction, T& volumetric_heating_rate, T& specific_heating_rate,
-                                    T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate,
-                                    T& RT_HeII_ionization_rate, T& RT_H2_dissociation_rate, T& H2_self_shielding_length)
-{
-    cooler_field_data_content<T> grackle_fields;
-    grackle_fields.assign_field_data(
-        rho, u, HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction, HeIII_fraction, H2I_fraction,
-        H2II_fraction, DI_fraction, DII_fraction, HDI_fraction, e_fraction, metal_fraction, volumetric_heating_rate,
-        specific_heating_rate, RT_heating_rate, RT_HI_ionization_rate, RT_HeI_ionization_rate, RT_HeII_ionization_rate,
-        RT_H2_dissociation_rate, H2_self_shielding_length);
-
-    // Grackle uses 0 as a return code to indicate failure
-    if (0 == local_solve_chemistry(&global_values.data, &global_values.rates, &global_values.units,
-                                   &grackle_fields.data, dt))
-    {
-        throw std::runtime_error("Grackle: Error in local_solve_chemistry");
-    }
-    grackle_fields.get_field_data(rho, u, HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction,
-                                  HeIII_fraction, H2I_fraction, H2II_fraction, DI_fraction, DII_fraction, HDI_fraction,
-                                  e_fraction, metal_fraction, volumetric_heating_rate, specific_heating_rate,
-                                  RT_heating_rate, RT_HI_ionization_rate, RT_HeI_ionization_rate,
-                                  RT_HeII_ionization_rate, RT_H2_dissociation_rate, H2_self_shielding_length);
-}
-
-template<typename T>
-T Cooler<T>::Impl::energy_to_temperature(const T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction,
-                                         T& HeI_fraction, T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction,
-                                         T& H2II_fraction, T& DI_fraction, T& DII_fraction, T& HDI_fraction,
-                                         T& e_fraction, T& metal_fraction, T& volumetric_heating_rate,
-                                         T& specific_heating_rate, T& RT_heating_rate, T& RT_HI_ionization_rate,
-                                         T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
-                                         T& RT_H2_dissociation_rate, T& H2_self_shielding_length)
-{
-    grackle_field_data grackle_fields;
-    grackle_fields.grid_rank      = 3;
-    int zero[]                    = {0, 0, 0};
-    int one[]                     = {1, 1, 1};
-    grackle_fields.grid_dimension = one;
-    grackle_fields.grid_start     = zero;
-    grackle_fields.grid_end       = zero;
-    grackle_fields.grid_dx        = 0.0;
-
-    gr_float gr_rho                      = (gr_float)rho;
-    grackle_fields.density               = &gr_rho;
-    gr_float gr_u                        = (gr_float)u;
-    grackle_fields.internal_energy       = &gr_u;
-    gr_float x_velocity                  = 0.;
-    grackle_fields.x_velocity            = &x_velocity;
-    gr_float y_velocity                  = 0.;
-    grackle_fields.y_velocity            = &y_velocity;
-    gr_float z_velocity                  = 0.;
-    grackle_fields.z_velocity            = &z_velocity;
-    gr_float HI_density                  = (gr_float)HI_fraction * (gr_float)rho;
-    gr_float HII_density                 = (gr_float)HII_fraction * (gr_float)rho;
-    gr_float HM_density                  = (gr_float)HM_fraction * (gr_float)rho;
-    gr_float HeI_density                 = (gr_float)HeI_fraction * (gr_float)rho;
-    gr_float HeII_density                = (gr_float)HeII_fraction * (gr_float)rho;
-    gr_float HeIII_density               = (gr_float)HeIII_fraction * (gr_float)rho;
-    gr_float H2I_density                 = (gr_float)H2I_fraction * (gr_float)rho;
-    gr_float H2II_density                = (gr_float)H2II_fraction * (gr_float)rho;
-    gr_float DI_density                  = (gr_float)DI_fraction * (gr_float)rho;
-    gr_float DII_density                 = (gr_float)DII_fraction * (gr_float)rho;
-    gr_float HDI_density                 = (gr_float)HDI_fraction * (gr_float)rho;
-    gr_float e_density                   = (gr_float)e_fraction * (gr_float)rho;
-    gr_float metal_density               = (gr_float)metal_fraction * (gr_float)rho;
-    gr_float volumetric_heating_rate_gr  = (gr_float)volumetric_heating_rate;
-    gr_float specific_heating_rate_gr    = (gr_float)specific_heating_rate;
-    gr_float RT_heating_rate_gr          = (gr_float)RT_heating_rate;
-    gr_float RT_HI_ionization_rate_gr    = (gr_float)RT_HI_ionization_rate;
-    gr_float RT_HeI_ionization_rate_gr   = (gr_float)RT_HeI_ionization_rate;
-    gr_float RT_HeII_ionization_rate_gr  = (gr_float)RT_HeII_ionization_rate;
-    gr_float RT_H2_dissociation_rate_gr  = (gr_float)RT_H2_dissociation_rate;
-    gr_float H2_self_shielding_length_gr = (gr_float)H2_self_shielding_length;
-
-    grackle_fields.HI_density    = &HI_density;
-    grackle_fields.HII_density   = &HII_density;
-    grackle_fields.HeI_density   = &HeI_density;
-    grackle_fields.HeII_density  = &HeII_density;
-    grackle_fields.HeIII_density = &HeIII_density;
-    grackle_fields.e_density     = &e_density;
-    grackle_fields.HM_density    = &HM_density;
-    grackle_fields.H2I_density   = &H2I_density;
-    grackle_fields.H2II_density  = &H2II_density;
-    grackle_fields.DI_density    = &DI_density;
-    grackle_fields.DII_density   = &DII_density;
-    grackle_fields.HDI_density   = &HDI_density;
-    grackle_fields.metal_density = &metal_density;
-
-    grackle_fields.volumetric_heating_rate  = &volumetric_heating_rate_gr;
-    grackle_fields.specific_heating_rate    = &specific_heating_rate_gr;
-    grackle_fields.RT_heating_rate          = &RT_heating_rate_gr;
-    grackle_fields.RT_HI_ionization_rate    = &RT_HI_ionization_rate_gr;
-    grackle_fields.RT_HeI_ionization_rate   = &RT_HeI_ionization_rate_gr;
-    grackle_fields.RT_HeII_ionization_rate  = &RT_HeII_ionization_rate_gr;
-    grackle_fields.RT_H2_dissociation_rate  = &RT_H2_dissociation_rate_gr;
-    grackle_fields.H2_self_shielding_length = &H2_self_shielding_length_gr;
-
-    gr_float temp;
-
-    if (0 ==
-        local_calculate_temperature(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields,
-                                    &temp) == 0)
-    {
-        throw std::runtime_error("Grackle: Error in local_calculate_temperature");
-    }
-    return temp;
-}
 
 // Implementation of Cooler
 template<typename T>
@@ -234,6 +133,35 @@ T Cooler<T>::energy_to_temperature(const T& dt, T& rho, T& u, T& HI_fraction, T&
         RT_H2_dissociation_rate, H2_self_shielding_length);
 }
 
+template<typename T>
+T Cooler<T>::pressure(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction, T& HeII_fraction,
+                      T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction, T& DII_fraction,
+                      T& HDI_fraction, T& e_fraction, T& metal_fraction, T& volumetric_heating_rate,
+                      T& specific_heating_rate, T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate,
+                      T& RT_HeII_ionization_rate, T& RT_H2_dissociation_rate, T& H2_self_shielding_length)
+{
+    return impl_ptr->pressure(rho, u, HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction,
+                              HeIII_fraction, H2I_fraction, H2II_fraction, DI_fraction, DII_fraction, HDI_fraction,
+                              e_fraction, metal_fraction, volumetric_heating_rate, specific_heating_rate,
+                              RT_heating_rate, RT_HI_ionization_rate, RT_HeI_ionization_rate, RT_HeII_ionization_rate,
+                              RT_H2_dissociation_rate, H2_self_shielding_length);
+}
+
+template<typename T>
+T Cooler<T>::adiabatic_index(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction,
+                             T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction,
+                             T& DII_fraction, T& HDI_fraction, T& e_fraction, T& metal_fraction,
+                             T& volumetric_heating_rate, T& specific_heating_rate, T& RT_heating_rate,
+                             T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
+                             T& RT_H2_dissociation_rate, T& H2_self_shielding_length)
+{
+    return impl_ptr->adiabatic_index(
+        rho, u, HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction, HeIII_fraction, H2I_fraction,
+        H2II_fraction, DI_fraction, DII_fraction, HDI_fraction, e_fraction, metal_fraction, volumetric_heating_rate,
+        specific_heating_rate, RT_heating_rate, RT_HI_ionization_rate, RT_HeI_ionization_rate, RT_HeII_ionization_rate,
+        RT_H2_dissociation_rate, H2_self_shielding_length);
+}
+
 template struct Cooler<double>;
 template struct Cooler<float>;
 
@@ -274,11 +202,7 @@ void Cooler<T>::Impl::init(const double ms_sim, const double kp_sim, const int c
 
     global_values.data.grackle_data_file = &grackle_data_file_path[0];
 
-    /*if (grackleOptions.has_value() && grackleOptionsFile.has_value())
-        throw std::runtime_error("Specify only one; either grackleOptions or grackleOptionsFile");*/
-
     if (grackleOptions.has_value()) { initOptions(grackleOptions.value()); }
-    // else if (grackleOptionsFile.has_value()) { initOptions(grackleOptionsFile.value()); }
     else
     {
         global_values.data     = getDefaultChemistryData();
@@ -355,5 +279,100 @@ void Cooler<T>::Impl::initOptions(const std::map<std::string, std::any>& grackle
             std::cout << e.what();
         }
     }
+}
+template<typename T>
+void Cooler<T>::Impl::cool_particle(const T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction,
+                                    T& HeI_fraction, T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction,
+                                    T& H2II_fraction, T& DI_fraction, T& DII_fraction, T& HDI_fraction, T& e_fraction,
+                                    T& metal_fraction, T& volumetric_heating_rate, T& specific_heating_rate,
+                                    T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate,
+                                    T& RT_HeII_ionization_rate, T& RT_H2_dissociation_rate, T& H2_self_shielding_length)
+{
+    cooler_field_data_content<T> grackle_fields;
+    grackle_fields.assign_field_data(
+        rho, u, HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction, HeIII_fraction, H2I_fraction,
+        H2II_fraction, DI_fraction, DII_fraction, HDI_fraction, e_fraction, metal_fraction, volumetric_heating_rate,
+        specific_heating_rate, RT_heating_rate, RT_HI_ionization_rate, RT_HeI_ionization_rate, RT_HeII_ionization_rate,
+        RT_H2_dissociation_rate, H2_self_shielding_length);
+
+    // Grackle uses 0 as a return code to indicate failure
+    if (0 == local_solve_chemistry(&global_values.data, &global_values.rates, &global_values.units,
+                                   &grackle_fields.data, dt))
+    {
+        throw std::runtime_error("Grackle: Error in local_solve_chemistry");
+    }
+    grackle_fields.get_field_data(rho, u, HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction,
+                                  HeIII_fraction, H2I_fraction, H2II_fraction, DI_fraction, DII_fraction, HDI_fraction,
+                                  e_fraction, metal_fraction, volumetric_heating_rate, specific_heating_rate,
+                                  RT_heating_rate, RT_HI_ionization_rate, RT_HeI_ionization_rate,
+                                  RT_HeII_ionization_rate, RT_H2_dissociation_rate, H2_self_shielding_length);
+}
+
+template<typename T>
+T Cooler<T>::Impl::energy_to_temperature(const T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction,
+                                         T& HeI_fraction, T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction,
+                                         T& H2II_fraction, T& DI_fraction, T& DII_fraction, T& HDI_fraction,
+                                         T& e_fraction, T& metal_fraction, T& volumetric_heating_rate,
+                                         T& specific_heating_rate, T& RT_heating_rate, T& RT_HI_ionization_rate,
+                                         T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
+                                         T& RT_H2_dissociation_rate, T& H2_self_shielding_length)
+{
+    cooler_field_data_content<T> grackle_fields;
+    grackle_fields.assign_field_data(
+        rho, u, HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction, HeIII_fraction, H2I_fraction,
+        H2II_fraction, DI_fraction, DII_fraction, HDI_fraction, e_fraction, metal_fraction, volumetric_heating_rate,
+        specific_heating_rate, RT_heating_rate, RT_HI_ionization_rate, RT_HeI_ionization_rate, RT_HeII_ionization_rate,
+        RT_H2_dissociation_rate, H2_self_shielding_length);
+    gr_float temp;
+
+    if (0 == local_calculate_temperature(&global_values.data, &global_values.rates, &global_values.units,
+                                         &grackle_fields.data, &temp))
+    {
+        throw std::runtime_error("Grackle: Error in local_calculate_temperature");
+    }
+    return temp;
+}
+
+template<typename T>
+T Cooler<T>::Impl::pressure(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction,
+                            T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction,
+                            T& DII_fraction, T& HDI_fraction, T& e_fraction, T& metal_fraction,
+                            T& volumetric_heating_rate, T& specific_heating_rate, T& RT_heating_rate,
+                            T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
+                            T& RT_H2_dissociation_rate, T& H2_self_shielding_length)
+{
+    cooler_field_data_content<T> grackle_fields;
+    grackle_fields.assign_field_data(
+        rho, u, HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction, HeIII_fraction, H2I_fraction,
+        H2II_fraction, DI_fraction, DII_fraction, HDI_fraction, e_fraction, metal_fraction, volumetric_heating_rate,
+        specific_heating_rate, RT_heating_rate, RT_HI_ionization_rate, RT_HeI_ionization_rate, RT_HeII_ionization_rate,
+        RT_H2_dissociation_rate, H2_self_shielding_length);
+    gr_float pressure(0);
+    if (0 == local_calculate_pressure(&global_values.data, &global_values.rates, &global_values.units,
+                                      &grackle_fields.data, &pressure))
+    {
+        throw std::runtime_error("Grackle: Error in local_calculate_pressure");
+    }
+    return T(pressure);
+}
+
+template<typename T>
+T Cooler<T>::Impl::adiabatic_index(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction,
+                                   T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction,
+                                   T& DI_fraction, T& DII_fraction, T& HDI_fraction, T& e_fraction, T& metal_fraction,
+                                   T& volumetric_heating_rate, T& specific_heating_rate, T& RT_heating_rate,
+                                   T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
+                                   T& RT_H2_dissociation_rate, T& H2_self_shielding_length)
+{
+    cooler_field_data_content<T> grackle_fields;
+    grackle_fields.assign_field_data(
+        rho, u, HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction, HeIII_fraction, H2I_fraction,
+        H2II_fraction, DI_fraction, DII_fraction, HDI_fraction, e_fraction, metal_fraction, volumetric_heating_rate,
+        specific_heating_rate, RT_heating_rate, RT_HI_ionization_rate, RT_HeI_ionization_rate, RT_HeII_ionization_rate,
+        RT_H2_dissociation_rate, H2_self_shielding_length);
+    gr_float gamma(0);
+    local_calculate_gamma(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data,
+                          &gamma);
+    return gamma;
 }
 } // namespace cooling
