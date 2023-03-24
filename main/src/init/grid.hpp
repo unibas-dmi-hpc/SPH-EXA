@@ -53,14 +53,14 @@ inline auto partitionRange(size_t R, size_t i, size_t N)
     size_t r = R % N;
     if (i < r)
     {
-        uint64_t start = (s + 1) * i;
-        uint64_t end   = start + s + 1;
+        size_t start = (s + 1) * i;
+        size_t end   = start + s + 1;
         return std::make_tuple(start, end);
     }
     else
     {
-        uint64_t start = (s + 1) * r + s * (i - r);
-        uint64_t end   = start + s;
+        size_t start = (s + 1) * r + s * (i - r);
+        size_t end   = start + s;
         return std::make_tuple(start, end);
     }
 }
