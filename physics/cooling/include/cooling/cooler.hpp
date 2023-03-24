@@ -60,13 +60,28 @@ struct Cooler
                        T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate, T& RT_H2_dissociation_rate,
                        T& H2_self_shielding_length);
 
-    //! @brief Function not used now but may be needed for initializing the internal energy
+    //! @brief Calculate the temperature in K (physical units) from the internal energy (code units) and the chemistry
+    //! composition
     T energy_to_temperature(const T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction,
                             T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction,
                             T& DII_fraction, T& HDI_fraction, T& e_fraction, T& metal_fraction,
                             T& volumetric_heating_rate, T& specific_heating_rate, T& RT_heating_rate,
                             T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
                             T& RT_H2_dissociation_rate, T& H2_self_shielding_length);
+
+    //! @brief Calculate pressure using the chemistry composition
+    T pressure(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction, T& HeII_fraction,
+               T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction, T& DII_fraction, T& HDI_fraction,
+               T& e_fraction, T& metal_fraction, T& volumetric_heating_rate, T& specific_heating_rate,
+               T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
+               T& RT_H2_dissociation_rate, T& H2_self_shielding_length);
+
+    //! @brief Calculate adiabatic index from chemistry composition
+    T adiabatic_index(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction, T& HeII_fraction,
+                      T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction, T& DII_fraction,
+                      T& HDI_fraction, T& e_fraction, T& metal_fraction, T& volumetric_heating_rate,
+                      T& specific_heating_rate, T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate,
+                      T& RT_HeII_ionization_rate, T& RT_H2_dissociation_rate, T& H2_self_shielding_length);
 
 private:
     struct Impl;
