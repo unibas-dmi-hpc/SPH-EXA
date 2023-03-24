@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <memory>
 #include <cfloat>
 #include <cassert>
 #include <array>
@@ -44,24 +45,41 @@
 namespace cosmo
 {
 
-template<typename T, int rel_prec = -7, int abs_prec = -7>
-class CosmologyData // : public cstone::FieldStates<CosmologyData<T>>
+
+template<typename T>
+class Cosmology // : public cstone::FieldStates<CosmologyData<T>>
+{
+    //virtual T H(const T a) = 0;
+    //virtual T time(const T a) = 0;
+    //virtual T a(T t) = 0;
+    virtual T driftTimeCorrection(T t, T dt) = 0;
+    virtual T kickTimeCorrection(T t, T dt) = 0;
+};
+
+template<typename T>
+class StaticUniverse : Cosmology<T>// : public cstone::FieldStates<CosmologyData<T>>
 {
 public:
-    using RealType        = T;
+    StaticUniverse() = default;
 
-    template<class ValueType>
-    using FieldVector = std::vector<ValueType, std::allocator<ValueType>>;
+    T driftTimeCorrection(T t, T dt)
+    {
+        return dt;
+    };
 
-    using FieldVariant =
-        std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
+    T kickTimeCorrection(T t, T dt)
+    {
+        return dt;
+    }
+};
+
+template<typename T, int rel_prec = -7, int abs_prec = -7>
+class LambdaCDM : Cosmology<T> // : public cstone::FieldStates<CosmologyData<T>>
+{
+public:
 
     T relativeError = pow(10, rel_prec);
     T absoluteError = pow(10, abs_prec);
-
-    //
-    // Non-zero default values from 2018 Planck final data release, TT,TE,EE+lowE+lensing+BAO
-    //
     
     //! @brief Hubble Constant today [km/Mpc/s]
     T H0{0.0};
@@ -72,15 +90,15 @@ public:
     //! @brief Cosmology Constant (vacuum density)
     T OmegaLambda{0.0};
 
-    bool isComoving{false};
-
-
     struct Parameters
     {
         T H0, OmegaMatter, OmegaRadiation, OmegaLambda;
     };
 
-    static constexpr struct Parameters Planck2018 =
+    //
+    // Values from 2018 Planck final data release, TT,TE,EE+lowE+lensing+BAO
+    //
+    static constexpr Parameters Planck2018 =
     {
         .H0 = 67.66,
         .OmegaMatter = 0.3111,
@@ -88,32 +106,20 @@ public:
         .OmegaLambda = 0.6889,
     };
 
-    static constexpr struct Parameters Static =
-    {
-        .H0 = 0.0,
-        .OmegaMatter = 0.0,
-        .OmegaRadiation = 0.0,
-        .OmegaLambda = 0.0,
-    };
 
+    LambdaCDM() = default;
 
-    CosmologyData() = default;
-
-    CosmologyData(struct Parameters cd)
-        : CosmologyData(cd.H0, cd.OmegaMatter, cd.OmegaRadiation, cd.OmegaLambda)
+    LambdaCDM(struct Parameters p)
+        : LambdaCDM(p.H0, p.OmegaMatter, p.OmegaRadiation, p.OmegaLambda)
     {
     }
 
-    CosmologyData(T H0, T OmegaMatter, T OmegaRadiation, T OmegaLambda) 
+    LambdaCDM(T H0, T OmegaMatter, T OmegaRadiation, T OmegaLambda) 
         : H0(H0)
         , OmegaMatter(OmegaMatter)
         , OmegaRadiation(OmegaRadiation)
         , OmegaLambda(OmegaLambda)
     {
-        isComoving = !(H0 == 0 && OmegaMatter == 0 && OmegaRadiation == 0 && OmegaLambda == 0);
-
-        if (!isComoving) return;
-
         if (H0 <= 0)
             throw std::domain_error("Hubble0 parameter must be strictly positive.");
 
@@ -125,6 +131,9 @@ public:
 
         if (OmegaLambda < 0)
             throw std::domain_error("OmegaLambda parameter must be positive.");
+
+        if (OmegaRadiation == 0 && OmegaLambda == 0)
+            throw std::domain_error("In LambdaCDM at least one of OmegaRadiation or OmegaLambda must be positive. Otherwise use CDM.");
 
         if (OmegaMatter == 0)
         {
@@ -150,6 +159,7 @@ public:
             }
         };
 
+        optionalIO("Hubble0", &H0, 1);
         optionalIO("OmegaMatter", &OmegaMatter, 1);
         optionalIO("OmegaRadiation", &OmegaRadiation, 1);
         optionalIO("OmegaLambda", &OmegaLambda, 1);
@@ -169,61 +179,6 @@ public:
 
     T time(const T a)
     {
-        if (!isComoving) 
-            throw std::runtime_error("Calling t(a) for a static universe is undefined.");
-
-        if (OmegaLambda == 0.0 && OmegaRadiation == 0.0)
-        {
-            if (OmegaMatter == 1.0)
-            {
-                assert(H0 > 0); // This situation should be catch in the constructor.
-                return a == 0.0
-                       ? 0.0
-                       : 2.0 / (3.0 * H0) * pow(a,1.5);
-            }
-
-            if (OmegaMatter > 1.0)
-            {
-                assert(H0 >= 0); // This situation should be catch in the constructor.
-                if (H0 == 0.0)
-                {
-                    T B = 1.0 / sqrt(OmegaMatter);
-                    T eta = acos(1.0 - a);
-                    return B * (eta - sin(eta));
-                }
-
-                if (a == 0.0) return 0.0;
-
-                T a0 = 1.0 / H0 / sqrt(OmegaMatter - 1.0);
-                T A = 0.5 * OmegaMatter / (OmegaMatter - 1.0);
-                T B = a0 * A;
-                T eta = acos(1.0 - a/A);
-                return B * (eta - sin(eta));
-
-            }
-
-            if (OmegaMatter > 0.0)
-            {
-                assert(H0 > 0); // This situation should be catch in the constructor.
-                if (a == 0.0) return 0.0;
-                T a0 = 1.0 / H0 / sqrt(1.0 - OmegaMatter);
-                T A = 0.5 * OmegaMatter / (1.0 - OmegaMatter);
-                T B = a0 * A;
-                T eta = acosh(1.0 + a/A);
-                return B * (sinh(eta) - eta);
-
-            }
-
-            if (OmegaMatter == 0.0)
-            {
-                assert(H0 > 0); // This situation should be catch in the constructor.
-                if (a == 0.0) return 0.0;
-                return a / H0;
-            }
-
-            assert(0); // This situation should be catch in the constructor.
-        }
-
         return romberg<T>(
                 [this](const T x)
                 {
@@ -236,8 +191,6 @@ public:
 
     T a(T t)
     {
-        if (!isComoving) return 1.0;
-
         return newton(
                 [this, t](const T a)
                 {
@@ -256,30 +209,6 @@ public:
 
     T driftTimeCorrection(T t, T dt)
     {
-        if (!isComoving) return dt;
-
-        if (OmegaLambda == 0.0 && OmegaRadiation == 0.0)
-        {
-            if (OmegaMatter == 1.0)
-            {
-            }
-
-            if (OmegaMatter > 1.0)
-            {
-            }
-
-            if (OmegaMatter > 0.0)
-            {
-            }
-
-            if (OmegaMatter == 0.0)
-            {
-            }
-
-            assert(0); // This situation should be catch in the constructor.
-        }
-
-
         return romberg<T>(
                 [this](const T x)
                 {
@@ -292,11 +221,6 @@ public:
 
     T kickTimeCorrection(T t, T dt)
     {
-        if (!isComoving) return dt;
-
-        if (OmegaLambda == 0.0 && OmegaRadiation == 0.0)
-            return kickTimeCorrection_OnlyMatter(t, dt);
-
         return romberg<T>(
                 [this](const T x)
                 {
@@ -307,16 +231,77 @@ public:
                 relativeError);
     }
 
+};
 
-private:
+template<typename T, int rel_prec = -7, int abs_prec = -7>
+class CDM : Cosmology<T> // : public cstone::FieldStates<CosmologyData<T>>
+{
+public:
 
-    T time_OnlyMatter(const T a)
+    T relativeError = pow(10, rel_prec);
+    T absoluteError = pow(10, abs_prec);
+    
+    //! @brief Hubble Constant today [km/Mpc/s]
+    T H0{0.0};
+    //! @brief Matter Density
+    T OmegaMatter{0.0};
+
+    struct Parameters
     {
-        assert(OmegaLambda == 0.0 && OmegaRadiation == 0.0);
+        T H0, OmegaMatter;
+    };
 
+    CDM() = default;
+
+    CDM(struct Parameters cd) : CDM(cd.H0, cd.OmegaMatter)
+    {
+    }
+
+    CDM(T H0, T OmegaMatter) : H0(H0), OmegaMatter(OmegaMatter)
+    {
+        if (H0 <= 0)
+            throw std::domain_error("Hubble0 parameter must be strictly positive.");
+
+        if (OmegaMatter < 0)
+            throw std::domain_error("OmegaMatter parameter must be positive.");
+
+        // apparantly we can have a universe with nothing in it?!?
+    }
+
+    template<class Archive>
+    void loadOrStoreAttributes(Archive* ar)
+    {
+        //! @brief load or store an attribute, skips non-existing attributes on load.
+        auto optionalIO = [ar](const std::string& attribute, auto* location, size_t attrSize)
+        {
+            try
+            {
+                ar->stepAttribute(attribute, location, attrSize);
+            }
+            catch (std::out_of_range&)
+            {
+                std::cout << "Attribute " << attribute << " not set in file, setting to default value " << *location
+                          << std::endl;
+            }
+        };
+
+        optionalIO("Hubble0", &H0, 1);
+        optionalIO("OmegaMatter", &OmegaMatter, 1);
+    }
+
+    T H(const T a)
+    {
+        T OmegaCurvature = T(1) - OmegaMatter;
+
+        T a2 = a * a;
+        T a3 = a * a2;
+        return (H0/a2) * sqrt(OmegaMatter * a + OmegaCurvature * a2);
+    }
+
+    T time(const T a)
+    {
         if (OmegaMatter == 1.0)
         {
-            assert(H0 > 0); // This situation should be catch in the constructor.
             return a == 0.0
                    ? 0.0
                    : 2.0 / (3.0 * H0) * pow(a,1.5);
@@ -324,7 +309,6 @@ private:
 
         if (OmegaMatter > 1.0)
         {
-            assert(H0 >= 0); // This situation should be catch in the constructor.
             if (H0 == 0.0)
             {
                 T B = 1.0 / sqrt(OmegaMatter);
@@ -344,7 +328,6 @@ private:
 
         if (OmegaMatter > 0.0)
         {
-            assert(H0 > 0); // This situation should be catch in the constructor.
             if (a == 0.0) return 0.0;
             T a0 = 1.0 / H0 / sqrt(1.0 - OmegaMatter);
             T A = 0.5 * OmegaMatter / (1.0 - OmegaMatter);
@@ -356,18 +339,34 @@ private:
 
         if (OmegaMatter == 0.0)
         {
-            assert(H0 > 0); // This situation should be catch in the constructor.
             if (a == 0.0) return 0.0;
             return a / H0;
         }
 
-        assert(0); // This situation should be catch in the constructor.
+        assert(0); // This situation should be caught in the constructor.
     }
 
-    T driftTimeCorrection_OnlyMatter(T t, T dt)
+    T a(T t)
     {
-        assert(OmegaLambda == 0.0 && OmegaRadiation == 0.0);
+        return newton(
+                [this, t](const T a)
+                {
+                    return time(a) - t;
+                },
+                [this](const T a)
+                {
+                    return 1.0/(a * H(a));
+                },
+                t*H0,
+                0.0,
+                1.0e38,
+                relativeError,
+                absoluteError);
+    }
 
+
+    T driftTimeCorrection(T t, T dt)
+    {
         if (OmegaMatter == 1.0)
         {
         }
@@ -384,13 +383,11 @@ private:
         {
         }
 
-        assert(0); // This situation should be catch in the constructor.
+        assert(0); // This situation should be caught in the constructor.
     }
 
-    T kickTimeCorrection_OnlyMatter(T t, T dt)
+    T kickTimeCorrection(T t, T dt)
     {
-        assert(OmegaLambda == 0.0 && OmegaRadiation == 0.0);
-
         if (OmegaMatter == 1.0)
         {
         }
@@ -407,7 +404,7 @@ private:
         {
         }
 
-        assert(0); // This situation should be catch in the constructor.
+        assert(0); // This situation should be caught in the constructor.
     }
 
 };
@@ -520,5 +517,27 @@ T romberg(FnPtr&& func, T a, T b, T eps)
 
     return tllnew;
 }
+
+template<typename T>
+std::unique_ptr<Cosmology<T>> cosmologyFactory(const std::string& fname)
+{
+    throw std::runtime_error("filename argument to cosmology factory not yet supported.");
+}
+
+template<typename T>
+std::unique_ptr<Cosmology<T>> cosmologyFactory(const struct LambdaCDM<T>::Parameters p)
+{
+    if (p.H0 == 0 && p.OmegaMatter == 0 && p.OmegaRadiation == 0 && p.OmegaLambda == 0)
+        return std::make_unique<StaticUniverse<T>>(p);
+
+    if (p.H0 <= 0)
+        throw std::domain_error("Hubble0 parameter must be strictly positive when other cosmological parameters are non-zero.");
+
+    if (p.OmegaLambda == 0 && p.OmegaRadiation == 0)
+        return std::make_unique<CDM<T>>(p);
+
+    return std::make_unique<LambdaCDM<T>>(p);
+}
+
 
 } // namespace cosmo
