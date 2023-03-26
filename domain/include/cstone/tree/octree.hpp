@@ -259,6 +259,21 @@ HOST_DEVICE_FUN TreeNodeIndex containingNode(KeyType nodeKey,
     return ret;
 }
 
+/*! @brief
+ *
+ * @param[in] levelOffsets  array with level offset indices
+ * @param[in] level         length of @p levelOffsets (identical to maxTreeLevel + 2)
+ * @return
+ */
+inline TreeNodeIndex maxDepth(const TreeNodeIndex* levelOffsets, TreeNodeIndex level)
+{
+    while (--level)
+    {
+        if (levelOffsets[level] != levelOffsets[level - 1]) { return level - 1; }
+    }
+    return 0;
+}
+
 //! Octree data view, compatible with GPU data
 template<class KeyType>
 struct OctreeView

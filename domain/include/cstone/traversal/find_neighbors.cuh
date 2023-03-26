@@ -43,8 +43,10 @@ namespace cstone
 
 struct TravConfig
 {
-    //! @brief size of global workspace memory per warp
-    static constexpr unsigned memPerWarp = 1024 * GpuConfig::warpSize;
+    //! @brief size of global workspace memory per warp, must be a power of 2
+    static constexpr unsigned memPerWarp = 8192 * GpuConfig::warpSize;
+    static_assert((memPerWarp & (memPerWarp - 1)) == 0);
+
     //! @brief number of threads per block for the traversal kernel
     static constexpr unsigned numThreads = 128;
 
@@ -183,21 +185,21 @@ __device__ __forceinline__ bool tightOverlap(int laneIdx,
  * can be routed through the read-only/texture cache.
  */
 template<bool UsePbc, class Tc, class Th, class KeyType>
-__device__ unsigned traverseWarp(unsigned* nc_i,
-                                 unsigned* nidx_i,
-                                 unsigned ngmax,
-                                 const util::array<Vec4<Tc>, TravConfig::nwt>& pos_i,
-                                 const Vec3<Tc> targetCenter,
-                                 const Vec3<Tc> targetSize,
-                                 const Tc* __restrict__ x,
-                                 const Tc* __restrict__ y,
-                                 const Tc* __restrict__ z,
-                                 const Th* __restrict__ /*h*/,
-                                 const OctreeNsView<Tc, KeyType>& tree,
-                                 int initNodeIdx,
-                                 const Box<Tc>& box,
-                                 volatile int* tempQueue,
-                                 int* cellQueue)
+__device__ uint2 traverseWarp(unsigned* nc_i,
+                              unsigned* nidx_i,
+                              unsigned ngmax,
+                              const util::array<Vec4<Tc>, TravConfig::nwt>& pos_i,
+                              const Vec3<Tc> targetCenter,
+                              const Vec3<Tc> targetSize,
+                              const Tc* __restrict__ x,
+                              const Tc* __restrict__ y,
+                              const Tc* __restrict__ z,
+                              const Th* __restrict__ /*h*/,
+                              const OctreeNsView<Tc, KeyType>& tree,
+                              int initNodeIdx,
+                              const Box<Tc>& box,
+                              volatile int* tempQueue,
+                              int* cellQueue)
 {
     const TreeNodeIndex* __restrict__ childOffsets   = tree.childOffsets;
     const TreeNodeIndex* __restrict__ internalToLeaf = tree.internalToLeaf;
@@ -207,7 +209,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
 
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
-    unsigned p2pCounter = 0;
+    unsigned p2pCounter = 0, maxStack = 0;
 
     int bodyQueue; // warp queue for source body indices
 
@@ -246,11 +248,14 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
         const int numChildLane = exclusiveScanBool(isSplit);                      // Exclusive scan of numChild
         const int numChildWarp = reduceBool(isSplit);                             // Total numChild of current warp
         sourceOffset += imin(GpuConfig::warpSize / 8, numSources - sourceOffset); // advance current level stack pointer
-        if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp)    // If cell queue overflows
-            return 0xFFFFFFFF;                                                    // Exit kernel
         int childIdx = oldSources + numSources + newSources + numChildLane;       // Child index of current lane
         if (isSplit) { cellQueue[ringAddr(childIdx)] = childBegin; }              // Queue child cells for next level
-        newSources += numChildWarp; //  Increment source cell count for next loop
+        newSources += numChildWarp; // Increment source cell count for next loop
+
+        // check for cellQueue overflow
+        const unsigned stackUsed = newSources + numSources - sourceOffset; // current cellQueue size
+        maxStack                 = max(stackUsed, maxStack);
+        if (stackUsed > TravConfig::memPerWarp) { return {0xFFFFFFFF, maxStack}; } // Exit if cellQueue overflows
 
         // Direct
         const int firstBody     = layout[leafIdx];
@@ -321,17 +326,32 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
         p2pCounter += bdyFillLevel;
     }
 
-    return p2pCounter;
+    return {p2pCounter, maxStack};
 }
 
-static __device__ unsigned long long sumNcP2PGlob = 0;
-static __device__ unsigned maxNcP2PGlob           = 0;
-static __device__ unsigned targetCounterGlob      = 0;
+//! @brief neighbor search traversal statistics: sumP2P, maxP2P, maxStack
+struct NcStats
+{
+    using type = unsigned long long;
+    enum IndexNames
+    {
+        sumP2P,
+        maxP2P,
+        maxStack,
+        numStats
+    };
+};
+static __device__ NcStats::type ncStats[NcStats::numStats];
+
+static __device__ unsigned targetCounterGlob;
 
 static __global__ void resetTraversalCounters()
 {
-    sumNcP2PGlob      = 0;
-    maxNcP2PGlob      = 0;
+    for (int i = 0; i < NcStats::numStats; ++i)
+    {
+        ncStats[i] = 0;
+    }
+
     targetCounterGlob = 0;
 }
 
@@ -427,24 +447,27 @@ __device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::Loca
     // if traversal should be started at node x, then initNode should be set to the first child of x
     int initNode = 1;
 
-    unsigned numP2P;
+    uint2 warpStats;
     if (usePbc)
     {
-        numP2P = traverseWarp<true>(nc_i.data(), warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, tree,
-                                    initNode, box, tempQueue, cellQueue);
+        warpStats = traverseWarp<true>(nc_i.data(), warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, tree,
+                                       initNode, box, tempQueue, cellQueue);
     }
     else
     {
-        numP2P = traverseWarp<false>(nc_i.data(), warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, tree,
-                                     initNode, box, tempQueue, cellQueue);
+        warpStats = traverseWarp<false>(nc_i.data(), warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, tree,
+                                        initNode, box, tempQueue, cellQueue);
     }
+    unsigned numP2P   = warpStats.x;
+    unsigned maxStack = warpStats.y;
     assert(numP2P != 0xFFFFFFFF);
 
     if (laneIdx == 0)
     {
         unsigned targetGroupSize = bodyEnd - bodyBegin;
-        atomicMax(&maxNcP2PGlob, numP2P);
-        atomicAdd(&sumNcP2PGlob, numP2P * targetGroupSize);
+        atomicAdd(&ncStats[NcStats::sumP2P], NcStats::type(numP2P) * targetGroupSize);
+        atomicMax(&ncStats[NcStats::maxP2P], NcStats::type(numP2P));
+        atomicMax(&ncStats[NcStats::maxStack], NcStats::type(maxStack));
     }
 
     return nc_i;
@@ -559,18 +582,19 @@ auto findNeighborsBT(size_t firstBody,
     auto t1   = std::chrono::high_resolution_clock::now();
     double dt = std::chrono::duration<double>(t1 - t0).count();
 
-    uint64_t sumP2P;
-    unsigned maxP2P;
+    NcStats::type stats[NcStats::numStats];
+    checkGpuErrors(cudaMemcpyFromSymbol(stats, ncStats, NcStats::numStats * sizeof(uint64_t)));
 
-    checkGpuErrors(cudaMemcpyFromSymbol(&sumP2P, sumNcP2PGlob, sizeof(uint64_t)));
-    checkGpuErrors(cudaMemcpyFromSymbol(&maxP2P, maxNcP2PGlob, sizeof(unsigned int)));
+    NcStats::type sumP2P   = stats[NcStats::sumP2P];
+    NcStats::type maxP2P   = stats[NcStats::maxP2P];
+    NcStats::type maxStack = stats[NcStats::maxStack];
 
     util::array<Tc, 2> interactions;
     interactions[0] = Tc(sumP2P) / Tc(numBodies);
     interactions[1] = Tc(maxP2P);
 
-    fprintf(stdout, "Traverse : %.7f s (%.7f TFlops) P2P %f, maxP2P %f\n", dt, 11.0 * sumP2P / dt / 1e12,
-            interactions[0], interactions[1]);
+    fprintf(stdout, "Traverse : %.7f s (%.7f TFlops) P2P %f, maxP2P %f, maxStack %llu\n", dt, 11.0 * sumP2P / dt / 1e12,
+            interactions[0], interactions[1], maxStack);
 
     return interactions;
 }

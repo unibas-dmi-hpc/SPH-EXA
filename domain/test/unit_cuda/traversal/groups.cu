@@ -24,45 +24,39 @@
  */
 
 /*! @file
- * @brief output time and energies each iteration (default)
- * @author Lukas Schmidt
+ * @brief Cornerstone octree GPU testing
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ *
  */
 
-#include <fstream>
+#include "gtest/gtest.h"
 
-#include "conserved_quantities.hpp"
-#include "iobservables.hpp"
-#include "io/file_utils.hpp"
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
 
-namespace sphexa
+#include "cstone/traversal/groups.cuh"
+#include "cstone/util/util.hpp"
+#include "cstone/cuda/cuda_utils.cuh"
+
+using namespace cstone;
+
+TEST(TargetGroups, t0)
 {
+    using T = double;
+    LocalIndex numGroups = 4;
+    LocalIndex groupSize = 8;
+    LocalIndex first = 4;
+    LocalIndex last = 34;
 
-template<class Dataset>
-class TimeAndEnergy : public IObservables<Dataset>
-{
-    std::ofstream& constantsFile;
-    using T = typename Dataset::RealType;
+    thrust::device_vector<LocalIndex> groups(numGroups + 1);
 
-public:
-    explicit TimeAndEnergy(std::ofstream& constPath)
-        : constantsFile(constPath)
-    {
-    }
+    groupTargets<T><<<iceil(last - first, 64), 64>>>(first, last, nullptr, nullptr, nullptr, nullptr, groupSize,
+                                                     rawPtr(groups), iceil(last - first, groupSize));
 
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& /*box*/) override
-    {
-        int rank;
-        MPI_Comm_rank(simData.comm, &rank);
-        auto& d = simData.hydro;
+    thrust::host_vector<LocalIndex> hgroups = groups;
 
-        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
+    thrust::host_vector<LocalIndex> ref = std::vector<LocalIndex>{4,12,20,28,34};
 
-        if (rank == 0)
-        {
-            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
-                                    d.linmom, d.angmom);
-        }
-    }
-};
-
-} // namespace sphexa
+    EXPECT_EQ(hgroups, ref);
+}

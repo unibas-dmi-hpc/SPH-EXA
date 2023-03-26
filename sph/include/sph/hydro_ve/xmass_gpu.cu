@@ -43,6 +43,7 @@ namespace cuda
 {
 
 using cstone::GpuConfig;
+using cstone::NcStats;
 using cstone::TravConfig;
 using cstone::TreeNodeIndex;
 
@@ -114,6 +115,16 @@ void computeXMass(size_t startIndex, size_t endIndex, Dataset& d, const cstone::
         rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m),
         rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), nidxPool, traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
+
+    NcStats::type stats[NcStats::numStats];
+    checkGpuErrors(cudaMemcpyFromSymbol(stats, cstone::ncStats, NcStats::numStats * sizeof(NcStats::type)));
+
+    NcStats::type maxP2P   = stats[cstone::NcStats::maxP2P];
+    NcStats::type maxStack = stats[cstone::NcStats::maxStack];
+
+    d.devData.stackUsedNc = maxStack;
+
+    if (maxP2P == 0xFFFFFFFF) { throw std::runtime_error("GPU traversal stack exhausted in neighbor search\n"); }
 }
 
 #define COMPUTE_XMASS_GPU(RealType, KeyType)                                                                           \

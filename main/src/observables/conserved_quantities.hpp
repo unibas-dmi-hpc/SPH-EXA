@@ -104,7 +104,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 template<class Dataset>
 void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, MPI_Comm comm)
 {
-    double               eKin, eInt, machSqSum;
+    double               eKin, eInt;
     cstone::Vec3<double> linmom, angmom;
     size_t               ncsum = 0;
 
