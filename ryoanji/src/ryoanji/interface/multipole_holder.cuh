@@ -51,10 +51,14 @@ public:
                  const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles);
 
+    void createGroups(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Th* h,
+                      const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree,
+                      const cstone::LocalIndex*                                 layout);
+
     float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                   const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az);
 
-    util::array<uint64_t, 4> readStats() const;
+    util::array<uint64_t, 5> readStats() const;
 
     const MType* deviceMultipoles() const;
 

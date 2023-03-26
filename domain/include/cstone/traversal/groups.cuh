@@ -1,8 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2023 CSCS, ETH Zurich, University of Basel, University of Zurich
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,45 +23,44 @@
  */
 
 /*! @file
- * @brief output time and energies each iteration (default)
- * @author Lukas Schmidt
+ * @brief Particle target grouping
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <fstream>
+#include "cstone/cuda/gpu_config.cuh"
+#include "cstone/primitives/warpscan.cuh"
+#include "cstone/tree/definitions.h"
 
-#include "conserved_quantities.hpp"
-#include "iobservables.hpp"
-#include "io/file_utils.hpp"
-
-namespace sphexa
+namespace cstone
 {
 
-template<class Dataset>
-class TimeAndEnergy : public IObservables<Dataset>
+template<class T>
+__global__ void groupTargets(LocalIndex first,
+                             LocalIndex last,
+                             const T* x,
+                             const T* y,
+                             const T* z,
+                             const T* h,
+                             unsigned groupSize,
+                             LocalIndex* groups,
+                             unsigned numGroups)
 {
-    std::ofstream& constantsFile;
-    using T = typename Dataset::RealType;
+    LocalIndex tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-public:
-    explicit TimeAndEnergy(std::ofstream& constPath)
-        : constantsFile(constPath)
+    LocalIndex groupIdx = tid / groupSize;
+    if (groupIdx >= numGroups) { return; }
+
+    if (tid == groupIdx * groupSize)
     {
-    }
-
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& /*box*/) override
-    {
-        int rank;
-        MPI_Comm_rank(simData.comm, &rank);
-        auto& d = simData.hydro;
-
-        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
-
-        if (rank == 0)
+        //LocalIndex i = first + tid;
+        LocalIndex scan = first + groupIdx * groupSize;
+        groups[groupIdx] = scan;
+        if (groupIdx + 1 == numGroups)
         {
-            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
-                                    d.linmom, d.angmom);
+            groups[numGroups] = last;
         }
     }
-};
+}
 
-} // namespace sphexa
+} // namespace cstone
