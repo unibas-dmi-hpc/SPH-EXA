@@ -486,6 +486,12 @@ public:
         }
     }
 
+    //! @brief returns the tree depth
+    TreeNodeIndex depth() const
+    {
+        return maxDepth(treeData_.levelRange.data(), treeData_.levelRange.size());
+    }
+
     //! @brief the cornerstone leaf cell array
     gsl::span<const KeyType> treeLeaves() const { return leaves_; }
     //! @brief the assignment of the focus tree leaves to peer ranks

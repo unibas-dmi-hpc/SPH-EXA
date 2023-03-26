@@ -79,7 +79,6 @@ public:
 
     size_t iteration{1};
     size_t numParticlesGlobal;
-    size_t totalNeighbors;
 
     //! @brief default mean desired number of neighbors per particle, can be overriden per test case or input file
     unsigned ng0{100};
@@ -145,6 +144,9 @@ public:
         optionalIO("etaAcc", &etaAcc, 1);
         optionalIO("muiConst", &muiConst, 1);
     }
+
+    //! @brief non-stateful variables for statistics
+    size_t totalNeighbors;
 
     /*! @brief Particle fields
      *

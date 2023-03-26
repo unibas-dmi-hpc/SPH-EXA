@@ -13,6 +13,7 @@ if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
             primitives/primitives_gpu.cu
             primitives/warpscan.cu
             sfc/common.cu
+            traversal/groups.cu
             tree/btree.cu
             tree/csarray.cu
             tree/octree.cu
