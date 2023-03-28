@@ -250,7 +250,7 @@ public:
     {
         T H0, OmegaMatter;
     };
-
+    
     CDM() = default;
 
     CDM(struct Parameters cd) : CDM(cd.H0, cd.OmegaMatter)
