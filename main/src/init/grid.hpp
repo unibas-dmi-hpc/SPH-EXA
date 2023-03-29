@@ -168,7 +168,6 @@ template<class T>
 cstone::Vec3<T> scaleBlockToGlobal(cstone::Vec3<T> uX, cstone::Vec3<int> gridIdx, cstone::Vec3<int> m,
                                    const cstone::Box<T>& globalBox)
 {
-
     cstone::Vec3<T> blockOrigin{gridIdx[0] * globalBox.lx() / m[0], gridIdx[1] * globalBox.ly() / m[1],
                                 gridIdx[2] * globalBox.lz() / m[2]};
     cstone::Vec3<T> globalOrigin{globalBox.xmin(), globalBox.ymin(), globalBox.zmin()};

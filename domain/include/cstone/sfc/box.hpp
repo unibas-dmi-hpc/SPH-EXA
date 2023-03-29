@@ -361,21 +361,49 @@ constexpr HOST_DEVICE_FUN util::tuple<Vec3<T>, Vec3<T>> centerAndSize(const IBox
 template<class KeyType, class T>
 constexpr HOST_DEVICE_FUN FBox<T> createFpBox(const IBox& ibox, const Box<T>& box)
 {
+    auto [center, size] = centerAndSize<KeyType>(ibox, box);
+
+    auto Xmin = center - size;
+    auto Xmax = center + size;
+
+    return {Xmin[0], Xmax[0], Xmin[1], Xmax[1], Xmin[2], Xmax[2]};
+}
+
+/*! @brief convert a floating point box to an IBox with a volume not smaller than the input box
+ *
+ * @param center  floating point box center
+ * @param size    floating point box size
+ * @param box     global coordinate bounding box
+ * @return        the converted IBox
+ *
+ * Inverts createFpBox
+ */
+template<class KeyType, class T>
+HOST_DEVICE_FUN IBox createIBox(const Vec3<T> center, const Vec3<T>& size, const Box<T>& box)
+{
     constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
-    // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / maxCoord;
 
-    T unitLengthX = uL * box.lx();
-    T unitLengthY = uL * box.ly();
-    T unitLengthZ = uL * box.lz();
-    T xMin        = box.xmin() + ibox.xmin() * unitLengthX;
-    T yMin        = box.ymin() + ibox.ymin() * unitLengthY;
-    T zMin        = box.zmin() + ibox.zmin() * unitLengthZ;
-    T xMax        = box.xmin() + ibox.xmax() * unitLengthX;
-    T yMax        = box.ymin() + ibox.ymax() * unitLengthY;
-    T zMax        = box.zmin() + ibox.zmax() * unitLengthZ;
+    Vec3<T> Xmin = center - size;
+    Vec3<T> Xmax = center + size;
 
-    return {xMin, xMax, yMin, yMax, zMin, zMax};
+    // normalize to units of box lengths
+    T xnMin = (Xmin[0] - box.xmin()) * box.ilx();
+    T ynMin = (Xmin[1] - box.ymin()) * box.ily();
+    T znMin = (Xmin[2] - box.zmin()) * box.ilz();
+
+    T xnMax = (Xmax[0] - box.xmin()) * box.ilx();
+    T ynMax = (Xmax[1] - box.ymin()) * box.ily();
+    T znMax = (Xmax[2] - box.zmin()) * box.ilz();
+
+    int ixMin = std::floor(xnMin * maxCoord);
+    int iyMin = std::floor(ynMin * maxCoord);
+    int izMin = std::floor(znMin * maxCoord);
+
+    int ixMax = std::ceil(xnMax * maxCoord);
+    int iyMax = std::ceil(ynMax * maxCoord);
+    int izMax = std::ceil(znMax * maxCoord);
+
+    return {ixMin, ixMax, iyMin, iyMax, izMin, izMax};
 }
 
 } // namespace cstone
