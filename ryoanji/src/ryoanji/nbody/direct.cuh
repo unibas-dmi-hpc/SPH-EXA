@@ -50,14 +50,15 @@ struct DirectConfig
 };
 
 template<class T>
-__global__ void directKernel(int numSource, const T* __restrict__ x, const T* __restrict__ y, const T* __restrict__ z,
-                             const T* __restrict__ m, const T* __restrict__ h, T* p, T* ax, T* ay, T* az)
+__global__ void directKernel(unsigned first, unsigned last, unsigned numSource, const T* __restrict__ x, const T* __restrict__ y,
+                             const T* __restrict__ z, const T* __restrict__ m, const T* __restrict__ h, T* p, T* ax,
+                             T* ay, T* az)
 {
-    unsigned targetIdx = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned targetIdx = first + blockDim.x * blockIdx.x + threadIdx.x;
 
     Vec3<T> pos_i = {T(0), T(0), T(0)};
     T       h_i   = 1.0;
-    if (targetIdx < numSource)
+    if (targetIdx < last)
     {
         pos_i = {x[targetIdx], y[targetIdx], z[targetIdx]};
         h_i   = h[targetIdx];
@@ -67,9 +68,10 @@ __global__ void directKernel(int numSource, const T* __restrict__ x, const T* __
     util::array<T, 4> acc{0, 0, 0, 0};
 
     __shared__ util::array<T, 5> sm_bodytile[DirectConfig::numThreads];
-    for (int tile = 0; tile < gridDim.x; ++tile)
+    unsigned                     numTiles = (numSource - 1) / blockDim.x + 1;
+    for (unsigned tile = 0; tile < numTiles; ++tile)
     {
-        int sourceIdx = tile * blockDim.x + threadIdx.x;
+        unsigned sourceIdx = tile * blockDim.x + threadIdx.x;
         if (sourceIdx < numSource)
             sm_bodytile[threadIdx.x] = {x[sourceIdx], y[sourceIdx], z[sourceIdx], m[sourceIdx], h[sourceIdx]};
         else
@@ -89,7 +91,7 @@ __global__ void directKernel(int numSource, const T* __restrict__ x, const T* __
         __syncthreads();
     }
 
-    if (targetIdx < numSource)
+    if (targetIdx < last)
     {
         p[targetIdx]  = m[targetIdx] * T(acc[0]);
         ax[targetIdx] = T(acc[1]);
@@ -99,13 +101,14 @@ __global__ void directKernel(int numSource, const T* __restrict__ x, const T* __
 }
 
 template<class T>
-void directSum(std::size_t numBodies, const T* x, const T* y, const T* z, const T* m, const T* h, T* p, T* ax, T* ay,
-               T* az)
+void directSum(size_t first, size_t last, size_t numBodies, const T* x, const T* y, const T* z, const T* m, const T* h,
+               T* p, T* ax, T* ay, T* az)
 {
-    int numThreads = DirectConfig::numThreads;
-    int numBlock   = (numBodies - 1) / numThreads + 1;
+    size_t   numTargets = last - first;
+    unsigned numThreads = DirectConfig::numThreads;
+    unsigned numBlocks  = (numTargets - 1) / numThreads + 1;
 
-    directKernel<<<numBlock, numThreads>>>(numBodies, x, y, z, m, h, p, ax, ay, az);
+    directKernel<<<numBlocks, numThreads>>>(first, last, numBodies, x, y, z, m, h, p, ax, ay, az);
     kernelSuccess("direct sum");
 }
 

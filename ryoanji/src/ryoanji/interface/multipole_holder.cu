@@ -34,6 +34,7 @@
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/util/reallocate.hpp"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
+#include "ryoanji/nbody/direct.cuh"
 #include "ryoanji/nbody/upwardpass.cuh"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
 #include "ryoanji/nbody/traversal.cuh"
@@ -246,5 +247,11 @@ MHOLDER_SPH(float, float, float, float, float, uint64_t, float);
 MHOLDER_CART(double, double, double, double, double, uint64_t, double);
 MHOLDER_CART(double, double, float, double, double, uint64_t, float);
 MHOLDER_CART(float, float, float, float, float, uint64_t, float);
+
+#define DIRECT_SUM(T)                                                                                                  \
+    template void directSum(size_t, size_t, size_t, const T*, const T*, const T*, const T*, const T*, T*, T*, T*, T*)
+
+DIRECT_SUM(float);
+DIRECT_SUM(double);
 
 } // namespace ryoanji
