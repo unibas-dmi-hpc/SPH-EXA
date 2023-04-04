@@ -111,8 +111,8 @@ int main(int argc, char** argv)
     thrust::device_vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
 
     t0 = std::chrono::high_resolution_clock::now();
-    directSum(numBodies, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h), rawPtr(refP), rawPtr(refAx),
-              rawPtr(refAy), rawPtr(refAz));
+    directSum(0, numBodies, numBodies, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h), rawPtr(refP),
+              rawPtr(refAx), rawPtr(refAy), rawPtr(refAz));
 
     t1 = std::chrono::high_resolution_clock::now();
     dt = std::chrono::duration<double>(t1 - t0).count();
