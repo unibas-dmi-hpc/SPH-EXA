@@ -67,4 +67,8 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
+template<class T>
+void directSum(size_t first, size_t last, size_t numBodies, const T* x, const T* y, const T* z, const T* m, const T* h,
+               T* p, T* ax, T* ay, T* az);
+
 } // namespace ryoanji
