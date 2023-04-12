@@ -93,7 +93,8 @@ public:
         const auto& focusTree = domain.focusTree();
 
         mHolder_.createGroups(domain.startIndex(), domain.endIndex(), rawPtr(d.devData.x), rawPtr(d.devData.y),
-                              rawPtr(d.devData.z), rawPtr(d.devData.h), focusTree, domain.layout().data());
+                              rawPtr(d.devData.z), rawPtr(d.devData.h), focusTree, domain.layout().data(),
+                              domain.box());
 
         reallocate(multipoles_, focusTree.octreeViewAcc().numNodes, 1.05);
         mHolder_.upsweep(rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.m),

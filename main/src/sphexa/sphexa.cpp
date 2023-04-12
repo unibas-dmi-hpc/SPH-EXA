@@ -118,6 +118,7 @@ int main(int argc, char** argv)
     transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
     d.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
 
+    if (parser.exists("--G")) { d.g = parser.get<double>("--G"); }
     bool  haveGrav = (d.g != 0.0);
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 
@@ -205,6 +206,8 @@ void printHelp(char* name, int rank)
         printf("\t--glass FILE\t Use glass block as template to generate initial x,y,z configuration\n\n");
 
         printf("\t--theta NUM \t Gravity accuracy parameter [default 0.5 when self-gravity is active]\n\n");
+
+        printf("\t--G NUM \t Gravitational constant [default dependent on test-case selection]\n\n");
 
         printf("\t--prop STRING \t Choice of SPH propagator [default: modern SPH]. For standard SPH, use \"std\" \n\n");
 
