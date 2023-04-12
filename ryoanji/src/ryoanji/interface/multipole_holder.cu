@@ -110,34 +110,28 @@ public:
     }
 
     void createGroups(LocalIndex first, LocalIndex last, const Tc* x, const Tc* y, const Tc* z, const Th* h,
-                      const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& /*focusTree*/,
-                      const cstone::LocalIndex* /*layout*/)
+                      const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree,
+                      const cstone::LocalIndex* layout, const cstone::Box<Tc>& box)
     {
-        LocalIndex numBodies  = last - first;
-        LocalIndex numTargets = iceil(numBodies, TravConfig::targetSize);
+        thrust::device_vector<util::array<GpuConfig::ThreadMask, TravConfig::nwt>> S;
+        thrust::device_vector<LocalIndex>                                          temp;
 
-        reallocateGeneric(targets_, numTargets + 1, 1.05);
-        cstone::groupTargets<<<(numBodies - 1) / 256 + 1, 256>>>(first, last, x, y, z, h, TravConfig::targetSize,
-                                                                 rawPtr(targets_), numTargets);
+        auto  d_leaves  = focusTree.treeLeavesAcc();
+        float tolFactor = 2.0f;
+        cstone::computeGroupSplits<TravConfig::targetSize>(
+            first, last, x, y, z, h, d_leaves.data(), d_leaves.size() - 1, layout, box, tolFactor, S, temp, targets_);
     }
 
-    float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
+    float compute(LocalIndex /*firstBody*/, LocalIndex /*lastBody*/, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                   const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az)
     {
+        int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
+        int numTargets       = targets_.size() - 1;
+        int numBlocks        = iceil(numTargets, numWarpsPerBlock);
+        numBlocks            = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+        LocalIndex poolSize  = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
+
         resetTraversalCounters<<<1, 1>>>();
-
-        constexpr int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
-
-        LocalIndex numBodies = lastBody - firstBody;
-
-        // each target gets a warp (numWarps == numTargets)
-        int numTargets = iceil(numBodies, TravConfig::targetSize);
-        int numBlocks  = iceil(numTargets, numWarpsPerBlock);
-        numBlocks      = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
-
-        if (targets_.size() != numTargets + 1) { throw std::runtime_error("target groups not properly initialized\n"); }
-
-        LocalIndex poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
         reallocateGeneric(traversalStack_, poolSize, 1.01);
         traverse<<<numBlocks, TravConfig::numThreads>>>(
@@ -209,9 +203,10 @@ void MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::upsweep(
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
 void MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::createGroups(
     LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Th* h,
-    const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const LocalIndex* layout)
+    const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const LocalIndex* layout,
+    const cstone::Box<Tc>& box)
 {
-    impl_->createGroups(firstBody, lastBody, x, y, z, h, focusTree, layout);
+    impl_->createGroups(firstBody, lastBody, x, y, z, h, focusTree, layout, box);
 }
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
