@@ -101,7 +101,7 @@ int main(int argc, char** argv)
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank);
     auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD);
-    auto observables = observablesFactory<Dataset>(initCond, constantsFile);
+    auto observables = observablesFactory<Dataset, Domain>(initCond, constantsFile);
 
     Dataset simData;
     simData.comm = MPI_COMM_WORLD;
@@ -161,6 +161,9 @@ int main(int argc, char** argv)
             propagator->save(fileWriter.get());
 
             fileWriter->closeStep();
+
+            observables->occasionalObservation(simData, domain.startIndex(), domain.endIndex(), std::move(propagator),
+                                               box);
         }
 
         viz::execute(d, domain.startIndex(), domain.endIndex());

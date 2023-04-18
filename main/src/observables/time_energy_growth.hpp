@@ -110,8 +110,8 @@ T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const csto
 }
 
 //! @brief Observables that includes times, energies and Kelvin-Helmholtz growth rate
-template<class Dataset>
-class TimeEnergyGrowth : public IObservables<Dataset>
+template<class Dataset, class DomainType>
+class TimeEnergyGrowth : public IObservables<Dataset, DomainType>
 {
     std::ofstream& constantsFile;
 
@@ -137,6 +137,12 @@ public:
             fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
                                     d.linmom, d.angmom, khgr);
         }
+    }
+
+    void occasionalObservation(Dataset& d, size_t firstIndex, size_t lastIndex,
+                               std::unique_ptr<Propagator<DomainType, Dataset>> prop,
+                               cstone::Box<typename Dataset::RealType>&         box)
+    {
     }
 };
 

@@ -37,8 +37,8 @@
 namespace sphexa
 {
 
-template<class Dataset>
-class TimeAndEnergy : public IObservables<Dataset>
+template<class Dataset, class DomainType>
+class TimeAndEnergy : public IObservables<Dataset, DomainType>
 {
     std::ofstream& constantsFile;
     using T = typename Dataset::RealType;
@@ -62,6 +62,12 @@ public:
             fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
                                     d.linmom, d.angmom);
         }
+    }
+
+    void occasionalObservation(Dataset& d, size_t firstIndex, size_t lastIndex,
+                               std::unique_ptr<Propagator<DomainType, Dataset>> prop,
+                               cstone::Box<typename Dataset::RealType>&         box) override
+    {
     }
 };
 

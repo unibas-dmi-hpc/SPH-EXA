@@ -98,8 +98,8 @@ double calculateSurvivingFraction(size_t first, size_t last, double rhoBubble, d
 }
 
 //! @brief Observables that includes times, energies and bubble surviving fraction
-template<class Dataset>
-class WindBubble : public IObservables<Dataset>
+template<class Dataset, class DomainType>
+class WindBubble : public IObservables<Dataset, DomainType>
 {
     std::ofstream& constantsFile;
     double         rhoBubble;
@@ -141,6 +141,12 @@ public:
             fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
                                     d.linmom, d.angmom, bubbleFraction, normalizedTime);
         }
+    }
+
+    void occasionalObservation(Dataset& d, size_t firstIndex, size_t lastIndex,
+                               std::unique_ptr<Propagator<DomainType, Dataset>> prop,
+                               cstone::Box<typename Dataset::RealType>&         box)
+    {
     }
 };
 

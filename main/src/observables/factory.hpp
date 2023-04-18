@@ -99,22 +99,23 @@ void findH5Attribute(const std::string& fname, const std::string& attributeToRea
 
 #endif
 
-template<class Dataset>
-std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& testCase, std::ofstream& constantsFile)
+template<class Dataset, class DomainType>
+std::unique_ptr<IObservables<Dataset, DomainType>> observablesFactory(const std::string& testCase, std::ofstream& constantsFile)
 {
 #ifdef SPH_EXA_HAVE_H5PART
 
     std::string    khGrowthRate = "KelvinHelmholtzGrowthRate";
     h5part_int64_t khAttribute  = 0;
     findH5Attribute<h5part_int64_t>(testCase, khGrowthRate, {&khAttribute, 1}, H5PART_INT64);
-    if (khAttribute != 0) { return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile); }
+    if (khAttribute != 0) { return std::make_unique<TimeEnergyGrowth<Dataset, DomainType>>(constantsFile); }
 
     std::string gravWaves            = "observeGravWaves";
     double      gravWaveAttribute[3] = {0.0, 0.0, 0.0};
     findH5Attribute<h5part_float64_t>(testCase, gravWaves, {gravWaveAttribute, 3}, H5PART_FLOAT64);
     if (gravWaveAttribute[0] != 0.0)
     {
-        return std::make_unique<GravWaves<Dataset>>(constantsFile, gravWaveAttribute[1], gravWaveAttribute[2]);
+        return std::make_unique<GravWaves<Dataset, DomainType>>(constantsFile, gravWaveAttribute[1],
+                                                                gravWaveAttribute[2]);
     }
 
     if (testCase == "wind-shock")
@@ -123,14 +124,17 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
         double uExt         = WindShockConstants().at("uExt");
         double bubbleVolume = std::pow(WindShockConstants().at("rSphere"), 3) * 4.0 / 3.0 * M_PI;
         double bubbleMass   = bubbleVolume * rhoInt;
-        return std::make_unique<WindBubble<Dataset>>(constantsFile, rhoInt, uExt, bubbleMass);
+        return std::make_unique<WindBubble<Dataset, DomainType>>(constantsFile, rhoInt, uExt, bubbleMass);
     }
 #endif
 
-    if (testCase == "turbulence") { return std::make_unique<TurbulenceMachRMS<Dataset>>(constantsFile); }
-    if (testCase == "kelvin-helmholtz") { return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile); }
+    if (testCase == "turbulence") { return std::make_unique<TurbulenceMachRMS<Dataset, DomainType>>(constantsFile); }
+    if (testCase == "kelvin-helmholtz")
+    {
+        return std::make_unique<TimeEnergyGrowth<Dataset, DomainType>>(constantsFile);
+    }
 
-    return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
+    return std::make_unique<TimeAndEnergy<Dataset, DomainType>>(constantsFile);
 }
 
 } // namespace sphexa

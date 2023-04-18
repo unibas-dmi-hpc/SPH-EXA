@@ -32,16 +32,21 @@
 #pragma once
 
 #include "cstone/sfc/box.hpp"
+#include "propagator/ipropagator.hpp"
 
 namespace sphexa
 {
 
-template<class Dataset>
+template<class Dataset, class DomainType>
 class IObservables
 {
 public:
     virtual void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex,
                                  cstone::Box<typename Dataset::RealType>& box){/* no-op */};
+
+    virtual void occasionalObservation(Dataset& d, size_t firstIndex, size_t lastIndex,
+                                       std::unique_ptr<Propagator<DomainType, Dataset>> prop,
+                                       cstone::Box<typename Dataset::RealType>&         box){/* no-op */};
 
     virtual ~IObservables() = default;
 };

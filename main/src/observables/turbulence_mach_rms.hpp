@@ -83,8 +83,8 @@ double calculateMachRMS(size_t first, size_t last, Dataset& d, MPI_Comm comm)
 }
 
 //! @brief Observables that includes times, energies and the root mean square of the mach number
-template<class Dataset>
-class TurbulenceMachRMS : public IObservables<Dataset>
+template<class Dataset, class DomainType>
+class TurbulenceMachRMS : public IObservables<Dataset, DomainType>
 {
     std::ofstream& constantsFile;
 
@@ -110,6 +110,12 @@ public:
             fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
                                     d.linmom, d.angmom, machRms);
         }
+    }
+
+    void occasionalObservation(Dataset& d, size_t firstIndex, size_t lastIndex,
+                               std::unique_ptr<Propagator<DomainType, Dataset>> prop,
+                               cstone::Box<typename Dataset::RealType>&         box)
+    {
     }
 };
 

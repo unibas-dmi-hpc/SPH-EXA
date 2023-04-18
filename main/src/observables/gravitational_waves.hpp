@@ -89,8 +89,8 @@ auto gravRad(size_t first, size_t last, const Tc* x, const Tc* y, const Tc* z, c
 
 //! @brief Observables that includes times, energies, gravitational radiation and the second derivative of the
 //! quadrupole moment
-template<class Dataset>
-class GravWaves : public IObservables<Dataset>
+template<class Dataset, class DomainType>
+class GravWaves : public IObservables<Dataset, DomainType>
 {
     using T = typename Dataset::RealType;
     std::ofstream& constantsFile;
@@ -120,6 +120,12 @@ public:
             fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav,
                                     httplus, httcross, d2xx, d2yy, d2zz, d2xy, d2xz, d2yz);
         }
+    }
+
+    void occasionalObservation(Dataset& d, size_t firstIndex, size_t lastIndex,
+                               std::unique_ptr<Propagator<DomainType, Dataset>> prop,
+                               cstone::Box<typename Dataset::RealType>&         box)
+    {
     }
 };
 } // namespace sphexa
