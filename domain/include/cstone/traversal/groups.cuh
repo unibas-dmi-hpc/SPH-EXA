@@ -220,11 +220,12 @@ __global__ void groupSplitsKernel(LocalIndex first,
         leafIdx[k] = stl::upper_bound(layout, layout + numLeaves, bodyIdx[k]) - layout - 1;
     }
 
-    T nodeVolume = box.lx() * box.ly() * box.lz();
+    Box<T> unitBox(0, 1);
+    T nodeVolume = 1;
     for (int k = 0; k < nwt; ++k)
     {
         auto [nodeCenter, nodeSize] =
-            centerAndSize<KeyType>(sfcIBox(sfcKey(leaves[leafIdx[0]]), sfcKey(leaves[leafIdx[0] + 1])), box);
+            centerAndSize<KeyType>(sfcIBox(sfcKey(leaves[leafIdx[0]]), sfcKey(leaves[leafIdx[0] + 1])), unitBox);
         T vol      = 8 * nodeSize[0] * nodeSize[1] * nodeSize[2];
         nodeVolume = min(vol, nodeVolume);
     }
@@ -235,7 +236,8 @@ __global__ void groupSplitsKernel(LocalIndex first,
     util::array<Vec4<T>, nwt> pos_i;
     for (int k = 0; k < nwt; k++)
     {
-        pos_i[k] = {x[bodyIdx[k]], y[bodyIdx[k]], z[bodyIdx[k]], h ? T(2) * h[bodyIdx[k]] : T(0)};
+        pos_i[k] = {x[bodyIdx[k]] * box.ilx(), y[bodyIdx[k]] * box.ily(), z[bodyIdx[k]] * box.ilz(),
+                    h ? T(2) * h[bodyIdx[k]] : T(0)};
     }
 
     auto splitMask = findSplits(pos_i, distCrit * distCrit);

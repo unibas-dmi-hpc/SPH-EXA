@@ -54,7 +54,7 @@ void ryoanjiTest(int thisRank, int numRanks, size_t numParticlesGlobal)
     unsigned bucketSizeFocus       = 64;
     unsigned numGlobalNodesPerRank = 100;
     unsigned bucketSizeGlobal =
-            std::max(size_t(bucketSizeFocus), numParticlesGlobal / (numGlobalNodesPerRank * numRanks));
+        std::max(size_t(bucketSizeFocus), numParticlesGlobal / (numGlobalNodesPerRank * numRanks));
     T              G     = 1.0;
     float          theta = 0.5;
     cstone::Box<T> box{-1, 1};
@@ -62,7 +62,7 @@ void ryoanjiTest(int thisRank, int numRanks, size_t numParticlesGlobal)
     // radius that includes ~30 neighbor particles on average
     double hmean = std::cbrt(30.0 / 0.523 / double(numParticlesGlobal) * box.lx() * box.ly() * box.lz());
 
-    int seed = thisRank;
+    int                                                    seed = thisRank;
     cstone::RandomCoordinates<T, cstone::SfcKind<KeyType>> coords(numParticles, box, seed);
 
     std::vector<T> h(numParticles, hmean);
@@ -81,7 +81,7 @@ void ryoanjiTest(int thisRank, int numRanks, size_t numParticlesGlobal)
 
     //! Build octrees, decompose domain and distribute particles and halos, may resize buffers
     domain.syncGrav(d_keys, d_x, d_y, d_z, d_h, d_m, std::tuple{}, std::tie(s1, s2, s3));
-    //! halos for x,y,z,h are already exchanged in syncGrac
+    //! halos for x,y,z,h are already exchanged in syncGrav
     domain.exchangeHalos(std::tie(d_m), s1, s2);
 
     thrust::device_vector<T> d_ax = std::vector<T>(domain.nParticlesWithHalos());
@@ -91,7 +91,7 @@ void ryoanjiTest(int thisRank, int numRanks, size_t numParticlesGlobal)
     //! includes tree plus associated information, like nearby ranks, assignment, counts, MAC spheres, etc
     const cstone::FocusedOctree<KeyType, T, cstone::GpuTag>& focusTree = domain.focusTree();
     //! the focused octree on GPU, structure only
-    auto octree  = focusTree.octreeViewAcc();
+    auto octree = focusTree.octreeViewAcc();
 
     MultipoleHolder<T, T, T, T, T, KeyType, MultipoleType> multipoleHolder;
 
@@ -104,9 +104,9 @@ void ryoanjiTest(int thisRank, int numRanks, size_t numParticlesGlobal)
     auto t0 = std::chrono::high_resolution_clock::now();
     // compute accelerations for locally owned particles based on globally valid multipoles and halo particles
     // halo particles are in [0:domain.startIndex()] and in [domain.endIndex():domain.nParticlesWithHalos()]
-    float totalPotential = multipoleHolder.compute(domain.startIndex(), domain.endIndex(), rawPtr(d_x), rawPtr(d_y),
-                                                   rawPtr(d_z), rawPtr(d_m),
-                                                   rawPtr(d_h), G, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
+    float totalPotential =
+        multipoleHolder.compute(domain.startIndex(), domain.endIndex(), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z),
+                                rawPtr(d_m), rawPtr(d_h), G, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
 
     auto t1 = std::chrono::high_resolution_clock::now();
     auto dt = std::chrono::duration<double>(t1 - t0).count();
@@ -122,10 +122,7 @@ void ryoanjiTest(int thisRank, int numRanks, size_t numParticlesGlobal)
         MPI_Barrier(MPI_COMM_WORLD);
         if (rank == thisRank)
         {
-            if (thisRank == 0)
-            {
-                fprintf(stdout, "Total potential          : %.7f\n", totalPotentialGlobal);
-            }
+            if (thisRank == 0) { fprintf(stdout, "Total potential          : %.7f\n", totalPotentialGlobal); }
             fprintf(stdout, "--- rank %d ----------------\n", thisRank);
             fprintf(stdout, "numParticles, numHalos   : %d, %d\n", domain.nParticles(),
                     domain.nParticlesWithHalos() - domain.nParticles());

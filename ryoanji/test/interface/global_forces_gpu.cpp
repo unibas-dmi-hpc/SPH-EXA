@@ -117,7 +117,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
     // Check Barnes-Hut accelerations from distributed particle set
     // against the direct-sum reference computed with the (single node) common pool
-    bool pass;
+    bool                pass;
     std::vector<double> firstPercentiles(numRanks), maxErrors(numRanks);
     {
         thrust::device_vector<T> d_ax, d_ay, d_az;
