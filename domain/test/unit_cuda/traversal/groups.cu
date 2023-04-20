@@ -47,7 +47,7 @@ using namespace cstone;
 
 constexpr size_t targetSize = 64;
 constexpr size_t nwt        = targetSize / GpuConfig::warpSize;
-using SplitType             = util::array<GpuConfig::ThreadMask, targetSize / GpuConfig::warpSize>;
+using SplitType             = util::array<GpuConfig::ThreadMask, nwt>;
 
 TEST(TargetGroups, t0)
 {
@@ -133,7 +133,7 @@ __global__ void makeSplitTester(SplitType splitMask, LocalIndex* splitLengths) {
 
 TEST(TargetGroups, makeSplits)
 {
-    auto makeMask = [](GpuConfig::ThreadMask a, GpuConfig::ThreadMask b)
+    auto makeMask = [](auto a, auto b)
     {
         if constexpr (nwt == 2) // NOLINT
         {

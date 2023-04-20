@@ -7,6 +7,9 @@ namespace sph
 {
 
 template<class Dataset>
+extern void computeTargetGroups(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+
+template<class Dataset>
 extern void computeDensityGpu(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>

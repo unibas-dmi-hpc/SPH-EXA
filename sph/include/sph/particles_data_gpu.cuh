@@ -103,6 +103,7 @@ public:
     DevVector<T> whd;
 
     DevVector<cstone::LocalIndex> traversalStack;
+    DevVector<cstone::LocalIndex> targetGroups;
 
     //! @brief non-stateful variables for statistics
     size_t stackUsedNc, stackUsedGravity;
