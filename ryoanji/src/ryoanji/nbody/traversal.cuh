@@ -60,7 +60,7 @@ using cstone::warpMin;
 struct TravConfig
 {
     //! @brief size of global workspace memory per warp, must be a power of 2
-    static constexpr int memPerWarp = 8192 * GpuConfig::warpSize;
+    static constexpr int memPerWarp = 1024 * GpuConfig::warpSize;
     static_assert((memPerWarp & (memPerWarp - 1)) == 0);
 
     //! @brief number of threads per block for the traversal kernel
@@ -187,7 +187,7 @@ __device__ void directAcc(Vec4<Tc> sourceBody, Th hSource, Vec4<Ta> acc_i[TravCo
  * @param[in]    Multipoles     the multipole expansions in the same order as srcCells
  * @param[in]    initNodeIdx    source cell indices indices of the top 8 octants
  * @param[-]     tempQueue      shared mem int pointer to GpuConfig::warpSize ints, uninitialized
- * @param[-]     cellQueue      pointer to global memory, 4096 ints per thread, uninitialized
+ * @param[-]     cellQueue      pointer to TravConfig::memPerWarp ints of warps-specific space global memory
  * @return                      Number of M2P and P2P interactions applied to the group of target particles.
  *                              The totals for the warp are the numbers returned here times the number of valid
  *                              targets in the warp.
