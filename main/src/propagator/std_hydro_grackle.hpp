@@ -134,7 +134,7 @@ public:
                 std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d), get<CoolingFields>(simData.chem)),
                 get<DependentFields>(d));
         }
-        d.treeView = domain.octreeNsViewAcc();
+        d.treeView = domain.octreeProperties();
     }
 
     void step(DomainType& domain, DataType& simData) override

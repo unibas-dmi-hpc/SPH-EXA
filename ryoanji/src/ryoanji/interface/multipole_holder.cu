@@ -114,12 +114,12 @@ public:
                       const cstone::LocalIndex* layout, const cstone::Box<Tc>& box)
     {
         thrust::device_vector<util::array<GpuConfig::ThreadMask, TravConfig::nwt>> S;
-        thrust::device_vector<LocalIndex>                                          temp;
 
         auto  d_leaves  = focusTree.treeLeavesAcc();
         float tolFactor = 2.0f;
-        cstone::computeGroupSplits<TravConfig::targetSize>(
-            first, last, x, y, z, h, d_leaves.data(), d_leaves.size() - 1, layout, box, tolFactor, S, temp, targets_);
+        cstone::computeGroupSplits<TravConfig::targetSize>(first, last, x, y, z, h, d_leaves.data(),
+                                                           d_leaves.size() - 1, layout, box, tolFactor, S,
+                                                           traversalStack_, targets_);
     }
 
     float compute(LocalIndex /*firstBody*/, LocalIndex /*lastBody*/, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
@@ -136,7 +136,7 @@ public:
         reallocateGeneric(traversalStack_, poolSize, 1.01);
         traverse<<<numBlocks, TravConfig::numThreads>>>(
             rawPtr(targets_), numTargets, 1, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_,
-            centers_, rawPtr(multipoles_), G, (int*)(nullptr), ax, ay, az, rawPtr(traversalStack_));
+            centers_, rawPtr(multipoles_), G, (Ta*)nullptr, ax, ay, az, (int*)rawPtr(traversalStack_));
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
 
@@ -180,7 +180,7 @@ private:
     thrust::device_vector<MType> multipoles_;
 
     thrust::device_vector<LocalIndex> targets_;
-    thrust::device_vector<int>        traversalStack_;
+    thrust::device_vector<LocalIndex> traversalStack_;
 };
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>

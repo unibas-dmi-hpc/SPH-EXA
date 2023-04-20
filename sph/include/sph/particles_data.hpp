@@ -179,8 +179,8 @@ public:
     FieldVector<T>        dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
 
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
-    std::vector<cstone::LocalIndex>         neighbors;
-    cstone::OctreeNsView<RealType, KeyType> treeView;
+    std::vector<cstone::LocalIndex>             neighbors;
+    cstone::OctreeProperties<RealType, KeyType> treeView;
 
     DeviceData_t<AccType, T, KeyType> devData;
 

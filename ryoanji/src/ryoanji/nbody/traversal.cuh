@@ -60,7 +60,7 @@ using cstone::warpMin;
 struct TravConfig
 {
     //! @brief size of global workspace memory per warp, must be a power of 2
-    static constexpr int memPerWarp = 1024 * GpuConfig::warpSize;
+    static constexpr int memPerWarp = 512 * GpuConfig::warpSize;
     static_assert((memPerWarp & (memPerWarp - 1)) == 0);
 
     //! @brief number of threads per block for the traversal kernel
@@ -389,8 +389,6 @@ __global__ void resetTraversalCounters()
 
 /*! @brief Compute approximate body accelerations with Barnes-Hut
  *
- * @tparam       P              If P == Tc*, then the potential of each body will be stored.
- *                              Otherwise only the global potential sum will be calculated.
  * @param[in]    targets        groupings of up to TravConfig::targetSize particles to compute accelerations for
  *                              length @p numTargets + 1
  * @param[in]    numTargets     number of target groups
@@ -405,17 +403,17 @@ __global__ void resetTraversalCounters()
  * @param[in]    G              gravitational constant
  * @param[inout] p              output body potential to add to if not nullptr
  * @param[inout] ax, ay, az     output body acceleration to add to
- * @param[-]     globalPool     temporary storage for the cell traversal stack, uninitialized
+ * @param[-]     gmPool         temporary storage for the cell traversal stack, uninitialized
  *                              each active warp needs space for TravConfig::memPerWarp int32,
  *                              so the total size is TravConfig::memPerWarp * numWarpsPerBlock * numBlocks
  */
-template<class Tc, class Th, class Tm, class Ta, class Tf, class MType, class P>
+template<class Tc, class Th, class Tm, class Ta, class Tf, class MType>
 __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
     const LocalIndex* targets, const int numTargets, const int initNodeIdx, const Tc* __restrict__ x,
     const Tc* __restrict__ y, const Tc* __restrict__ z, const Tm* __restrict__ m, const Th* __restrict__ h,
     const TreeNodeIndex* __restrict__ childOffsets, const TreeNodeIndex* __restrict__ internalToLeaf,
     const LocalIndex* __restrict__ layout, const Vec4<Tf>* __restrict__ sourceCenter,
-    const MType* __restrict__ Multipoles, Tc G, P p, Ta* ax, Ta* ay, Ta* az, int* globalPool)
+    const MType* __restrict__ Multipoles, Tc G, Ta* p, Ta* ax, Ta* ay, Ta* az, int* gmPool)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
@@ -434,7 +432,7 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
     // warp-common shared mem, 1 int per thread
     int* tempQueue = sharedPool + GpuConfig::warpSize * warpIdx * mSizeRatio;
     // warp-common global mem storage
-    int* cellQueue = globalPool + TravConfig::memPerWarp * ((blockIdx.x * numWarpsPerBlock) + warpIdx);
+    int* cellQueue = gmPool + TravConfig::memPerWarp * ((blockIdx.x * numWarpsPerBlock) + warpIdx);
 
     int targetIdx = 0;
 
@@ -518,7 +516,7 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
             const int bodyIdx = bodyIdxLane + i * GpuConfig::warpSize;
             if (bodyIdx < bodyEnd)
             {
-                if constexpr (std::is_same_v<P, Tc*>) { p[bodyIdx] += m[bodyIdx] * acc_i[i][0]; }
+                if (p) { p[bodyIdx] += m[bodyIdx] * acc_i[i][0]; }
                 ax[bodyIdx] += G * acc_i[i][1];
                 ay[bodyIdx] += G * acc_i[i][2];
                 az[bodyIdx] += G * acc_i[i][3];
@@ -543,9 +541,9 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
  * @param[in]    Multipole      cell multipoles, on device
  * @return                      P2P and M2P interaction statistics
  */
-template<class Tc, class Th, class Tm, class Ta, class Tf, class MType, class P>
+template<class Tc, class Th, class Tm, class Ta, class Tf, class MType>
 auto computeAcceleration(size_t firstBody, size_t lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
-                         const Th* h, Tc G, P p, Ta* ax, Tc* ay, Tc* az, const TreeNodeIndex* childOffsets,
+                         const Th* h, Tc G, Ta* p, Ta* ax, Tc* ay, Tc* az, const TreeNodeIndex* childOffsets,
                          const TreeNodeIndex* internalToLeaf, const LocalIndex* layout, const Vec4<Tf>* sourceCenter,
                          const MType* Multipole)
 {
