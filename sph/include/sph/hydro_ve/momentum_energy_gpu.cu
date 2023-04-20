@@ -112,17 +112,10 @@ template<bool avClean, class Dataset>
 void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
                            const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
-    unsigned numBodies        = endIndex - startIndex;
-    unsigned numWarps         = (numBodies - 1) / TravConfig::targetSize + 1;
-    unsigned numBlocks        = (numWarps - 1) / numWarpsPerBlock + 1;
-    numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+    unsigned numBodies = endIndex - startIndex;
+    unsigned numBlocks = TravConfig::numBlocks(numBodies);
 
-    unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    unsigned nidxSize = d.ngmax * numBlocks * TravConfig::numThreads;
-    reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
-    auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
-    auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
 
     float huge = 1e10;
     checkGpuErrors(cudaMemcpyToSymbol(minDt_ve_device, &huge, sizeof(huge)));
