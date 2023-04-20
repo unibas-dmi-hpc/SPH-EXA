@@ -39,6 +39,7 @@
 #include <variant>
 #include <iostream>
 #include <cmath>
+#include "utils.hpp"
 
 #define DBG_COSMO if (0)
 
@@ -179,58 +180,29 @@ public:
 
     T time(const T a)
     {
-        return romberg<T>(
-                [this](const T x)
-                {
-                    return 2. / (3. * x * H(pow(x, 2./3.)));
-                }
-                , 0.0
-                , pow(a, 1.5)
-                , 1e-2 * relativeError);
+        auto f = [this](const T x) { return 2. / (3. * x * H(pow(x, 2./3.))); };
+        return romberg<T>(f, 0.0, pow(a, 1.5), 1e-2 * relativeError);
     }
 
     T a(T t)
     {
-        return newton(
-                [this, t](const T a)
-                {
-                    return time(a) - t;
-                },
-                [this](const T a)
-                {
-                    return 1.0/(a * H(a));
-                },
-                t*H0,
-                0.0,
-                1.0e38,
-                relativeError,
-                absoluteError);
+        auto f = [this, t](const T a) { return time(a) - t; };
+        auto df = [this](const T a) { return 1.0/(a * H(a)); };
+
+        return newton(f, df, t*H0, 0.0, 1.0e38, relativeError, absoluteError);
     }
 
     T driftTimeCorrection(T t, T dt)
     {
-        return romberg<T>(
-                [this](const T x)
-                {
-                    return -x / H(T(1.0) / x);
-                },
-                T(1.0) / a(t),
-                T(1.0) / a(t + dt),
-                relativeError);
+        auto f = [this](const T x) { return -x / H(T(1.0) / x); };
+        return romberg<T>(f, T(1.0) / a(t), T(1.0) / a(t + dt), relativeError);
     }
 
     T kickTimeCorrection(T t, T dt)
     {
-        return romberg<T>(
-                [this](const T x)
-                {
-                    return -T(1.0) / H(T(1.0) / x);
-                },
-                T(1.0) / a(t),
-                T(1.0) / a(t + dt),
-                relativeError);
+        auto f = [this](const T x) { return -T(1.0) / H(T(1.0) / x); };
+        return romberg<T>(f, T(1.0) / a(t), T(1.0) / a(t + dt), relativeError);
     }
-
 };
 
 template<typename T, int rel_prec = -7, int abs_prec = -7>
@@ -348,20 +320,9 @@ public:
 
     T a(T t)
     {
-        return newton(
-                [this, t](const T a)
-                {
-                    return time(a) - t;
-                },
-                [this](const T a)
-                {
-                    return 1.0/(a * H(a));
-                },
-                t*H0,
-                0.0,
-                1.0e38,
-                relativeError,
-                absoluteError);
+        auto f = [this, t](const T a) { return time(a) - t; };
+        auto df = [this](const T a) { return 1.0/(a * H(a)); };
+        return newton(f, df, t*H0, 0.0, 1.0e38, relativeError, absoluteError);
     }
 
 
@@ -408,115 +369,6 @@ public:
     }
 
 };
-
-template<typename T, int MAX_ITER = 40, class FnPtr, class FnPtr2>
-T newton(FnPtr&& func, FnPtr2&& func_deriv, T x0, T l, T u, T rel_error = 1e-7, T abs_error = 1e-7)
-{
-    if (l > u)
-        throw std::invalid_argument("Lower bound exceeds upper bound in Newton's Method.");
-
-    T x0_save = x0;
-    T x1 = x0;
-
-    for (int i=0; i < MAX_ITER; i++)
-    {
-        T f = func(x0);
-        if (f == 0) return x0;
-
-        T fprime = func_deriv(x0);
-
-        DBG_COSMO printf("%2i] %23.15e  ->  %23.15e  [l: %23.15e u: %23.15e] (diff: %23.15e  f: %23.15e  f': %23.15e)\n", i, x0_save, x0, l,u, fabs((x1 - x0_save)), f, fprime);
-
-        if (f*fprime == 0) { x0 = std::min(u, x0+abs_error*(u - l)); continue; }
-        //if (f*fprime == 0) { x0 = std::max(l, x0-abs_error*(u - l)); continue; }
- 
-        if (f*fprime < 0)
-            l = x0;
-        else 
-            u = x0;
-
-        x0_save = x0;
-
-        x1 = x0 - f/fprime;
-
-        if (fabs(x1 - x0) <= std::max(rel_error * std::max(fabs(x0), fabs(x1)), abs_error)) return x1;
-        //if (fabs(x1 - x0) <= abs_error + rel_error * fabs(x0)) return x1;
-        //if (fabs((x1 - x0)) <= abs_error) { return x1; }
-        //if (fabs((x1 - x0) / x0) <= rel_error) { return x1; }
-
-        if (l < x1 && x1 < u)
-            x0 = x1;
-        else
-            x0 = 0.5*(l + u);
-    }
-
-    DBG_COSMO return -1234;
-    throw std::runtime_error("Maximum number of iterations reached in Newton's Method.");
-}
-
-/*
- ** Romberg integrator for an open interval.
- */
-
-template<typename T, int MAXLEVEL = 13, class FnPtr>
-T romberg(FnPtr&& func, T a, T b, T eps)
-{
-    T tllnew;
-    T tll;
-    T tlk[MAXLEVEL+1];
-    int n = 1;
-    int nsamples = 1;
-
-    tlk[0] = tllnew = (b-a)*func(0.5*(b+a));
-    if (a == b) return tllnew;
-
-    tll = FLT_MAX;
-
-    while ((fabs((tllnew-tll)/tllnew) > eps) && (n < MAXLEVEL)) 
-    {
-        /*
-         * midpoint rule.
-         */
-
-        nsamples *= 3;
-        T dx = (b-a)/nsamples;
-
-        T s = 0;
-        for (int i=0; i<nsamples/3; i++) 
-        {
-            s += dx*func(a + (3*i + 0.5)*dx);
-            s += dx*func(a + (3*i + 2.5)*dx);
-        }
-
-        T tmp = tlk[0];
-        tlk[0] = tlk[0]/3.0 + s;
-
-        /*
-         * Romberg extrapolation.
-         */
-
-        for (int i=0; i < n; i++) 
-        {
-            T k = pow(9.0, i+1.0);
-            T tlknew = (k*tlk[i] - tmp) / (k - 1.0);
-
-            tmp = tlk[i+1];
-            tlk[i+1] = tlknew;
-        }
-
-        tll = tllnew;
-        tllnew = tlk[n];
-        n++;
-    }
-
-    //printf("%23.15e\n", tllnew);
-    //printf("%23.15e\n", tll);
-    //printf("%23.15e\n", fabs((tllnew-tll)/(tllnew)));
-    //printf("%23.15e\n", eps);
-    //assert(fabs((tllnew-tll)/(tllnew)) <= eps);
-
-    return tllnew;
-}
 
 template<typename T>
 std::unique_ptr<Cosmology<T>> cosmologyFactory(const std::string& fname)
