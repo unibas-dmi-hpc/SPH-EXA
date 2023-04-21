@@ -1,7 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 CSCS, ETH Zurich, University of Basel, University of Zurich
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,48 +24,24 @@
  */
 
 /*! @file
- * @brief Contains the object holding all simulation data
+ * @brief Cosmological parameters and associated functions.
  *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Jonathan Coles <jonathan.coles@cscs.ch>
  */
 
 #pragma once
 
-#include <mpi.h>
-
-#include "cooling/chemistry_data.hpp"
-#include "sph/particles_data.hpp"
-#include "cosmo/cosmology_data.hpp"
-
-namespace sphexa
+namespace cosmo
 {
 
-//! @brief the place to store hydro, chemistry, nuclear and other simulation data
-template<typename T, typename KeyType_, class AccType>
-class SimulationData
+template<typename T>
+class Cosmology // : public cstone::FieldStates<CosmologyData<T>>
 {
 public:
-    using AcceleratorType = AccType;
-    using KeyType         = KeyType_;
-    using RealType        = T;
-
-    using HydroData = ParticlesData<RealType, KeyType, AccType>;
-    using ChemData  = cooling::ChemistryData<T>;
-    using CosmoData = cosmo::CosmologyData<T>;
-
-    //! @brief spacially distributed data for hydrodynamics and gravity
-    HydroData hydro;
-
-    //! @brief chemistry data for radiative cooling, e.g. for GRACKLE
-    ChemData chem;
-
-    //! @brief non-spacially distributed nuclear abundances
-    // NuclearData nuclear;
-
-    //! @brief cosmological parameters
-    CosmoData &cosmo;
-
-    MPI_Comm comm;
+    virtual T driftTimeCorrection(T t, T dt) = 0;
+    virtual T kickTimeCorrection(T t, T dt) = 0;
+    virtual ~Cosmology() = default;
 };
 
-} // namespace sphexa
+} // namespace cosmo
+

@@ -1,0 +1,16 @@
+
+set(UNIT_TESTS utils.cpp static.cpp cdm.cpp lcdm.cpp factory.cpp)
+set(testname cosmo_tests)
+add_executable(${testname} ${UNIT_TESTS})
+target_compile_options(${testname} PRIVATE -Wall -Wextra)
+target_compile_definitions(${testname} PUBLIC SPH_EXA_HAVE_H5PART)
+
+
+
+target_include_directories(${testname} PRIVATE ${CSTONE_DIR} ${PROJECT_SOURCE_DIR}/include)
+
+target_link_libraries(${testname} PRIVATE GTest::gtest_main)
+target_compile_definitions(${testname} PRIVATE PROJECT_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME ${testname} COMMAND ${testname})
+
+install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/physics)
