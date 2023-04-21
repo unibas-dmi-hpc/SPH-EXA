@@ -1,11 +1,8 @@
-#include "cosmo/utils.hpp"
-#include <cassert>
-#include <iostream>
-#include <vector>
-#include <cmath>
 #include "gtest/gtest.h"
 #include "gtest/gtest-spi.h"
-#include <csignal>
+
+#include "cosmo/cosmology_data.hpp"
+#include "cosmo/utils.hpp"
 
 TEST(cosmo, romberg)
 {

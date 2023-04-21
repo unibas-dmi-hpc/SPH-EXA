@@ -1,5 +1,5 @@
 
-set(UNIT_TESTS lcdm.cpp cdm.cpp static.cpp factory.cpp)
+set(UNIT_TESTS utils.cpp static.cpp cdm.cpp lcdm.cpp factory.cpp)
 set(testname cosmo_tests)
 add_executable(${testname} ${UNIT_TESTS})
 target_compile_options(${testname} PRIVATE -Wall -Wextra)

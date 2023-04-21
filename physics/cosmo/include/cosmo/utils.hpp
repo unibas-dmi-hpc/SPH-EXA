@@ -31,6 +31,10 @@
 
 #pragma once
 
+#include <memory>
+#include <cmath>
+#include <cfloat>
+
 #define DBG_COSMO_UTILS if (0)
 
 template<typename T, int MAX_ITER = 40, class FnPtr, class FnPtr2>

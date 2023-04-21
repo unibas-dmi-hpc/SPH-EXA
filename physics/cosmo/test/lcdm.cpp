@@ -1,25 +1,17 @@
-#include "cosmo/cosmology_data.hpp"
-#include <cassert>
-#include <iostream>
-#include <vector>
-#include <cmath>
 #include "gtest/gtest.h"
-#include "gtest/gtest-spi.h"
-#include <csignal>
 
-TEST(cosmo, constructor)
+#include "cosmo/cosmology_data.hpp"
+#include "cosmo/lcdm.hpp"
+
+TEST(cosmo_lcdm, constructor)
 {
     using T = double; 
     using Cosmo = cosmo::LambdaCDM<T>;
-
-    //EXPECT_NO_THROW(Cosmo(Cosmo::Static));
-    //EXPECT_FALSE(Cosmo(Cosmo::Static).isComoving);
 
     EXPECT_NO_THROW(Cosmo({.H0=1, .OmegaRadiation=1}));
     EXPECT_THROW(   Cosmo({.H0=1, .OmegaLambda=1}), std::domain_error);
 
     EXPECT_NO_THROW(Cosmo({.H0=1, .OmegaMatter=0.5, .OmegaLambda=0.5}));
-    //EXPECT_NO_THROW(Cosmo({.H0=1, .OmegaMatter=2}));
     EXPECT_THROW(Cosmo({.H0=1, .OmegaMatter=1}), std::domain_error);
 
     EXPECT_THROW(Cosmo({.H0=1, .OmegaMatter=-1}), std::domain_error); 
@@ -37,7 +29,7 @@ TEST(cosmo, constructor)
     EXPECT_EQ(c.OmegaLambda, Cosmo::Planck2018.OmegaLambda);
 }
 
-TEST(cosmo, hubbleRate)
+TEST(cosmo_lcdm, hubbleRate)
 {
     using T = double; 
     using Cosmo = cosmo::LambdaCDM<T>;
@@ -64,26 +56,7 @@ TEST(cosmo, hubbleRate)
             16 * sqrt(0.1*0.5 + 0.2*pow(0.5,4) + 0.3 + (1 - 0.3 - 0.2 - 0.1) * pow(0.5,2)), 1e-12);
 }
 
-TEST(cosmo, romberg)
-{
-    using namespace cosmo;
-    using T = double; 
-
-    EXPECT_NEAR(romberg<T>([]([[maybe_unused]] T x){ return 1.0; }, 0.0, 10.0, 1e-7), 10.0, 1e-7);
-    EXPECT_NEAR(romberg<T>([]([[maybe_unused]] T x){ return 1.0; }, -10, 10.0, 1e-7), 20.0, 1e-7);
-    EXPECT_NEAR(romberg<T>([](T x){ return   x; }, -10, 10.0, 1e-8),  0.0, 1e-7);
-    EXPECT_NEAR(romberg<T>([](T x){ return   x*x; }, -1, 1.0, 1e-7), 2.0/3.0, 1e-7);
-    EXPECT_NEAR(romberg<T>([](T x){ return 1/x; }, 1, 2, 1e-7),  log(2), 1e-7);
-    EXPECT_NEAR(romberg<T>([](T x){ return 1/(x*x); }, 0.01, 1, 1e-7),  99.0, 1e-7);
-    EXPECT_NEAR(romberg<T>([](T x){ return 1/(x*x); }, 0.01, 9, 1e-7),  99.88888888, 1e-7);
-
-    EXPECT_NONFATAL_FAILURE(EXPECT_NEAR(romberg<T>([](T x){ return 1/x; }, 1, 2, 1e-4),  log(2), 1e-12), "");
-    EXPECT_NONFATAL_FAILURE(EXPECT_NEAR(romberg<T>([](T x){ return 1/x; }, 1, 2, 1e-5),  log(2), 1e-12), "");
-    EXPECT_NONFATAL_FAILURE(EXPECT_NEAR(romberg<T>([](T x){ return 1/x; }, 1, 2, 1e-8),  log(2), 1e-15), "");
-
-}
-
-TEST(cosmo, time)
+TEST(cosmo_lcdm, time)
 {
     using namespace cosmo;
     using T = double; 
@@ -109,50 +82,7 @@ TEST(cosmo, time)
     }
 }
 
-TEST(cosmo, newton)
-{
-    using namespace cosmo;
-    using T = double; 
-
-    {
-    auto f  = [](const T x){ return x*x - 2.0; };
-    auto fp = [](const T x){ return 2.0*x; };
-    EXPECT_THROW(newton<T>(f, fp,  1.0, 10.0, -10.0, 1e-7), std::invalid_argument);
-    }
-
-    {
-    auto f  = [](const T x){ return x*x; };
-    auto fp = [](const T x){ return 2.0*x; };
-
-    EXPECT_EQ(newton<T>(f, fp,  0.0, -10.0, 10.0), 0);
-    }
-
-    {
-    auto f  = [](const T x){ return x*x - 2.0; };
-    auto fp = [](const T x){ return 2.0*x; };
-
-    EXPECT_NEAR(newton<T>(f, fp,  1.0, -10.0, 10.0, 1e-7), sqrt(2), 1e-7);
-    EXPECT_NEAR(newton<T>(f, fp,  1.0, -10.0, 10.0, 1e-7), sqrt(2), 1e-7);
-    EXPECT_NEAR(newton<T>(f, fp, -2.0, -10.0, 10.0, 1e-7), -sqrt(2), 1e-7);
-    EXPECT_NEAR(newton<T>(f, fp, 0, 0, 10, 1e-7), sqrt(2), 1e-7);
-    EXPECT_NEAR(newton<T>(f, fp, 0, -10, 10, 1e-7), sqrt(2), 1e-7);
-    }
-
-    {
-    auto f  = [](const T x){ return x - 2 + log(x); };
-    auto fp = [](const T x){ return 1 + 1/x; };
-    EXPECT_NEAR(newton<T>(f, fp,  1.5, -10, 10, 1e-7), 1.5571455989976113, 1e-7);
-    }
-
-    {
-    auto f  = [](const T x){ return sin(x) - (x+1)/(x-1); };
-    auto fp = [](const T x){ return cos(x) + 2/((x-1)*(x-1)); };
-    EXPECT_NEAR(newton<T>(f, fp,  -0.2, -10, 10, 1e-7), -0.42036240721563467, 1e-7);
-    }
-
-}
-
-TEST(cosmo, scale_factor_function)
+TEST(cosmo_lcdm, scale_factor_function)
 {
     using namespace cosmo;
     using T = double; 
@@ -180,7 +110,7 @@ TEST(cosmo, scale_factor_function)
     }
 }
 
-TEST(cosmo, drift_time_correction)
+TEST(cosmo_lcdm, drift_time_correction)
 {
     using namespace cosmo;
     using T = double; 
@@ -194,7 +124,7 @@ TEST(cosmo, drift_time_correction)
     }
 }
 
-TEST(cosmo, kick_time_correction)
+TEST(cosmo_lcdm, kick_time_correction)
 {
     using namespace cosmo;
     using T = double; 
@@ -206,19 +136,4 @@ TEST(cosmo, kick_time_correction)
     EXPECT_NEAR(c.kickTimeCorrection(c.time(0.5), 0.01), 0.01309800803678838, 1e-7);
     EXPECT_NEAR(c.kickTimeCorrection(c.time(1), 0.01), 0.00741291066657522, 1e-7);
     }
-}
-
-TEST(cosmo, static_universe)
-{
-    using namespace cosmo;
-    using T = double; 
-    using Cosmo = cosmo::StaticUniverse<T>;
-
-    Cosmo c;
-
-    EXPECT_EQ(c.driftTimeCorrection(1, 0.5), 0.5);
-    EXPECT_EQ(c.driftTimeCorrection(1, 0.125), 0.125);
-
-    EXPECT_EQ(c.kickTimeCorrection(1, 0.5), 0.5);
-    EXPECT_EQ(c.kickTimeCorrection(1, 0.125), 0.125);
 }
