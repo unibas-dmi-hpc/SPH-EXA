@@ -91,8 +91,9 @@ public:
 
     void save(IFileWriter* writer) override { turbulenceData.loadOrStore(writer); }
 
-    void load(const std::string& path, MPI_Comm comm) override
+    void load(const std::string& initCond, MPI_Comm comm) override
     {
+        std::string path = strBeforeSign(initCond, ",");
         // The file does not exist, we're starting from scratch. Nothing to do.
         if (!std::filesystem::exists(path)) { return; }
 
