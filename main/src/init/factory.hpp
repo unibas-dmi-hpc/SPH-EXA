@@ -111,6 +111,11 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
 #endif
     if (std::filesystem::exists(testCase)) { return std::make_unique<FileInit<Dataset>>(testCase); }
 
+    if (std::filesystem::exists(strBeforeSign(testCase, ",")))
+    {
+        return std::make_unique<FileSplitInit<Dataset>>(testCase);
+    }
+
 #endif
 
     throw std::runtime_error("supplied value of --init " +
