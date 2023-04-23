@@ -119,9 +119,10 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
 
 std::map<std::string, double> KelvinHelmholtzConstants()
 {
-    return {{"rhoInt", 2.},          {"rhoExt", 1.}, {"vxExt", 0.5},   {"vxInt", -0.5}, {"gamma", 5. / 3.},
-            {"firstTimeStep", 1e-7}, {"p", 2.5},     {"omega0", 0.01}, {"Kcour", 0.4},  {"ng0", 100},
-            {"ngmax", 150}};
+    return {{"rhoInt", 2.},  {"rhoExt", 1.},     {"vxExt", 0.5},
+            {"vxInt", -0.5}, {"gamma", 5. / 3.}, {"firstTimeStep", 1e-7},
+            {"p", 2.5},      {"omega0", 0.01},   {"Kcour", 0.4},
+            {"ng0", 100},    {"ngmax", 150},     {"KelvinHelmholtzGrowthRate", 1}};
 }
 
 template<class Dataset>
