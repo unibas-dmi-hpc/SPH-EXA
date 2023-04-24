@@ -83,7 +83,7 @@ void computeEOS(size_t startIndex, size_t endIndex, Dataset& d)
     {
         cuda::computeEOS(startIndex, endIndex, d.muiConst, d.gamma, rawPtr(d.devData.temp), rawPtr(d.devData.m),
                          rawPtr(d.devData.kx), rawPtr(d.devData.xm), rawPtr(d.devData.gradh), rawPtr(d.devData.prho),
-                         rawPtr(d.devData.c), rawPtr(d.devData.rho));
+                         rawPtr(d.devData.c), rawPtr(d.devData.rho), rawPtr(d.devData.p));
     }
     else { computeEOS_Impl(startIndex, endIndex, d); }
 }

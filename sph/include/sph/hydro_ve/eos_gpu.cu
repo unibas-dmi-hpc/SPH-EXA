@@ -43,32 +43,36 @@ namespace cuda
 
 template<class Tt, class Tm, class Thydro>
 __global__ void cudaEOS(size_t firstParticle, size_t lastParticle, Tt mui, Tt gamma, const Tt* temp, const Tm* m,
-                        const Thydro* kx, const Thydro* xm, const Thydro* gradh, Thydro* prho, Thydro* c, Thydro* rho)
+                        const Thydro* kx, const Thydro* xm, const Thydro* gradh, Thydro* prho, Thydro* c, Thydro* rho,
+                        Thydro* p)
 {
     unsigned i = firstParticle + blockDim.x * blockIdx.x + threadIdx.x;
     if (i >= lastParticle) return;
 
-    Thydro p;
-    Thydro rho_i       = kx[i] * m[i] / xm[i];
-    util::tie(p, c[i]) = idealGasEOS(temp[i], rho_i, mui, gamma);
-    prho[i]            = p / (kx[i] * m[i] * m[i] * gradh[i]);
+    Thydro p_i;
+    Thydro rho_i         = kx[i] * m[i] / xm[i];
+    util::tie(p_i, c[i]) = idealGasEOS(temp[i], rho_i, mui, gamma);
+    prho[i]              = p_i / (kx[i] * m[i] * m[i] * gradh[i]);
     if (rho) { rho[i] = rho_i; }
+    if (p) { p[i] = p_i; }
 }
 
 template<class Tt, class Tm, class Thydro>
 void computeEOS(size_t firstParticle, size_t lastParticle, Tt mui, Tt gamma, const Tt* temp, const Tm* m,
-                const Thydro* kx, const Thydro* xm, const Thydro* gradh, Thydro* prho, Thydro* c, Thydro* rho)
+                const Thydro* kx, const Thydro* xm, const Thydro* gradh, Thydro* prho, Thydro* c, Thydro* rho,
+                Thydro* p)
 {
     unsigned numThreads = 256;
     unsigned numBlocks  = iceil(lastParticle - firstParticle, numThreads);
-    cudaEOS<<<numBlocks, numThreads>>>(firstParticle, lastParticle, mui, gamma, temp, m, kx, xm, gradh, prho, c, rho);
+    cudaEOS<<<numBlocks, numThreads>>>(firstParticle, lastParticle, mui, gamma, temp, m, kx, xm, gradh, prho, c, rho,
+                                       p);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
 #define COMPUTE_EOS(Ttemp, Tm, Thydro)                                                                                 \
     template void computeEOS(size_t firstParticle, size_t lastParticle, Ttemp mui, Ttemp gamma, const Ttemp* temp,     \
                              const Tm* m, const Thydro* kx, const Thydro* xm, const Thydro* gradh, Thydro* prho,       \
-                             Thydro* c, Thydro* rho)
+                             Thydro* c, Thydro* rho, Thydro* p)
 
 COMPUTE_EOS(double, double, double);
 COMPUTE_EOS(double, float, double);

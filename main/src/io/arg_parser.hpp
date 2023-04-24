@@ -122,15 +122,15 @@ std::string strBeforeSign(const std::string& str, const std::string& sign)
     return str.substr(0, commaPos);
 }
 
-//! @brief If the input string ends with @p sign followed by an integer, return the integer, otherwise return 0
+//! @brief If the input string ends with @p sign followed by an integer, return the integer, otherwise return -1
 int numberAfterSign(const std::string& str, const std::string& sign)
 {
     auto commaPos = str.find_first_of(sign);
-    if (commaPos == std::string::npos) { return 0; }
+    if (commaPos == std::string::npos) { return -1; }
 
     std::string afterComma = str.substr(commaPos + sign.size());
 
-    int ret = 0;
+    int ret = -1;
     if (strIsIntegral(afterComma)) { ret = std::stoi(afterComma); }
     return ret;
 }
