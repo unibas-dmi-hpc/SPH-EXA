@@ -77,12 +77,15 @@ cstone::Box<typename HydroData::RealType> restoreHydroData(IFileReader* reader, 
 template<class Dataset>
 class FileInit : public ISimInitializer<Dataset>
 {
-    std::map<std::string, double> constants_;
-    std::string                   h5_fname;
+    mutable std::map<std::string, double> constants_;
+    std::string                           h5_fname;
+
+    int initStep = -1;
 
 public:
-    FileInit(std::string fname)
-        : h5_fname(std::move(fname))
+    FileInit(const std::string& fname)
+        : h5_fname(strBeforeSign(fname, ":"))
+        , initStep(numberAfterSign(fname, ":"))
     {
     }
 
@@ -90,9 +93,21 @@ public:
     {
         std::unique_ptr<IFileReader> reader;
         reader = std::make_unique<H5PartReader>(simData.comm);
-        reader->setStep(h5_fname, -1);
+        reader->setStep(h5_fname, initStep);
 
         auto box = restoreHydroData(reader.get(), rank, simData.hydro);
+
+        // Read file attributes and put them in constants_ such that they propagate to the new output after a restart
+        auto fileAttributes = reader->fileAttributes();
+        for (const auto& attr : fileAttributes)
+        {
+            int64_t sz = reader->fileAttributeSize(attr);
+            if (sz == 1)
+            {
+                constants_[attr] = 0;
+                reader->fileAttribute(attr, &constants_[attr], sz);
+            }
+        }
 
         reader->closeStep();
 
@@ -105,15 +120,21 @@ public:
 template<class Dataset>
 class FileSplitInit : public ISimInitializer<Dataset>
 {
-    std::map<std::string, double> constants_;
-    std::string                   h5_fname;
+    mutable std::map<std::string, double> constants_;
+    std::string                           h5_fname;
 
     int numSplits;
 
 public:
     FileSplitInit(const std::string& fname)
-        : h5_fname(strBeforeSign(fname, ",")), numSplits(numberAfterSign(fname, ","))
+        : h5_fname(strBeforeSign(fname, ","))
+        , numSplits(numberAfterSign(fname, ","))
     {
+        if (numSplits < 1)
+        {
+            throw std::runtime_error("Number of particle splits must be a positive integer. Provided value: " +
+                                     std::to_string(numSplits));
+        }
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int /*nrank*/, size_t /*n*/, Dataset& simData) const override
@@ -121,6 +142,18 @@ public:
         std::unique_ptr<IFileReader> reader;
         reader = std::make_unique<H5PartReader>(simData.comm);
         reader->setStep(h5_fname, -1);
+
+        // Read file attributes and put them in constants_ such that they propagate to the new output after a restart
+        auto fileAttributes = reader->fileAttributes();
+        for (const auto& attr : fileAttributes)
+        {
+            int64_t sz = reader->fileAttributeSize(attr);
+            if (sz == 1)
+            {
+                constants_[attr] = 0;
+                reader->fileAttribute(attr, &constants_[attr], sz);
+            }
+        }
 
         size_t numParticlesInFile = reader->localNumParticles();
         size_t numParticlesSplit  = numParticlesInFile * numSplits;
@@ -133,8 +166,8 @@ public:
         d.loadOrStoreAttributes(reader.get());
 
         d.numParticlesGlobal = reader->globalNumParticles() * numSplits;
-        d.iteration = 1;
-        d.ttot = 0.0;
+        d.iteration          = 1;
+        d.ttot               = 0.0;
         d.minDt /= (100 * numSplits);
         d.minDt_m1 /= (100 * numSplits);
 
@@ -152,7 +185,7 @@ public:
 
 #pragma omp parallel
             {
-                std::mt19937 eng(rank);
+                std::mt19937                      eng(rank);
                 std::uniform_real_distribution<T> rng(0, 1);
 
                 auto ballPoint = [&rng, &eng]()
@@ -215,13 +248,14 @@ public:
         replicateField(reader.get(), "temp", d.temp, T(1));
 
         std::fill(d.du_m1.begin(), d.du_m1.end(), 0);
-        std::transform(d.vx.begin(), d.vx.end(), d.x_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt;});
-        std::transform(d.vy.begin(), d.vy.end(), d.y_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt;});
-        std::transform(d.vz.begin(), d.vz.end(), d.z_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt;});
+        std::transform(d.vx.begin(), d.vx.end(), d.x_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt; });
+        std::transform(d.vy.begin(), d.vy.end(), d.y_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt; });
+        std::transform(d.vz.begin(), d.vz.end(), d.z_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt; });
 
         if (d.isAllocated("alpha"))
         {
-            try {
+            try
+            {
                 replicateField(reader.get(), "alpha", d.alpha, T(1));
             }
             catch (std::runtime_error&)
