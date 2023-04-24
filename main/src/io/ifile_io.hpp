@@ -40,19 +40,22 @@
 namespace sphexa
 {
 
-class IFileWriter
+struct IO
 {
     template<class T>
     using ConstPtr = const T*;
 
+    using Types = util::TypeList<double, float, char, int, int64_t, unsigned, uint64_t>;
+};
+
+class IFileWriter
+{
     template<class T>
     using ToVec = const std::vector<T>;
 
-    using Types = util::TypeList<double, float, char, int, int64_t, unsigned, uint64_t>;
-
 public:
-    using FieldType   = util::Reduce<std::variant, util::Map<ConstPtr, Types>>;
-    using FieldVector = util::Reduce<std::variant, util::Map<ToVec, Types>>;
+    using FieldType   = util::Reduce<std::variant, util::Map<IO::ConstPtr, IO::Types>>;
+    using FieldVector = util::Reduce<std::variant, util::Map<ToVec, IO::Types>>;
 
     virtual void constants(const std::map<std::string, double>& c, std::string path) const = 0;
 
@@ -61,7 +64,7 @@ public:
     virtual ~IFileWriter() = default;
 
     virtual void    addStep(size_t firstIndex, size_t lastIndex, std::string path) = 0;
-    virtual int64_t stepAttributeSize(const std::string& key) { return 0; }
+    virtual int64_t stepAttributeSize(const std::string& /*key*/) { return 0; }
     virtual void    stepAttribute(const std::string& key, FieldType val, int64_t size) = 0;
     virtual void    writeField(const std::string& key, FieldType field, int col)       = 0;
     virtual void    closeStep()                                                        = 0;
@@ -70,19 +73,68 @@ public:
 class IFileReader
 {
 public:
-    using FieldType = std::variant<double*, float*, char*, int*, int64_t*, unsigned*, uint64_t*>;
+    using FieldType = util::Reduce<std::variant, util::Map<std::add_pointer_t, IO::Types>>;
 
     virtual ~IFileReader() = default;
 
-    virtual void     setStep(std::string path, int step)                                = 0;
-    virtual int64_t  fileAttributeSize(const std::string& key)                          = 0;
-    virtual int64_t  stepAttributeSize(const std::string& key)                          = 0;
-    virtual void     fileAttribute(const std::string& key, FieldType val, int64_t size) = 0;
-    virtual void     stepAttribute(const std::string& key, FieldType val, int64_t size) = 0;
-    virtual void     readField(const std::string& key, FieldType field)                 = 0;
-    virtual uint64_t localNumParticles()                                                = 0;
-    virtual uint64_t globalNumParticles()                                               = 0;
-    virtual void     closeStep()                                                        = 0;
+    virtual void                     setStep(std::string path, int step)                                = 0;
+    virtual std::vector<std::string> fileAttributes()                                                   = 0;
+    virtual std::vector<std::string> stepAttributes()                                                   = 0;
+    virtual int64_t                  fileAttributeSize(const std::string& key)                          = 0;
+    virtual int64_t                  stepAttributeSize(const std::string& key)                          = 0;
+    virtual void                     fileAttribute(const std::string& key, FieldType val, int64_t size) = 0;
+    virtual void                     stepAttribute(const std::string& key, FieldType val, int64_t size) = 0;
+    virtual void                     readField(const std::string& key, FieldType field)                 = 0;
+    virtual uint64_t                 localNumParticles()                                                = 0;
+    virtual uint64_t                 globalNumParticles()                                               = 0;
+    virtual void                     closeStep()                                                        = 0;
+};
+
+//! @brief Used to initialize particle dataset attributes from builtin named test-cases
+class BuiltinWriter
+{
+    // value_type should be generalized to std::variant
+    using AttributeMap = std::map<std::string, double>;
+
+public:
+    using FieldType = util::Reduce<std::variant, util::Map<std::add_pointer_t, IO::Types>>;
+
+    explicit BuiltinWriter(AttributeMap attrs)
+        : attributes_(std::move(attrs))
+    {
+    }
+
+    void stepAttribute(const std::string& key, FieldType val, int64_t /*size*/)
+    {
+        std::visit([this, &key](auto arg) { *arg = attributes_.at(key); }, val);
+    };
+
+private:
+    AttributeMap attributes_;
+};
+
+//! @brief Used to read the default values of dataset attributes
+class BuiltinReader
+{
+    // value_type should be generalized to std::variant
+    using AttributeMap = std::map<std::string, double>;
+
+public:
+    using FieldType = util::Reduce<std::variant, util::Map<std::add_pointer_t, IO::Types>>;
+
+    explicit BuiltinReader(AttributeMap& attrs)
+        : attributes_(attrs)
+    {
+    }
+
+    void stepAttribute(const std::string& key, FieldType val, int64_t /*size*/)
+    {
+        std::visit([this, &key](auto arg) { attributes_[key] = *arg; }, val);
+    };
+
+private:
+    //! @brief reference to attributes
+    AttributeMap& attributes_;
 };
 
 } // namespace sphexa

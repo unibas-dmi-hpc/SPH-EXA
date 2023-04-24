@@ -32,9 +32,9 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <filesystem>
 #include <iostream>
 #include <string>
-#include <memory>
 #include <vector>
 
 #include "cstone/domain/domain.hpp"
@@ -57,6 +57,7 @@ using AccType = cstone::GpuTag;
 using AccType = cstone::CpuTag;
 #endif
 
+namespace fs = std::filesystem;
 using namespace sphexa;
 
 bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr);
@@ -87,15 +88,15 @@ int main(int argc, char** argv)
     std::vector<std::string> writeExtra        = parser.getCommaList("--wextra");
     std::vector<std::string> outputFields      = parser.getCommaList("-f");
     const bool               ascii             = parser.exists("--ascii");
-    const std::string        outDirectory      = parser.get("--outDir");
     const bool               quiet             = parser.exists("--quiet");
     const bool               avClean           = parser.exists("--avclean");
     const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
     const bool               writeEnabled      = writeFrequencyStr != "0" || !writeExtra.empty();
+    std::string              outFile           = parser.get("-o", "./dump_" + initCond);
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
-    std::ofstream constantsFile(outDirectory + "constants.txt");
+    std::ofstream constantsFile(fs::path(outFile).parent_path() / fs::path("constants.txt"));
 
     //! @brief evaluate user choice for different kind of actions
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
@@ -122,7 +123,7 @@ int main(int argc, char** argv)
     bool  haveGrav = (d.g != 0.0);
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 
-    const std::string outFile = parser.get("-o", outDirectory + "dump_" + initCond + fileWriter->suffix());
+    if (!parser.exists("-o")) { outFile += fileWriter->suffix(); }
     if (rank == 0 && writeEnabled) { fileWriter->constants(simInit->constants(), outFile); }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 

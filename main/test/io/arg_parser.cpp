@@ -79,10 +79,10 @@ TEST(IO, isPeriodicOutputStep)
 
 TEST(IO, numberAfterSign)
 {
-    EXPECT_EQ(numberAfterSign("chkp.h5", ","), 0);
+    EXPECT_EQ(numberAfterSign("chkp.h5", ","), -1);
     EXPECT_EQ(numberAfterSign("chkp.h5,1", ","), 1);
     EXPECT_EQ(numberAfterSign("chkp.h5,42", ","), 42);
-    EXPECT_EQ(numberAfterSign("chkp.h5,42,42", ","), 0);
+    EXPECT_EQ(numberAfterSign("chkp.h5,42,42", ","), -1);
 
     EXPECT_EQ(numberAfterSign("chkp.h5-O_O-42", "-O_O-"), 42);
 }

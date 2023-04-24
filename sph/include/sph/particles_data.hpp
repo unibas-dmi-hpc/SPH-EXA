@@ -90,7 +90,7 @@ public:
     T linmom{0.0}, angmom{0.0};
 
     //! current and previous (global) time-steps
-    T minDt, minDt_m1;
+    T minDt{1e-12}, minDt_m1{1e-12};
 
     //! temporary MPI rank local timesteps;
     T minDtCourant{INFINITY}, minDtRho{INFINITY};
@@ -112,6 +112,7 @@ public:
     //! @brief mean molecular weight of ions for models that use one value for all particles
     T muiConst{10.0};
 
+    //! @brief Unified interface to attribute initialization, reading and writing
     template<class Archive>
     void loadOrStoreAttributes(Archive* ar)
     {
