@@ -34,6 +34,7 @@
 #include <map>
 
 #include "cstone/sfc/box.hpp"
+#include "cstone/tree/continuum.hpp"
 #include "sph/eos.hpp"
 
 #include "isim_init.hpp"
@@ -109,6 +110,30 @@ void contractRhoProfile(Vector& x, Vector& y, Vector& z)
         y[i] *= contraction;
         z[i] *= contraction;
     }
+}
+
+//! @brief Estimate SFC partition of the Evrard sphere based on approximate continuum particle counts
+template<class KeyType, class T>
+std::tuple<KeyType, KeyType> estimateEvrardSfcPartition(size_t cbrtNumPart, const cstone::Box<T>& box, int rank,
+                                                        int numRanks)
+{
+    size_t numParticlesGlobal = 0.523 * cbrtNumPart * cbrtNumPart * cbrtNumPart;
+    T      r                  = box.xmax();
+
+    double   eps        = 2.0 * r / (1u << cstone::maxTreeLevel<KeyType>{});
+    unsigned bucketSize = numParticlesGlobal / (100 * numRanks);
+
+    auto oneOverR = [numParticlesGlobal, r, eps](T x, T y, T z)
+    {
+        T radius = std::max(std::sqrt(norm2(cstone::Vec3<T>{x, y, z})), eps);
+        if (radius > r) { return 0.0; }
+        else { return T(numParticlesGlobal) / (2 * M_PI * radius); }
+    };
+
+    auto [tree, counts]            = cstone::computeContinuumCsarray<KeyType>(oneOverR, box, bucketSize);
+    cstone::SpaceCurveAssignment a = cstone::singleRangeSfcSplit(counts, numRanks);
+
+    return {tree[a.firstNodeIdx(rank)], tree[a.lastNodeIdx(rank)]};
 }
 
 template<class Dataset>

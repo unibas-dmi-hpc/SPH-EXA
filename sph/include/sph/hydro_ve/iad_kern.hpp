@@ -91,8 +91,8 @@ HOST_DEVICE_FUN inline void IADJLoop(cstone::LocalIndex i, T sincIndex, T K, con
     // taus should be multiplied by norm, so det should be norm**3
     // but we are interested on cXX vectors which are tau**2/det
     // That is 1/norm, so it is enough to multiply det by norm and
-    // that gives cxx/norm.
-    T factor = T(1) / (det * norm);
+    // that gives cxx/norm. det can be zero due to numerical underflow
+    T factor = (det == T(0)) ? T(0) : T(1) / (det * norm);
 
     c11[i] = (tau22 * tau33 - tau23 * tau23) * factor;
     c12[i] = (tau13 * tau23 - tau33 * tau12) * factor;
