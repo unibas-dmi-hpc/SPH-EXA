@@ -251,12 +251,13 @@ sph:build:cuda:sphexa:cpu:
   script:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.2/lib:$LD_LIBRARY_PATH
+    - wget --quiet ${DEPS_PATH}/in/glass.h5
     - echo "sedov:cpu"
-    - /usr/local/bin/sphexa --init sedov -s 1 -n 50
+    - /usr/local/bin/sphexa --init sedov --prop std -s 1 -n 50
     - echo "sedov+ve:cpu"
-    - /usr/local/bin/sphexa --init sedov --ve -s 1 -n 50
+    - /usr/local/bin/sphexa --init sedov --prop ve -s 1 -n 50
     - echo "noh:cpu"
-    - /usr/local/bin/sphexa --init noh -s 1 -n 50 
+    - /usr/local/bin/sphexa --init noh --glass ./glass.h5 -s 1 -n 50
   variables:
     USE_MPI: 'YES'
     SLURM_CONSTRAINT: 'gpu'
@@ -270,7 +271,7 @@ sph:build:cuda:sphexa:cpu:
 #{{{ sph:test:cuda:sphexa:gpu:
 # TODO: MPICH_RDMA_ENABLED_CUDA=1 LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcuda.so
 sph:build:cuda:sphexa:gpu:
-  needs: ['sph:pull:cuda']
+  needs: ['sph:pull:cuda' ]
   extends: .daint
   stage: SPHtest
   image: ${BUILD_CUDA}
@@ -278,16 +279,16 @@ sph:build:cuda:sphexa:gpu:
     - echo "SLURMD_NODENAME=${SLURMD_NODENAME} SLURM_NODEID=${SLURM_NODEID} SLURM_PROCID=${SLURM_PROCID}"
     - export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.2/lib:$LD_LIBRARY_PATH
     - ln -fs /usr/local/bin/sedov_solution .
+    - wget --quiet ${DEPS_PATH}/in/glass.h5
     - echo "# --- sedov:gpu"
-    - /usr/local/bin/sphexa-cuda --init sedov -s 200 -n 50 -w 200 --outDir /scratch/ --quiet |grep -v "Focus Tree Nodes:"
-    - python3 /usr/local/bin/compare_solutions.py -s 200 /scratch/dump_sedov.h5 > /scratch/sedov.rpt
+    - /usr/local/bin/sphexa-cuda --init sedov -s 200 -n 50 -w 200 -f x,y,z,h,m,p,rho,vx,vy,vz,temp -o /scratch/out_sedov.h5 --quiet
+    - python3 /usr/local/bin/compare_solutions.py -s 200 /scratch/out_sedov.h5 > /scratch/sedov.rpt
     #
     - echo "# --- noh:gpu"
-    - /usr/local/bin/sphexa-cuda --init noh -s 200 -n 50 -w 200 --outDir /scratch/ --quiet |grep -v "Focus Tree Nodes:"
-    - python3 /usr/local/bin/compare_noh.py -s 200 /scratch/dump_noh.h5 > /scratch/noh.rpt
+    - /usr/local/bin/sphexa-cuda --init noh --glass ./glass.h5 -s 200 -n 50 -w 200 -f x,y,z,h,m,p,rho,vx,vy,vz,temp -o /scratch/out_noh.h5 --quiet
+    - python3 /usr/local/bin/compare_noh.py -s 200 /scratch/out_noh.h5 > /scratch/noh.rpt
     - echo "# --- evrard:gpu"
-    - wget --quiet ${DEPS_PATH}/in/glass.h5
-    - /usr/local/bin/sphexa-cuda --init evrard --glass ./glass.h5 -s 10 -n 50 -w 10 --outDir /scratch/ --quiet |grep -v "Focus Tree Nodes:"
+    - /usr/local/bin/sphexa-cuda --init evrard --glass ./glass.h5 -s 10 -n 50 -w 10 --outDir /scratch/ --quiet
     - echo "# --- rpt:"
     - cat /scratch/sedov.rpt
     - cat /scratch/noh.rpt

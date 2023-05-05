@@ -53,8 +53,9 @@ public:
     using Base      = IFileWriter;
     using FieldType = typename Base::FieldType;
 
-    H5PartWriter(MPI_Comm comm)
+    explicit H5PartWriter(MPI_Comm comm)
         : comm_(comm)
+        , h5File_(nullptr)
     {
     }
 
@@ -136,13 +137,15 @@ public:
     using Base      = IFileReader;
     using FieldType = typename Base::FieldType;
 
-    H5PartReader(MPI_Comm comm)
+    explicit H5PartReader(MPI_Comm comm)
         : comm_(comm)
+        , h5File_{nullptr}
     {
     }
 
     void setStep(std::string path, int step) override
     {
+        if (h5File_) { closeStep(); }
         pathStep_ = path;
         h5File_   = fileutils::openH5Part(path, H5PART_READ | H5PART_VFD_MPIIO_IND, comm_);
 
@@ -161,6 +164,18 @@ public:
         localCount_                       = lastIndex_ - firstIndex_;
 
         H5PartSetView(h5File_, firstIndex_, lastIndex_ - 1);
+    }
+
+    std::vector<std::string> fileAttributes() override
+    {
+        if (h5File_) { return fileutils::fileAttributeNames(h5File_); }
+        else { throw std::runtime_error("Cannot read file attributes: file not opened\n"); }
+    }
+
+    std::vector<std::string> stepAttributes() override
+    {
+        if (h5File_) { return fileutils::stepAttributeNames(h5File_); }
+        else { throw std::runtime_error("Cannot read file attributes: file not opened\n"); }
     }
 
     int64_t fileAttributeSize(const std::string& key) override

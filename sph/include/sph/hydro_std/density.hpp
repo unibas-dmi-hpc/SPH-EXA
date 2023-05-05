@@ -81,6 +81,7 @@ void computeDensity(size_t startIndex, size_t endIndex, Dataset& d, const cstone
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
+        computeTargetGroups(startIndex, endIndex, d, box);
         computeDensityGpu(startIndex, endIndex, d, box);
     }
     else { computeDensityImpl(startIndex, endIndex, d, box); }

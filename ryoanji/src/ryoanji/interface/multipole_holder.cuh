@@ -51,10 +51,14 @@ public:
                  const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles);
 
+    void createGroups(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Th* h,
+                      const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree,
+                      const cstone::LocalIndex* layout, const cstone::Box<Tc>& box);
+
     float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                   const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az);
 
-    util::array<uint64_t, 4> readStats() const;
+    util::array<uint64_t, 5> readStats() const;
 
     const MType* deviceMultipoles() const;
 
@@ -62,5 +66,9 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 };
+
+template<class T>
+void directSum(size_t first, size_t last, size_t numBodies, const T* x, const T* y, const T* z, const T* m, const T* h,
+               T* p, T* ax, T* ay, T* az);
 
 } // namespace ryoanji

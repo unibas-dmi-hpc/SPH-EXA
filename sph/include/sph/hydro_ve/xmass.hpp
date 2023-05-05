@@ -74,6 +74,7 @@ void computeXMass(size_t startIndex, size_t endIndex, Dataset& d, const cstone::
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
+        computeTargetGroups(startIndex, endIndex, d, box);
         cuda::computeXMass(startIndex, endIndex, d, box);
     }
     else { computeXMassImpl(startIndex, endIndex, d, box); }

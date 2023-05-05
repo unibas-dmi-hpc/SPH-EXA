@@ -87,27 +87,19 @@ template<class Dataset>
 void computeAVswitches(size_t startIndex, size_t endIndex, Dataset& d,
                        const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
-    unsigned numBodies        = endIndex - startIndex;
-    unsigned numWarps         = (numBodies - 1) / TravConfig::targetSize + 1;
-    unsigned numBlocks        = (numWarps - 1) / numWarpsPerBlock + 1;
-    numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+    unsigned numBodies = endIndex - startIndex;
+    unsigned numBlocks = TravConfig::numBlocks(numBodies);
 
-    unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    unsigned nidxSize = d.ngmax * numBlocks * TravConfig::numThreads;
-    reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
-    auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
-    auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
-
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     AVswitchesGpu<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, d.ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x), rawPtr(d.devData.y),
-        rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h),
-        rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
-        rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.kx),
-        rawPtr(d.devData.xm), rawPtr(d.devData.divv), d.minDt, d.alphamin, d.alphamax, d.decay_constant,
-        rawPtr(d.devData.alpha), nidxPool, traversalPool);
+        d.sincIndex, d.K, d.ngmax, box, startIndex, endIndex, d.treeView.nsView(), rawPtr(d.devData.x),
+        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
+        rawPtr(d.devData.h), rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13),
+        rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh),
+        rawPtr(d.devData.whd), rawPtr(d.devData.kx), rawPtr(d.devData.xm), rawPtr(d.devData.divv), d.minDt, d.alphamin,
+        d.alphamax, d.decay_constant, rawPtr(d.devData.alpha), nidxPool, traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 

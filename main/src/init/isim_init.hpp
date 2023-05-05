@@ -34,6 +34,7 @@
 #include <map>
 
 #include "cstone/sfc/box.hpp"
+#include "io/ifile_io.hpp"
 
 namespace sphexa
 {
@@ -41,11 +42,29 @@ namespace sphexa
 template<class Dataset>
 class ISimInitializer
 {
+protected:
+    mutable std::map<std::string, double> settings_;
+
 public:
     virtual cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t, Dataset& d) const = 0;
     virtual const std::map<std::string, double>&    constants() const                                      = 0;
 
     virtual ~ISimInitializer() = default;
+
+    ISimInitializer()
+    {
+        BuiltinReader reader(settings_);
+        Dataset       defaultValues;
+        defaultValues.hydro.loadOrStoreAttributes(&reader);
+    }
+
+    void updateSettings(const std::map<std::string, double>& settings)
+    {
+        for (const auto& kv : settings)
+        {
+            settings_[kv.first] = kv.second;
+        }
+    }
 };
 
 } // namespace sphexa

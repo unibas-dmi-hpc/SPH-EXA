@@ -84,6 +84,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     thrust::device_vector<T>       d_x = x, d_y = y, d_z = z, d_h = h, d_m = m;
     thrust::device_vector<T>       s1, s2, s3;
     domain.syncGrav(d_keys, d_x, d_y, d_z, d_h, d_m, std::tuple{}, std::tie(s1, s2, s3));
+    domain.exchangeHalos(std::tie(d_m), s1, s2);
 
     //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
     const cstone::FocusedOctree<KeyType, T, cstone::GpuTag>& focusTree = domain.focusTree();
@@ -95,29 +96,34 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     multipoleHolder.upsweep(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), domain.globalTree(), domain.focusTree(),
                             domain.layout().data(), multipoles.data());
 
-    auto devM = thrust::device_pointer_cast(multipoleHolder.deviceMultipoles());
-    thrust::copy(devM, devM + multipoles.size(), multipoles.data());
+    // Check the root multipole of the distributed tree
+    bool passMultipole = false;
+    {
+        auto devM = thrust::device_pointer_cast(multipoleHolder.deviceMultipoles());
+        thrust::copy(devM, devM + multipoles.size(), multipoles.data());
 
-    MultipoleType globalRootMultipole = multipoles[0];
+        MultipoleType globalRootMultipole = multipoles[0];
 
-    // compute reference root cell multipole from global particle data
-    MultipoleType reference;
-    P2M(coords.x().data(), coords.y().data(), coords.z().data(), globalMasses.data(), 0, numParticles * numRanks,
-        centers[0], reference);
+        // compute reference root cell multipole from global particle data
+        MultipoleType reference;
+        P2M(coords.x().data(), coords.y().data(), coords.z().data(), globalMasses.data(), 0, numParticles * numRanks,
+            centers[0], reference);
 
-    double maxDiff = max(abs(reference - globalRootMultipole));
+        double maxDiff = max(abs(reference - globalRootMultipole));
 
-    bool pass      = maxDiff < 1e-10;
-    int  numPassed = pass;
-    mpiAllreduce(MPI_IN_PLACE, &numPassed, 1, MPI_SUM);
+        bool pass      = maxDiff < 1e-10;
+        int  numPassed = pass;
+        mpiAllreduce(MPI_IN_PLACE, &numPassed, 1, MPI_SUM);
+        if (numPassed == numRanks) { passMultipole = true; }
+    }
 
     if (thisRank == 0)
     {
-        std::string testResult = (numPassed == numRanks) ? "PASS" : "FAIL";
-        std::cout << "Test result: " << testResult << std::endl;
+        std::string testResult = passMultipole ? "PASS" : "FAIL";
+        std::cout << "Upsweep test result: " << testResult << std::endl;
     }
 
-    if (numPassed == numRanks) { return EXIT_SUCCESS; }
+    if (passMultipole) { return EXIT_SUCCESS; }
     else { return EXIT_FAILURE; }
 }
 
