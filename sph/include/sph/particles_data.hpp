@@ -78,8 +78,8 @@ public:
     ParticlesData(const ParticlesData&) = delete;
 
 
-    size_t iteration{1};
-    size_t numParticlesGlobal;
+    KeyType iteration{1};
+    KeyType numParticlesGlobal;
 
 
     //! @brief default mean desired number of neighbors per particle, can be overriden per test case or input file
