@@ -153,14 +153,77 @@ __global__ void directKernelShfl(int numSource, const T* __restrict__ x, const T
 }
 
 template<class T>
+__global__ void directKernelBoth(int numSource, const T* __restrict__ x, const T* __restrict__ y, const T* __restrict__ z,
+                                 const T* __restrict__ m, const T* __restrict__ h, T* p, T* ax, T* ay, T* az)
+{
+    unsigned targetIdx = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned laneIdx   = threadIdx.x & (cstone::GpuConfig::warpSize - 1);
+
+    Vec3<T> pos_i = {T(0), T(0), T(0)};
+    T       h_i   = 1.0;
+    if (targetIdx < numSource)
+    {
+        pos_i = {x[targetIdx], y[targetIdx], z[targetIdx]};
+        h_i   = h[targetIdx];
+    }
+
+    // kvec4<T> acc = {0.0, 0.0, 0.0, 0.0};
+    util::array<T, 4> acc{0, 0, 0, 0};
+
+    __shared__ util::array<T, 5> sm_bodytile[DirectConfig::numThreads];
+    for (int tile = 0; tile < gridDim.x; ++tile)
+    {
+        int sourceIdx = tile * blockDim.x + threadIdx.x;
+        if (sourceIdx < numSource)
+            sm_bodytile[threadIdx.x] = {x[sourceIdx], y[sourceIdx], z[sourceIdx], m[sourceIdx], h[sourceIdx]};
+        else
+            sm_bodytile[threadIdx.x] = {0, 0, 0, 0, 1.0};
+
+        __syncthreads();
+
+        constexpr int numSegments = DirectConfig::numThreads / cstone::GpuConfig::warpSize;
+        for (int s = 0; s < numSegments; ++s)
+        {
+            int               sj         = s * cstone::GpuConfig::warpSize + laneIdx;
+            util::array<T, 5> sourceBody = {sm_bodytile[sj][0], sm_bodytile[sj][1], sm_bodytile[sj][2],
+                                            sm_bodytile[sj][3], sm_bodytile[sj][4]};
+
+            for (int j = 0; j < cstone::GpuConfig::warpSize; ++j)
+            {
+                Vec3<T> pos_j{
+                    cstone::shflSync(sourceBody[0], j),
+                    cstone::shflSync(sourceBody[1], j),
+                    cstone::shflSync(sourceBody[2], j),
+                };
+                T q_j = cstone::shflSync(sourceBody[3], j);
+                T h_j = cstone::shflSync(sourceBody[4], j);
+
+                acc = P2P(acc, pos_i, pos_j, q_j, h_i, h_j);
+            }
+        }
+
+        __syncthreads();
+    }
+
+    if (targetIdx < numSource)
+    {
+        p[targetIdx]  = m[targetIdx] * T(acc[0]);
+        ax[targetIdx] = T(acc[1]);
+        ay[targetIdx] = T(acc[2]);
+        az[targetIdx] = T(acc[3]);
+    }
+}
+
+template<class T>
 void directSum(std::size_t numBodies, const T* x, const T* y, const T* z, const T* m, const T* h, T* p, T* ax, T* ay,
                T* az)
 {
     int numThreads = DirectConfig::numThreads;
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
-    directKernel<<<numBlock, numThreads>>>(numBodies, x, y, z, m, h, p, ax, ay, az);
+    //directKernel<<<numBlock, numThreads>>>(numBodies, x, y, z, m, h, p, ax, ay, az);
     //directKernelShfl<<<numBlock, numThreads>>>(numBodies, x, y, z, m, h, p, ax, ay, az);
+    directKernelBoth<<<numBlock, numThreads>>>(numBodies, x, y, z, m, h, p, ax, ay, az);
     kernelSuccess("direct sum");
 }
 
