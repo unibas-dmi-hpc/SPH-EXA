@@ -47,9 +47,21 @@ namespace sphexa
 
 std::map<std::string, double> IsobaricCubeConstants()
 {
-    return {{"r", .25},         {"rDelta", .25},         {"dim", 3},         {"gamma", 5.0 / 3.0},
-            {"rhoExt", 1.},     {"rhoInt", 8.},          {"pIsobaric", 2.5}, {"firstTimeStep", 1e-4},
-            {"epsilon", 1e-15}, {"pairInstability", 0.}, {"mui", 10.0}};
+    return {{"r", .25},
+            {"rDelta", .25},
+            {"dim", 3},
+            {"gamma", 5.0 / 3.0},
+            {"rhoExt", 1.},
+            {"rhoInt", 8.},
+            {"pIsobaric", 2.5},
+            {"minDt", 1e-4},
+            {"minDt_m1", 1e-4},
+            {"epsilon", 1e-15},
+            {"pairInstability", 0.},
+            {"mui", 10.0},
+            {"gravConstant", 0.0},
+            {"ng0", 100},
+            {"ngmax", 150}};
 }
 
 template<class Dataset>
@@ -57,27 +69,16 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
 {
     using T = typename Dataset::RealType;
 
-    T r      = constants.at("r");
-    T rhoInt = constants.at("rhoInt");
-    T rhoExt = constants.at("rhoExt");
-
-    size_t ng0  = 100;
-    T      hInt = 0.5 * std::pow(3. * ng0 * massPart / 4. / M_PI / rhoInt, 1. / 3.);
-    T      hExt = 0.5 * std::pow(3. * ng0 * massPart / 4. / M_PI / rhoExt, 1. / 3.);
-
+    T r         = constants.at("r");
+    T rhoInt    = constants.at("rhoInt");
+    T rhoExt    = constants.at("rhoExt");
+    T hInt      = 0.5 * std::pow(3. * d.ng0 * massPart / 4. / M_PI / rhoInt, 1. / 3.);
+    T hExt      = 0.5 * std::pow(3. * d.ng0 * massPart / 4. / M_PI / rhoExt, 1. / 3.);
     T pIsobaric = constants.at("pIsobaric");
     T gamma     = constants.at("gamma");
-
-    T uInt = pIsobaric / (gamma - 1.) / rhoInt;
-    T uExt = pIsobaric / (gamma - 1.) / rhoExt;
-
-    T firstTimeStep = constants.at("firstTimeStep");
-    T epsilon       = constants.at("epsilon");
-
-    d.gamma    = constants.at("gamma");
-    d.muiConst = constants.at("mui");
-    d.minDt    = firstTimeStep;
-    d.minDt_m1 = firstTimeStep;
+    T uInt      = pIsobaric / (gamma - 1.) / rhoInt;
+    T uExt      = pIsobaric / (gamma - 1.) / rhoExt;
+    T epsilon   = constants.at("epsilon");
 
     auto cv = sph::idealGasCv(d.muiConst, d.gamma);
 
@@ -118,9 +119,9 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
             d.temp[i] = uInt / cv;
         }
 
-        d.x_m1[i] = d.vx[i] * firstTimeStep;
-        d.y_m1[i] = d.vy[i] * firstTimeStep;
-        d.z_m1[i] = d.vz[i] * firstTimeStep;
+        d.x_m1[i] = d.vx[i] * constants.at("minDt");
+        d.y_m1[i] = d.vy[i] * constants.at("minDt");
+        d.z_m1[i] = d.vz[i] * constants.at("minDt");
     }
 }
 
@@ -228,14 +229,15 @@ void compressCenterCube(gsl::span<T> x, gsl::span<T> y, gsl::span<T> z, T rInt, 
 template<class Dataset>
 class IsobaricCubeGlass : public ISimInitializer<Dataset>
 {
-    std::string                   glassBlock;
-    std::map<std::string, double> constants_;
+    std::string glassBlock;
+    using Base = ISimInitializer<Dataset>;
+    using Base::settings_;
 
 public:
-    IsobaricCubeGlass(std::string initBlock)
-        : glassBlock(initBlock)
+    explicit IsobaricCubeGlass(std::string initBlock)
+        : glassBlock(std::move(initBlock))
     {
-        constants_ = IsobaricCubeConstants();
+        Base::updateSettings(IsobaricCubeConstants());
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
@@ -245,18 +247,18 @@ public:
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
-        T r       = constants_.at("r");
-        T rhoInt  = constants_.at("rhoInt");
-        T rhoExt  = constants_.at("rhoExt");
-        T epsilon = constants_.at("pairInstability");
+        T r       = settings_.at("r");
+        T rhoInt  = settings_.at("rhoInt");
+        T rhoExt  = settings_.at("rhoExt");
+        T epsilon = settings_.at("pairInstability");
 
         std::vector<T> xBlock, yBlock, zBlock;
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
-        int               multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
-        cstone::Vec3<int> multiplicity = {multi1D, multi1D, multi1D};
-        d.numParticlesGlobal           = multi1D * multi1D * multi1D * blockSize;
+        int               multi1D            = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        cstone::Vec3<int> multiplicity       = {multi1D, multi1D, multi1D};
+        size_t            numParticlesGlobal = multi1D * multi1D * multi1D * blockSize;
 
         cstone::Box<T> globalBox(-2 * r, 2 * r, cstone::BoundaryType::periodic);
         auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
@@ -265,7 +267,7 @@ public:
         T s = computeStretchFactor(r, 2 * r, rhoInt / rhoExt);
         compressCenterCube<T>(d.x, d.y, d.z, r, s, 2. * r, epsilon);
 
-        size_t numParticlesInternal = d.numParticlesGlobal * std::pow(s / (2. * r), 3);
+        size_t numParticlesInternal = numParticlesGlobal * std::pow(s / (2. * r), 3);
 
         // Calculate particle mass with the internal cube
         T innerSide   = 2. * r;
@@ -274,12 +276,17 @@ public:
 
         // Initialize isobaric cube domain variables
         d.resize(d.x.size());
-        initIsobaricCubeFields(d, constants_, massPart);
+
+        settings_["numParticlesGlobal"] = double(numParticlesGlobal);
+        BuiltinWriter attributeSetter(settings_);
+        d.loadOrStoreAttributes(&attributeSetter);
+
+        initIsobaricCubeFields(d, settings_, massPart);
 
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return constants_; }
+    const std::map<std::string, double>& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

@@ -44,12 +44,12 @@ class TimeAndEnergy : public IObservables<Dataset>
     using T = typename Dataset::RealType;
 
 public:
-    TimeAndEnergy(std::ofstream& constPath)
+    explicit TimeAndEnergy(std::ofstream& constPath)
         : constantsFile(constPath)
     {
     }
 
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box) override
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& /*box*/) override
     {
         int rank;
         MPI_Comm_rank(simData.comm, &rank);

@@ -72,7 +72,7 @@ public:
                                 d.ax.data(), d.ay.data(), d.az.data(), &d.egrav);
     }
 
-    util::array<uint64_t, 4> readStats() const { return {0, 0, 0, 0}; }
+    util::array<uint64_t, 5> readStats() const { return {0, 0, 0, 0, 0}; }
 
     const MType* multipoles() const { return multipoles_.data(); }
 
@@ -92,9 +92,13 @@ public:
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const auto& focusTree = domain.focusTree();
 
+        mHolder_.createGroups(domain.startIndex(), domain.endIndex(), rawPtr(d.devData.x), rawPtr(d.devData.y),
+                              rawPtr(d.devData.z), rawPtr(d.devData.h), focusTree, domain.layout().data(),
+                              domain.box());
+
         reallocate(multipoles_, focusTree.octreeViewAcc().numNodes, 1.05);
         mHolder_.upsweep(rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.m),
-                         domain.globalTree(), domain.focusTree(), domain.layout().data(), multipoles_.data());
+                         domain.globalTree(), focusTree, domain.layout().data(), multipoles_.data());
     }
 
     template<class Dataset, class Domain>
@@ -103,10 +107,17 @@ public:
         d.egrav = mHolder_.compute(domain.startIndex(), domain.endIndex(), rawPtr(d.devData.x), rawPtr(d.devData.y),
                                    rawPtr(d.devData.z), rawPtr(d.devData.m), rawPtr(d.devData.h), d.g,
                                    rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az));
+
+        auto stats = mHolder_.readStats();
+
+        auto maxP2P = stats[1];
+        if (maxP2P == 0xFFFFFFFF) { throw std::runtime_error("GPU traversal stack exhausted in Barnes-Hut\n"); }
+
+        d.devData.stackUsedGravity = stats[4];
     }
 
-    //! @brief return numP2P, maxP2P, numM2P, maxM2P stats
-    util::array<uint64_t, 4> readStats() const { return mHolder_.readStats(); }
+    //! @brief return numP2P, maxP2P, numM2P, maxM2P, maxStack stats
+    util::array<uint64_t, 5> readStats() const { return mHolder_.readStats(); }
 
     const MType* multipoles() const { return multipoles_.data(); }
 

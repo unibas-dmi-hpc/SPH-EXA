@@ -30,30 +30,24 @@ addCstoneMpiTest(exchange_domain.cpp exchange_domain GlobalDomainExchange 12)
 addCstoneMpiTest(focus_tree.cpp focus_tree FocusTreeIntregration 12)
 addCstoneMpiTest(domain_nranks.cpp domain_nranks GlobalDomainNRanks 12)
 
-if (CMAKE_CUDA_COMPILER)
-    # workaround for compiling MPI with nvcc on cray systems
-    if (MPI_CXX_INCLUDE_PATH STREQUAL "" AND DEFINED ENV{CRAY_MPICH2_DIR} OR DEFINED ENV{CRAY_MPICH_DIR})
-        message(STATUS "Applying MPI include workaround on CRAY")
-        set(MPI_CXX_INCLUDE_PATH $ENV{MPICH_DIR}/include)
-    endif()
+# workaround for compiling MPI with nvcc on cray systems
+if (CMAKE_CUDA_COMPILER AND MPI_CXX_INCLUDE_PATH STREQUAL "" AND DEFINED ENV{CRAY_MPICH2_DIR} OR DEFINED ENV{CRAY_MPICH_DIR})
+    message(STATUS "Applying MPI include workaround on CRAY")
+    set(MPI_CXX_INCLUDE_PATH $ENV{MPICH_DIR}/include)
+endif ()
 
-    addCstoneMpiTest(exchange_halos_gpu.cpp exchange_halos_gpu GlobalHaloExchangeGpu 2)
-    target_link_libraries(exchange_halos_gpu PRIVATE cstone_gpu CUDA::cudart)
-
-    addCstoneMpiTest(exchange_domain_gpu.cpp exchange_domain_gpu GlobalDomainExchangeGpu 2)
-    target_link_libraries(exchange_domain_gpu PRIVATE cstone_gpu CUDA::cudart)
-
-    addCstoneMpiTest(assignment_gpu.cpp assignment_gpu AssignmentGpu 2)
-    target_link_libraries(assignment_gpu PRIVATE cstone_gpu CUDA::cudart)
-
-    addCstoneMpiTest(domain_gpu.cpp domain_gpu DomainGpu 2)
-    target_link_libraries(domain_gpu PRIVATE cstone_gpu CUDA::cudart)
-
+function(addCstoneGpuMpiTest source exename testname ranks)
+    addCstoneMpiTest(${source} ${exename} ${testname} ${ranks})
+    target_link_libraries(${exename} PRIVATE cstone_gpu CUDA::cudart)
     if (GPU_DIRECT)
-        target_compile_definitions(exchange_halos_gpu PRIVATE USE_GPU_DIRECT)
-        target_compile_definitions(exchange_domain_gpu PRIVATE USE_GPU_DIRECT)
-        target_compile_definitions(assignment_gpu PRIVATE USE_GPU_DIRECT)
-        target_compile_definitions(domain_gpu PRIVATE USE_GPU_DIRECT)
-    endif()
-endif()
+        target_compile_definitions(${exename} PRIVATE USE_GPU_DIRECT)
+    endif ()
+endfunction()
+
+if (CMAKE_CUDA_COMPILER)
+    addCstoneGpuMpiTest(exchange_halos_gpu.cpp exchange_halos_gpu GlobalHaloExchangeGpu 2)
+    addCstoneGpuMpiTest(exchange_domain_gpu.cpp exchange_domain_gpu GlobalDomainExchangeGpu 2)
+    addCstoneGpuMpiTest(assignment_gpu.cpp assignment_gpu AssignmentGpu 2)
+    addCstoneGpuMpiTest(domain_gpu.cpp domain_gpu DomainGpu 2)
+endif ()
 

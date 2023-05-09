@@ -50,20 +50,10 @@ namespace sphexa
 
 std::map<std::string, double> WindShockConstants()
 {
-    return {{"r", .125},
-            {"rSphere", .025},
-            {"rhoInt", 10.},
-            {"rhoExt", 1.},
-            {"uExt", 3. / 2.},
-            {"vxExt", 2.7},
-            {"vyExt", .0},
-            {"vzExt", .0},
-            {"dim", 3},
-            {"gamma", 5. / 3.},
-            {"firstTimeStep", 1e-10},
-            {"Kcour", 0.4},
-            {"epsilon", 0.},
-            {"mui", 10.}};
+    return {{"r", .125},           {"rSphere", .025},   {"rhoInt", 10.}, {"rhoExt", 1.},     {"uExt", 3. / 2.},
+            {"vxExt", 2.7},        {"vyExt", .0},       {"vzExt", .0},   {"dim", 3},         {"gamma", 5. / 3.},
+            {"minDt", 1e-10},      {"minDt_m1", 1e-10}, {"Kcour", 0.4},  {"epsilon", 0.},    {"mui", 10.},
+            {"gravConstant", 0.0}, {"ng0", 100},        {"ngmax", 150},  {"wind-shock", 1.0}};
 }
 
 template<class Dataset>
@@ -71,26 +61,18 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
 {
     using T = typename Dataset::RealType;
 
-    T r             = constants.at("r");
-    T rSphere       = constants.at("rSphere");
-    T rhoInt        = constants.at("rhoInt");
-    T rhoExt        = constants.at("rhoExt");
-    T uExt          = constants.at("uExt");
-    T vxExt         = constants.at("vxExt");
-    T vyExt         = constants.at("vyExt");
-    T vzExt         = constants.at("vzExt");
-    T firstTimeStep = constants.at("firstTimeStep");
-    T epsilon       = constants.at("epsilon");
+    T r       = constants.at("r");
+    T rSphere = constants.at("rSphere");
+    T rhoInt  = constants.at("rhoInt");
+    T rhoExt  = constants.at("rhoExt");
+    T uExt    = constants.at("uExt");
+    T vxExt   = constants.at("vxExt");
+    T vyExt   = constants.at("vyExt");
+    T vzExt   = constants.at("vzExt");
+    T epsilon = constants.at("epsilon");
 
-    size_t ng0  = 100;
-    T      hInt = 0.5 * std::cbrt(3. * ng0 * massPart / 4. / M_PI / rhoInt);
-    T      hExt = 0.5 * std::cbrt(3. * ng0 * massPart / 4. / M_PI / rhoExt);
-
-    d.gamma    = constants.at("gamma");
-    d.muiConst = constants.at("mui");
-    d.Kcour    = constants.at("Kcour");
-    d.minDt    = firstTimeStep;
-    d.minDt_m1 = firstTimeStep;
+    T hInt = 0.5 * std::cbrt(3. * d.ng0 * massPart / 4. / M_PI / rhoInt);
+    T hExt = 0.5 * std::cbrt(3. * d.ng0 * massPart / 4. / M_PI / rhoExt);
 
     auto cv = sph::idealGasCv(d.muiConst, d.gamma);
 
@@ -101,7 +83,7 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
 
     T uInt = uExt / (rhoInt / rhoExt);
 
-    T k = 150. / r;
+    T k = d.ngmax / r;
 
     util::array<T, 3> blobCenter{r, r, r};
 
@@ -139,23 +121,24 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
             d.vz[i]   = 0.;
         }
 
-        d.x_m1[i] = d.vx[i] * firstTimeStep;
-        d.y_m1[i] = d.vy[i] * firstTimeStep;
-        d.z_m1[i] = d.vz[i] * firstTimeStep;
+        d.x_m1[i] = d.vx[i] * d.minDt;
+        d.y_m1[i] = d.vy[i] * d.minDt;
+        d.z_m1[i] = d.vz[i] * d.minDt;
     }
 }
 
 template<class Dataset>
 class WindShockGlass : public ISimInitializer<Dataset>
 {
-    std::string                   glassBlock;
-    std::map<std::string, double> constants_;
+    std::string glassBlock;
+    using Base = ISimInitializer<Dataset>;
+    using Base::settings_;
 
 public:
     WindShockGlass(std::string initBlock)
         : glassBlock(initBlock)
     {
-        constants_ = WindShockConstants();
+        Base::updateSettings(WindShockConstants());
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
@@ -165,10 +148,10 @@ public:
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
-        T r       = constants_.at("r");
-        T rSphere = constants_.at("rSphere");
-        T rhoInt  = constants_.at("rhoInt");
-        T rhoExt  = constants_.at("rhoExt");
+        T r       = settings_.at("r");
+        T rSphere = settings_.at("rSphere");
+        T rhoInt  = settings_.at("rhoInt");
+        T rhoExt  = settings_.at("rhoExt");
 
         T densityRatio   = rhoInt / rhoExt;
         T cubeVolume     = std::pow(2 * r, 3);
@@ -221,22 +204,26 @@ public:
         MPI_Allreduce(MPI_IN_PLACE, &numParticlesInternal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
         T massPart = innerVolume * rhoInt / numParticlesInternal;
 
-        d.numParticlesGlobal = d.x.size();
-        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
+        size_t numParticlesGlobal = d.x.size();
+        MPI_Allreduce(MPI_IN_PLACE, &numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
 
-        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
+        syncCoords<KeyType>(rank, numRanks, numParticlesGlobal, d.x, d.y, d.z, globalBox);
         d.x.shrink_to_fit();
         d.y.shrink_to_fit();
         d.z.shrink_to_fit();
 
-        // Initialize Wind shock domain variables
         d.resize(d.x.size());
-        initWindShockFields(d, constants_, massPart);
+
+        settings_["numParticlesGlobal"] = double(numParticlesGlobal);
+        BuiltinWriter attributeSetter(settings_);
+        d.loadOrStoreAttributes(&attributeSetter);
+
+        initWindShockFields(d, settings_, massPart);
 
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return constants_; }
+    const std::map<std::string, double>& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

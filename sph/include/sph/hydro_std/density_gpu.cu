@@ -29,8 +29,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <algorithm>
-
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/findneighbors.hpp"
 #include "cstone/traversal/find_neighbors.cuh"
@@ -48,13 +46,13 @@ using cstone::TravConfig;
 using cstone::TreeNodeIndex;
 
 template<class Tc, class Tm, class T, class KeyType>
-__global__ void cudaDensity(T sincIndex, T K, unsigned ng0, unsigned ngmax, cstone::Box<T> box, size_t first,
-                            size_t last, const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc, const Tc* x,
-                            const Tc* y, const Tc* z, T* h, const Tm* m, const T* wh, const T* whd, T* rho,
-                            LocalIndex* nidx, TreeNodeIndex* globalPool)
+__global__ void cudaDensity(T sincIndex, T K, unsigned ng0, unsigned ngmax, cstone::Box<T> box,
+                            const cstone::LocalIndex* groups, cstone::LocalIndex numGroups,
+                            const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc, const Tc* x, const Tc* y,
+                            const Tc* z, T* h, const Tm* m, const T* wh, const T* whd, T* rho, LocalIndex* nidx,
+                            TreeNodeIndex* globalPool)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
-    unsigned numTargets  = (last - first - 1) / TravConfig::targetSize + 1;
     unsigned targetIdx   = 0;
     unsigned warpIdxGrid = (blockDim.x * blockIdx.x + threadIdx.x) >> GpuConfig::warpSizeLog2;
 
@@ -66,10 +64,10 @@ __global__ void cudaDensity(T sincIndex, T K, unsigned ng0, unsigned ngmax, csto
         if (laneIdx == 0) { targetIdx = atomicAdd(&cstone::targetCounterGlob, 1); }
         targetIdx = cstone::shflSync(targetIdx, 0);
 
-        if (targetIdx >= numTargets) { return; }
+        if (targetIdx >= numGroups) { return; }
 
-        cstone::LocalIndex bodyBegin = first + targetIdx * TravConfig::targetSize;
-        cstone::LocalIndex bodyEnd   = cstone::imin(bodyBegin + TravConfig::targetSize, last);
+        cstone::LocalIndex bodyBegin = groups[targetIdx];
+        cstone::LocalIndex bodyEnd   = groups[targetIdx + 1];
         cstone::LocalIndex i         = bodyBegin + laneIdx;
 
         auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
@@ -77,13 +75,13 @@ __global__ void cudaDensity(T sincIndex, T K, unsigned ng0, unsigned ngmax, csto
         constexpr int ncMaxIteration = 10;
         for (int ncIt = 0; ncIt < ncMaxIteration; ++ncIt)
         {
-            bool repeat = (ncTrue[0] < ng0 / 4 || ncTrue[0] > ngmax) && i < last;
+            bool repeat = (ncTrue[0] < ng0 / 4 || ncTrue[0] > ngmax) && i < bodyEnd;
             if (!cstone::ballotSync(repeat)) { break; }
             if (repeat) h[i] = updateH(ng0, ncTrue[0], h[i]);
             ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
         }
 
-        if (i >= last) { continue; }
+        if (i >= bodyEnd) { continue; }
 
         unsigned ncCapped = stl::min(ncTrue[0], ngmax);
         rho[i] = sph::densityJLoop<TravConfig::targetSize>(i, sincIndex, K, box, neighborsWarp + laneIdx, ncCapped, x,
@@ -96,24 +94,18 @@ template<class Dataset>
 void computeDensityGpu(size_t startIndex, size_t endIndex, Dataset& d,
                        const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
-    unsigned numBodies        = endIndex - startIndex;
-    unsigned numWarps         = (numBodies - 1) / TravConfig::targetSize + 1;
-    unsigned numBlocks        = (numWarps - 1) / numWarpsPerBlock + 1;
-    numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+    unsigned numBodies = endIndex - startIndex;
+    unsigned numBlocks = TravConfig::numBlocks(numBodies);
 
-    unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    unsigned nidxSize = d.ngmax * numBlocks * TravConfig::numThreads;
-    reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
-    auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
-    auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
-
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
     cstone::resetTraversalCounters<<<1, 1>>>();
 
+    unsigned numGroups = d.devData.targetGroups.size() - 1;
     cudaDensity<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, d.ng0, d.ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.nc),
-        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m),
-        rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.rho), nidxPool, traversalPool);
+        d.sincIndex, d.K, d.ng0, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(),
+        rawPtr(d.devData.nc), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
+        rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.rho), nidxPool,
+        traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 

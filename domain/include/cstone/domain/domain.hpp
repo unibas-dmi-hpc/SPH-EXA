@@ -338,16 +338,10 @@ public:
     //! @brief return the coordinate bounding box from the previous sync call
     const Box<T>& box() const { return global_.box(); }
 
-    OctreeNsView<T, KeyType> octreeNsViewAcc() const
+    OctreeProperties<T, KeyType> octreeProperties() const
     {
-        auto v = focusTree_.octreeViewAcc();
-        return {v.prefixes,
-                v.childOffsets,
-                v.internalToLeaf,
-                v.levelRange,
-                rawPtr(layoutAcc_),
-                focusTree_.geoCentersAcc().data(),
-                focusTree_.geoSizesAcc().data()};
+        return {focusTree_.octreeViewAcc(), focusTree_.geoCentersAcc().data(), focusTree_.geoSizesAcc().data(),
+                focusTree_.treeLeavesAcc().data(), rawPtr(layoutAcc_)};
     }
 
 private:

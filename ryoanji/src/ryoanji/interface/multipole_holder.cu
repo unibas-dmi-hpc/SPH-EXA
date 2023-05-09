@@ -34,6 +34,7 @@
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/util/reallocate.hpp"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
+#include "ryoanji/nbody/direct.cuh"
 #include "ryoanji/nbody/upwardpass.cuh"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
 #include "ryoanji/nbody/traversal.cuh"
@@ -108,42 +109,52 @@ public:
         }
     }
 
-    float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
+    void createGroups(LocalIndex first, LocalIndex last, const Tc* x, const Tc* y, const Tc* z, const Th* h,
+                      const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree,
+                      const cstone::LocalIndex* layout, const cstone::Box<Tc>& box)
+    {
+        thrust::device_vector<util::array<GpuConfig::ThreadMask, TravConfig::nwt>> S;
+
+        auto  d_leaves  = focusTree.treeLeavesAcc();
+        float tolFactor = 2.0f;
+        cstone::computeGroupSplits<TravConfig::targetSize>(first, last, x, y, z, h, d_leaves.data(),
+                                                           d_leaves.size() - 1, layout, box, tolFactor, S,
+                                                           traversalStack_, targets_);
+    }
+
+    float compute(LocalIndex /*firstBody*/, LocalIndex /*lastBody*/, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                   const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az)
     {
+        int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
+        int numTargets       = targets_.size() - 1;
+        int numBlocks        = iceil(numTargets, numWarpsPerBlock);
+        numBlocks            = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+        LocalIndex poolSize  = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
+
         resetTraversalCounters<<<1, 1>>>();
 
-        constexpr int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
-
-        LocalIndex numBodies = lastBody - firstBody;
-
-        // each target gets a warp (numWarps == numTargets)
-        int numWarps  = (numBodies - 1) / TravConfig::targetSize + 1;
-        int numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
-        numBlocks     = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
-
-        LocalIndex poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-
-        reallocateGeneric(globalPool_, poolSize, 1.05);
-        traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, 1, x, y, z, m, h, octree_.childOffsets,
-                                                        octree_.internalToLeaf, layout_, centers_, rawPtr(multipoles_),
-                                                        G, (int*)(nullptr), ax, ay, az, rawPtr(globalPool_));
+        reallocateGeneric(traversalStack_, poolSize, 1.01);
+        traverse<<<numBlocks, TravConfig::numThreads>>>(
+            rawPtr(targets_), numTargets, 1, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_,
+            centers_, rawPtr(multipoles_), G, (Ta*)nullptr, ax, ay, az, (int*)rawPtr(traversalStack_));
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
 
         return 0.5f * Tc(G) * totalPotential;
     }
 
-    util::array<uint64_t, 4> readStats() const
+    util::array<uint64_t, 5> readStats() const
     {
-        uint64_t     sumP2P, sumM2P;
-        unsigned int maxP2P, maxM2P;
-        checkGpuErrors(cudaMemcpyFromSymbol(&sumP2P, sumP2PGlob, sizeof(uint64_t)));
-        checkGpuErrors(cudaMemcpyFromSymbol(&maxP2P, maxP2PGlob, sizeof(unsigned int)));
-        checkGpuErrors(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
-        checkGpuErrors(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
+        typename BhStats::type stats[BhStats::numStats];
+        checkGpuErrors(cudaMemcpyFromSymbol(stats, bhStats, BhStats::numStats * sizeof(BhStats::type)));
 
-        return {sumP2P, maxP2P, sumM2P, maxM2P};
+        auto sumP2P   = stats[BhStats::sumP2P];
+        auto maxP2P   = stats[BhStats::maxP2P];
+        auto sumM2P   = stats[BhStats::sumM2P];
+        auto maxM2P   = stats[BhStats::maxM2P];
+        auto maxStack = stats[BhStats::maxStack];
+
+        return {sumP2P, maxP2P, sumM2P, maxM2P, maxStack};
     }
 
     const MType* deviceMultipoles() const { return rawPtr(multipoles_); }
@@ -168,7 +179,8 @@ private:
     const Vec4<Tf>*              centers_;
     thrust::device_vector<MType> multipoles_;
 
-    thrust::device_vector<int> globalPool_;
+    thrust::device_vector<LocalIndex> targets_;
+    thrust::device_vector<LocalIndex> traversalStack_;
 };
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
@@ -189,6 +201,15 @@ void MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::upsweep(
 }
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
+void MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::createGroups(
+    LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Th* h,
+    const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const LocalIndex* layout,
+    const cstone::Box<Tc>& box)
+{
+    impl_->createGroups(firstBody, lastBody, x, y, z, h, focusTree, layout, box);
+}
+
+template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
 float MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::compute(LocalIndex firstBody, LocalIndex lastBody,
                                                                    const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                                                                    const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az)
@@ -197,7 +218,7 @@ float MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::compute(LocalIndex fi
 }
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
-util::array<uint64_t, 4> MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::readStats() const
+util::array<uint64_t, 5> MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::readStats() const
 {
     return impl_->readStats();
 }
@@ -221,5 +242,11 @@ MHOLDER_SPH(float, float, float, float, float, uint64_t, float);
 MHOLDER_CART(double, double, double, double, double, uint64_t, double);
 MHOLDER_CART(double, double, float, double, double, uint64_t, float);
 MHOLDER_CART(float, float, float, float, float, uint64_t, float);
+
+#define DIRECT_SUM(T)                                                                                                  \
+    template void directSum(size_t, size_t, size_t, const T*, const T*, const T*, const T*, const T*, T*, T*, T*, T*)
+
+DIRECT_SUM(float);
+DIRECT_SUM(double);
 
 } // namespace ryoanji

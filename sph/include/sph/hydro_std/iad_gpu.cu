@@ -54,8 +54,8 @@ using cstone::TreeNodeIndex;
  * @param[in]  K
  * @param[in]  ngmax           maximum number of neighbors per particle to use
  * @param[in]  box             global coordinate bounding box
- * @param[in]  firstParticle   first particle to compute
- * @param[in]  lastParticle    last particle to compute
+ * @param[in]  groups          groups of TravConfig::targetSize particles to traverse with a warp
+ * @param[in]  numGroups       number of groups
  * @param[in]  numParticles    number of local particles + halos
  * @param[in]  particleKeys    SFC keys of particles, sorted in ascending order
  * @param[in]  x               x coords, length @p numParticles, SFC sorted
@@ -74,13 +74,13 @@ using cstone::TreeNodeIndex;
  * @param[out] c33
  */
 template<class Tc, class Tm, class T, class KeyType>
-__global__ void IADGpuKernel(T sincIndex, T K, unsigned ngmax, cstone::Box<T> box, size_t first, size_t last,
-                             const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x, const Tc* y, const Tc* z,
-                             const T* h, const Tm* m, const T* rho, const T* wh, const T* whd, T* c11, T* c12, T* c13,
-                             T* c22, T* c23, T* c33, LocalIndex* nidx, TreeNodeIndex* globalPool)
+__global__ void IADGpuKernel(T sincIndex, T K, unsigned ngmax, cstone::Box<T> box, const cstone::LocalIndex* groups,
+                             cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x,
+                             const Tc* y, const Tc* z, const T* h, const Tm* m, const T* rho, const T* wh, const T* whd,
+                             T* c11, T* c12, T* c13, T* c22, T* c23, T* c33, LocalIndex* nidx,
+                             TreeNodeIndex* globalPool)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
-    unsigned numTargets  = (last - first - 1) / TravConfig::targetSize + 1;
     unsigned targetIdx   = 0;
     unsigned warpIdxGrid = (blockDim.x * blockIdx.x + threadIdx.x) >> GpuConfig::warpSizeLog2;
 
@@ -92,15 +92,15 @@ __global__ void IADGpuKernel(T sincIndex, T K, unsigned ngmax, cstone::Box<T> bo
         if (laneIdx == 0) { targetIdx = atomicAdd(&cstone::targetCounterGlob, 1); }
         targetIdx = cstone::shflSync(targetIdx, 0);
 
-        if (targetIdx >= numTargets) { return; }
+        if (targetIdx >= numGroups) { return; }
 
-        cstone::LocalIndex bodyBegin = first + targetIdx * TravConfig::targetSize;
-        cstone::LocalIndex bodyEnd   = cstone::imin(bodyBegin + TravConfig::targetSize, last);
+        cstone::LocalIndex bodyBegin = groups[targetIdx];
+        cstone::LocalIndex bodyEnd   = groups[targetIdx + 1];
         cstone::LocalIndex i         = bodyBegin + laneIdx;
 
         auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
 
-        if (i >= last) { continue; }
+        if (i >= bodyEnd) { continue; }
 
         unsigned ncCapped = stl::min(ncTrue[0], ngmax);
         sph::IADJLoopSTD<TravConfig::targetSize>(i, sincIndex, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, h, m,
@@ -111,25 +111,19 @@ __global__ void IADGpuKernel(T sincIndex, T K, unsigned ngmax, cstone::Box<T> bo
 template<class Dataset>
 void computeIADGpu(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
-    unsigned numBodies        = endIndex - startIndex;
-    unsigned numWarps         = (numBodies - 1) / TravConfig::targetSize + 1;
-    unsigned numBlocks        = (numWarps - 1) / numWarpsPerBlock + 1;
-    numBlocks                 = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+    unsigned numBodies = endIndex - startIndex;
+    unsigned numBlocks = TravConfig::numBlocks(numBodies);
 
-    unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    unsigned nidxSize = d.ngmax * numBlocks * TravConfig::numThreads;
-    reallocateDestructive(d.devData.traversalStack, poolSize + nidxSize, 1.01);
-    auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(d.devData.traversalStack));
-    auto* nidxPool      = rawPtr(d.devData.traversalStack) + poolSize;
-
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
     cstone::resetTraversalCounters<<<1, 1>>>();
 
+    unsigned numGroups = d.devData.targetGroups.size() - 1;
     IADGpuKernel<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, d.ngmax, box, startIndex, endIndex, d.treeView, rawPtr(d.devData.x), rawPtr(d.devData.y),
-        rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho), rawPtr(d.devData.wh),
-        rawPtr(d.devData.whd), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13),
-        rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), nidxPool, traversalPool);
+        d.sincIndex, d.K, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(),
+        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m),
+        rawPtr(d.devData.rho), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.c11),
+        rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22), rawPtr(d.devData.c23),
+        rawPtr(d.devData.c33), nidxPool, traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 

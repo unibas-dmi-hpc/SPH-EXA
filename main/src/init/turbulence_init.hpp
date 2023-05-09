@@ -47,26 +47,20 @@ namespace sphexa
 
 std::map<std::string, double> TurbulenceConstants()
 {
-    return {{"solWeight", 0.5},      {"stMaxModes", 100000}, {"Lbox", 1.0},       {"stMachVelocity", 0.3e0},
-            {"firstTimeStep", 1e-4}, {"epsilon", 1e-15},     {"rngSeed", 251299}, {"stSpectForm", 1},
-            {"mTotal", 1.0},         {"powerLawExp", 5 / 3}, {"anglesExp", 2.0},  {"gamma", 1.001},
-            {"mui", 0.62},           {"u0", 1000.},          {"Kcour", 0.4}};
+    return {{"solWeight", 0.5},    {"stMaxModes", 100000}, {"Lbox", 1.0},          {"stMachVelocity", 0.3e0},
+            {"minDt", 1e-4},       {"minDt_m1", 1e-4},     {"epsilon", 1e-15},     {"rngSeed", 251299},
+            {"stSpectForm", 1},    {"mTotal", 1.0},        {"powerLawExp", 5 / 3}, {"anglesExp", 2.0},
+            {"gamma", 1.001},      {"mui", 0.62},          {"u0", 1000.},          {"Kcour", 0.4},
+            {"gravConstant", 0.0}, {"ng0", 100},           {"ngmax", 150},         {"turbulence", 1.0}};
 }
 
+//! @brief init particle data fiels. Note: Dataset attributes must be initialized
 template<class Dataset>
 void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& constants)
 {
-    size_t ng0           = 100;
-    double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
-    double Lbox          = constants.at("Lbox");
-    double hInit         = std::cbrt(3.0 / (4. * M_PI) * ng0 * std::pow(Lbox, 3) / d.numParticlesGlobal) * 0.5;
-    double firstTimeStep = constants.at("firstTimeStep");
-
-    d.gamma    = constants.at("gamma");
-    d.muiConst = constants.at("mui");
-    d.Kcour    = constants.at("Kcour");
-    d.minDt    = firstTimeStep;
-    d.minDt_m1 = firstTimeStep;
+    double mPart = constants.at("mTotal") / d.numParticlesGlobal;
+    double Lbox  = constants.at("Lbox");
+    double hInit = std::cbrt(3.0 / (4. * M_PI) * d.ng0 * std::pow(Lbox, 3) / d.numParticlesGlobal) * 0.5;
 
     auto cv    = sph::idealGasCv(d.muiConst, d.gamma);
     auto temp0 = constants.at("u0") / cv;
@@ -89,14 +83,15 @@ void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& 
 template<class Dataset>
 class TurbulenceGlass : public ISimInitializer<Dataset>
 {
-    std::string                   glassBlock;
-    std::map<std::string, double> constants_;
+    std::string glassBlock;
+    using Base = ISimInitializer<Dataset>;
+    using Base::settings_;
 
 public:
-    TurbulenceGlass(std::string initBlock)
-        : glassBlock(initBlock)
+    explicit TurbulenceGlass(std::string initBlock)
+        : glassBlock(std::move(initBlock))
     {
-        constants_ = TurbulenceConstants();
+        Base::updateSettings(TurbulenceConstants());
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
@@ -110,9 +105,9 @@ public:
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
-        int               multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
-        cstone::Vec3<int> multiplicity = {multi1D, multi1D, multi1D};
-        d.numParticlesGlobal           = multi1D * multi1D * multi1D * blockSize;
+        int               multi1D            = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        cstone::Vec3<int> multiplicity       = {multi1D, multi1D, multi1D};
+        size_t            numParticlesGlobal = multi1D * multi1D * multi1D * blockSize;
 
         cstone::Box<T> globalBox(-0.5, 0.5, cstone::BoundaryType::periodic);
 
@@ -121,12 +116,16 @@ public:
 
         d.resize(d.x.size());
 
-        initTurbulenceHydroFields(d, constants_);
+        settings_["numParticlesGlobal"] = double(numParticlesGlobal);
+        BuiltinWriter attributeSetter(settings_);
+        d.loadOrStoreAttributes(&attributeSetter);
+
+        initTurbulenceHydroFields(d, settings_);
 
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return constants_; }
+    const std::map<std::string, double>& constants() const override { return settings_; }
 };
 
 } // namespace sphexa
