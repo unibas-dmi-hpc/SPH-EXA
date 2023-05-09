@@ -39,7 +39,7 @@
 #include "sph/sph.hpp"
 
 #include "cooling/cooler.hpp"
-
+#include "star-formation.hpp"
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"
 
@@ -81,8 +81,10 @@ public:
     HydroGrackleProp(std::ostream& output, size_t rank)
         : Base(output, rank)
     {
-        constexpr float                 ms_sim = 1e16;
-        constexpr float                 kp_sim = 46400.;
+
+        constexpr float                 ms_sim = 1e16;//1e9;//1e16;
+        constexpr float                 kp_sim = 46400;//1.0;//46400.;
+
         std::map<std::string, std::any> grackleOptions;
         grackleOptions["use_grackle"]            = 1;
         grackleOptions["with_radiative_cooling"] = 1;
@@ -156,6 +158,7 @@ public:
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
+
 
 #pragma omp parallel for schedule(static)
         for (size_t i = first; i < last; i++)
