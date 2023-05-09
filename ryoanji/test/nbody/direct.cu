@@ -55,8 +55,8 @@ TEST(DirectSum, MatchCpu)
     thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m, d_h = h;
     thrust::device_vector<T> p(numBodies), ax(numBodies), ay(numBodies), az(numBodies);
 
-    directSum(numBodies, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h), rawPtr(p), rawPtr(ax),
-              rawPtr(ay), rawPtr(az));
+    directSum(0, numBodies, numBodies, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h), rawPtr(p),
+              rawPtr(ax), rawPtr(ay), rawPtr(az));
 
     // download body accelerations
     thrust::host_vector<T> h_p = p, h_ax = ax, h_ay = ay, h_az = az;

@@ -53,21 +53,13 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
 {
     using T = typename Dataset::RealType;
 
-    int    ng0         = 100;
     double r           = constants.at("r1");
     double totalVolume = std::pow(2 * r, 3);
-    double hInit       = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
+    double hInit       = std::cbrt(3.0 / (4 * M_PI) * d.ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
 
     double mPart  = constants.at("mTotal") / d.numParticlesGlobal;
     double width  = constants.at("width");
     double width2 = width * width;
-
-    double firstTimeStep = constants.at("firstTimeStep");
-
-    d.gamma    = constants.at("gamma");
-    d.muiConst = constants.at("mui");
-    d.minDt    = firstTimeStep;
-    d.minDt_m1 = firstTimeStep;
 
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.h.begin(), d.h.end(), hInit);
@@ -105,46 +97,53 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
 template<class Dataset>
 class SedovGrid : public ISimInitializer<Dataset>
 {
-    std::map<std::string, double> constants_;
+    using Base = ISimInitializer<Dataset>;
+    using Base::settings_;
 
 public:
-    SedovGrid() { constants_ = sedovConstants(); }
+    SedovGrid() { Base::updateSettings(sedovConstants()); }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide,
                                                  Dataset& simData) const override
     {
-        auto& d              = simData.hydro;
-        using KeyType        = typename Dataset::KeyType;
-        using T              = typename Dataset::RealType;
-        d.numParticlesGlobal = cubeSide * cubeSide * cubeSide;
+        auto& d                   = simData.hydro;
+        using KeyType             = typename Dataset::KeyType;
+        using T                   = typename Dataset::RealType;
+        size_t numParticlesGlobal = cubeSide * cubeSide * cubeSide;
 
-        auto [first, last] = partitionRange(d.numParticlesGlobal, rank, numRanks);
+        auto [first, last] = partitionRange(numParticlesGlobal, rank, numRanks);
         d.resize(last - first);
 
-        T              r = constants_.at("r1");
+        T              r = settings_.at("r1");
         cstone::Box<T> globalBox(-r, r, cstone::BoundaryType::periodic);
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
-        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
+        syncCoords<KeyType>(rank, numRanks, numParticlesGlobal, d.x, d.y, d.z, globalBox);
         d.resize(d.x.size());
-        initSedovFields(d, constants_);
+
+        settings_["numParticlesGlobal"] = double(numParticlesGlobal);
+        BuiltinWriter attributeSetter(settings_);
+        d.loadOrStoreAttributes(&attributeSetter);
+
+        initSedovFields(d, settings_);
 
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return constants_; }
+    const std::map<std::string, double>& constants() const override { return settings_; }
 };
 
 template<class Dataset>
 class SedovGlass : public ISimInitializer<Dataset>
 {
-    std::string                   glassBlock;
-    std::map<std::string, double> constants_;
+    std::string glassBlock;
+    using Base = ISimInitializer<Dataset>;
+    using Base::settings_;
 
 public:
     SedovGlass(std::string initBlock)
         : glassBlock(initBlock)
     {
-        constants_ = sedovConstants();
+        Base::updateSettings(sedovConstants());
     }
 
     /*! @brief initialize particle data with a constant density cube
@@ -166,23 +165,28 @@ public:
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
-        int               multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
-        cstone::Vec3<int> multiplicity = {multi1D, multi1D, multi1D};
-        d.numParticlesGlobal           = multi1D * multi1D * multi1D * blockSize;
+        int               multi1D            = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        cstone::Vec3<int> multiplicity       = {multi1D, multi1D, multi1D};
+        size_t            numParticlesGlobal = multi1D * multi1D * multi1D * blockSize;
 
-        T              r = constants_.at("r1");
+        T              r = settings_.at("r1");
         cstone::Box<T> globalBox(-r, r, cstone::BoundaryType::periodic);
 
         auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
         assembleCuboid<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
         d.resize(d.x.size());
-        initSedovFields(d, constants_);
+
+        settings_["numParticlesGlobal"] = double(numParticlesGlobal);
+        BuiltinWriter attributeSetter(settings_);
+        d.loadOrStoreAttributes(&attributeSetter);
+
+        initSedovFields(d, settings_);
 
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return constants_; }
+    const std::map<std::string, double>& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

@@ -48,24 +48,33 @@ namespace sphexa
 
 std::map<std::string, double> nohConstants()
 {
-    return {{"r0", 0},     {"r1", 0.5}, {"mTotal", 1.}, {"dim", 3},  {"gamma", 5.0 / 3.0},    {"rho0", 1.},
-            {"u0", 1e-20}, {"p0", 0.},  {"vr0", -1.},   {"cs0", 0.}, {"firstTimeStep", 1e-4}, {"mui", 10.}};
+    return {{"r0", 0},
+            {"r1", 0.5},
+            {"mTotal", 1.},
+            {"dim", 3},
+            {"gamma", 5.0 / 3.0},
+            {"rho0", 1.},
+            {"u0", 1e-20},
+            {"p0", 0.},
+            {"vr0", -1.},
+            {"cs0", 0.},
+            {"minDt", 1e-4},
+            {"minDt_m1", 1e-4},
+            {"gravConstant", 0.0},
+            {"ng0", 100},
+            {"ngmax", 150},
+            {"mui", 10.}};
 }
 
 template<class Dataset>
-void initNohFields(Dataset& d, double totalVolume, const std::map<std::string, double>& constants)
+void initNohFields(Dataset& d, const std::map<std::string, double>& constants)
 {
     using T = typename Dataset::RealType;
 
-    int    ng0           = 100;
-    double hInit         = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
-    double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
-    double firstTimeStep = constants.at("firstTimeStep");
-
-    d.gamma    = constants.at("gamma");
-    d.muiConst = constants.at("mui");
-    d.minDt    = firstTimeStep;
-    d.minDt_m1 = firstTimeStep;
+    double r           = constants.at("r1");
+    double totalVolume = 4. * M_PI / 3. * r * r * r;
+    double hInit       = std::cbrt(3.0 / (4 * M_PI) * d.ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
+    double mPart       = constants.at("mTotal") / d.numParticlesGlobal;
 
     auto cv    = sph::idealGasCv(d.muiConst, d.gamma);
     auto temp0 = constants.at("u0") / cv;
@@ -87,53 +96,24 @@ void initNohFields(Dataset& d, double totalVolume, const std::map<std::string, d
         d.vy[i] = constants.at("vr0") * (d.y[i] / radius);
         d.vz[i] = constants.at("vr0") * (d.z[i] / radius);
 
-        d.x_m1[i] = d.vx[i] * firstTimeStep;
-        d.y_m1[i] = d.vy[i] * firstTimeStep;
-        d.z_m1[i] = d.vz[i] * firstTimeStep;
+        d.x_m1[i] = d.vx[i] * constants.at("minDt");
+        d.y_m1[i] = d.vy[i] * constants.at("minDt");
+        d.z_m1[i] = d.vz[i] * constants.at("minDt");
     }
 }
 
 template<class Dataset>
-class NohGrid : public ISimInitializer<Dataset>
-{
-    std::map<std::string, double> constants_;
-
-public:
-    NohGrid() { constants_ = nohConstants(); }
-
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide,
-                                                 Dataset& simData) const override
-    {
-        auto& d              = simData.hydro;
-        using T              = typename Dataset::RealType;
-        d.numParticlesGlobal = cubeSide * cubeSide * cubeSide;
-
-        auto [first, last] = partitionRange(d.numParticlesGlobal, rank, numRanks);
-        d.resize(last - first);
-
-        T r = constants_.at("r1");
-        regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
-
-        double totalVolume = 8.0 * r * r * r;
-        initNohFields(d, totalVolume, constants_);
-
-        return cstone::Box<T>(-r, r, cstone::BoundaryType::open);
-    }
-
-    const std::map<std::string, double>& constants() const override { return constants_; }
-};
-
-template<class Dataset>
 class NohGlassSphere : public ISimInitializer<Dataset>
 {
-    std::string                   glassBlock;
-    std::map<std::string, double> constants_;
+    std::string glassBlock;
+    using Base = ISimInitializer<Dataset>;
+    using Base::settings_;
 
 public:
     NohGlassSphere(std::string initBlock)
         : glassBlock(initBlock)
     {
-        constants_ = nohConstants();
+        Base::updateSettings(nohConstants());
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
@@ -150,25 +130,28 @@ public:
         int               multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
         cstone::Vec3<int> multiplicity = {multi1D, multi1D, multi1D};
 
-        T              r = constants_.at("r1");
+        T              r = settings_.at("r1");
         cstone::Box<T> globalBox(-r, r, cstone::BoundaryType::open);
 
         auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
         assembleCuboid<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
         cutSphere(r, d.x, d.y, d.z);
 
-        d.numParticlesGlobal = d.x.size();
-        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
+        size_t numParticlesGlobal = d.x.size();
+        MPI_Allreduce(MPI_IN_PLACE, &numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
 
         d.resize(d.x.size());
 
-        double totalVolume = 4. * M_PI / 3. * r * r * r;
-        initNohFields(d, totalVolume, constants_);
+        settings_["numParticlesGlobal"] = double(numParticlesGlobal);
+        BuiltinWriter attributeSetter(settings_);
+        d.loadOrStoreAttributes(&attributeSetter);
+
+        initNohFields(d, settings_);
 
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return constants_; }
+    const std::map<std::string, double>& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

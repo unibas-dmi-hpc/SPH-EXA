@@ -34,6 +34,7 @@
 #include <map>
 
 #include "cstone/sfc/box.hpp"
+#include "cstone/tree/continuum.hpp"
 #include "sph/eos.hpp"
 
 #include "isim_init.hpp"
@@ -45,8 +46,8 @@ namespace sphexa
 
 std::map<std::string, double> evrardConstants()
 {
-    return {{"G", 1.},  {"r", 1.}, {"mTotal", 1.}, {"gamma", 5. / 3.}, {"u0", 0.05}, {"firstTimeStep", 1e-4},
-            {"mui", 10}};
+    return {{"gravConstant", 1.}, {"r", 1.},          {"mTotal", 1.}, {"gamma", 5. / 3.}, {"u0", 0.05},
+            {"minDt", 1e-4},      {"minDt_m1", 1e-4}, {"mui", 10},    {"ng0", 100},       {"ngmax", 150}};
 }
 
 template<class Dataset>
@@ -54,14 +55,7 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
 {
     using T = typename Dataset::RealType;
 
-    int    ng0           = 100;
-    double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
-    double firstTimeStep = constants.at("firstTimeStep");
-
-    d.gamma    = constants.at("gamma");
-    d.muiConst = constants.at("mui");
-    d.minDt    = firstTimeStep;
-    d.minDt_m1 = firstTimeStep;
+    double mPart = constants.at("mTotal") / d.numParticlesGlobal;
 
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
@@ -91,7 +85,7 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
     {
         T radius        = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
         T concentration = c0 / radius;
-        d.h[i]          = std::cbrt(3 / (4 * M_PI) * ng0 / concentration) * 0.5;
+        d.h[i]          = std::cbrt(3 / (4 * M_PI) * d.ng0 / concentration) * 0.5;
     }
 }
 
@@ -111,17 +105,42 @@ void contractRhoProfile(Vector& x, Vector& y, Vector& z)
     }
 }
 
+//! @brief Estimate SFC partition of the Evrard sphere based on approximate continuum particle counts
+template<class KeyType, class T>
+std::tuple<KeyType, KeyType> estimateEvrardSfcPartition(size_t cbrtNumPart, const cstone::Box<T>& box, int rank,
+                                                        int numRanks)
+{
+    size_t numParticlesGlobal = 0.523 * cbrtNumPart * cbrtNumPart * cbrtNumPart;
+    T      r                  = box.xmax();
+
+    double   eps        = 2.0 * r / (1u << cstone::maxTreeLevel<KeyType>{});
+    unsigned bucketSize = numParticlesGlobal / (100 * numRanks);
+
+    auto oneOverR = [numParticlesGlobal, r, eps](T x, T y, T z)
+    {
+        T radius = std::max(std::sqrt(norm2(cstone::Vec3<T>{x, y, z})), eps);
+        if (radius > r) { return 0.0; }
+        else { return T(numParticlesGlobal) / (2 * M_PI * radius); }
+    };
+
+    auto [tree, counts]            = cstone::computeContinuumCsarray<KeyType>(oneOverR, box, bucketSize);
+    cstone::SpaceCurveAssignment a = cstone::singleRangeSfcSplit(counts, numRanks);
+
+    return {tree[a.firstNodeIdx(rank)], tree[a.lastNodeIdx(rank)]};
+}
+
 template<class Dataset>
 class EvrardGlassSphere : public ISimInitializer<Dataset>
 {
-    std::string                   glassBlock;
-    std::map<std::string, double> constants_;
+    std::string glassBlock;
+    using Base = ISimInitializer<Dataset>;
+    using Base::settings_;
 
 public:
-    EvrardGlassSphere(std::string initBlock)
-        : glassBlock(initBlock)
+    explicit EvrardGlassSphere(std::string initBlock)
+        : glassBlock(std::move(initBlock))
     {
-        constants_ = evrardConstants();
+        Base::updateSettings(evrardConstants());
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
@@ -138,28 +157,31 @@ public:
         int               multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
         cstone::Vec3<int> multiplicity = {multi1D, multi1D, multi1D};
 
-        d.g = constants_.at("G");
-        T r = constants_.at("r");
-
+        T              r = settings_.at("r");
         cstone::Box<T> globalBox(-r, r, cstone::BoundaryType::open);
 
         auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
         assembleCuboid<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
         cutSphere(r, d.x, d.y, d.z);
 
-        d.numParticlesGlobal = d.x.size();
-        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
+        size_t numParticlesGlobal = d.x.size();
+        MPI_Allreduce(MPI_IN_PLACE, &numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
 
         contractRhoProfile(d.x, d.y, d.z);
-        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
+        syncCoords<KeyType>(rank, numRanks, numParticlesGlobal, d.x, d.y, d.z, globalBox);
 
         d.resize(d.x.size());
-        initEvrardFields(d, constants_);
+
+        settings_["numParticlesGlobal"] = double(numParticlesGlobal);
+        BuiltinWriter attributeSetter(settings_);
+        d.loadOrStoreAttributes(&attributeSetter);
+
+        initEvrardFields(d, settings_);
 
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return constants_; }
+    const std::map<std::string, double>& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

@@ -16,6 +16,27 @@ if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     install(TARGETS ryoanji_demo RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji/ryoanji_demo)
 endif ()
 
+# multi-rank demonstrator
+if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
+    set(testname ryoanji_demo_mpi)
+    add_executable(${testname} demo_mpi.cpp)
+    target_include_directories(${testname} PRIVATE ${RYOANJI_TEST_INCLUDE_DIRS})
+
+    target_link_libraries(${testname} PRIVATE cstone_gpu ryoanji)
+
+    if (CMAKE_HIP_COMPILER)
+        target_link_libraries(${testname} PRIVATE hip::host)
+        target_compile_definitions(${testname} PRIVATE THRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_HIP)
+    endif ()
+
+    if (CMAKE_CUDA_COMPILER)
+        target_link_libraries(${testname} PRIVATE CUDA::cudart)
+    endif ()
+    target_compile_options(${testname} PRIVATE -Wno-unknown-pragmas)
+    install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji/)
+    unset(testname)
+endif ()
+
 # CPU unit test suite
 set(testname ryoanji_cpu_unit_tests)
 add_executable(${testname}

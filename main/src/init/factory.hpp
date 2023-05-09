@@ -64,19 +64,17 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         else { return std::make_unique<SedovGlass<Dataset>>(glassBlock); }
 #endif
     }
-    if (testCase == "noh")
-    {
-        if (glassBlock.empty()) { return std::make_unique<NohGrid<Dataset>>(); }
-#ifdef SPH_EXA_HAVE_H5PART
-        else { return std::make_unique<NohGlassSphere<Dataset>>(glassBlock); }
-#endif
-    }
 
     std::string hdf5_missing = "without HDF5 support";
 
 #ifdef SPH_EXA_HAVE_H5PART
     hdf5_missing = "";
 
+    if (testCase == "noh")
+    {
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for Noh implosion\n"); }
+        return std::make_unique<NohGlassSphere<Dataset>>(glassBlock);
+    }
     if (testCase == "isobaric-cube")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for isobaric cube\n"); }
@@ -90,11 +88,6 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     if (testCase == "evrard")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for evrard\n"); }
-        return std::make_unique<EvrardGlassSphere<Dataset>>(glassBlock);
-    }
-    if (testCase == "nbody")
-    {
-        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for nbody\n"); }
         return std::make_unique<EvrardGlassSphere<Dataset>>(glassBlock);
     }
     if (testCase == "turbulence")
@@ -114,7 +107,12 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         return std::make_unique<EvrardGlassSphereCooling<Dataset>>(glassBlock);
     }
 #endif
-    if (std::filesystem::exists(testCase)) { return std::make_unique<FileInit<Dataset>>(testCase); }
+    if (std::filesystem::exists(strBeforeSign(testCase, ":"))) { return std::make_unique<FileInit<Dataset>>(testCase); }
+
+    if (std::filesystem::exists(strBeforeSign(testCase, ",")))
+    {
+        return std::make_unique<FileSplitInit<Dataset>>(testCase);
+    }
 
 #endif
 

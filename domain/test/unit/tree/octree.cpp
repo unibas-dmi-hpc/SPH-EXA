@@ -319,6 +319,22 @@ TEST(InternalOctree, containingNode)
     containingNodeTrav<uint64_t>();
 }
 
+TEST(InternalOctree, maxDepth)
+{
+    {
+        std::vector<TreeNodeIndex> levelOffsets{0, 1, 1};
+        EXPECT_EQ(maxDepth(levelOffsets.data(), levelOffsets.size()), 0);
+    }
+    {
+        std::vector<TreeNodeIndex> levelOffsets{0, 1, 9, 9, 9, 9, 9, 9, 9};
+        EXPECT_EQ(maxDepth(levelOffsets.data(), levelOffsets.size()), 1);
+    }
+    {
+        std::vector<TreeNodeIndex> levelOffsets{0, 1, 9, 64};
+        EXPECT_EQ(maxDepth(levelOffsets.data(), levelOffsets.size()), 2);
+    }
+}
+
 template<class KeyType>
 static void cstoneIndex()
 {

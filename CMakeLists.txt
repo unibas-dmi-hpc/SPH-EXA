@@ -49,9 +49,7 @@ if(CMAKE_HIP_COMPILER)
     enable_language(HIP)
     find_package(hip)
     set(CMAKE_HIP_STANDARD 17)
-    set(CMAKE_HIP_FLAGS "-w \
-                         -I$ENV{GCC_X86_64}/include/g++/x86_64-suse-linux \
-                         -I$ENV{GCC_X86_64}/include/g++")
+    set(CMAKE_HIP_FLAGS "-w")
 endif()
 
 check_language(CUDA)

@@ -37,7 +37,6 @@ HOST_DEVICE_FUN inline void IADJLoopSTD(cstone::LocalIndex i, T sincIndex, T K, 
 
         T dist = std::sqrt(rx * rx + ry * ry + rz * rz);
 
-        // calculate the v as ratio between the distance and the smoothing length
         T vloc = dist * hiInv;
         T w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
 
@@ -54,9 +53,9 @@ HOST_DEVICE_FUN inline void IADJLoopSTD(cstone::LocalIndex i, T sincIndex, T K, 
     T det = tau11 * tau22 * tau33 + T(2) * tau12 * tau23 * tau13 - tau11 * tau23 * tau23 - tau22 * tau13 * tau13 -
             tau33 * tau12 * tau12;
 
-    // note normalization factor: cij have units of 1/tau because det is proportional to tau^3 so we have to
-    // divide by K/h^3
-    T factor = (hi * hi * hi) / (det * K);
+    // Note normalization factor: cij have units of 1/tau because det is proportional to tau^3 so we have to
+    // divide by K/h^3. det can be zero due to numerical underflow
+    T factor = (det == T(0.0)) ? T(0.0) : (hi * hi * hi) / (det * K);
 
     c11[i] = (tau22 * tau33 - tau23 * tau23) * factor;
     c12[i] = (tau13 * tau23 - tau33 * tau12) * factor;

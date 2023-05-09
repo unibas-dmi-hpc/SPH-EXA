@@ -103,3 +103,36 @@ TEST(SfcBox, putInBox)
         EXPECT_NEAR(Xpbc[2], -0.9, 1e-10);
     }
 }
+
+TEST(SfcBox, createIBox)
+{
+    {
+        using T                = double;
+        using KeyType          = uint32_t;
+        constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
+
+        Box<T> box(0, 1);
+
+        T r = T(1.0) / maxCoord;
+        T c = 1.0 - 0.5 * r;
+        T s = 0.5 * r;
+        Vec3<T> aCenter{c, c, c};
+        Vec3<T> aSize{s, s, s};
+
+        IBox probe = createIBox<KeyType>(aCenter, aSize, box);
+        IBox ref{maxCoord - 1, maxCoord};
+        EXPECT_EQ(ref, probe);
+    }
+    {
+        using T       = double;
+        using KeyType = uint64_t;
+
+        Box<T> box(-1, 1, -2, 2, -3, 3);
+        Vec3<T> aCenter{0.1, 0.2, 0.3};
+        Vec3<T> aSize{0.01, 0.02, 0.03};
+
+        IBox probe = createIBox<KeyType>(aCenter, aSize, box);
+        IBox ref{1142947, 1163920};
+        EXPECT_EQ(ref, probe);
+    }
+}

@@ -86,7 +86,14 @@ public:
                        domain.nParticlesWithHalos() - domain.nParticles(), d.totalNeighbors);
 
             std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().octreeViewAcc().numLeafNodes
-                      << std::endl;
+                      << ", maxDepth " << domain.focusTree().depth();
+            if constexpr (cstone::HaveGpu<typename ParticleDataType::AcceleratorType>{})
+            {
+                std::cout << ", maxStackNc " << d.devData.stackUsedNc << ", maxStackGravity "
+                          << d.devData.stackUsedGravity;
+            }
+            std::cout << std::endl;
+
             printTotalIterationTime(d.iteration, timer.duration());
         }
     }
