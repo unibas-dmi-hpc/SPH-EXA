@@ -39,7 +39,6 @@
 #include "sph/sph.hpp"
 
 #include "cooling/cooler.hpp"
-#include "star-formation.hpp"
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"
 
