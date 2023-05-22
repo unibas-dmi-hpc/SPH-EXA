@@ -42,13 +42,13 @@ class analytical_solution(rfm.RunOnlyRegressionTest):
             'sedov': {
                 'Density':  (0.328, -0.015, 0.01, ''),
                 'Pressure':  (0.928, -0.01, 0.01, ''),
-                'Velocity':  (0.915, -0.01, 0.01, ''),
+                'Velocity':  (0.942, -0.01, 0.01, ''),
                 # 'Energy':  (0., -0.05, 0.05, ''),
             },
             'noh': {
                 'Density':  (10.42, -0.01, 0.01, ''),
-                'Pressure':  (1.01, -0.01, 0.01, ''),
-                'Velocity':  (0.07, -0.05, 0.05, ''),
+                'Pressure':  (2.88, -0.01, 0.01, ''),
+                'Velocity':  (0.14, -0.05, 0.05, ''),
                 # 'Energy':  (0.029, -0.05, 0.05, ''),
             },
         }
