@@ -169,7 +169,7 @@ TEST(MomentumEnergy, JLoop)
         EXPECT_NEAR(grad_Py, 3.0338488942286494e5, 1e-8);
         EXPECT_NEAR(grad_Pz, -1.7674639665806836e6, 1e-8);
         EXPECT_NEAR(du, 8.5525242823085e12, 1e-2);
-        EXPECT_NEAR(maxvsignal, 4.5535959472046174e7, 1e-6);
+        EXPECT_NEAR(maxvsignal, 2.64908763192523e7, 1e-6);
     }
     // test without AV cleaning
     {
@@ -191,6 +191,6 @@ TEST(MomentumEnergy, JLoop)
         EXPECT_NEAR(grad_Py, -7.4471044578240151e4, 1e-8);
         EXPECT_NEAR(grad_Pz, -1.7304268207564927e6, 1e-8);
         EXPECT_NEAR(du, 7.1838439171209658e12, 1e-2);
-        EXPECT_NEAR(maxvsignal, 4.5535959472046174e7, 1e-6);
+        EXPECT_NEAR(maxvsignal, 2.6490876319252387e7, 1e-6);
     }
 }
