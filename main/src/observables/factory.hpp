@@ -100,7 +100,8 @@ void findH5Attribute(const std::string& fname, const std::string& attributeToRea
 #endif
 
 template<class Dataset, class DomainType>
-std::unique_ptr<IObservables<Dataset, DomainType>> observablesFactory(const std::string& testCase, std::ofstream& constantsFile)
+std::unique_ptr<IObservables<Dataset, DomainType>> observablesFactory(const std::string& testCase,
+                                                                      std::ofstream&     constantsFile)
 {
 #ifdef SPH_EXA_HAVE_H5PART
 
