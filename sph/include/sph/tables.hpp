@@ -43,7 +43,7 @@ template<typename T>
 HOST_DEVICE_FUN inline T wharmonic_lt_with_derivative(const T* wh, const T* whd, T v)
 {
     constexpr size_t halfTableSize   = size / 2;
-    constexpr double inverseHalfSize = 1.0 / halfTableSize;
+    constexpr T      inverseHalfSize = T(1) / halfTableSize;
 
     const size_t idx = v * halfTableSize;
     return (idx >= size) ? 0.0 : wh[idx] + whd[idx] * (v - T(idx) * inverseHalfSize);
