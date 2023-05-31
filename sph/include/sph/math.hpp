@@ -5,8 +5,6 @@
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/util/array.hpp"
 
-#define PI 3.14159265358979323846
-
 namespace sph
 {
 
