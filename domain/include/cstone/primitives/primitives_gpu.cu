@@ -246,16 +246,16 @@ template void sortByKeyGpu(uint64_t*, uint64_t*, int*);
 template void sortByKeyGpu(uint64_t*, uint64_t*, uint64_t*);
 
 template<class IndexType, class SumType>
-void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* output)
+void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* output, SumType init)
 {
-    thrust::exclusive_scan(thrust::device, first, last, output, SumType(0));
+    thrust::exclusive_scan(thrust::device, first, last, output, init);
 }
 
-template void exclusiveScanGpu(const int*, const int*, int*);
-template void exclusiveScanGpu(const int*, const int*, unsigned*);
-template void exclusiveScanGpu(const int*, const int*, uint64_t*);
-template void exclusiveScanGpu(const unsigned*, const unsigned*, unsigned*);
-template void exclusiveScanGpu(const unsigned*, const unsigned*, uint64_t*);
+template void exclusiveScanGpu(const int*, const int*, int*, int);
+template void exclusiveScanGpu(const int*, const int*, unsigned*, unsigned);
+template void exclusiveScanGpu(const int*, const int*, uint64_t*, uint64_t);
+template void exclusiveScanGpu(const unsigned*, const unsigned*, unsigned*, unsigned);
+template void exclusiveScanGpu(const unsigned*, const unsigned*, uint64_t*, uint64_t);
 
 template<class ValueType>
 size_t countGpu(const ValueType* first, const ValueType* last, ValueType v)

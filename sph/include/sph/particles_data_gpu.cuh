@@ -51,8 +51,6 @@ namespace sphexa
 template<typename T, class KeyType>
 class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData<T, KeyType>>
 {
-    size_t allocatedTaskSize = 0;
-
     template<class FType>
     using DevVector = thrust::device_vector<FType>;
 
@@ -62,13 +60,10 @@ class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData<T, Ke
 public:
     // number of CUDA streams to use
     static constexpr int NST = 2;
-    // max number of particles to process per launch in kernel with async transfers
-    static constexpr int taskSize = 1000000;
 
     struct neighbors_stream
     {
         cudaStream_t stream;
-        unsigned*    d_neighborsCount;
     };
 
     struct neighbors_stream d_stream[NST];
@@ -108,6 +103,10 @@ public:
     DevVector<T> whd;
 
     DevVector<cstone::LocalIndex> traversalStack;
+    DevVector<cstone::LocalIndex> targetGroups;
+
+    //! @brief non-stateful variables for statistics
+    size_t stackUsedNc, stackUsedGravity;
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
@@ -183,7 +182,6 @@ public:
         {
             checkGpuErrors(cudaStreamCreate(&d_stream[i].stream));
         }
-        resize_streams(taskSize);
     }
 
     ~DeviceParticlesData()
@@ -191,32 +189,6 @@ public:
         for (int i = 0; i < NST; ++i)
         {
             checkGpuErrors(cudaStreamDestroy(d_stream[i].stream));
-            checkGpuErrors(cudaFree(d_stream[i].d_neighborsCount));
-        }
-    }
-
-private:
-    void resize_streams(size_t newTaskSize)
-    {
-        if (newTaskSize > allocatedTaskSize)
-        {
-            if (allocatedTaskSize)
-            {
-                for (int i = 0; i < NST; ++i)
-                {
-                    checkGpuErrors(cudaFree(d_stream[i].d_neighborsCount));
-                }
-            }
-
-            // allocate 1% extra to avoid reallocation on small size increase
-            newTaskSize = size_t(double(newTaskSize) * 1.01);
-
-            for (int i = 0; i < NST; ++i)
-            {
-                checkGpuErrors(cudaMalloc((void**)&(d_stream[i].d_neighborsCount), newTaskSize * sizeof(unsigned)));
-            }
-
-            allocatedTaskSize = newTaskSize;
         }
     }
 };

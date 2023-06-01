@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include "cstone/domain/domaindecomp.hpp"
 #include "cstone/sfc/box.hpp"
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/util/array.hpp"
@@ -62,6 +63,28 @@ inline auto partitionRange(size_t R, size_t i, size_t N)
         size_t end   = start + s;
         return std::make_tuple(start, end);
     }
+}
+
+/*! @brief Returns a unique SFC segment for each rank
+ *
+ * @tparam KeyType
+ * @param  rank              executing rank id
+ * @param  numRanks          total number of ranks
+ * @param  numLeavesPerRank  desired number of leaves per rank in the global tree
+ * @return                   tuple with start end end keys of the segment
+ *
+ * The desired number of leaves per rank in the global tree determines the minium level of the global
+ * tree. Each segment will be rounded to the closest leaf node of that level so as to avoid segments
+ * that need a very deep tree to resolve the segment boundaries.
+ */
+template<class KeyType>
+auto equiDistantSfcSegments(int rank, int numRanks, cstone::TreeNodeIndex numLeavesPerRank)
+{
+    unsigned level             = cstone::log8ceil<KeyType>(numLeavesPerRank * numRanks);
+    auto     initialBoundaries = cstone::initialDomainSplits<KeyType>(numRanks, level);
+    KeyType  keyStart          = initialBoundaries[rank];
+    KeyType  keyEnd            = initialBoundaries[rank + 1];
+    return std::make_tuple(keyStart, keyEnd);
 }
 
 /*! @brief create regular cubic grid centered on (0,0,0), spanning [-r, r)^3, in the x,y,z arrays
@@ -145,7 +168,6 @@ template<class T>
 cstone::Vec3<T> scaleBlockToGlobal(cstone::Vec3<T> uX, cstone::Vec3<int> gridIdx, cstone::Vec3<int> m,
                                    const cstone::Box<T>& globalBox)
 {
-
     cstone::Vec3<T> blockOrigin{gridIdx[0] * globalBox.lx() / m[0], gridIdx[1] * globalBox.ly() / m[1],
                                 gridIdx[2] * globalBox.lz() / m[2]};
     cstone::Vec3<T> globalOrigin{globalBox.xmin(), globalBox.ymin(), globalBox.zmin()};

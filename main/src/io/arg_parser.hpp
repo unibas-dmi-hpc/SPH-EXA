@@ -116,4 +116,23 @@ bool isPeriodicOutputStep(size_t step, const std::string& frequencyStr)
     return strIsIntegral(frequencyStr) && frequency != 0 && (step % frequency == 0);
 }
 
+std::string strBeforeSign(const std::string& str, const std::string& sign)
+{
+    auto commaPos = str.find_first_of(sign);
+    return str.substr(0, commaPos);
+}
+
+//! @brief If the input string ends with @p sign followed by an integer, return the integer, otherwise return -1
+int numberAfterSign(const std::string& str, const std::string& sign)
+{
+    auto commaPos = str.find_first_of(sign);
+    if (commaPos == std::string::npos) { return -1; }
+
+    std::string afterComma = str.substr(commaPos + sign.size());
+
+    int ret = -1;
+    if (strIsIntegral(afterComma)) { ret = std::stoi(afterComma); }
+    return ret;
+}
+
 } // namespace sphexa

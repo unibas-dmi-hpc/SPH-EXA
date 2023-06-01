@@ -46,7 +46,6 @@ add_executable(${exename} sphexa.cpp)
 target_include_directories(${exename} PRIVATE ${SPH_EXA_INCLUDE_DIRS})
 target_link_libraries(${exename} PRIVATE OpenMP::OpenMP_CXX ${MPI_CXX_LIBRARIES})
 target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/physics/cooling/include/)
-#target_compile_definitions(${exename} PRIVATE PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 
 enableH5Part(${exename})
 enableInSituViz(${exename})

@@ -45,6 +45,7 @@
 
 using namespace cstone;
 
+//! @brief depth-first traversal based neighbor search
 template<class T, class KeyType>
 __global__ void findNeighborsKernel(const T* x,
                                     const T* y,
@@ -63,6 +64,111 @@ __global__ void findNeighborsKernel(const T* x,
     if (id >= lastId) { return; }
 
     findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + tid * ngmax, neighborsCount + id);
+}
+
+/*! @brief Neighbor search for bodies within the specified range
+ *
+ * @param[in]    firstBody           index of first body in @p bodyPos to compute acceleration for
+ * @param[in]    lastBody            index (exclusive) of last body in @p bodyPos to compute acceleration for
+ * @param[in]    rootRange           (start,end) index pair of cell indices to start traversal from
+ * @param[in]    x,y,z,h             bodies, in SFC order and as referenced by @p layout
+ * @param[in]    tree.childOffsets   location (index in [0:numTreeNodes]) of first child of each cell, 0 indicates a
+ *                                   leaf
+ * @param[in]    tree.internalToLeaf for each cell in [0:numTreeNodes], stores the leaf cell (cstone) index in
+ *                                   [0:numLeaves] if the cell is not a leaf, the value is negative
+ * @param[in]    tree.layout         for each leaf cell in [0:numLeaves], stores the index of the first body in the cell
+ * @param[in]    tree.centers        x,y,z geometric center of each cell in [0:numTreeNodes]
+ * @param[in]    tree.sizes          x,y,z geometric size of each cell in [0:numTreeNodes]
+ * @param[in]    box                 global coordinate bounding box
+ * @param[out]   nc                  neighbor counts of bodies with indices in [firstBody, lastBody]
+ * @param[-]     globalPool          temporary storage for the cell traversal stack, uninitialized
+ *                                   each active warp needs space for TravConfig::memPerWarp int32,
+ *                                   so the total size is TravConfig::memPerWarp * numWarpsPerBlock * numBlocks
+ */
+template<class Tc, class Th, class KeyType>
+__global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::LocalIndex firstBody,
+                                                                     cstone::LocalIndex lastBody,
+                                                                     const Tc* __restrict__ x,
+                                                                     const Tc* __restrict__ y,
+                                                                     const Tc* __restrict__ z,
+                                                                     const Th* __restrict__ h,
+                                                                     OctreeNsView<Tc, KeyType> tree,
+                                                                     const Box<Tc> box,
+                                                                     unsigned* nc,
+                                                                     unsigned* nidx,
+                                                                     unsigned ngmax,
+                                                                     int* globalPool)
+{
+    const unsigned laneIdx    = threadIdx.x & (GpuConfig::warpSize - 1);
+    const unsigned numTargets = (lastBody - firstBody - 1) / TravConfig::targetSize + 1;
+    int targetIdx             = 0;
+
+    while (true)
+    {
+        // first thread in warp grabs next target
+        if (laneIdx == 0) { targetIdx = atomicAdd(&targetCounterGlob, 1); }
+        targetIdx = shflSync(targetIdx, 0);
+
+        if (targetIdx >= numTargets) return;
+
+        const cstone::LocalIndex bodyBegin = firstBody + targetIdx * TravConfig::targetSize;
+        const cstone::LocalIndex bodyEnd   = imin(bodyBegin + TravConfig::targetSize, lastBody);
+        unsigned* warpNidx                 = nidx + targetIdx * TravConfig::targetSize * ngmax;
+
+        auto nc_i = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, warpNidx, ngmax, globalPool);
+
+        const cstone::LocalIndex bodyIdxLane = bodyBegin + laneIdx;
+        for (int i = 0; i < TravConfig::nwt; i++)
+        {
+            const cstone::LocalIndex bodyIdx = bodyIdxLane + i * GpuConfig::warpSize;
+            if (bodyIdx < bodyEnd) { nc[bodyIdx] = nc_i[i]; }
+        }
+    }
+}
+
+template<class Tc, class Th, class KeyType>
+auto findNeighborsBT(size_t firstBody,
+                     size_t lastBody,
+                     const Tc* x,
+                     const Tc* y,
+                     const Tc* z,
+                     const Th* h,
+                     OctreeNsView<Tc, KeyType> tree,
+                     const Box<Tc>& box,
+                     unsigned* nc,
+                     unsigned* nidx,
+                     unsigned ngmax)
+{
+    unsigned numBodies = lastBody - firstBody;
+    unsigned numBlocks = TravConfig::numBlocks(numBodies);
+    unsigned poolSize  = TravConfig::poolSize(numBodies);
+    thrust::device_vector<int> globalPool(poolSize);
+
+    printf("launching %d blocks\n", numBlocks);
+    resetTraversalCounters<<<1, 1>>>();
+    auto t0 = std::chrono::high_resolution_clock::now();
+    traverseBT<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, x, y, z, h, tree, box, nc, nidx, ngmax,
+                                                      rawPtr(globalPool));
+    kernelSuccess("traverseBT");
+
+    auto t1   = std::chrono::high_resolution_clock::now();
+    double dt = std::chrono::duration<double>(t1 - t0).count();
+
+    NcStats::type stats[NcStats::numStats];
+    checkGpuErrors(cudaMemcpyFromSymbol(stats, ncStats, NcStats::numStats * sizeof(uint64_t)));
+
+    NcStats::type sumP2P   = stats[NcStats::sumP2P];
+    NcStats::type maxP2P   = stats[NcStats::maxP2P];
+    NcStats::type maxStack = stats[NcStats::maxStack];
+
+    util::array<Tc, 2> interactions;
+    interactions[0] = Tc(sumP2P) / Tc(numBodies);
+    interactions[1] = Tc(maxP2P);
+
+    fprintf(stdout, "Traverse : %.7f s (%.7f TFlops) P2P %f, maxP2P %f, maxStack %llu\n", dt, 11.0 * sumP2P / dt / 1e12,
+            interactions[0], interactions[1], maxStack);
+
+    return interactions;
 }
 
 template<class T, class StrongKeyType>

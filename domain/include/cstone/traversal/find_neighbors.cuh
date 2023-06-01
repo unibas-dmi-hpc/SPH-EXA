@@ -43,8 +43,10 @@ namespace cstone
 
 struct TravConfig
 {
-    //! @brief size of global workspace memory per warp
-    static constexpr unsigned memPerWarp = 1024 * GpuConfig::warpSize;
+    //! @brief size of global workspace memory per warp, must be a power of 2
+    static constexpr unsigned memPerWarp = 256 * GpuConfig::warpSize;
+    static_assert((memPerWarp & (memPerWarp - 1)) == 0);
+
     //! @brief number of threads per block for the traversal kernel
     static constexpr unsigned numThreads = 128;
 
@@ -58,6 +60,23 @@ struct TravConfig
 
     //! @brief number of warps per target, used all over the place, hence the short name
     static constexpr unsigned nwt = targetSize / GpuConfig::warpSize;
+
+    //! @brief compute minimum number of simultaneously active blocks needed to saturate the device
+    static unsigned numBlocks(LocalIndex numBodies)
+    {
+        unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
+        unsigned numWarps         = (numBodies - 1) / TravConfig::targetSize + 1;
+        unsigned numBlocks        = (numWarps - 1) / numWarpsPerBlock + 1;
+        return std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+    }
+
+    //! @brief compute storage needed for traversal stack
+    static unsigned poolSize(unsigned numBodies)
+    {
+        unsigned blocks_          = numBlocks(numBodies);
+        unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
+        return TravConfig::memPerWarp * numWarpsPerBlock * blocks_;
+    }
 };
 
 __device__ __forceinline__ int ringAddr(const int i) { return i & (TravConfig::memPerWarp - 1); }
@@ -183,21 +202,21 @@ __device__ __forceinline__ bool tightOverlap(int laneIdx,
  * can be routed through the read-only/texture cache.
  */
 template<bool UsePbc, class Tc, class Th, class KeyType>
-__device__ unsigned traverseWarp(unsigned* nc_i,
-                                 unsigned* nidx_i,
-                                 unsigned ngmax,
-                                 const util::array<Vec4<Tc>, TravConfig::nwt>& pos_i,
-                                 const Vec3<Tc> targetCenter,
-                                 const Vec3<Tc> targetSize,
-                                 const Tc* __restrict__ x,
-                                 const Tc* __restrict__ y,
-                                 const Tc* __restrict__ z,
-                                 const Th* __restrict__ /*h*/,
-                                 const OctreeNsView<Tc, KeyType>& tree,
-                                 int initNodeIdx,
-                                 const Box<Tc>& box,
-                                 volatile int* tempQueue,
-                                 int* cellQueue)
+__device__ uint2 traverseWarp(unsigned* nc_i,
+                              unsigned* nidx_i,
+                              unsigned ngmax,
+                              const util::array<Vec4<Tc>, TravConfig::nwt>& pos_i,
+                              const Vec3<Tc> targetCenter,
+                              const Vec3<Tc> targetSize,
+                              const Tc* __restrict__ x,
+                              const Tc* __restrict__ y,
+                              const Tc* __restrict__ z,
+                              const Th* __restrict__ /*h*/,
+                              const OctreeNsView<Tc, KeyType>& tree,
+                              int initNodeIdx,
+                              const Box<Tc>& box,
+                              volatile int* tempQueue,
+                              int* cellQueue)
 {
     const TreeNodeIndex* __restrict__ childOffsets   = tree.childOffsets;
     const TreeNodeIndex* __restrict__ internalToLeaf = tree.internalToLeaf;
@@ -207,7 +226,7 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
 
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
-    unsigned p2pCounter = 0;
+    unsigned p2pCounter = 0, maxStack = 0;
 
     int bodyQueue; // warp queue for source body indices
 
@@ -246,11 +265,14 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
         const int numChildLane = exclusiveScanBool(isSplit);                      // Exclusive scan of numChild
         const int numChildWarp = reduceBool(isSplit);                             // Total numChild of current warp
         sourceOffset += imin(GpuConfig::warpSize / 8, numSources - sourceOffset); // advance current level stack pointer
-        if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp)    // If cell queue overflows
-            return 0xFFFFFFFF;                                                    // Exit kernel
         int childIdx = oldSources + numSources + newSources + numChildLane;       // Child index of current lane
         if (isSplit) { cellQueue[ringAddr(childIdx)] = childBegin; }              // Queue child cells for next level
-        newSources += numChildWarp; //  Increment source cell count for next loop
+        newSources += numChildWarp; // Increment source cell count for next loop
+
+        // check for cellQueue overflow
+        const unsigned stackUsed = newSources + numSources - sourceOffset; // current cellQueue size
+        maxStack                 = max(stackUsed, maxStack);
+        if (stackUsed > TravConfig::memPerWarp) { return {0xFFFFFFFF, maxStack}; } // Exit if cellQueue overflows
 
         // Direct
         const int firstBody     = layout[leafIdx];
@@ -321,17 +343,32 @@ __device__ unsigned traverseWarp(unsigned* nc_i,
         p2pCounter += bdyFillLevel;
     }
 
-    return p2pCounter;
+    return {p2pCounter, maxStack};
 }
 
-static __device__ unsigned long long sumNcP2PGlob = 0;
-static __device__ unsigned maxNcP2PGlob           = 0;
-static __device__ unsigned targetCounterGlob      = 0;
+//! @brief neighbor search traversal statistics: sumP2P, maxP2P, maxStack
+struct NcStats
+{
+    using type = unsigned long long;
+    enum IndexNames
+    {
+        sumP2P,
+        maxP2P,
+        maxStack,
+        numStats
+    };
+};
+static __device__ NcStats::type ncStats[NcStats::numStats];
+
+static __device__ unsigned targetCounterGlob;
 
 static __global__ void resetTraversalCounters()
 {
-    sumNcP2PGlob      = 0;
-    maxNcP2PGlob      = 0;
+    for (int i = 0; i < NcStats::numStats; ++i)
+    {
+        ncStats[i] = 0;
+    }
+
     targetCounterGlob = 0;
 }
 
@@ -427,152 +464,47 @@ __device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::Loca
     // if traversal should be started at node x, then initNode should be set to the first child of x
     int initNode = 1;
 
-    unsigned numP2P;
+    uint2 warpStats;
     if (usePbc)
     {
-        numP2P = traverseWarp<true>(nc_i.data(), warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, tree,
-                                    initNode, box, tempQueue, cellQueue);
+        warpStats = traverseWarp<true>(nc_i.data(), warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, tree,
+                                       initNode, box, tempQueue, cellQueue);
     }
     else
     {
-        numP2P = traverseWarp<false>(nc_i.data(), warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, tree,
-                                     initNode, box, tempQueue, cellQueue);
+        warpStats = traverseWarp<false>(nc_i.data(), warpNidx, ngmax, pos_i, targetCenter, targetSize, x, y, z, h, tree,
+                                        initNode, box, tempQueue, cellQueue);
     }
+    unsigned numP2P   = warpStats.x;
+    unsigned maxStack = warpStats.y;
     assert(numP2P != 0xFFFFFFFF);
 
     if (laneIdx == 0)
     {
         unsigned targetGroupSize = bodyEnd - bodyBegin;
-        atomicMax(&maxNcP2PGlob, numP2P);
-        atomicAdd(&sumNcP2PGlob, numP2P * targetGroupSize);
+        atomicAdd(&ncStats[NcStats::sumP2P], NcStats::type(numP2P) * targetGroupSize);
+        atomicMax(&ncStats[NcStats::maxP2P], NcStats::type(numP2P));
+        atomicMax(&ncStats[NcStats::maxStack], NcStats::type(maxStack));
     }
 
     return nc_i;
 }
 
-/*! @brief Neighbor search for bodies within the specified range
- *
- * @param[in]    firstBody           index of first body in @p bodyPos to compute acceleration for
- * @param[in]    lastBody            index (exclusive) of last body in @p bodyPos to compute acceleration for
- * @param[in]    rootRange           (start,end) index pair of cell indices to start traversal from
- * @param[in]    x,y,z,h             bodies, in SFC order and as referenced by @p layout
- * @param[in]    tree.childOffsets   location (index in [0:numTreeNodes]) of first child of each cell, 0 indicates a
- *                                   leaf
- * @param[in]    tree.internalToLeaf for each cell in [0:numTreeNodes], stores the leaf cell (cstone) index in
- *                                   [0:numLeaves] if the cell is not a leaf, the value is negative
- * @param[in]    tree.layout         for each leaf cell in [0:numLeaves], stores the index of the first body in the cell
- * @param[in]    tree.centers        x,y,z geometric center of each cell in [0:numTreeNodes]
- * @param[in]    tree.sizes          x,y,z geometric size of each cell in [0:numTreeNodes]
- * @param[in]    box                 global coordinate bounding box
- * @param[out]   nc                  neighbor counts of bodies with indices in [firstBody, lastBody]
- * @param[-]     globalPool          temporary storage for the cell traversal stack, uninitialized
- *                                   each active warp needs space for TravConfig::memPerWarp int32,
- *                                   so the total size is TravConfig::memPerWarp * numWarpsPerBlock * numBlocks
- */
-template<class Tc, class Th, class KeyType>
-__global__ __launch_bounds__(TravConfig::numThreads) void traverseBT(cstone::LocalIndex firstBody,
-                                                                     cstone::LocalIndex lastBody,
-                                                                     const Tc* __restrict__ x,
-                                                                     const Tc* __restrict__ y,
-                                                                     const Tc* __restrict__ z,
-                                                                     const Th* __restrict__ h,
-                                                                     OctreeNsView<Tc, KeyType> tree,
-                                                                     const Box<Tc> box,
-                                                                     unsigned* nc,
-                                                                     unsigned* nidx,
-                                                                     unsigned ngmax,
-                                                                     int* globalPool)
+//! @brief combine temp space for tree traversal and neighbor search into a single allocation
+template<class DeviceVector>
+std::tuple<TreeNodeIndex*, LocalIndex*> allocateNcStacks(DeviceVector& stack, unsigned numBodies, unsigned ngmax)
 {
-    const unsigned laneIdx    = threadIdx.x & (GpuConfig::warpSize - 1);
-    const unsigned numTargets = (lastBody - firstBody - 1) / TravConfig::targetSize + 1;
-    int targetIdx             = 0;
+    unsigned numBlocks = TravConfig::numBlocks(numBodies);
+    unsigned poolSize  = TravConfig::poolSize(numBodies);
+    unsigned nidxSize  = ngmax * numBlocks * TravConfig::numThreads;
 
-    while (true)
-    {
-        // first thread in warp grabs next target
-        if (laneIdx == 0) { targetIdx = atomicAdd(&targetCounterGlob, 1); }
-        targetIdx = shflSync(targetIdx, 0);
+    static_assert(sizeof(LocalIndex) == sizeof(typename DeviceVector::value_type));
+    reallocateDestructive(stack, poolSize + nidxSize, 1.01);
 
-        if (targetIdx >= numTargets) return;
+    auto* traversalPool = reinterpret_cast<TreeNodeIndex*>(rawPtr(stack));
+    auto* nidxPool      = reinterpret_cast<LocalIndex*>(rawPtr(stack)) + poolSize;
 
-        const cstone::LocalIndex bodyBegin = firstBody + targetIdx * TravConfig::targetSize;
-        const cstone::LocalIndex bodyEnd   = imin(bodyBegin + TravConfig::targetSize, lastBody);
-        unsigned* warpNidx                 = nidx + targetIdx * TravConfig::targetSize * ngmax;
-
-        auto nc_i = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, warpNidx, ngmax, globalPool);
-
-        const cstone::LocalIndex bodyIdxLane = bodyBegin + laneIdx;
-        for (int i = 0; i < TravConfig::nwt; i++)
-        {
-            const cstone::LocalIndex bodyIdx = bodyIdxLane + i * GpuConfig::warpSize;
-            if (bodyIdx < bodyEnd) { nc[bodyIdx] = nc_i[i]; }
-        }
-    }
-}
-
-/*! @brief Compute approximate body accelerations with Barnes-Hut
- *
- * @param[in]    firstBody      index of first body in @p bodyPos to compute acceleration for
- * @param[in]    lastBody       index (exclusive) of last body in @p bodyPos to compute acceleration for
- * @param[in]    x,y,z,h        bodies, in SFC order and as referenced by @p layout
- * @param[in]    childOffsets   location (index in [0:numTreeNodes]) of first child of each cell, 0 indicates a leaf
- * @param[in]    internalToLeaf for each cell in [0:numTreeNodes], stores the leaf cell (cstone) index in [0:numLeaves]
- *                              if the cell is not a leaf, the value is negative
- * @param[in]    layout         for each leaf cell in [0:numLeaves], stores the index of the first body in the cell
- * @param[in]    box            global coordinate bounding box
- * @param[out]   nc             output neighbor counts
- * @return                      interaction statistics
- */
-template<class Tc, class Th, class KeyType>
-auto findNeighborsBT(size_t firstBody,
-                     size_t lastBody,
-                     const Tc* x,
-                     const Tc* y,
-                     const Tc* z,
-                     const Th* h,
-                     OctreeNsView<Tc, KeyType> tree,
-                     const Box<Tc>& box,
-                     unsigned* nc,
-                     unsigned* nidx,
-                     unsigned ngmax)
-{
-    constexpr unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
-
-    unsigned numBodies = lastBody - firstBody;
-
-    // each target gets a warp (numWarps == numTargets)
-    unsigned numWarps  = (numBodies - 1) / TravConfig::targetSize + 1;
-    unsigned numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
-    numBlocks          = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
-
-    printf("launching %d blocks\n", numBlocks);
-
-    unsigned poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-    thrust::device_vector<int> globalPool(poolSize);
-
-    resetTraversalCounters<<<1, 1>>>();
-    auto t0 = std::chrono::high_resolution_clock::now();
-    traverseBT<<<numBlocks, TravConfig::numThreads>>>(firstBody, lastBody, x, y, z, h, tree, box, nc, nidx, ngmax,
-                                                      rawPtr(globalPool));
-    kernelSuccess("traverseBT");
-
-    auto t1   = std::chrono::high_resolution_clock::now();
-    double dt = std::chrono::duration<double>(t1 - t0).count();
-
-    uint64_t sumP2P;
-    unsigned maxP2P;
-
-    checkGpuErrors(cudaMemcpyFromSymbol(&sumP2P, sumNcP2PGlob, sizeof(uint64_t)));
-    checkGpuErrors(cudaMemcpyFromSymbol(&maxP2P, maxNcP2PGlob, sizeof(unsigned int)));
-
-    util::array<Tc, 2> interactions;
-    interactions[0] = Tc(sumP2P) / Tc(numBodies);
-    interactions[1] = Tc(maxP2P);
-
-    fprintf(stdout, "Traverse : %.7f s (%.7f TFlops) P2P %f, maxP2P %f\n", dt, 11.0 * sumP2P / dt / 1e12,
-            interactions[0], interactions[1]);
-
-    return interactions;
+    return {traversalPool, nidxPool};
 }
 
 } // namespace cstone

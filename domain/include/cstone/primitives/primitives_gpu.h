@@ -83,7 +83,13 @@ template<class KeyType, class ValueType>
 extern void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values);
 
 template<class IndexType, class SumType>
-extern void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* output);
+extern void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* output, SumType init);
+
+template<class IndexType, class SumType>
+void exclusiveScanGpu(const IndexType* first, const IndexType* last, SumType* output)
+{
+    exclusiveScanGpu(first, last, output, SumType(0));
+}
 
 template<class ValueType>
 extern size_t countGpu(const ValueType* first, const ValueType* last, ValueType v);

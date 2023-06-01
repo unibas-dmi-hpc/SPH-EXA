@@ -46,23 +46,21 @@ namespace sphexa
 template<class T, class Dataset>
 void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& constants, T massPart)
 {
-    T rhoInt        = constants.at("rhoInt");
-    T rhoExt        = constants.at("rhoExt");
-    T firstTimeStep = constants.at("firstTimeStep");
-    T omega0        = constants.at("omega0");
-    T gamma         = constants.at("gamma");
-    T p             = constants.at("p");
-    T vxInt         = constants.at("vxInt");
-    T vxExt         = constants.at("vxExt");
+    T rhoInt = constants.at("rhoInt");
+    T rhoExt = constants.at("rhoExt");
+    T omega0 = constants.at("omega0");
+    T gamma  = constants.at("gamma");
+    T p      = constants.at("p");
+    T vxInt  = constants.at("vxInt");
+    T vxExt  = constants.at("vxExt");
 
     T uInt = p / ((gamma - 1.) * rhoInt);
     T uExt = p / ((gamma - 1.) * rhoExt);
     T vDif = 0.5 * (vxExt - vxInt);
     T ls   = 0.025;
 
-    size_t ng0  = 100;
-    T      hInt = 0.5 * std::cbrt(3. * ng0 * massPart / 4. / M_PI / rhoInt);
-    T      hExt = 0.5 * std::cbrt(3. * ng0 * massPart / 4. / M_PI / rhoExt);
+    T hInt = 0.5 * std::cbrt(3. * d.ng0 * massPart / 4. / M_PI / rhoInt);
+    T hExt = 0.5 * std::cbrt(3. * d.ng0 * massPart / 4. / M_PI / rhoExt);
 
     std::fill(d.m.begin(), d.m.end(), massPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
@@ -70,9 +68,6 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
     std::fill(d.mui.begin(), d.mui.end(), 10.0);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamax);
     std::fill(d.vz.begin(), d.vz.end(), 0.0);
-
-    d.minDt    = firstTimeStep;
-    d.minDt_m1 = firstTimeStep;
 
     auto cv = sph::idealGasCv(d.muiConst, gamma);
 
@@ -90,35 +85,50 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
         }
         else
         {
-            d.h[i]    = hExt;
+            if (d.y[i] > 0.75 + 2 * hExt || d.y[i] < 0.25 - 2 * hExt)
+            {
+                // more than two smoothing lengths away from the high density band
+                d.h[i] = hExt;
+            }
+            else
+            {
+                T dist = (d.y[i] > 0.75) ? d.y[i] - 0.75 : 0.25 - d.y[i];
+                // linear interpolation from hInt to hExt for particles within 2 * hExt of the high density band
+                d.h[i] = hInt * (1 - dist / (2 * hExt)) + hExt * dist / (2 * hExt);
+            }
+
             d.temp[i] = uExt / cv;
             if (d.y[i] < 0.25) { d.vx[i] = vxExt - vDif * std::exp((d.y[i] - 0.25) / ls); }
             else { d.vx[i] = vxExt - vDif * std::exp((0.75 - d.y[i]) / ls); }
         }
 
-        d.x_m1[i] = d.vx[i] * firstTimeStep;
-        d.y_m1[i] = d.vy[i] * firstTimeStep;
-        d.z_m1[i] = d.vz[i] * firstTimeStep;
+        d.x_m1[i] = d.vx[i] * d.minDt;
+        d.y_m1[i] = d.vy[i] * d.minDt;
+        d.z_m1[i] = d.vz[i] * d.minDt;
     }
 }
 
 std::map<std::string, double> KelvinHelmholtzConstants()
 {
-    return {{"rhoInt", 2.},     {"rhoExt", 1.},          {"vxExt", 0.5}, {"vxInt", -0.5},
-            {"gamma", 5. / 3.}, {"firstTimeStep", 1e-7}, {"p", 2.5},     {"omega0", 0.01}};
+    return {{"rhoInt", 2.},        {"rhoExt", 1.},           {"vxExt", 0.5},
+            {"vxInt", -0.5},       {"gamma", 5. / 3.},       {"p", 2.5},
+            {"omega0", 0.01},      {"Kcour", 0.4},           {"ng0", 100},
+            {"ngmax", 150},        {"minDt", 1e-7},          {"minDt_m1", 1e-7},
+            {"gravConstant", 0.0}, {"kelvin-helmholtz", 1.0}};
 }
 
 template<class Dataset>
 class KelvinHelmholtzGlass : public ISimInitializer<Dataset>
 {
-    std::string                   glassBlock;
-    std::map<std::string, double> constants_;
+    std::string glassBlock;
+    using Base = ISimInitializer<Dataset>;
+    using Base::settings_;
 
 public:
     KelvinHelmholtzGlass(std::string initBlock)
         : glassBlock(initBlock)
     {
-        constants_ = KelvinHelmholtzConstants();
+        Base::updateSettings(KelvinHelmholtzConstants());
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
@@ -134,9 +144,9 @@ public:
         sortBySfcKey<KeyType>(xBlock, yBlock, zBlock);
 
         cstone::Box<T> globalBox(0, 1, 0, 1, 0, 0.0625, pbc, pbc, pbc);
-        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
+        auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
 
-        int               multi1D    = std::rint(cbrtNumPart / std::cbrt(xBlock.size()));
+        int               multi1D    = std::lround(cbrtNumPart / std::cbrt(xBlock.size()));
         cstone::Vec3<int> innerMulti = {16 * multi1D, 8 * multi1D, multi1D};
         cstone::Vec3<int> outerMulti = {16 * multi1D, 4 * multi1D, multi1D};
 
@@ -174,21 +184,26 @@ public:
 
         assembleCuboid<T>(keyStart, keyEnd, layer2, innerMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
-        d.numParticlesGlobal = d.x.size();
-        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
+        size_t numParticlesGlobal = d.x.size();
+        MPI_Allreduce(MPI_IN_PLACE, &numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
         syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
 
-        size_t npartInner   = 128 * xBlock.size();
-        T      volumeHD     = 0.5 * 0.0625;
-        T      particleMass = volumeHD * constants_.at("rhoInt") / npartInner;
+        size_t npartInner   = innerMulti[0] * innerMulti[1] * innerMulti[2] * xBlock.size();
+        T      volumeHD     = 0.5 * globalBox.lx() * globalBox.ly() * globalBox.lz();
+        T      particleMass = volumeHD * settings_.at("rhoInt") / npartInner;
 
         d.resize(d.x.size());
-        initKelvinHelmholtzFields(d, constants_, particleMass);
+
+        settings_["numParticlesGlobal"] = double(numParticlesGlobal);
+        BuiltinWriter attributeSetter(settings_);
+        d.loadOrStoreAttributes(&attributeSetter);
+
+        initKelvinHelmholtzFields(d, settings_, particleMass);
 
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return constants_; }
+    const std::map<std::string, double>& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

@@ -27,13 +27,21 @@
  * @brief Select/calculate data to be printed to constants.txt each iteration
  *
  * @author Lukas Schmidt
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
+#include <span>
 #include <string>
 
 #include "cstone/sfc/box.hpp"
+#include "io/ifile_io.hpp"
+
+#ifdef SPH_EXA_HAVE_H5PART
+#include "io/ifile_io_hdf5.hpp"
+#endif
+
 #include "iobservables.hpp"
 #include "time_energy_growth.hpp"
 #include "time_energies.hpp"
@@ -44,76 +52,41 @@
 namespace sphexa
 {
 
-#ifdef SPH_EXA_HAVE_H5PART
-
-//! @brief reads a specified attribute if exists and has the specified type
-template<class AttrType>
-void findH5Attribute(const std::string& fname, const std::string& attributeToRead, AttrType* attribute,
-                     h5part_int64_t h5Type)
+static bool haveAttribute(IFileReader* reader, const std::string& attributeToRead)
 {
-
-    if (std::filesystem::exists(fname))
+    if (reader)
     {
-        H5PartFile* h5_file  = nullptr;
-        h5_file              = H5PartOpenFile(fname.c_str(), H5PART_READ);
-        size_t numAttributes = H5PartGetNumFileAttribs(h5_file);
-
-        h5part_int64_t maxlen = 256;
-        char           attributeName[maxlen];
-
-        h5part_int64_t attributeType;
-        h5part_int64_t attributeLength;
-
-        for (h5part_int64_t i = 0; i < numAttributes; i++)
-        {
-            H5PartGetFileAttribInfo(h5_file, i, attributeName, maxlen, &attributeType, &attributeLength);
-            if (attributeName == attributeToRead && attributeType == h5Type)
-            {
-
-                H5PartReadFileAttrib(h5_file, attributeName, attribute);
-                break;
-            }
-        }
-        H5PartCloseFile(h5_file);
-    }
-}
-
-#else
-
-[[maybe_unused]] static bool haveH5Attribute(const std::string& fname, const std::string& attributeToRead)
-{
-    if (std::filesystem::exists(fname))
-    {
-        std::cout << "WARNING: Could not read attribute " + attributeToRead + ". HDF5 support missing\n";
+        auto attributes = reader->fileAttributes();
+        return std::count(attributes.begin(), attributes.end(), attributeToRead);
     }
 
     return false;
 }
 
-#endif
-
 template<class Dataset>
 std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& testCase, std::ofstream& constantsFile)
 {
-#ifdef SPH_EXA_HAVE_H5PART
+    std::unique_ptr<IFileReader> reader;
+    std::string                  testCaseStripped = strBeforeSign(testCase, ",");
 
-    std::string    khGrowthRate = "KelvinHelmholtzGrowthRate";
-    h5part_int64_t khAttribute;
-    findH5Attribute<h5part_int64_t>(testCase, khGrowthRate, &khAttribute, H5PART_INT64);
-    if (khAttribute != 0 || testCase == "kelvin-helmholtz")
+#ifdef SPH_EXA_HAVE_H5PART
+    if (std::filesystem::exists(testCaseStripped))
     {
-        return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
+        reader = std::make_unique<H5PartReader>(MPI_COMM_WORLD);
+        reader->setStep(testCaseStripped, -1);
     }
+#endif
 
     std::string gravWaves = "observeGravWaves";
-    double      gravWaveAttribute[3];
-    findH5Attribute<h5part_float64_t>(testCase, gravWaves, gravWaveAttribute, H5PART_FLOAT64);
-    if (gravWaveAttribute[0] != 0.0)
+    if (haveAttribute(reader.get(), gravWaves))
     {
-        return std::make_unique<GravWaves<Dataset>>(constantsFile, gravWaveAttribute[1], gravWaveAttribute[2]);
+        double gravWaveThetaPhi[2] = {0.0, 0.0};
+        reader->fileAttribute(gravWaves, gravWaveThetaPhi, 2);
+        return std::make_unique<GravWaves<Dataset>>(constantsFile, gravWaveThetaPhi[0], gravWaveThetaPhi[1]);
     }
 
-    if (testCase == "wind-shock")
+#ifdef SPH_EXA_HAVE_H5PART
+    if (testCase == "wind-shock" || haveAttribute(reader.get(), "wind-shock"))
     {
         double rhoInt       = WindShockConstants().at("rhoInt");
         double uExt         = WindShockConstants().at("uExt");
@@ -123,12 +96,16 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
     }
 #endif
 
-    if (testCase == "turbulence") { return std::make_unique<TurbulenceMachRMS<Dataset>>(constantsFile); }
+    if (testCase == "turbulence" || haveAttribute(reader.get(), "turbulence"))
+    {
+        return std::make_unique<TurbulenceMachRMS<Dataset>>(constantsFile);
+    }
+    if (testCase == "kelvin-helmholtz" || haveAttribute(reader.get(), "kelvin-helmholtz"))
+    {
+        return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
+    }
 
-    if (testCase == "nbody") { return std::make_unique<IObservables<Dataset>>(); }
-
-    if (testCase == "kelvin-helmholtz") { return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile); }
-
+    if (reader) { reader->closeStep(); }
     return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
 }
 

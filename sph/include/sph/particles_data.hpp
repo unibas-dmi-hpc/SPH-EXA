@@ -79,19 +79,18 @@ public:
 
     size_t iteration{1};
     size_t numParticlesGlobal;
-    size_t totalNeighbors;
 
-    //! @brief mean desired number of neighbors per particle
+    //! @brief default mean desired number of neighbors per particle, can be overriden per test case or input file
     unsigned ng0{100};
 
-    //! @brief maximum number of neighbors per particle before additional h-adjustment will be triggered
+    //! @brief default maximum number of neighbors per particle before additional h-adjustment will be triggered
     unsigned ngmax{150};
 
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
     T linmom{0.0}, angmom{0.0};
 
     //! current and previous (global) time-steps
-    T minDt, minDt_m1;
+    T minDt{1e-12}, minDt_m1{1e-12};
 
     //! temporary MPI rank local timesteps;
     T minDtCourant{INFINITY}, minDtRho{INFINITY};
@@ -113,6 +112,7 @@ public:
     //! @brief mean molecular weight of ions for models that use one value for all particles
     T muiConst{10.0};
 
+    //! @brief Unified interface to attribute initialization, reading and writing
     template<class Archive>
     void loadOrStoreAttributes(Archive* ar)
     {
@@ -146,6 +146,9 @@ public:
         optionalIO("muiConst", &muiConst, 1);
     }
 
+    //! @brief non-stateful variables for statistics
+    size_t totalNeighbors;
+
     /*! @brief Particle fields
      *
      * The length of these arrays equals the local number of particles including halos
@@ -177,8 +180,8 @@ public:
     FieldVector<T>        dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
 
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
-    std::vector<cstone::LocalIndex>         neighbors;
-    cstone::OctreeNsView<RealType, KeyType> treeView;
+    std::vector<cstone::LocalIndex>             neighbors;
+    cstone::OctreeProperties<RealType, KeyType> treeView;
 
     DeviceData_t<AccType, T, KeyType> devData;
 

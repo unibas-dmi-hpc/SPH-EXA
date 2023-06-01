@@ -50,21 +50,14 @@ using namespace sph;
 using cstone::FieldList;
 
 template<class DomainType, class DataType>
-class HydroGrackleProp final : public Propagator<DomainType, DataType>
+class HydroGrackleProp final : public HydroProp<DomainType, DataType>
 {
-    using Base = Propagator<DomainType, DataType>;
+    using Base = HydroProp<DomainType, DataType>;
     using Base::timer;
 
-    using T             = typename DataType::RealType;
-    using KeyType       = typename DataType::KeyType;
-    using Tmass         = typename DataType::HydroData::Tmass;
-    using MultipoleType = ryoanji::CartesianQuadrupole<Tmass>;
+    using T       = typename DataType::RealType;
+    using KeyType = typename DataType::KeyType;
 
-    using Acc = typename DataType::AcceleratorType;
-    using MHolder_t =
-        typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
-                                         MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
-    MHolder_t          mHolder_;
     cooling::Cooler<T> cooling_data;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
@@ -141,54 +134,25 @@ public:
                 std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d), get<CoolingFields>(simData.chem)),
                 get<DependentFields>(d));
         }
-        d.treeView = domain.octreeNsViewAcc();
+        d.treeView = domain.octreeProperties();
     }
 
     void step(DomainType& domain, DataType& simData) override
     {
+        auto& d = simData.hydro;
         timer.start();
+
         sync(domain, simData);
+        // halo exchange for masses, allows for particles with variable masses
+        domain.exchangeHalos(std::tie(get<"m">(d)), get<"ax">(d), get<"ay">(d));
         timer.step("domain::sync");
 
-        auto& d = simData.hydro;
         d.resize(domain.nParticlesWithHalos());
-        resizeNeighbors(d, domain.nParticles() * d.ngmax);
+
+        Base::computeForces(domain, simData);
+
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
-
-        transferToHost(d, first, first + 1, {"m"});
-        fill(get<"m">(d), 0, first, d.m[first]);
-        fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
-
-        findNeighborsSfc(first, last, d, domain.box());
-        timer.step("FindNeighbors");
-
-        computeDensity(first, last, d, domain.box());
-        timer.step("Density");
-
-        computeEOS_HydroStd(first, last, d);
-        timer.step("EquationOfState");
-        domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
-
-        timer.step("mpi::synchronizeHalos");
-
-        computeIAD(first, last, d, domain.box());
-        timer.step("IAD");
-
-        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
-
-        timer.step("mpi::synchronizeHalos");
-
-        computeMomentumEnergySTD(first, last, d, domain.box());
-        timer.step("MomentumEnergyIAD");
-
-        if (d.g != 0.0)
-        {
-            mHolder_.upsweep(d, domain);
-            timer.step("Upsweep");
-            mHolder_.traverse(d, domain);
-            timer.step("Gravity");
-        }
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
@@ -225,34 +189,6 @@ public:
 
         // timer.stop();
         timer.profilingStop(d.iteration, d.x.size());
-    }
-
-    void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
-                    const cstone::Box<T>& box) override
-    {
-        auto&            d             = simData.hydro;
-        auto             fieldPointers = d.data();
-        std::vector<int> outputFields  = d.outputFieldIndices;
-
-        auto output = [&]()
-        {
-            for (int i = int(outputFields.size()) - 1; i >= 0; --i)
-            {
-                int fidx = outputFields[i];
-                if (d.isAllocated(fidx))
-                {
-                    int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
-                                 d.outputFieldIndices.begin();
-                    transferToHost(d, first, last, {d.fieldNames[fidx]});
-                    std::visit([writer, c = column, key = d.fieldNames[fidx]](auto field)
-                               { writer->writeField(key, field->data(), c); },
-                               fieldPointers[fidx]);
-                    outputFields.erase(outputFields.begin() + i);
-                }
-            }
-        };
-
-        output();
     }
 };
 
