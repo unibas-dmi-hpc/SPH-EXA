@@ -60,9 +60,7 @@ void syncCoords(size_t rank, size_t numRanks, size_t numParticlesGlobal, Vector&
 {
     size_t                    bucketSize = std::max(64lu, numParticlesGlobal / (100 * numRanks));
     cstone::BufferDescription bufDesc{0, cstone::LocalIndex(x.size()), cstone::LocalIndex(x.size())};
-
     cstone::GlobalAssignment<KeyType, T> distributor(rank, numRanks, bucketSize, globalBox);
-
     std::vector<unsigned>                                        orderScratch;
     cstone::SfcSorter<cstone::LocalIndex, std::vector<unsigned>> reorderFunctor(orderScratch);
 

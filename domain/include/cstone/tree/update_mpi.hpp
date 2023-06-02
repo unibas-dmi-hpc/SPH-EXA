@@ -87,13 +87,10 @@ bool updateOctreeGlobal(const KeyType* keyStart,
 {
     unsigned maxCount = std::numeric_limits<unsigned>::max();
     bool converged    = tree.rebalance(bucketSize, counts);
-
     counts.resize(tree.numLeafNodes());
     computeNodeCounts(tree.treeLeaves().data(), counts.data(), tree.numLeafNodes(), keyStart, keyEnd, maxCount, true);
-
     std::vector<unsigned> counts_reduced(counts.size());
     MPI_Allreduce(counts.data(), counts_reduced.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
-
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < counts.size(); ++i)
     {
