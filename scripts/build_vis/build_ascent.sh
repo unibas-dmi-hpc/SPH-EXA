@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+
+# Replace $1 with the parent directory of SPH-EXA
 . ~/spack/share/spack/setup-env.sh
 spack load conduit python py-numpy py-mpi4py paraview
 spack unload mpi
@@ -8,8 +10,9 @@ cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_CXX_COMPILER=mpicc -DCMAKE_CX
 cd $1/sphexa-build
 make -j 16
 
-
-
+# Images will be generated in $1/sphexa-vis. You can clear it before running.
 # cd $1/sphexa-vis
 # rm -f $1/sphexa-vis/output/*
-# mpiexec -n 1 $1/sphexa-build/main/src/sphexa/sphexa --init sedov -s 5 -n 30 --prop std
+
+# Run the testcase
+# mpiexec -n 1 $1/sphexa-build/main/src/sphexa/sphexa --ascii --init sedov -s 5 -n 30 --prop std

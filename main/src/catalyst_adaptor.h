@@ -59,9 +59,9 @@ void Execute(DataType& d, long startIndex, long endIndex)
     // start with coordsets (of course, the sequence is not important, just make
     // it easier to think in this order).
     mesh["coordsets/coords/type"].set("explicit");
-    mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], endIndex - startIndex);
-    mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], endIndex - startIndex);
-    mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], endIndex - startIndex);
+    mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], endIndex - startIndex, 0, sizeof(double));
+    mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], endIndex - startIndex, 0, sizeof(double));
+    mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], endIndex - startIndex, 0, sizeof(double));
 
     // Next, add topology
     mesh["topologies/mesh/type"].set("unstructured");
@@ -71,14 +71,18 @@ void Execute(DataType& d, long startIndex, long endIndex)
     std::vector<int> conn(endIndex - startIndex);
     std::iota(conn.begin(), conn.end(), 0);
     mesh["topologies/mesh/elements/connectivity"].set_external(conn);
+    // std::cout << "Density length: " << d.rho.size() << std::endl;
 
+    // for(const double tt: d.x) {
+    //     std::cout << tt << ",";
+    // }
     // Finally, add particle properties
     auto fields = mesh["fields"];
     // rho is vertex-data.
     fields["Density/association"].set("vertex");
     fields["Density/topology"].set("mesh");
     fields["Density/volume_dependent"].set("false");
-    fields["Density/values"].set_external(&d.rho[startIndex], endIndex - startIndex); // zero-copy
+    fields["Density/values"].set_external(&d.rho[startIndex], endIndex - startIndex, 0, sizeof(double)); // zero-copy
     // vx is vertex-data.
     fields["vx/association"].set("vertex");
     fields["vx/topology"].set("mesh");
