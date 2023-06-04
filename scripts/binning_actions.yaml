@@ -46,4 +46,3 @@
       params:
         expression: "binning('Density', 'max', [axis('radius', num_bins=256)])"
         name: "max_density"
-

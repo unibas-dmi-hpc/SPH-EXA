@@ -34,7 +34,7 @@ Yplane = SPHPlaneInterpolator(registrationName='Yplane', Input=reader,
     Source='Bounded Plane')
 Yplane.DensityArray = 'Density'
 Yplane.MassArray = 'Mass'
-Yplane.CutoffArray = 'None'
+# Yplane.CutoffArray = 'None'
 Yplane.ExcludedArrays = ['Mass', 'Pressure']
 Yplane.Kernel = 'SPHQuinticKernel'
 Yplane.Locator = 'Static Point Locator'
@@ -49,7 +49,7 @@ Zplane = SPHPlaneInterpolator(registrationName='Zplane', Input=reader,
     Source='Bounded Plane')
 Zplane.DensityArray = 'Density'
 Zplane.MassArray = 'Mass'
-Zplane.CutoffArray = 'None'
+# Zplane.CutoffArray = 'None'
 Zplane.ExcludedArrays = ['Mass', 'Pressure']
 Zplane.Kernel = 'SPHQuinticKernel'
 Zplane.Locator = 'Static Point Locator'
@@ -64,7 +64,7 @@ Xplane = SPHPlaneInterpolator(registrationName='Xplane', Input=reader,
     Source='Bounded Plane')
 Xplane.DensityArray = 'Density'
 Xplane.MassArray = 'Mass'
-Xplane.CutoffArray = 'None'
+# Xplane.CutoffArray = 'None'
 Xplane.ExcludedArrays = ['Mass', 'Pressure']
 Xplane.Kernel = 'SPHQuinticKernel'
 Xplane.Locator = 'Static Point Locator'
@@ -233,7 +233,7 @@ options = catalyst.Options()
 options.GlobalTrigger = 'TimeStep'
 #options.EnableCatalystLive = 1
 options.CatalystLiveTrigger = 'TimeStep'
-options.ExtractsOutputDirectory = '/scratch/snx3000/jfavre/sedov'
+options.ExtractsOutputDirectory = '/home/appcell/unibas/sphexa-vis/output_catalyst'
 
 # ------------------------------------------------------------------------------
 if __name__ == '__main__':

@@ -71,11 +71,7 @@ void Execute(DataType& d, long startIndex, long endIndex)
     std::vector<int> conn(endIndex - startIndex);
     std::iota(conn.begin(), conn.end(), 0);
     mesh["topologies/mesh/elements/connectivity"].set_external(conn);
-    // std::cout << "Density length: " << d.rho.size() << std::endl;
 
-    // for(const double tt: d.x) {
-    //     std::cout << tt << ",";
-    // }
     // Finally, add particle properties
     auto fields = mesh["fields"];
     // rho is vertex-data.
@@ -98,11 +94,18 @@ void Execute(DataType& d, long startIndex, long endIndex)
     fields["vz/topology"].set("mesh");
     fields["vz/volume_dependent"].set("false");
     fields["vz/values"].set_external(&d.vz[startIndex], endIndex - startIndex); // zero-copy
+    // rank is vertex-data.
+    fields["rank/association"].set("vertex");
+    fields["rank/topology"].set("mesh");
+    fields["rank/volume_dependent"].set("false");
+    fields["rank/values"].set_external(&d.vz[startIndex], endIndex - startIndex); // zero-copy
     // u is vertex-data.
-    fields["Internal Energy/association"].set("vertex");
-    fields["Internal Energy/topology"].set("mesh");
-    fields["Internal Energy/volume_dependent"].set("false");
-    fields["Internal Energy/values"].set_external(&d.u[startIndex], endIndex - startIndex); // zero-copy
+    // u is not initialized properly and cannot be transferred to Catalyst yet.
+    // TODO: look for the initial condition that can initialize u.
+    // fields["Internal Energy/association"].set("vertex");
+    // fields["Internal Energy/topology"].set("mesh");
+    // fields["Internal Energy/volume_dependent"].set("false");
+    // fields["Internal Energy/values"].set_external(&d.u[startIndex], endIndex - startIndex); // zero-copy
     // p is vertex-data.
     fields["Pressure/association"].set("vertex");
     fields["Pressure/topology"].set("mesh");

@@ -6,7 +6,7 @@ def catalyst_initialize():
     print("catalyst_initialize()")
 
 def catalyst_execute(params):
-    if not (params.timestep % 10):
+    if not (params.timestep % 1):
         print("catalyst_execute: particles' Density range", reader.PointData["Density"].GetRange(), " at timestep:", params.timestep)
 
 def catalyst_finalize():
