@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include "sph/particles_data.hpp"
+#include "propagator/ipropagator.hpp"
+#include "cstone/domain/domain.hpp"
 
 #ifdef SPH_EXA_USE_CATALYST2
 #include "catalyst_adaptor.h"
@@ -31,14 +33,14 @@ void init_ascent([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex)
 #endif
 }
 
-template<class DataType>
-void execute([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex, [[maybe_unused]] long endIndex, [[maybe_unused]] size_t rank)
+template<class DataType, class DomainType, class ParticleDataType>
+void execute([[maybe_unused]] DataType& d, [[maybe_unused]] std::unique_ptr<sphexa::Propagator<DomainType, ParticleDataType>>& p, [[maybe_unused]] long startIndex, [[maybe_unused]] long endIndex, [[maybe_unused]] size_t rank)
 {
 #ifdef SPH_EXA_USE_CATALYST2
     CatalystAdaptor::Execute(d, startIndex, endIndex);
 #endif
 #ifdef SPH_EXA_USE_ASCENT
-    AscentAdaptor::Execute(d, startIndex, endIndex, rank);
+    AscentAdaptor::Execute(d, p, startIndex, endIndex, rank);
 #endif
 }
 

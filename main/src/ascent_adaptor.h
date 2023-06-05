@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sph/particles_data.hpp"
+#include "propagator/ipropagator.hpp"
 
 #include <ascent/ascent.hpp>
 #include "conduit_blueprint.hpp"
@@ -103,51 +104,43 @@ void addField(conduit::Node& mesh, const std::string& name, FieldType* field, si
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
 
-template<class DataType>
-void Execute(DataType& d, long startIndex, long endIndex, size_t rank)
+template<class DataType, class DomainType, class ParticleDataType>
+void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, ParticleDataType>>& p, long startIndex, long endIndex, size_t rank)
 {
     conduit::Node mesh;
     mesh["state/cycle"].set_external(&d.iteration);
     mesh["state/time"].set_external(&d.ttot);
     mesh["state/domain_id"] = rank;
 
+    // The execution time for 1 iteration in current rank. Differs upon ranks
+    float currTimeDelta = p->getTotalIterationTime();
+    mesh["state/time"].set(currTimeDelta);
+    
     mesh["coordsets/coords/type"] = "explicit";
     mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], endIndex - startIndex);
     mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], endIndex - startIndex);
     mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], endIndex - startIndex);
 
-
     mesh["topologies/mesh/type"] = "unstructured";
     mesh["topologies/mesh/coordset"] = "coords";
     mesh["topologies/mesh/elements/shape"] = "point";
-    std::vector<conduit_int64> conn(endIndex - startIndex);
+    std::vector<conduit_int32> conn(endIndex - startIndex);
     for (int i=0; i<endIndex - startIndex; i++) {
         conn[i] = i;
     }
-    std::vector<conduit_int64> ranks(endIndex - startIndex);
-    for (int i=0; i<endIndex - startIndex; i++) {
-        ranks[i] = rank;
-    }
-    // mesh["topologies/mesh/elements/connectivity"].set(DataType::int32(endIndex - startIndex));
+
     mesh["topologies/mesh/elements/connectivity"].set_external(conn);
     
-
     mesh["fields/particles/association"] = "vertex";
     mesh["fields/particles/topology"]    = "mesh";
     mesh["fields/particles/values"].set_external(&d.x[startIndex], endIndex - startIndex);
     
-    mesh["fields/ranks/association"] = "vertex";
-    mesh["fields/ranks/topology"]    = "mesh";
-    mesh["fields/ranks/values"].set_external(ranks);
-
-    
-
-    // mesh["temp/start"] = startIndex;
-    // mesh["temp/end"] = endIndex;
-    // mesh["temp/rank"] = rank;
-
-    addField(mesh, "x", d.x.data(), startIndex, endIndex);
-    // addField(mesh, "y", d.y.data(), startIndex, endIndex);
+    std::vector<conduit_int64> ranks(endIndex - startIndex);
+    for (int i=0; i<endIndex - startIndex; i++) {
+        ranks[i] = rank;
+    }
+    addField(mesh, "ranks", ranks.data(), 0, endIndex - startIndex);
+    // addField(mesh, "time", currTime.data(), 0, 1);
     // addField(mesh, "z", d.z.data(), startIndex, endIndex);
     // addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
     // addField(mesh, "vy", d.vy.data(), startIndex, endIndex);
@@ -161,9 +154,6 @@ void Execute(DataType& d, long startIndex, long endIndex, size_t rank)
     // addField(mesh, "ax", d.ax.data(), startIndex, endIndex);
     // addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
     // addField(mesh, "ax", d.az.data(), startIndex, endIndex);
-
-    // std::cout<< "\nhhhhh====" << startIndex << "," << endIndex << "," << rank << "======" << std::endl;
-    // addField(mesh, "numRank", d.numRank.data(), startIndex, endIndex);
 
 
     conduit::Node verify_info;
