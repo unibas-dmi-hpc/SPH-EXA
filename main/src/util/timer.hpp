@@ -98,12 +98,6 @@ public:
     {
     }
 
-    void addSubsteps(float t1, float t2)
-    {
-        profiler.saveTimings(t1);
-        profiler.saveTimings(t2);
-    }
-
     void step(const std::string& name)
     {
         if (isProfilingEnabled)
@@ -118,15 +112,15 @@ public:
             Timer::step(name);
     }
 
-    void profilingStop(size_t, size_t numLocalParticles)
+    void stop()
     {
         if (isProfilingEnabled)
         {
-            stop();
-            profiler.saveTimestepAndParticleNo(duration(), numLocalParticles);
+            Timer::stop();
+            profiler.saveTimestep(duration());
         }
         else
-            stop();
+            Timer::stop();
     }
 
     void printProfilingInfo() { profiler.printProfilingInfo(); }

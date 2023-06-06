@@ -33,7 +33,6 @@
 
 #include <numeric>
 #include <vector>
-#include <chrono>
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/errorcheck.cuh"

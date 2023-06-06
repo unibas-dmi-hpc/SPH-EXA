@@ -217,8 +217,7 @@ public:
         updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");
 
-        // timer.stop();
-        timer.profilingStop(d.iteration, d.x.size());
+        timer.stop();
     }
 
     void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,

@@ -187,8 +187,7 @@ public:
         updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");
 
-        // timer.stop();
-        timer.profilingStop(d.iteration, d.x.size());
+        timer.stop();
     }
 };
 
