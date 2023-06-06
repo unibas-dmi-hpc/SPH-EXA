@@ -97,7 +97,6 @@ public:
     DevVector<KeyType>  keys;                               // Particle space-filling-curve keys
     DevVector<unsigned> nc;                                 // number of neighbors of each particle
     DevVector<T>        dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
-    DevVector<T>        numRank;                            // number of MPI rank where the particle is stored
 
 
     //! @brief SPH interpolation kernel lookup tables
@@ -117,7 +116,7 @@ public:
         "x",     "y",    "z",   "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",    "rho",  "u",     "p",
         "prho",  "h",    "m",   "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",   "c13",
         "c22",   "c23",  "c33", "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv", "alpha",
-        "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33", "numRank"};
+        "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
 
     /*! @brief return a tuple of field references
      *
@@ -127,7 +126,7 @@ public:
     {
         auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11,
                             c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc,
-                            dV11, dV12, dV13, dV22, dV23, dV33, numRank);
+                            dV11, dV12, dV13, dV22, dV23, dV33);
 
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
         return ret;
