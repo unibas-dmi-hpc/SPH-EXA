@@ -24,7 +24,7 @@ public:
     {
 #ifdef USE_PMT
         cpu_sensor = pmt::rapl::Rapl::create();
-        if constexpr (HaveGpu<Accelerator>{}) { gpu_sensor = pmt::nvml::NVML::create(); }
+        gpu_sensor = pmt::nvml::NVML::create();
 #endif
     }
 
@@ -39,8 +39,8 @@ public:
     {
         float totalEnergy = 0.0;
 #ifdef USE_PMT
-        pmt_end = cpu_sensor->read();
-        if constexpr (HaveGpu<Accelerator>{}) { totalEnergy = gpu_sensor->joules(pmt_start, pmt_end); }
+        pmt_end     = cpu_sensor->read();
+        totalEnergy = gpu_sensor->joules(pmt_start, pmt_end);
         totalEnergy += cpu_sensor->joules(pmt_start, pmt_end);
         pmt_start = cpu_sensor->read();
 #endif
@@ -116,7 +116,7 @@ public:
                 delete[] element;
             }
             energyFile << std::endl;
-            std::cout << "Profiling data written." << std::endl;
+            std::cout << "Energy data written." << std::endl;
         }
         energyFile.close();
     }
@@ -162,7 +162,7 @@ public:
 
     void gatherEnergies()
     {
-        std::cout << "Gathering profiling data." << std::endl;
+        std::cout << "Gathering energy data." << std::endl;
         std::vector<float> durs;
         durs.resize(_numRanks * funcEnergies.size());
 
