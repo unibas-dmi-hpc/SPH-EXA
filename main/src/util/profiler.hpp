@@ -54,9 +54,11 @@ private:
     std::vector<float*> timeSteps;    // vector of timesteps for all ranks
     std::vector<float>  funcTimes;    // vector of timesteps for each rank
     std::vector<float>  funcEnergies; // vector of energy measurements for each rank
+    std::vector<float*> energies;     // vector of energy measurements for each rank
     int                 _numRanks;
     int                 _rank;
     std::ofstream       profilingFile;
+    std::ofstream       energyFile;
     EnergyReader        enReader;
 
     // Metrics
@@ -82,10 +84,42 @@ public:
         , enReader()
     {
         MPI_Comm_size(MPI_COMM_WORLD, &_numRanks);
-        std::string filename = "profiling-" + std::to_string(_numRanks) + "Ranks.txt";
-        if (_rank == 0) profilingFile.open(filename);
+        std::string filename  = "profiling-" + std::to_string(_numRanks) + "Ranks.txt";
+        std::string efilename = "energy-" + std::to_string(_numRanks) + "Ranks.txt";
+        if (_rank == 0)
+        {
+            profilingFile.open(filename);
+            energyFile.open(efilename);
+        }
     }
     ~Profiler() {}
+
+    void printEnergyMeasurements()
+    {
+        if (_rank == 0)
+        {
+            size_t iter = 1;
+            for (int i = 0; i < _numRanks; i++)
+            {
+                energyFile << "RANK" << i << ",";
+            }
+            energyFile << std::endl;
+            for (auto& element : energies)
+            {
+                for (int i = 0; i < _numRanks; i++)
+                {
+                    energyFile << element[i] << ",";
+                }
+
+                iter++;
+                energyFile << std::endl;
+                delete[] element;
+            }
+            energyFile << std::endl;
+            std::cout << "Profiling data written." << std::endl;
+        }
+        energyFile.close();
+    }
 
     void printProfilingInfo()
     {
@@ -125,6 +159,30 @@ public:
 
     // save the total timestep timing
     void saveTimestep(float duration) { funcTimes.push_back(duration); }
+
+    void gatherEnergies()
+    {
+        std::cout << "Gathering profiling data." << std::endl;
+        std::vector<float> durs;
+        durs.resize(_numRanks * funcEnergies.size());
+
+        float* durations = durs.data();
+        MPI_Gather(funcEnergies.data(), funcEnergies.size(), MPI_FLOAT, &durations[_rank * funcEnergies.size()],
+                   funcEnergies.size(), MPI_FLOAT, 0, MPI_COMM_WORLD);
+
+        if (_rank == 0)
+        {
+            for (int i = 0; i < funcEnergies.size(); i++)
+            {
+                float* funcDurations = new float[_numRanks];
+                for (int r = 0; r < _numRanks; r++)
+                {
+                    funcDurations[r] = durations[r * funcEnergies.size() + i];
+                }
+                energies.push_back(funcDurations);
+            }
+        }
+    }
 
     void gatherTimings()
     {

@@ -129,9 +129,17 @@ public:
             Timer::stop();
     }
 
-    void printProfilingInfo() { profiler.printProfilingInfo(); }
+    void printProfilingInfo()
+    {
+        profiler.printProfilingInfo();
+        profiler.printEnergyMeasurements();
+    }
 
-    void gatherProfilingInfo() { profiler.gatherTimings(); }
+    void gatherProfilingInfo()
+    {
+        profiler.gatherTimings();
+        profiler.gatherEnergies();
+    }
 
 private:
     int      rank;
