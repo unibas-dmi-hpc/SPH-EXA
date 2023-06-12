@@ -4,17 +4,60 @@
 #include <fstream>
 #include <mpi.h>
 
+#ifdef USE_PMT
+#include "pmt.h"
+#endif
+
 namespace sphexa
 {
+
+class EnergyReader
+{
+#ifdef USE_PMT
+    std::unique_ptr<pmt::PMT> cpu_sensor;
+    std::unique_ptr<pmt::PMT> gpu_sensor;
+    pmt::State                pmt_start, pmt_end;
+#endif
+
+public:
+    EnergyReader()
+    {
+#ifdef USE_PMT
+        cpu_sensor = pmt::rapl::Rapl::create();
+        if constexpr (HaveGpu<Accelerator>{}) { gpu_sensor = pmt::nvml::NVML::create(); }
+#endif
+    }
+
+    void startReader()
+    {
+#ifdef USE_PMT
+        pmt_start = pmt_end = cpu_sensor->read();
+#endif
+    }
+
+    float readEnergy()
+    {
+        float totalEnergy = 0.0;
+#ifdef USE_PMT
+        pmt_end = cpu_sensor->read();
+        if constexpr (HaveGpu<Accelerator>{}) { totalEnergy = gpu_sensor->joules(pmt_start, pmt_end); }
+        totalEnergy += cpu_sensor->joules(pmt_start, pmt_end);
+        pmt_start = cpu_sensor->read();
+#endif
+        return totalEnergy;
+    }
+};
 
 class Profiler
 {
 private:
-    std::vector<float*> timeSteps; // vector of timesteps for all ranks
-    std::vector<float>  funcTimes; // vector of timesteps for each rank
+    std::vector<float*> timeSteps;    // vector of timesteps for all ranks
+    std::vector<float>  funcTimes;    // vector of timesteps for each rank
+    std::vector<float>  funcEnergies; // vector of energy measurements for each rank
     int                 _numRanks;
     int                 _rank;
     std::ofstream       profilingFile;
+    EnergyReader        enReader;
 
     // Metrics
     // std::vector<float>  meanPerStep;   // mean (average)
@@ -27,26 +70,22 @@ private:
     // std::vector<float>  g2PerStep;     // kurtosis
     // std::vector<float>  totalTimeStep; // total time-step durations
 
+    void saveFunctionEnergy()
+    {
+        float totalEnergy = enReader.readEnergy();
+        funcEnergies.push_back(totalEnergy);
+    }
+
 public:
     Profiler(int rank)
         : _rank(rank)
+        , enReader()
     {
         MPI_Comm_size(MPI_COMM_WORLD, &_numRanks);
         std::string filename = "profiling-" + std::to_string(_numRanks) + "Ranks.txt";
         if (_rank == 0) profilingFile.open(filename);
     }
     ~Profiler() {}
-
-    // void printMetrics(int iteration)
-    // {
-    //     profilingFile << meanPerStep.at(iteration) << "," << stdevPerStep.at(iteration) << ","
-    //                   << covPerStep.at(iteration) << "," << I_2PerStep.at(iteration) << ","
-    //                   << lambdaPerStep.at(iteration);
-    //     for (int i = 0; i < _numRanks; i++)
-    //     {
-    //         profilingFile << "," << vectorMetric.at(iteration)[i];
-    //     }
-    // }
 
     void printProfilingInfo()
     {
@@ -58,25 +97,14 @@ public:
             {
                 profilingFile << "RANK" << i << ",";
             }
-            // profilingFile << "mean,"
-            //               << "stdev,"
-            //               << "CoV,"
-            //               << "I_2,"
-            //               << "lambda";
-            // for (int i = 0; i < _numRanks; i++)
-            // {
-            //     profilingFile << ",Vector" << i;
-            // }
             profilingFile << std::endl;
             for (auto& element : timeSteps)
             {
-                // calculateMetrics(element);
-                // profilingFile << std::setw(3) << iter << " ";
                 for (int i = 0; i < _numRanks; i++)
                 {
                     profilingFile << element[i] << ",";
                 }
-                // printMetrics(iter - 1);
+
                 iter++;
                 profilingFile << std::endl;
                 delete[] element;
@@ -87,12 +115,16 @@ public:
         profilingFile.close();
     }
 
-    void saveTimings(float duration) { funcTimes.push_back(duration); }
-
-    void saveTimestep(float duration)
+    void saveFunctionTimings(float duration)
     {
-        funcTimes.push_back(duration); // save the total timestep timing
+        funcTimes.push_back(duration);
+        saveFunctionEnergy();
     }
+
+    void startEnergyMeasurement() { enReader.startReader(); }
+
+    // save the total timestep timing
+    void saveTimestep(float duration) { funcTimes.push_back(duration); }
 
     void gatherTimings()
     {
@@ -117,32 +149,6 @@ public:
             }
         }
     }
-
-    // LiB metrics calculations
-    // void calculateMetrics(float* durations)
-    // {
-    //     const std::vector<float> durData(durations, durations + _numRanks);
-    //     float*                   vecMetric = new float[_numRanks];
-
-    //     float mean   = std::reduce(durData.begin(), durData.end()) / durData.size();
-    //     float sq_sum = std::inner_product(durData.begin(), durData.end(), durData.begin(), 0.0);
-    //     float stdev  = std::sqrt(sq_sum / durData.size() - mean * mean);
-    //     float Lmax   = *std::max_element(durData.begin(), durData.end());
-    //     float lambda = (Lmax / mean - 1.0f) * 100;
-
-    //     for (int i = 0; i < _numRanks; i++)
-    //     {
-    //         vecMetric[i] = 1 - (durData.at(i) / mean);
-    //     }
-    //     float sumsqVector = std::inner_product(vecMetric, vecMetric + _numRanks, vecMetric, 0.0);
-
-    //     meanPerStep.push_back(mean);
-    //     stdevPerStep.push_back(stdev);
-    //     lambdaPerStep.push_back(lambda);
-    //     covPerStep.push_back(stdev / mean);
-    //     vectorMetric.push_back(vecMetric);
-    //     I_2PerStep.push_back(std::sqrt(sumsqVector));
-    // }
 };
 
 } // namespace sphexa

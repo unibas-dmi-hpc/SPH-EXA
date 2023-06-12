@@ -98,11 +98,17 @@ public:
     {
     }
 
+    void start()
+    {
+        Timer::start();
+        profiler.startEnergyMeasurement();
+    }
+
     void step(const std::string& name)
     {
         if (isProfilingEnabled)
         {
-            profiler.saveTimings(stepDuration());
+            profiler.saveFunctionTimings(stepDuration());
             if (rank == 0)
                 Timer::step(name);
             else
@@ -126,8 +132,6 @@ public:
     void printProfilingInfo() { profiler.printProfilingInfo(); }
 
     void gatherProfilingInfo() { profiler.gatherTimings(); }
-
-    bool isProfEnabled() { return isProfilingEnabled; }
 
 private:
     int      rank;

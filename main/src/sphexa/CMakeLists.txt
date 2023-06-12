@@ -41,6 +41,13 @@ function(enableGrackle exename)
     endif ()
 endfunction()
 
+function(enablePMT exename)
+    if(SPH_EXA_WITH_PMT)
+        target_compile_definitions(${exename} PUBLIC USE_PMT)
+        target_link_libraries(${exename} PRIVATE pmt)
+    endif()
+endfunction()
+
 set(exename sphexa)
 add_executable(${exename} sphexa.cpp)
 target_include_directories(${exename} PRIVATE ${SPH_EXA_INCLUDE_DIRS})
@@ -50,6 +57,7 @@ target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/physics/cool
 enableH5Part(${exename})
 enableInSituViz(${exename})
 enableGrackle(${exename})
+enablePMT(${exename})
 install(TARGETS ${exename} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if (CMAKE_CUDA_COMPILER)
