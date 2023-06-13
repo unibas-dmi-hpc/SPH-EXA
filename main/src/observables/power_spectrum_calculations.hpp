@@ -65,7 +65,7 @@ public:
             double h2     = 2 * h1;
             double h2_2   = h2 * h2;
             double h3     = h1 * h1 * h1;
-            double weight = mass / 1.0; // ro[n] / h3;
+            double weight = mass / rho[n] / h3; // 1.0;
 
             int max_intz = std::floor((zpos[n] + h2) * gridDim_ - 0.5e0);
             int min_intz = std::ceil((zpos[n] - h2) * gridDim_ - 0.5e0);
@@ -270,9 +270,26 @@ void shells(double w[], int npixels, double E[], double k_center[])
     }
 }
 
-void fft3D(double G_1D[], int npixels)
+void fft3D(double G_1D[], int gridDim)
 {
-    // uint64_t        npixels3 = npixels * npixels * npixels;
+    // int me; // this process rank within the comm
+    // MPI_Comm_rank(comm, &me);
+
+    // int num_ranks; // total number of ranks in the comm
+    // MPI_Comm_size(comm, &num_ranks);
+
+    // heffte::box3d<> all_indexes({0, 0, 0}, {gridDim - 1, gridDim - 1, gridDim - 1}});
+
+    // create a processor grid with minimum surface (measured in number of indexes)
+    // std::array<int,3> proc_grid = heffte::proc_setup_min_surface(all_indexes, num_ranks);
+
+    // split all indexes across the processor grid, defines a set of boxes
+    // std::vector<heffte::box3d<>> all_boxes = heffte::split_world(all_indexes, proc_grid);
+
+    // pick the box corresponding to this rank
+    // heffte::box3d<> const inbox  = all_boxes[me];
+
+    // OLD
     // heffte::box3d<> inbox    = {{0, 0, 0}, {npixels - 1, npixels - 1, npixels - 1}};
     // heffte::box3d<> outbox   = {{0, 0, 0}, {npixels - 1, npixels - 1, npixels - 1}};
 

@@ -152,6 +152,9 @@ public:
         const auto* vxptr = &(d.vx.data()[firstIndex]);
         const auto* vyptr = &(d.vy.data()[firstIndex]);
         const auto* vzptr = &(d.vz.data()[firstIndex]);
+        const auto* kxptr = &(d.kx.data()[firstIndex]);
+        const auto* mptr  = &(d.m.data()[firstIndex]);
+        const auto* xmptr = &(d.xm.data()[firstIndex]);
 
         // Move the global box into (0,1) range in every dimension from (-0.5,0.5)
         if (centered_at_0)
@@ -167,21 +170,16 @@ public:
                 double vyi = vyptr[i];
                 double vzi = vzptr[i];
                 v[i]       = std::sqrt(vxi * vxi + vyi * vyi * vzi * vzi);
-                // v[i]    = 0.2 + 1.0 / (1 + i);
-                rho[i] = 1.0;
+                rho[i]     = kxptr[i] * mptr[i] / xmptr[i];
             }
         }
 
-        // gd.rasterizeDomain(xpos, ypos, zpos, d.divv.data(), d.rho.data(), d.h.data());
-        gd.rasterizeDomain(xpos, ypos, zpos, v.data(), rho.data(), h.data(), npart);
-
         std::cout << "gridding start" << std::endl;
-        // gridding_spectra(numLocalParticles, Lbox, xpos, ypos, zpos, d.divv.data(), d.rho.data(), mass, partperpixel,
-        //                  npixelsPerDim, gd.Gv.data(), E, k_center);
-
+        gd.rasterizeDomain(xpos, ypos, zpos, v.data(), rho.data(), h.data(), npart);
         std::cout << "gridding end" << std::endl;
 
-        // if (prop->getRank() == 0) { gd.printGrid(); }
+        // gridding_spectra(numLocalParticles, Lbox, xpos, ypos, zpos, d.divv.data(), d.rho.data(), mass, partperpixel,
+        //                  npixelsPerDim, gd.Gv.data(), E, k_center);
 
         // For testing, production should write to hdf5
         // std::ofstream spectra;
