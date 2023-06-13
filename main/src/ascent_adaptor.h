@@ -105,7 +105,8 @@ void addField(conduit::Node& mesh, const std::string& name, FieldType* field, si
 }
 
 template<class DataType, class DomainType, class ParticleDataType>
-void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, ParticleDataType>>& p, long startIndex, long endIndex, size_t rank)
+void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, ParticleDataType>>& p, long startIndex,
+             long endIndex, size_t rank)
 {
     conduit::Node mesh;
     mesh["state/cycle"].set_external(&d.iteration);
@@ -115,28 +116,30 @@ void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, Particl
     // The execution time for 1 iteration in current rank. Differs upon ranks
     float currTimeDelta = p->getTotalIterationTime();
     mesh["state/time"].set(currTimeDelta);
-    
+
     mesh["coordsets/coords/type"] = "explicit";
     mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], endIndex - startIndex);
     mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], endIndex - startIndex);
     mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], endIndex - startIndex);
 
-    mesh["topologies/mesh/type"] = "unstructured";
-    mesh["topologies/mesh/coordset"] = "coords";
+    mesh["topologies/mesh/type"]           = "unstructured";
+    mesh["topologies/mesh/coordset"]       = "coords";
     mesh["topologies/mesh/elements/shape"] = "point";
     std::vector<conduit_int32> conn(endIndex - startIndex);
-    for (int i=0; i<endIndex - startIndex; i++) {
+    for (int i = 0; i < endIndex - startIndex; i++)
+    {
         conn[i] = i;
     }
 
     mesh["topologies/mesh/elements/connectivity"].set_external(conn);
-    
+
     mesh["fields/particles/association"] = "vertex";
     mesh["fields/particles/topology"]    = "mesh";
     mesh["fields/particles/values"].set_external(&d.x[startIndex], endIndex - startIndex);
-    
+
     std::vector<conduit_int64> ranks(endIndex - startIndex);
-    for (int i=0; i<endIndex - startIndex; i++) {
+    for (int i = 0; i < endIndex - startIndex; i++)
+    {
         ranks[i] = rank;
     }
     addField(mesh, "ranks", ranks.data(), 0, endIndex - startIndex);
@@ -154,7 +157,6 @@ void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, Particl
     // addField(mesh, "ax", d.ax.data(), startIndex, endIndex);
     // addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
     // addField(mesh, "ax", d.az.data(), startIndex, endIndex);
-
 
     conduit::Node verify_info;
     if (!conduit::blueprint::mesh::verify(mesh, verify_info))

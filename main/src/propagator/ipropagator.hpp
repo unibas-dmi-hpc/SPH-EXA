@@ -97,10 +97,8 @@ public:
             printTotalIterationTime(d.iteration, timer.duration());
         }
     }
-    float getTotalIterationTime() {
-        return timer.duration();
-    }
-    
+    float getTotalIterationTime() { return timer.duration(); }
+
 protected:
     MasterProcessTimer timer;
     std::ostream&      out;
