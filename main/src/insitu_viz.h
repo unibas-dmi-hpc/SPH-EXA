@@ -34,7 +34,9 @@ void init_ascent([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex)
 }
 
 template<class DataType, class DomainType, class ParticleDataType>
-void execute([[maybe_unused]] DataType& d, [[maybe_unused]] std::unique_ptr<sphexa::Propagator<DomainType, ParticleDataType>>& p, [[maybe_unused]] long startIndex, [[maybe_unused]] long endIndex, [[maybe_unused]] size_t rank)
+void execute([[maybe_unused]] DataType&                                                          d,
+             [[maybe_unused]] std::unique_ptr<sphexa::Propagator<DomainType, ParticleDataType>>& p,
+             [[maybe_unused]] long startIndex, [[maybe_unused]] long endIndex, [[maybe_unused]] size_t rank)
 {
 #ifdef SPH_EXA_USE_CATALYST2
     CatalystAdaptor::Execute(d, startIndex, endIndex);

@@ -102,7 +102,7 @@ public:
             oldBoundaries[rank] = oldLeaves[assignment_.firstNodeIdx(rank)];
         }
         oldBoundaries.back() = nodeRange<KeyType>(0);
-        
+
         updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_);
 
         if (firstCall_)

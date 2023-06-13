@@ -58,10 +58,10 @@ template<class KeyType, class T, class Vector>
 void syncCoords(size_t rank, size_t numRanks, size_t numParticlesGlobal, Vector& x, Vector& y, Vector& z,
                 const cstone::Box<T>& globalBox)
 {
-    size_t                    bucketSize = std::max(64lu, numParticlesGlobal / (100 * numRanks));
-    cstone::BufferDescription bufDesc{0, cstone::LocalIndex(x.size()), cstone::LocalIndex(x.size())};
+    size_t                               bucketSize = std::max(64lu, numParticlesGlobal / (100 * numRanks));
+    cstone::BufferDescription            bufDesc{0, cstone::LocalIndex(x.size()), cstone::LocalIndex(x.size())};
     cstone::GlobalAssignment<KeyType, T> distributor(rank, numRanks, bucketSize, globalBox);
-    std::vector<unsigned>                                        orderScratch;
+    std::vector<unsigned>                orderScratch;
     cstone::SfcSorter<cstone::LocalIndex, std::vector<unsigned>> reorderFunctor(orderScratch);
 
     std::vector<T>       scratch1, scratch2;
