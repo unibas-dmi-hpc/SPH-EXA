@@ -121,9 +121,10 @@ public:
         using T              = typename Dataset::RealType;
         size_t dim           = std::cbrt(d.numParticlesGlobal); // each dimension size
         bool   centered_at_0 = true;
-        double Lbox          = box.lx();                        // length of the box
-        size_t npart         = lastIndex - firstIndex;          // # of real local particles
-        size_t pixelsPerRank = npart * 8;                       // 2xdim in each dimension decomposed into domain
+
+        double Lbox          = box.lx();               // length of the box
+        size_t npart         = lastIndex - firstIndex; // # of real local particles
+        size_t pixelsPerRank = npart * 8;              // 2xdim in each dimension decomposed into domain
         size_t npixelsPerDim = 2 * dim;
         int    Kmax          = std::ceil(std::sqrt(3) * npixelsPerDim * 0.5);
         double E[Kmax], k_center[Kmax];
