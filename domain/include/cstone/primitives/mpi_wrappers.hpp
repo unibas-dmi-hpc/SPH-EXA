@@ -107,21 +107,29 @@ struct MpiType<unsigned long long>
 };
 
 template<class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-auto mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
+auto mpiSendAsync(T* data, size_t count, int rank, int tag, std::vector<MPI_Request>& requests)
 {
+    assert(count <= std::numeric_limits<int>::max());
     requests.push_back(MPI_Request{});
-    return MPI_Isend(data, count, MpiType<std::decay_t<T>>{}, rank, tag, MPI_COMM_WORLD, &requests.back());
+    return MPI_Isend(data, int(count), MpiType<std::decay_t<T>>{}, rank, tag, MPI_COMM_WORLD, &requests.back());
 }
 
 //! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
 template<class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-auto mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
+auto mpiSendAsync(T* data, size_t count, int rank, int tag, std::vector<MPI_Request>& requests)
 {
     using ValueType    = typename T::value_type;
     constexpr size_t N = T{}.size();
     ValueType* ptr     = reinterpret_cast<ValueType*>(data);
 
     return mpiSendAsync(ptr, count * N, rank, tag, requests);
+}
+
+//! @brief Send char buffers as type T to mitigate the 32-bit send count limitation of MPI
+template<class T>
+auto mpiSendAsyncAs(char* data, size_t numBytes, int rank, int tag, std::vector<MPI_Request>& requests)
+{
+    return mpiSendAsync(reinterpret_cast<T*>(data), numBytes / sizeof(T), rank, tag, requests);
 }
 
 template<class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
@@ -139,6 +147,12 @@ auto mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
     ValueType* ptr     = reinterpret_cast<ValueType*>(data);
 
     return mpiRecvSync(ptr, count * N, rank, tag, status);
+}
+
+template<class T>
+auto mpiRecvSyncAs(char* data, size_t numBytes, int rank, int tag, MPI_Status* status)
+{
+    return mpiRecvSync(reinterpret_cast<T*>(data), numBytes / sizeof(T), rank, tag, status);
 }
 
 template<class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>

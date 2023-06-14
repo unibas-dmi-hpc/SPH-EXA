@@ -56,24 +56,6 @@
 namespace cstone
 {
 
-/*! @brief Layout description for particle buffers
- *
- * Common usage: storing the sub-range of locally owned/assigned particles within particle buffers
- *
- * 0       start              end      size
- * |-------|------------------|--------|
- *   halos   locally assigned   halos
- */
-struct BufferDescription
-{
-    //! @brief subrange start
-    LocalIndex start;
-    //! @brief subrange end
-    LocalIndex end;
-    //! @brief total size of the buffer
-    LocalIndex size;
-};
-
 /*! @brief calculates the complementary range of the input ranges
  *
  * Input:  │      ------    -----   --     ----     --  │

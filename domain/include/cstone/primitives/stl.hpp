@@ -125,15 +125,4 @@ HOST_DEVICE_FUN ForwardIt upper_bound(ForwardIt first, ForwardIt last, const T& 
     return first;
 }
 
-//! @brief this can be removed once most compilers support it as part of STL
-template<class InputIterator, class OutputIterator, class T>
-void exclusive_scan(InputIterator in1, InputIterator in2, OutputIterator out, T init)
-{
-    while (in1 != in2)
-    {
-        *out++ = init;
-        init += *in1++;
-    }
-}
-
 } // namespace stl

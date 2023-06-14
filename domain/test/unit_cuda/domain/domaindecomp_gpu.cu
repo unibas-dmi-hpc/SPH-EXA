@@ -50,13 +50,13 @@ static void sendListMinimalGpu()
     assignment.addRange(Rank(1), 2, 4, 0);
 
     thrust::device_vector<KeyType> d_keys = codes;
-    thrust::device_vector<double> scratch1;
-    thrust::device_vector<double> scratch2;
+    thrust::device_vector<KeyType> d_searchKeys(numRanks);
+    thrust::device_vector<LocalIndex> d_indices(numRanks);
 
     gsl::span<const KeyType> d_keyView{rawPtr(d_keys), d_keys.size()};
 
     // note: codes input needs to be sorted
-    auto sendList = createSendListGpu<KeyType>(assignment, tree, d_keyView, scratch1, scratch2);
+    auto sendList = createSendListGpu<KeyType>(assignment, tree, d_keyView, rawPtr(d_searchKeys), rawPtr(d_indices));
 
     EXPECT_EQ(sendList[0].totalCount(), 6);
     EXPECT_EQ(sendList[1].totalCount(), 3);

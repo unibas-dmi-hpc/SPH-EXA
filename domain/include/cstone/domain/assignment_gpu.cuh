@@ -71,6 +71,9 @@ public:
         std::vector<KeyType> init = computeSpanningTree<KeyType>(initialBoundaries);
         tree_.update(init.data(), nNodes(init));
         nodeCounts_ = std::vector<unsigned>(nNodes(init), bucketSize_ - 1);
+
+        reallocateDevice(d_boundaryKeys_, numRanks_, 1.0);
+        reallocateDevice(d_boundaryIndices_, numRanks_, 1.0);
     }
 
     /*! @brief Update the global tree
@@ -81,7 +84,7 @@ public:
      * @param[in]  x               x coordinates, length = bufDesc.size, ON DEVICE
      * @param[in]  y               y coordinates, length = bufDesc.size, ON DEVICE
      * @param[in]  z               z coordinates, length = bufDesc.size, ON DEVICE
-     * @return                     number of assigned particles
+     * @return                     required buffer size for the next call to @a distribute
      *
      * This function does not modify / communicate any particle data.
      */
@@ -124,7 +127,12 @@ public:
         limitBoundaryShifts<KeyType>(oldBoundaries, tree_.treeLeaves(), nodeCounts_, newAssignment);
         assignment_ = std::move(newAssignment);
 
-        return assignment_.totalCount(myRank_);
+        exchanges_ =
+            createSendListGpu<KeyType>(assignment_, tree_.treeLeaves(), {particleKeys + bufDesc.start, numParticles},
+                                       rawPtr(d_boundaryKeys_), rawPtr(d_boundaryIndices_));
+
+        return domain_exchange::exchangeBufferSize(bufDesc, exchanges_[myRank_].totalCount(),
+                                                   assignment_.totalCount(myRank_));
     }
 
     /*! @brief Distribute particles to their assigned ranks based on previous assignment
@@ -159,33 +167,27 @@ public:
                     T* z,
                     Arrays... particleProperties) const
     {
-        LocalIndex numParticles          = bufDesc.end - bufDesc.start;
-        LocalIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
+        LocalIndex numAssigned = assignment_.totalCount(myRank_);
+        exchangeParticlesGpu(exchanges_, myRank_, bufDesc, numAssigned, sendScratch, receiveScratch,
+                             reorderFunctor.getReorderMap(), x, y, z, particleProperties...);
 
-        SendList domainExchangeSends = createSendListGpu<KeyType>(
-            assignment_, tree_.treeLeaves(), {keys + bufDesc.start, numParticles}, sendScratch, receiveScratch);
-
-        // Assigned particles are now inside the [newStart:newEnd] range, but not exclusively.
-        // Leftover particles from the previous step can also be contained in the range.
-        auto [newStart, newEnd] = exchangeParticlesGpu(domainExchangeSends, myRank_, bufDesc.start, bufDesc.end,
-                                                       bufDesc.size, newNParticlesAssigned, sendScratch, receiveScratch,
-                                                       reorderFunctor.getReorderMap(), x, y, z, particleProperties...);
-
-        LocalIndex envelopeSize          = newEnd - newStart;
-        const gsl::span<KeyType> keyView = gsl::span<KeyType>(keys + newStart, envelopeSize);
+        auto [newStart, newEnd] =
+            domain_exchange::assignedEnvelope(bufDesc, exchanges_[myRank_].totalCount(), numAssigned);
+        LocalIndex envelopeSize    = newEnd - newStart;
+        gsl::span<KeyType> keyView = gsl::span<KeyType>(keys + newStart, envelopeSize);
 
         computeSfcKeysGpu(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.data()), envelopeSize, box_);
         // sort keys and keep track of the ordering
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
         // thanks to the sorting, we now know the exact range of the assigned particles:
-        // [newStart + offset, newStart + offset + newNParticlesAssigned]
+        // [newStart + offset, newStart + offset + numAssigned]
         KeyType firstLocalKey = tree_.treeLeaves()[assignment_.firstNodeIdx(myRank_)];
         LocalIndex offset     = lowerBoundGpu(keyView.begin(), keyView.end(), firstLocalKey);
         // restrict the reordering to take only the assigned particles into account and ignore the others
-        reorderFunctor.restrictRange(offset, newNParticlesAssigned);
+        reorderFunctor.restrictRange(offset, numAssigned);
 
-        return std::make_tuple(newStart, keyView.subspan(offset, newNParticlesAssigned));
+        return std::make_tuple(newStart, keyView.subspan(offset, numAssigned));
     }
 
     //! @brief read only visibility of the global octree leaves to the outside
@@ -196,7 +198,7 @@ public:
     gsl::span<const unsigned> nodeCounts() const { return nodeCounts_; }
     //! @brief the global coordinate bounding box
     const Box<T>& box() const { return box_; }
-    //! @brief return the space filling curve rank assignment
+    //! @brief return the space filling curve rank assignment of the last call to @a assign()
     const SpaceCurveAssignment& assignment() const { return assignment_; }
 
 private:
@@ -208,6 +210,11 @@ private:
     Box<T> box_;
 
     SpaceCurveAssignment assignment_;
+    SendList exchanges_;
+
+    //! @brief For locating global domain boundaries in local particle key arrays
+    thrust::device_vector<KeyType> d_boundaryKeys_;
+    thrust::device_vector<LocalIndex> d_boundaryIndices_;
 
     //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;

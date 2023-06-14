@@ -411,11 +411,8 @@ private:
         std::apply([size = x.size()](auto&... arrays) { checkSizesEqual(size, arrays...); }, distributedArrays);
 
         // Global tree build and assignment
-        LocalIndex newNParticlesAssigned =
-            global_.assign(bufDesc_, reorderFunctor, rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
-
-        size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
-        lowMemReallocate(exchangeSize, 1.01, distributedArrays, scratchBuffers);
+        bufDesc_.size = global_.assign(bufDesc_, reorderFunctor, rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
+        lowMemReallocate(bufDesc_.size, 1.01, distributedArrays, scratchBuffers);
 
         return std::apply(
             [&reorderFunctor, &scratchBuffers, this](auto&... arrays)
@@ -504,12 +501,6 @@ private:
         std::swap(newBufDesc, bufDesc_);
     }
 
-    void prepareFlags(TreeNodeIndex numLeafNodes)
-    {
-        reallocateDestructive(haloFlags_, numLeafNodes, 1.01);
-        std::fill(begin(haloFlags_), end(haloFlags_), 0);
-    }
-
     void diagnostics(size_t assignedSize, gsl::span<int> peers)
     {
         auto focusAssignment = focusTree_.assignment();
@@ -585,7 +576,6 @@ private:
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     AccVector<LocalIndex> layoutAcc_;
     std::vector<LocalIndex> layout_;
-    std::vector<int> haloFlags_;
 
     using Distributor_t =
         typename AccelSwitchType<Accelerator, GlobalAssignment, GlobalAssignmentGpu>::template type<KeyType, T>;
