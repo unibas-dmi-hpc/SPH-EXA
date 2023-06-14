@@ -113,6 +113,11 @@ void gather(gsl::span<const IndexType> ordering, const ValueType* source, ValueT
     }
 }
 
+//! @brief Lambda to avoid templated functors that would become template-template parameters when passed to functions.
+inline auto gatherCpu = [](const auto* ordering, auto numElements, const auto* src, const auto dest) {
+    gather<LocalIndex>({ordering, numElements}, src, dest);
+};
+
 //! @brief scatter reorder
 template<class IndexType, class ValueType>
 void scatter(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination)

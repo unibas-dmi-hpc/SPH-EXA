@@ -1,5 +1,6 @@
 
 set(UNIT_TESTS
+        domain/buffer_description.cpp
         domain/domaindecomp.cpp
         domain/index_ranges.cpp
         domain/layout.cpp

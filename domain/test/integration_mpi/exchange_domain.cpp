@@ -37,6 +37,7 @@
 #include "cstone/util/reallocate.hpp"
 
 using namespace cstone;
+namespace ex = domain_exchange;
 
 /*! @brief all-to-all exchange, the most communication possible
  *
@@ -50,7 +51,7 @@ using namespace cstone;
 template<class T>
 void exchangeAllToAll(int thisRank, int numRanks)
 {
-    int gridSize = 64;
+    LocalIndex gridSize = 64;
 
     std::vector<T> x(gridSize), y(gridSize);
     std::vector<LocalIndex> ordering(gridSize);
@@ -64,7 +65,7 @@ void exchangeAllToAll(int thisRank, int numRanks)
     {
         // A simple, but nontrivial ordering.
         // Simulates the use case where the x,y,z coordinate arrays
-        // are not sorted according to the Morton code ordering for which
+        // are not sorted according to the SFC ordering for which
         // the index ranges in the SendList are valid.
         int swap1 = 0;
         int swap2 = gridSize - 1;
@@ -83,22 +84,25 @@ void exchangeAllToAll(int thisRank, int numRanks)
 
         if (rank == numRanks - 1) upper += gridSize % numRanks;
 
+        // there's only one range per rank
         sendList[rank].addRange(lower, upper);
     }
 
-    // there's only one range per rank
-    segmentSize              = sendList[thisRank].count(0);
-    int numParticlesThisRank = segmentSize * numRanks;
+    BufferDescription bufDesc{0, gridSize, gridSize};
+    LocalIndex numPartPresent  = sendList[thisRank].totalCount();
+    LocalIndex numPartAssigned = numPartPresent * numRanks;
+    bufDesc.size = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
+    reallocate(bufDesc.size, x, y);
 
-    reallocate(std::max(numParticlesThisRank, int(x.size())), x, y);
-    exchangeParticles(sendList, Rank(thisRank), 0, gridSize, x.size(), numParticlesThisRank, ordering.data(), x.data(),
-                      y.data());
-    reallocate(numParticlesThisRank, x, y);
+    exchangeParticles(sendList, thisRank, bufDesc, numPartAssigned, ordering.data(), x.data(), y.data());
 
-    std::vector<T> refX(numParticlesThisRank);
+    ex::extractLocallyOwned(bufDesc, numPartPresent, numPartAssigned,
+                            ordering.data() + sendList[thisRank].rangeStart(0), x, y);
+
+    std::vector<T> refX(numPartAssigned);
     for (int rank = 0; rank < numRanks; ++rank)
     {
-        std::iota(begin(refX) + rank * segmentSize, begin(refX) + rank * segmentSize + segmentSize,
+        std::iota(begin(refX) + rank * numPartPresent, begin(refX) + rank * numPartPresent + numPartPresent,
                   sendList[thisRank].rangeStart(0));
     }
 
@@ -107,7 +111,7 @@ void exchangeAllToAll(int thisRank, int numRanks)
     {
         int seqStart = rank * gridSize + (gridSize / numRanks) * thisRank;
 
-        for (int i = 0; i < segmentSize; ++i)
+        for (int i = 0; i < numPartPresent; ++i)
             refY.push_back(seqStart++);
     }
 
@@ -137,7 +141,7 @@ TEST(GlobalDomain, exchangeAllToAll)
 
 void exchangeCyclicNeighbors(int thisRank, int numRanks)
 {
-    int gridSize = 64;
+    LocalIndex gridSize = 64;
 
     // x and y are filled with one value that is different for each rank
     std::vector<double> x(gridSize, thisRank);
@@ -157,8 +161,16 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     // send last nex to nextRank
     sendList[nextRank].addRange(gridSize - nex, gridSize);
 
-    exchangeParticles(sendList, Rank(thisRank), 0, gridSize, gridSize, gridSize, ordering.data(), x.data(), y.data(),
-                      testArray.data());
+    BufferDescription bufDesc{0, gridSize, gridSize};
+    LocalIndex numPartPresent  = sendList[thisRank].totalCount();
+    LocalIndex numPartAssigned = gridSize;
+    bufDesc.size               = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
+    reallocate(bufDesc.size, x, y, testArray);
+
+    exchangeParticles(sendList, thisRank, bufDesc, gridSize, ordering.data(), x.data(), y.data(), testArray.data());
+
+    ex::extractLocallyOwned(bufDesc, numPartPresent, numPartAssigned,
+                            ordering.data() + sendList[thisRank].rangeStart(0), x, y, testArray);
 
     int incomingRank = (thisRank - 1 + numRanks) % numRanks;
     std::vector<double> refX(gridSize, thisRank);

@@ -156,7 +156,7 @@ static void markMacVector()
     updateInternalTree<KeyType>(leaves, octree.data());
 
     std::vector<LocalIndex> layout(octree.numLeafNodes + 1);
-    stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
+    std::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
     auto toInternal = leafToInternal(octree);
 
