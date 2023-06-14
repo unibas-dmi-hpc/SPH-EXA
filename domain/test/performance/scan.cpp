@@ -41,7 +41,7 @@
 template<class T>
 void exclusiveScanSerial(const T* in, T* out, std::size_t num_elements)
 {
-    stl::exclusive_scan(in, in + num_elements, out, 0);
+    std::exclusive_scan(in, in + num_elements, out, 0);
 }
 
 template<class T>

@@ -61,6 +61,7 @@ template void reallocateDevice(thrust::device_vector<unsigned long>&, size_t, do
 template void reallocateDevice(thrust::device_vector<unsigned long long>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<char>&, size_t, double);
 
+template void reallocateDevice(thrust::device_vector<util::array<int, 2>>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<util::array<float, 3>>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<util::array<double, 3>>&, size_t, double);
 template void reallocateDevice(thrust::device_vector<util::array<float, 4>>&, size_t, double);

@@ -75,7 +75,7 @@ void exclusiveScan(const T1* in, T2* out, size_t numElements)
         {
             size_t stepOffset = step * elementsPerStep + tid * blockSize;
 
-            stl::exclusive_scan(in + stepOffset, in + stepOffset + blockSize, out + stepOffset, 0);
+            std::exclusive_scan(in + stepOffset, in + stepOffset + blockSize, out + stepOffset, 0);
 
             superBlock[step % 2][tid] = out[stepOffset + blockSize - 1] + in[stepOffset + blockSize - 1];
 
@@ -93,7 +93,7 @@ void exclusiveScan(const T1* in, T2* out, size_t numElements)
 
     // remainder
     T2 stepSum = superBlock[(nSteps + 1) % 2][numThreads];
-    stl::exclusive_scan(in + nSteps * elementsPerStep, in + numElements, out + nSteps * elementsPerStep, stepSum);
+    std::exclusive_scan(in + nSteps * elementsPerStep, in + numElements, out + nSteps * elementsPerStep, stepSum);
 }
 
 template<class T>
