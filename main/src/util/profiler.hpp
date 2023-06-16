@@ -16,14 +16,15 @@ class EnergyReader
 #ifdef USE_PMT
     std::unique_ptr<pmt::PMT> cpu_sensor;
     std::unique_ptr<pmt::PMT> gpu_sensor;
-    pmt::State                pmt_start, pmt_end;
+    pmt::State                cpu_pmt_start, cpu_pmt_end;
+    pmt::State                gpu_pmt_start, gpu_pmt_end;
 #endif
 
 public:
     EnergyReader()
     {
 #ifdef USE_PMT
-        cpu_sensor = pmt::rapl::Rapl::create();
+        cpu_sensor = pmt::cray::Cray::create();
         gpu_sensor = pmt::nvml::NVML::create();
 #endif
     }
@@ -31,20 +32,22 @@ public:
     void startReader()
     {
 #ifdef USE_PMT
-        pmt_start = pmt_end = cpu_sensor->read();
+        pmt_cpu_pmt_startstart = cpu_pmt_end = cpu_sensor->read();
+        gpu_pmt_start = gpu_pmt_end = gpu_sensor->read();
 #endif
     }
 
     float readEnergy()
     {
-        float totalEnergy = 0.0;
+        float cpuEnergy = 0.0;
+        float gpuEnergy = 0.0;
 #ifdef USE_PMT
-        pmt_end     = cpu_sensor->read();
-        totalEnergy = gpu_sensor->joules(pmt_start, pmt_end);
-        totalEnergy += cpu_sensor->joules(pmt_start, pmt_end);
-        pmt_start = cpu_sensor->read();
+        cpu_pmt_end   = cpu_sensor->read();
+        gpuEnergy     = gpu_sensor->joules(gpu_pmt_start, gpu_pmt_end);
+        cpuEnergy     = cpu_sensor->joules(cpu_pmt_start, cpu_pmt_end);
+        cpu_pmt_start = cpu_sensor->read();
 #endif
-        return totalEnergy;
+        return cpuEnergy + gpuEnergy;
     }
 };
 
