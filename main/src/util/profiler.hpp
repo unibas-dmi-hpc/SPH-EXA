@@ -8,61 +8,140 @@
 #include "pmt.h"
 #endif
 
+#define NUM_GPUS_PER_NODE 4
+
 namespace sphexa
 {
 
-class EnergyReader
+enum deviceType
 {
+    GPU = 0,
+    CPU = 4,
+    MEM = 5,
+    CN  = 6
+};
+
+class CrayPmtReader
+{
+    deviceType          devType;
+    int                 _rank;
+    std::vector<float>  funcEnergies; // energy measurements for each rank
+    std::vector<float*> energies;     // vector of energy measurements for each rank
 #ifdef USE_PMT
-    std::unique_ptr<pmt::PMT> cpu_sensor;
-    std::unique_ptr<pmt::PMT> gpu_sensor;
-    pmt::State                cpu_pmt_start, cpu_pmt_end;
-    pmt::State                gpu_pmt_start, gpu_pmt_end;
+    std::unique_ptr<pmt::PMT> sensor;
+    pmt::State                pmt_start, pmt_end;
 #endif
 
-public:
-    EnergyReader()
+    CrayPmtReader()
     {
 #ifdef USE_PMT
-        cpu_sensor = pmt::cray::Cray::create();
-        gpu_sensor = pmt::nvml::NVML::create();
+        if (devType == GPU)
+        {
+            int gpu_id = _rank % NUM_GPUS_PER_NODE;
+            sensor     = pmt::cray::Cray::create(gpu_id); // Change for reading
+        }
+        else
+            sensor = pmt::cray::Cray::create(devType);
 #endif
+    }
+
+public:
+    CrayPmtReader(deviceType dt, int rank)
+        : _rank(rank)
+    {
+        devType = dt;
+        CrayPmtReader();
     }
 
     void startReader()
     {
 #ifdef USE_PMT
-        pmt_cpu_pmt_startstart = cpu_pmt_end = cpu_sensor->read();
-        gpu_pmt_start = gpu_pmt_end = gpu_sensor->read();
+        pmt_start = pmt_end = sensor->read();
 #endif
     }
 
-    float readEnergy()
+    void readEnergy()
     {
-        float cpuEnergy = 0.0;
-        float gpuEnergy = 0.0;
+        float energy = 0.0;
 #ifdef USE_PMT
-        cpu_pmt_end   = cpu_sensor->read();
-        gpuEnergy     = gpu_sensor->joules(gpu_pmt_start, gpu_pmt_end);
-        cpuEnergy     = cpu_sensor->joules(cpu_pmt_start, cpu_pmt_end);
-        cpu_pmt_start = cpu_sensor->read();
+        pmt_end   = sensor->read();
+        energy    = sensor->joules(pmt_start, pmt_end);
+        pmt_start = sensor->read();
 #endif
-        return cpuEnergy + gpuEnergy;
+        funcEnergies.push_back(energy);
+    }
+
+    void gatherEnergies(int numRanks)
+    {
+        std::cout << "Gathering energy data." << std::endl;
+        std::vector<float> durs;
+        durs.resize(numRanks * funcEnergies.size());
+
+        float* durations = durs.data();
+        MPI_Gather(funcEnergies.data(), funcEnergies.size(), MPI_FLOAT, &durations[_rank * funcEnergies.size()],
+                   funcEnergies.size(), MPI_FLOAT, 0, MPI_COMM_WORLD);
+
+        if (_rank == 0)
+        {
+            for (int i = 0; i < funcEnergies.size(); i++)
+            {
+                float* funcDurations = new float[numRanks];
+                for (int r = 0; r < numRanks; r++)
+                {
+                    funcDurations[r] = durations[r * funcEnergies.size() + i];
+                }
+                energies.push_back(funcDurations);
+            }
+        }
+    }
+
+    void printEnergyMeasurements(int numRanks)
+    {
+        if (_rank == 0)
+        {
+            std::ofstream energyFile;
+            std::string   efilename;
+
+            switch (devType)
+            {
+                case GPU: efilename = "energy-GPU" + std::to_string(numRanks) + "Ranks.txt"; break;
+                case CPU: efilename = "energy-CPU" + std::to_string(numRanks) + "Ranks.txt"; break;
+                case MEM: efilename = "energy-MEM" + std::to_string(numRanks) + "Ranks.txt"; break;
+                case CN: efilename = "energy-CN" + std::to_string(numRanks) + "Ranks.txt"; break;
+                default: efilename = "error-energy-file.txt"; break;
+            }
+            energyFile.open(efilename);
+
+            for (int i = 0; i < numRanks; i++)
+            {
+                energyFile << "RANK" << i << ",";
+            }
+            energyFile << std::endl;
+            for (auto& element : energies)
+            {
+                for (int i = 0; i < numRanks; i++)
+                {
+                    energyFile << element[i] << ",";
+                }
+
+                energyFile << std::endl;
+                delete[] element;
+            }
+
+            std::cout << "Energy data written." << std::endl;
+            energyFile.close();
+        }
     }
 };
 
 class Profiler
 {
 private:
-    std::vector<float*> timeSteps;    // vector of timesteps for all ranks
-    std::vector<float>  funcTimes;    // vector of timesteps for each rank
-    std::vector<float>  funcEnergies; // vector of energy measurements for each rank
-    std::vector<float*> energies;     // vector of energy measurements for each rank
-    int                 _numRanks;
-    int                 _rank;
-    std::ofstream       profilingFile;
-    std::ofstream       energyFile;
-    EnergyReader        enReader;
+    std::vector<float*>        timeSteps; // vector of timesteps for all ranks
+    std::vector<float>         funcTimes; // vector of timesteps for each rank
+    int                        _numRanks;
+    int                        _rank;
+    std::vector<CrayPmtReader> vecEnergyReaders;
 
     // Metrics
     // std::vector<float>  meanPerStep;   // mean (average)
@@ -75,61 +154,33 @@ private:
     // std::vector<float>  g2PerStep;     // kurtosis
     // std::vector<float>  totalTimeStep; // total time-step durations
 
-    void saveFunctionEnergy()
-    {
-        float totalEnergy = enReader.readEnergy();
-        funcEnergies.push_back(totalEnergy);
-    }
-
 public:
     Profiler(int rank)
         : _rank(rank)
-        , enReader()
     {
         MPI_Comm_size(MPI_COMM_WORLD, &_numRanks);
-        std::string filename  = "profiling-" + std::to_string(_numRanks) + "Ranks.txt";
-        std::string efilename = "energy-" + std::to_string(_numRanks) + "Ranks.txt";
-        if (_rank == 0)
-        {
-            profilingFile.open(filename);
-            energyFile.open(efilename);
-        }
+        CrayPmtReader gpuReader(GPU, rank);
+        CrayPmtReader cpuReader(CPU, rank);
+        CrayPmtReader memReader(MEM, rank);
+        CrayPmtReader cnReader(CN, rank);
+        vecEnergyReaders.push_back(gpuReader);
+        vecEnergyReaders.push_back(cpuReader);
+        vecEnergyReaders.push_back(memReader);
+        vecEnergyReaders.push_back(cnReader);
     }
     ~Profiler() {}
 
-    void printEnergyMeasurements()
-    {
-        if (_rank == 0)
-        {
-            size_t iter = 1;
-            for (int i = 0; i < _numRanks; i++)
-            {
-                energyFile << "RANK" << i << ",";
-            }
-            energyFile << std::endl;
-            for (auto& element : energies)
-            {
-                for (int i = 0; i < _numRanks; i++)
-                {
-                    energyFile << element[i] << ",";
-                }
-
-                iter++;
-                energyFile << std::endl;
-                delete[] element;
-            }
-            energyFile << std::endl;
-            std::cout << "Energy data written." << std::endl;
-        }
-        energyFile.close();
-    }
-
     void printProfilingInfo()
     {
+        for (auto enReader : vecEnergyReaders)
+            enReader.printEnergyMeasurements(_numRanks);
+
         if (_rank == 0)
         {
-            size_t iter = 1;
-            // profilingFile << std::setw(3) << " ";
+            std::ofstream profilingFile;
+            std::string   filename = "profiling-" + std::to_string(_numRanks) + "Ranks.txt";
+            profilingFile.open(filename);
+
             for (int i = 0; i < _numRanks; i++)
             {
                 profilingFile << "RANK" << i << ",";
@@ -142,49 +193,35 @@ public:
                     profilingFile << element[i] << ",";
                 }
 
-                iter++;
                 profilingFile << std::endl;
                 delete[] element;
             }
-            profilingFile << std::endl;
+
             std::cout << "Profiling data written." << std::endl;
+            profilingFile.close();
         }
-        profilingFile.close();
     }
 
     void saveFunctionTimings(float duration)
     {
         funcTimes.push_back(duration);
-        saveFunctionEnergy();
+        for (auto enReader : vecEnergyReaders)
+            enReader.readEnergy();
     }
 
-    void startEnergyMeasurement() { enReader.startReader(); }
+    void startEnergyMeasurement()
+    {
+        for (auto enReader : vecEnergyReaders)
+            enReader.startReader();
+    }
 
     // save the total timestep timing
     void saveTimestep(float duration) { funcTimes.push_back(duration); }
 
     void gatherEnergies()
     {
-        std::cout << "Gathering energy data." << std::endl;
-        std::vector<float> durs;
-        durs.resize(_numRanks * funcEnergies.size());
-
-        float* durations = durs.data();
-        MPI_Gather(funcEnergies.data(), funcEnergies.size(), MPI_FLOAT, &durations[_rank * funcEnergies.size()],
-                   funcEnergies.size(), MPI_FLOAT, 0, MPI_COMM_WORLD);
-
-        if (_rank == 0)
-        {
-            for (int i = 0; i < funcEnergies.size(); i++)
-            {
-                float* funcDurations = new float[_numRanks];
-                for (int r = 0; r < _numRanks; r++)
-                {
-                    funcDurations[r] = durations[r * funcEnergies.size() + i];
-                }
-                energies.push_back(funcDurations);
-            }
-        }
+        for (auto enReader : vecEnergyReaders)
+            enReader.gatherEnergies(_numRanks);
     }
 
     void gatherTimings()

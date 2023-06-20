@@ -129,11 +129,7 @@ public:
             Timer::stop();
     }
 
-    void printProfilingInfo()
-    {
-        profiler.printProfilingInfo();
-        profiler.printEnergyMeasurements();
-    }
+    void printProfilingInfo() { profiler.printProfilingInfo(); }
 
     void gatherProfilingInfo()
     {
