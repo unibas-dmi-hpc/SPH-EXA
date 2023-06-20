@@ -172,8 +172,8 @@ public:
 
     void printProfilingInfo()
     {
-        for (auto enReader : vecEnergyReaders)
-            enReader.printEnergyMeasurements(_numRanks);
+        for (int i = 0; i < vecEnergyReaders.size(); i++)
+            vecEnergyReaders.data()[i].printEnergyMeasurements(_numRanks);
 
         if (_rank == 0)
         {
@@ -205,14 +205,14 @@ public:
     void saveFunctionTimings(float duration)
     {
         funcTimes.push_back(duration);
-        for (auto enReader : vecEnergyReaders)
-            enReader.readEnergy();
+        for (int i = 0; i < vecEnergyReaders.size(); i++)
+            vecEnergyReaders.data()[i].readEnergy();
     }
 
     void startEnergyMeasurement()
     {
-        for (auto enReader : vecEnergyReaders)
-            enReader.startReader();
+        for (int i = 0; i < vecEnergyReaders.size(); i++)
+            vecEnergyReaders.data()[i].startReader();
     }
 
     // save the total timestep timing
@@ -220,8 +220,8 @@ public:
 
     void gatherEnergies()
     {
-        for (auto enReader : vecEnergyReaders)
-            enReader.gatherEnergies(_numRanks);
+        for (int i = 0; i < vecEnergyReaders.size(); i++)
+            vecEnergyReaders.data()[i].gatherEnergies(_numRanks);
     }
 
     void gatherTimings()
