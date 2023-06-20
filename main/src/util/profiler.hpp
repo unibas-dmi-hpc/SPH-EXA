@@ -32,7 +32,18 @@ class CrayPmtReader
     pmt::State                pmt_start, pmt_end;
 #endif
 
+public:
     CrayPmtReader()
+    {
+        devType = CPU;
+#ifdef USE_PMT
+        sensor = pmt::cray::Cray::create(devType);
+#endif
+    }
+
+    CrayPmtReader(deviceType dt, int rank)
+        : _rank(rank)
+        , devType(dt)
     {
 #ifdef USE_PMT
         if (devType == GPU)
@@ -43,14 +54,6 @@ class CrayPmtReader
         else
             sensor = pmt::cray::Cray::create(devType);
 #endif
-    }
-
-public:
-    CrayPmtReader(deviceType dt, int rank)
-        : _rank(rank)
-    {
-        devType = dt;
-        CrayPmtReader();
     }
 
     void startReader()
@@ -163,10 +166,10 @@ public:
         CrayPmtReader cpuReader(CPU, rank);
         CrayPmtReader memReader(MEM, rank);
         CrayPmtReader cnReader(CN, rank);
-        vecEnergyReaders.push_back(gpuReader);
-        vecEnergyReaders.push_back(cpuReader);
-        vecEnergyReaders.push_back(memReader);
-        vecEnergyReaders.push_back(cnReader);
+        vecEnergyReaders.push_back(std::move(gpuReader));
+        vecEnergyReaders.push_back(std::move(cpuReader));
+        vecEnergyReaders.push_back(std::move(memReader));
+        vecEnergyReaders.push_back(std::move(cnReader));
     }
     ~Profiler() {}
 
