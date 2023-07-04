@@ -48,10 +48,9 @@ HOST_DEVICE_FUN T updateH(unsigned ng0, unsigned nc, T h)
 template<typename T>
 HOST_DEVICE_FUN inline T wharmonic_std(T v)
 {
-    if (v == 0.0) return 1.0;
+    if (v == 0.0) { return 1.0; }
 
-    const T Pv = (PI / 2.0) * v;
-
+    const T Pv = M_PI_2 * v;
     return std::sin(Pv) / Pv;
 }
 
@@ -64,10 +63,9 @@ HOST_DEVICE_FUN inline T wharmonic_derivative_std(T v)
 {
     if (v == 0.0) return 0.0;
 
-    constexpr T piHalf = PI / 2.0;
-
-    const T Pv    = piHalf * v;
-    const T sincv = std::sin(Pv) / (Pv);
+    constexpr T piHalf = M_PI_2;
+    const T     Pv     = piHalf * v;
+    const T     sincv  = std::sin(Pv) / (Pv);
 
     return sincv * piHalf * ((std::cos(Pv) / std::sin(Pv)) - T(1) / Pv);
 }
@@ -77,9 +75,8 @@ HOST_DEVICE_FUN inline T wharmonic_derivative(T v, T powsincv)
 {
     if (v == T(0)) return T(0);
 
-    constexpr T piHalf = PI / 2.0;
-
-    const T Pv = piHalf * v;
+    constexpr T piHalf = M_PI_2;
+    const T     Pv     = piHalf * v;
     return powsincv * piHalf * (T(1) / std::tan(Pv) - T(1) / Pv);
 }
 

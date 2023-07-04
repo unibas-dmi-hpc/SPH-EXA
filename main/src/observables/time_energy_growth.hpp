@@ -56,10 +56,10 @@ std::array<double, 3> localGrowthRate(size_t startIndex, size_t endIndex, const 
     {
         Tc voli = xm[i] / kx[i];
         Tc aux;
-        if (y[i] < ybox * 0.5) { aux = std::exp(-4.0 * PI * std::abs(y[i] - 0.25)); }
-        else { aux = std::exp(-4.0 * PI * std::abs(ybox - y[i] - 0.25)); }
-        Tc si = vy[i] * voli * std::sin(4.0 * PI * x[i]) * aux;
-        Tc ci = vy[i] * voli * std::cos(4.0 * PI * x[i]) * aux;
+        if (y[i] < ybox * 0.5) { aux = std::exp(-4.0 * M_PI * std::abs(y[i] - 0.25)); }
+        else { aux = std::exp(-4.0 * M_PI * std::abs(ybox - y[i] - 0.25)); }
+        Tc si = vy[i] * voli * std::sin(4.0 * M_PI * x[i]) * aux;
+        Tc ci = vy[i] * voli * std::cos(4.0 * M_PI * x[i]) * aux;
         Tc di = voli * aux;
 
         sumsi += si;

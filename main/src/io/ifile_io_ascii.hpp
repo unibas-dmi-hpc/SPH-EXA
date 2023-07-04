@@ -67,7 +67,7 @@ public:
 
     void stepAttribute(const std::string& key, FieldType val, int64_t /*size*/) override
     {
-        if (key == "iteration") { iterationStep_ = *std::get<const size_t*>(val); }
+        if (key == "iteration") { iterationStep_ = *std::get<const int64_t*>(val); }
     }
 
     void writeField(const std::string& /*key*/, FieldType field, int col) override
@@ -124,11 +124,11 @@ public:
 
 private:
     MPI_Comm                       comm_;
-    size_t                         firstIndexStep_, lastIndexStep_;
+    int64_t                        firstIndexStep_, lastIndexStep_;
     std::string                    pathStep_;
     std::vector<int>               columns_;
     std::vector<Base::FieldVector> stepBuffer_;
-    size_t                         iterationStep_;
+    int64_t                        iterationStep_;
 };
 
 } // namespace sphexa

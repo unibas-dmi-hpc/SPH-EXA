@@ -58,10 +58,10 @@ struct GrowthRate
         Tc voli = xmi / kxi;
         Tc aux;
 
-        if (yi < ybox * Tc(0.5)) { aux = std::exp(-4.0 * PI * std::abs(yi - 0.25)); }
-        else { aux = std::exp(-4.0 * PI * std::abs(ybox - yi - 0.25)); }
-        Tc si = vyi * voli * std::sin(4.0 * PI * xi) * aux;
-        Tc ci = vyi * voli * std::cos(4.0 * PI * xi) * aux;
+        if (yi < ybox * Tc(0.5)) { aux = std::exp(-4.0 * M_PI * std::abs(yi - 0.25)); }
+        else { aux = std::exp(-4.0 * M_PI * std::abs(ybox - yi - 0.25)); }
+        Tc si = vyi * voli * std::sin(4.0 * M_PI * xi) * aux;
+        Tc ci = vyi * voli * std::cos(4.0 * M_PI * xi) * aux;
         Tc di = voli * aux;
 
         return thrust::make_tuple(si, ci, di);
