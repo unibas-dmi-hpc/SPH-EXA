@@ -36,7 +36,6 @@ sph:base:cuda:
     DOCKERFILE: '.gitlab/Dockerfile_1'
     PERSIST_IMAGE_NAME: "${BASE_CUDA}"
     WATCH_FILECHANGES: '.gitlab/Dockerfile_1'
-
 #}}}
 #{{{ sph:base:hip:
 sph:base:hip:
@@ -61,7 +60,7 @@ sph:build:cuda:
   before_script:
     - echo "PERSIST_IMAGE_NAME=$PERSIST_IMAGE_NAME"
   variables:
-    # JG: 'YES'
+    JG: 'YES'
     DOCKERFILE: '.gitlab/Dockerfile_2'
     PERSIST_IMAGE_NAME: "${BUILD_CUDA}"
     DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE"]'
