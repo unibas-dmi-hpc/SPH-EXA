@@ -1,7 +1,5 @@
-FROM jfrog.svc.cscs.ch/contbuild/testing/anfink/44692846847247/sph-exa_base:cuda
-# FROM jfrog.svc.cscs.ch/contbuild/testing/anfink/9590261141699040/sph-exa_base:cuda
-# FROM jfrog.svc.cscs.ch/contbuild/testing/pasc/sphexa/sph-exa_base:cuda
-# FROM art.cscs.ch/contbuild/testing/jg/sph-exa_base:cuda
+ARG BASE_IMAGE
+FROM $BASE_IMAGE
 #{{{ readme
 # rm -fr SPH-EXA.git ;cp -a SPH-EXA.git.ori SPH-EXA.git
 # sudo docker build -f Dockerfile_2 -t deleteme:latest .

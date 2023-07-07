@@ -1,5 +1,5 @@
-FROM jfrog.svc.cscs.ch/contbuild/testing/anfink/44692846847247/sph-exa_base:hip
-# FROM jfrog.svc.cscs.ch/contbuild/testing/anfink/9590261141699040/sph-exa_base:hip
+ARG BASE_IMAGE
+FROM $BASE_IMAGE
 
 #{{{ readme
 # rm -fr SPH-EXA.git ;cp -a SPH-EXA.git.ori SPH-EXA.git
