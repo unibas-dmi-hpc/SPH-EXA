@@ -142,7 +142,7 @@ TEST(TargetGroups, makeSplits)
             ret[1] = b;
             return ret;
         }
-        else { return SplitType{(b << 32) + a}; } // NOLINT
+        else { return SplitType{GpuConfig::ThreadMask(b << 32) + a}; } // NOLINT
     };
 
     {
