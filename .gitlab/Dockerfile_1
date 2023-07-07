@@ -27,6 +27,7 @@ FROM nvidia/cuda:11.7.0-base-ubuntu22.04
 #{{{ variables:
 ENV TZ Europe/Zurich
 ENV DEPS_PATH 'ftp://ftp.cscs.ch/out/jgp/hpc/containers'
+ENV JG YES
 #}}}
 
 #{{{ apt:
