@@ -55,7 +55,6 @@ HOST_DEVICE_FUN inline void IADJLoop(cstone::LocalIndex i, T sincIndex, T K, con
 
     auto hi    = h[i];
     auto hiInv = T(1) / hi;
-    T    norm  = K * hiInv * hiInv * hiInv;
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
