@@ -1,6 +1,12 @@
 ARG BASE_IMAGE
 FROM $BASE_IMAGE
 #{{{ readme
+# sarus pull --login jfrog.svc.cscs.ch/docker-ci-ext/44692846847247/base/sph-exa_base-cuda:c527c05af50cc172
+# --> /scratch/snx3000tds/piccinal/.sarus/images/jfrog.svc.cscs.ch/docker-ci-ext/44692846847247/base/sph-exa_base-cuda/c527c05af50cc172.meta
+
+# buildah login -u piccinal jfrog.svc.cscs.ch
+# buildah pull jfrog.svc.cscs.ch/docker-ci-ext/44692846847247/base/sph-exa_base-cuda:c527c05af50cc172
+#
 # rm -fr SPH-EXA.git ;cp -a SPH-EXA.git.ori SPH-EXA.git
 # sudo docker build -f Dockerfile_2 -t deleteme:latest .
 # sudo docker login -u piccinal jfrog.svc.cscs.ch
