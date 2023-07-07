@@ -48,7 +48,6 @@
 #include "util/utils.hpp"
 
 #include "simulation_data.hpp"
-
 #include "insitu_viz.h"
 
 #ifdef USE_CUDA

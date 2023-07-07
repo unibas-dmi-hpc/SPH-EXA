@@ -36,7 +36,6 @@ sph:base:cuda:
     DOCKERFILE: '.gitlab/Dockerfile_1'
     PERSIST_IMAGE_NAME: "${BASE_CUDA}"
     WATCH_FILECHANGES: '.gitlab/Dockerfile_1'
-
 #}}}
 #{{{ sph:base:hip:
 sph:base:hip:
@@ -61,7 +60,7 @@ sph:build:cuda:
   before_script:
     - echo "PERSIST_IMAGE_NAME=$PERSIST_IMAGE_NAME"
   variables:
-    # JG: 'YES'
+    JG: 'YES'
     DOCKERFILE: '.gitlab/Dockerfile_2'
     PERSIST_IMAGE_NAME: "${BUILD_CUDA}"
     DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE"]'
@@ -95,7 +94,7 @@ sph:pull:cuda:
 #}}}
 
 #{{{ sph:test:cuda:1:
-sph:build:cuda:1:
+sph:test:cuda:1:
   needs: ['sph:pull:cuda']
   extends: .container-runner-daint-gpu
   stage: SPHtest
@@ -123,7 +122,7 @@ sph:build:cuda:1:
     # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:2:
-sph:build:cuda:2:
+sph:test:cuda:2:
   needs: ['sph:pull:cuda']
   extends: .container-runner-daint-gpu
   stage: SPHtest
@@ -145,7 +144,7 @@ sph:build:cuda:2:
     # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:2cn:
-# sph:build:cuda:2cn:
+# sph:test:cuda:2cn:
 #   needs: ['sph:pull:cuda']
 #   extends: .container-runner-daint-gpu
 #   stage: SPHtest
@@ -164,7 +163,7 @@ sph:build:cuda:2:
 #     # SLURM_TIMELIMIT
 #}}}
 #{{{ sph:test:cuda:5:
-sph:build:cuda:5:
+sph:test:cuda:5:
   needs: ['sph:pull:cuda']
   extends: .container-runner-daint-gpu
   stage: SPHtest
@@ -188,7 +187,7 @@ sph:build:cuda:5:
     # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:p100:
-sph:build:cuda:p100:
+sph:test:cuda:p100:
   needs: ['sph:pull:cuda']
   extends: .container-runner-daint-gpu
   stage: SPHtest
@@ -213,7 +212,7 @@ sph:build:cuda:p100:
     # SLURM_TIMELIMIT    
 #}}}
 #{{{ sph:test:cuda:sphexa:cpu:
-sph:build:cuda:sphexa:cpu:
+sph:test:cuda:sphexa:cpu:
   needs: ['sph:pull:cuda']
   extends: .container-runner-daint-gpu
   stage: SPHtest
@@ -238,7 +237,7 @@ sph:build:cuda:sphexa:cpu:
 #}}}
 #{{{ sph:test:cuda:sphexa:gpu:
 # TODO: MPICH_RDMA_ENABLED_CUDA=1 LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libcuda.so
-sph:build:cuda:sphexa:gpu:
+sph:test:cuda:sphexa:gpu:
   needs: ['sph:pull:cuda' ]
   extends: .container-runner-daint-gpu
   stage: SPHtest
