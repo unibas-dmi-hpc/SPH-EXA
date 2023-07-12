@@ -211,6 +211,16 @@ public:
         };
 
         output();
+
+        if (!outputFields.empty() && Base::rank_ == 0)
+        {
+            std::cout << "WARNING: the following fields are not in use and therefore not output: ";
+            for (int fidx = 0; fidx < outputFields.size() - 1; ++fidx)
+            {
+                std::cout << d.fieldNames[fidx] << ",";
+            }
+            std::cout << d.fieldNames[outputFields.back()] << std::endl;
+        }
     }
 };
 
