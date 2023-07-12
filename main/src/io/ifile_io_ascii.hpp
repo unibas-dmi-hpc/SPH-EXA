@@ -107,7 +107,8 @@ public:
                 try
                 {
                     bool append = rank != 0;
-                    fileutils::writeAscii(firstIndexStep_, lastIndexStep_, pathStep_, append, fieldPointers, separator);
+                    fileutils::writeAscii(0, lastIndexStep_ - firstIndexStep_, pathStep_, append, fieldPointers,
+                                          separator);
                 }
                 catch (std::runtime_error& ex)
                 {
