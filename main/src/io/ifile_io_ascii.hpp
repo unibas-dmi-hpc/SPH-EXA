@@ -67,7 +67,7 @@ public:
 
     void stepAttribute(const std::string& key, FieldType val, int64_t /*size*/) override
     {
-        if (key == "iteration") { iterationStep_ = *std::get<const int64_t*>(val); }
+        if (key == "iteration") { iterationStep_ = *std::get<const uint64_t*>(val); }
     }
 
     void writeField(const std::string& /*key*/, FieldType field, int col) override
@@ -107,7 +107,8 @@ public:
                 try
                 {
                     bool append = rank != 0;
-                    fileutils::writeAscii(firstIndexStep_, lastIndexStep_, pathStep_, append, fieldPointers, separator);
+                    fileutils::writeAscii(0, lastIndexStep_ - firstIndexStep_, pathStep_, append, fieldPointers,
+                                          separator);
                 }
                 catch (std::runtime_error& ex)
                 {
@@ -128,7 +129,7 @@ private:
     std::string                    pathStep_;
     std::vector<int>               columns_;
     std::vector<Base::FieldVector> stepBuffer_;
-    int64_t                        iterationStep_;
+    uint64_t                       iterationStep_;
 };
 
 } // namespace sphexa

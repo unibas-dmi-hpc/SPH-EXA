@@ -252,6 +252,7 @@ and a warp-aware tree-traversal inspired by the
 * Jg Piccinali
 * Tom Quinn
 * Darren Reed
+* Osman Seckin Simsek
 
 ## Paper references
 [Cavelan, A., Cabezon, R. M., Grabarczyk, M., Ciorba, F. M. (2020). A Smoothed Particle Hydrodynamics Mini-App for Exascale. Proceedings of the Platform for Advanced Scientific Computing Conference (PASC '20). Association for Computing Machinery. DOI: 10.1145/3394277.3401855](https://dl.acm.org/doi/10.1145/3394277.3401855)
