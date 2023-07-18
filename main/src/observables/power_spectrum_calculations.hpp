@@ -3,7 +3,11 @@
 #include <iostream>
 #include <cmath>
 #include <chrono>
-// #include "include/heffte.h"
+#include <mpi.h>
+
+#ifdef HEFFTE_ENABLED
+#include "heffte.h"
+#endif
 
 namespace sphexa
 {
@@ -272,22 +276,24 @@ void shells(double w[], int npixels, double E[], double k_center[])
 
 void fft3D(double G_1D[], int gridDim)
 {
-    // int me; // this process rank within the comm
-    // MPI_Comm_rank(comm, &me);
+    // int      me;        // this process rank within the comm
+    // MPI_Comm comm;
+    // int      num_ranks; // total number of ranks in the comm
 
-    // int num_ranks; // total number of ranks in the comm
+    // MPI_Comm_rank(comm, &me);
     // MPI_Comm_size(comm, &num_ranks);
 
-    // heffte::box3d<> all_indexes({0, 0, 0}, {gridDim - 1, gridDim - 1, gridDim - 1}});
+    // heffte::box3d<> all_indexes({0, 0, 0}, {gridDim - 1, gridDim - 1, gridDim - 1});
 
-    // create a processor grid with minimum surface (measured in number of indexes)
-    // std::array<int,3> proc_grid = heffte::proc_setup_min_surface(all_indexes, num_ranks);
+    // // create a processor grid with minimum surface(measured in number of indexes)
+    // std::array<int, 3> proc_grid = heffte::proc_setup_min_surface(all_indexes, num_ranks);
 
-    // split all indexes across the processor grid, defines a set of boxes
+    // // split all indexes across the processor grid, defines a set of boxes
     // std::vector<heffte::box3d<>> all_boxes = heffte::split_world(all_indexes, proc_grid);
 
-    // pick the box corresponding to this rank
+    // // pick the box corresponding to this rank
     // heffte::box3d<> const inbox  = all_boxes[me];
+    // heffte::box3d<> const outbox = all_boxes[me]; // same inbox and outbox
 
     // OLD
     // heffte::box3d<> inbox    = {{0, 0, 0}, {npixels - 1, npixels - 1, npixels - 1}};
