@@ -39,6 +39,80 @@
 
 using namespace cstone;
 
+TEST(FocusDomain, resize)
+{
+    using T       = double;
+    using KeyType = unsigned;
+
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+
+    // const int thisExampleRanks = 2;
+    // if (numRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
+    int bucketSize = 1;
+    float theta    = 1.0;
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize, theta);
+    std::vector<T> x{0.5,0.6};
+    std::vector<T> y{0.5,0.6};
+    std::vector<T> z{0.5,0.6};
+    // radii around 0.5 and 0.6 don't overlap
+    std::vector<T> h{0.025, 0.025};
+    //std::cout << "x.size(): " << x.size() << std::endl;
+
+    std::vector<KeyType> keys(x.size());
+    std::vector<T> s1, s2, s3;
+    domain.sync(keys, x, y, z, h, std::tuple{}, std::tie(s1, s2, s3));
+    /*if (rank == 0)
+    {*/
+    EXPECT_EQ(domain.startIndex(), 0);
+    EXPECT_EQ(domain.endIndex(), 2);
+    /*}
+    else if (rank == 1)
+    {
+        EXPECT_EQ(domain.startIndex(), 2);
+        EXPECT_EQ(domain.endIndex(), 4);
+    }*/
+
+    std::cout << "s1.size(): " << s1.size() << std::endl;
+    std::cout << "x.size(): " << x.size() << std::endl;
+    std::cout << "n particles : " << domain.nParticles() << std::endl;
+    std::cout << "n particles halos: " << domain.nParticlesWithHalos() << std::endl;
+
+    std::cout << "......." << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    size_t n_particles_before = domain.nParticles();
+    size_t n_new_particles_per_rank = 1;
+    size_t n_new_particles_tot = n_new_particles_per_rank * 2;
+    //Resize
+    if (n_new_particles_per_rank > domain.nParticlesWithHalos() - domain.nParticles())
+    {
+        // domain.resize(domain.nParticles() + n_new_particles);
+        size_t new_size = domain.nParticles() + n_new_particles_per_rank;
+        x.resize(new_size);
+        y.resize(new_size);
+        z.resize(new_size);
+        h.resize(new_size);
+        keys.resize(new_size);
+        std::cout << "new_size: " << new_size << std::endl;
+    }
+    domain.setEndIndex(domain.endIndex() + n_new_particles_per_rank);
+
+    //Add new particle
+    x[n_particles_before] = 0.52;
+    y[n_particles_before] = 0.52;
+    z[n_particles_before] = 0.52;
+    h[n_particles_before] = 0.025;
+    domain.sync(keys, x, y, z, h, std::tuple{}, std::tie(s1, s2, s3));
+    std::cout << "final start: " << domain.startIndex() << std::endl;
+    std::cout << "final end: " << domain.endIndex() << std::endl;
+    std::cout << "nParticles: " << domain.nParticles() << std::endl;
+    std::cout << "nParticlesWithHalos: " << domain.nParticlesWithHalos() << std::endl;
+
+   // EXPECT_EQ(domain.startIndex(), 0);
+    //EXPECT_EQ(domain.endIndex(), 2);
+}
+
 template<class KeyType, class T>
 void noHalos(int rank, int numRanks)
 {
