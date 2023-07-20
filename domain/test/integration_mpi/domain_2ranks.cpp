@@ -52,7 +52,7 @@ void noHalos(int rank, int numRanks)
     std::vector<T> y{0.5, 0.6};
     std::vector<T> z{0.5, 0.6};
     // radii around 0.5 and 0.6 don't overlap
-    std::vector<T> h{0.0249, 0.005};
+    std::vector<T> h{0.005, 0.005};
 
     std::vector<KeyType> keys(x.size());
     std::vector<T> s1, s2, s3;
