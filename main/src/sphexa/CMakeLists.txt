@@ -47,7 +47,6 @@ target_include_directories(${exename} PRIVATE ${SPH_EXA_INCLUDE_DIRS})
 target_link_libraries(${exename} PRIVATE OpenMP::OpenMP_CXX ${MPI_CXX_LIBRARIES})
 target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/physics/cooling/include/)
 
-
 enableH5Part(${exename})
 enableInSituViz(${exename})
 enableGrackle(${exename})
