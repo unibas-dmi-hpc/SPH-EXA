@@ -39,8 +39,6 @@
 
 using namespace cstone;
 
-
-
 template<class KeyType, class T>
 void noHalos(int rank, int numRanks)
 {
