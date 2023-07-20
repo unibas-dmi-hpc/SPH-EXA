@@ -60,7 +60,6 @@ TEST(GlobalDomainResize, resize)
         // Resize
         if (add_size > 0)
         {
-            // domain.resize(domain.nParticles() + n_new_particles);
             size_t new_size = std::max(domain.nParticlesWithHalos(), (unsigned int)(x.size() + add_size));
             x.resize(new_size);
             y.resize(new_size);
