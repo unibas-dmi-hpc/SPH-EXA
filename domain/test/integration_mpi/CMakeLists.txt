@@ -23,6 +23,7 @@ addCstoneMpiTest(exchange_focus.cpp exchange_focus GlobalFocusExchange 2)
 addCstoneMpiTest(exchange_keys.cpp exchange_keys GlobalKeyExchange 2)
 addCstoneMpiTest(focus_transfer.cpp focus_transfer FocusTransfer 2)
 addCstoneMpiTest(domain_2ranks.cpp domain_2ranks GlobalDomain2Ranks 2)
+addCstoneMpiTest(domain_resize.cpp domain_resize GlobalDomainResize 2)
 
 addCstoneMpiTest(treedomain.cpp treedomain GlobalDomainTreeIntregration 12)
 addCstoneMpiTest(exchange_general.cpp exchange_general GeneralFocusExchange 12)
