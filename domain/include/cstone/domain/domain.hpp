@@ -321,6 +321,8 @@ public:
     [[nodiscard]] LocalIndex startIndex() const { return bufDesc_.start; }
     //! @brief return one past the index of the last particle that's part of the local assignment
     [[nodiscard]] LocalIndex endIndex() const { return bufDesc_.end; }
+    //! @brief set the index of the lsat particle (used to increase the number of particles)
+    void setEndIndex(const size_t i) { bufDesc_.end = i; }
     //! @brief return number of locally assigned particles
     [[nodiscard]] LocalIndex nParticles() const { return endIndex() - startIndex(); }
     //! @brief return number of locally assigned particles plus number of halos
