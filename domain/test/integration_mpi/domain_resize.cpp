@@ -66,11 +66,10 @@ TEST(GlobalDomainResize, resize)
             z.resize(new_size);
             h.resize(new_size);
             keys.resize(new_size);
-            std::cout << "Rank " << rank << "resize done: " << new_size << std::endl;
+            std::cout << "Rank " << rank << " resize done, new size: " << new_size << std::endl;
         }
         unsigned endBefore = domain.endIndex();
         domain.setEndIndex(domain.endIndex() + n_new);
-        domain.setBufSize(x.size());
         // Add new particle
         x.at(endBefore)           = x.at(domain.startIndex());
         y.at(endBefore)           = y.at(domain.startIndex());
