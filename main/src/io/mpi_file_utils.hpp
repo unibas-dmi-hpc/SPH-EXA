@@ -33,6 +33,11 @@
 #include <vector>
 
 #include "H5Part.h"
+// #include "hdf5.h"
+#include "H5Cpp.h"
+// #include "H5Zzfp_lib.h"
+// #include "H5Zzfp_props.h"
+#include "H5Zzfp_plugin.h"
 
 namespace sphexa
 {
@@ -43,6 +48,153 @@ template<class T>
 struct H5PartType
 {
 };
+
+struct H5ZType {
+    hid_t file_id;
+    hid_t dset_id;
+    hid_t dspace_id;
+    hid_t group_id;
+    hid_t cpid;
+    hid_t status;
+};
+
+
+static H5ZType start_zfp(std::string & fileName, std::string & groupName, std::string & datasetName, int nRow, int nCol)
+{
+    // Setup filter
+    hsize_t chunk = nRow;
+    int zfpmode = H5Z_ZFP_MODE_RATE;
+    double rate = 4;
+    double acc = 0;
+    unsigned int prec = 11;
+    unsigned int minbits = 0;
+    unsigned int maxbits = 4171;
+    unsigned int maxprec = 64;
+    int minexp = -1074;
+
+    H5ZType h5z;
+
+    h5z.cpid = fileutils::setup_filter(1, &chunk, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
+
+    herr_t status;
+
+    // Setup dataset dimensions and input data
+    int ndims = nCol;
+    hsize_t dims[ndims];
+    for (size_t i=0; i<ndims; i++) {
+        dims[i] = nRow;
+    }
+    std::vector<double> data(nRow, nCol);
+
+    // Open a file
+    h5z.file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+    // Create a group
+    h5z.group_id = H5Gcreate2(h5z.file_id, groupName.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    // Create a dataset
+    h5z.dspace_id = H5Screate_simple(1, dims, NULL);
+    h5z.dset_id = H5Dcreate2(
+        h5z.group_id, datasetName.c_str(), H5T_STD_I32BE, h5z.dspace_id, H5P_DEFAULT, h5z.cpid, H5P_DEFAULT);
+
+    return h5z;
+}
+
+// For now writing double only
+static void write_h5z_field(H5ZType& h5z, const std::string& fieldName, const double* field) {
+    h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
+    if (h5z.status < 0) {
+
+    }
+}
+
+static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const double* field) {
+    hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
+    hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
+    hid_t attrib_id = H5Acreate(
+        h5z.file_id,
+        fieldName.c_str(),
+        H5T_NATIVE_DOUBLE,
+        space_id,
+        attrib_properties_id,
+        H5P_DEFAULT
+    );
+    H5Aclose(attrib_id);
+    H5Sclose(space_id);
+    H5Pclose(attrib_properties_id);
+}
+
+static void close_zfp(H5ZType& h5z, std::vector<double>& data) {
+    // Close dataset after writing
+    // h5z.status = H5Dclose(h5z.dset_id);
+
+    // Retrieve result size and preallocate vector
+    // std::vector<double> result;
+    // dset_id = H5Dopen(file_id, groupName + "/" + datasetName, H5P_DEFAULT);
+    // dspace_id = H5Dget_space(dset_id);
+    // ndims = H5Sget_simple_extent_ndims(dspace_id);
+    // hsize_t res_dims[ndims];
+    // status = H5Sget_simple_extent_dims(dspace_id, res_dims, NULL);
+    // int res_sz = 1;
+    // for (int i = 0; i < ndims; i++) {
+    //     res_sz *= res_dims[i];
+    // }
+    // result.resize(res_sz);
+
+    // Read the data
+    // status = H5Dread(dset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, result.data());
+
+    // Close the dataset and group
+    h5z.status = H5Dclose(h5z.dset_id);
+    h5z.status = H5Gclose(h5z.group_id);
+    h5z.status = H5Pclose(h5z.cpid);
+
+    // Close the file
+    h5z.status = H5Fclose(h5z.file_id);
+}
+
+
+static hid_t setup_filter(int n, hsize_t *chunk, int zfpmode,
+    double rate, double acc, unsigned int prec,
+    unsigned int minbits, unsigned int maxbits, unsigned int maxprec, int minexp)
+{
+    hid_t cpid;
+
+    /* setup dataset creation properties */
+    // if (0 > (cpid = H5Pcreate(H5P_DATASET_CREATE))) SET_ERROR(H5Pcreate);
+    // if (0 > H5Pset_chunk(cpid, n, chunk)) SET_ERROR(H5Pset_chunk);
+    cpid = H5Pcreate(H5P_DATASET_CREATE);
+    H5Pset_chunk(cpid, n, chunk);
+
+
+    unsigned int cd_values[10];
+    size_t cd_nelmts = 10;
+
+    /* setup zfp filter via generic (cd_values) interface */
+    if (zfpmode == H5Z_ZFP_MODE_RATE)
+        H5Pset_zfp_rate_cdata(rate, cd_nelmts, cd_values);
+    else if (zfpmode == H5Z_ZFP_MODE_PRECISION)
+        H5Pset_zfp_precision_cdata(prec, cd_nelmts, cd_values);
+    else if (zfpmode == H5Z_ZFP_MODE_ACCURACY)
+        H5Pset_zfp_accuracy_cdata(acc, cd_nelmts, cd_values);
+    else if (zfpmode == H5Z_ZFP_MODE_EXPERT)
+        H5Pset_zfp_expert_cdata(minbits, maxbits, maxprec, minexp, cd_nelmts, cd_values);
+    else if (zfpmode == H5Z_ZFP_MODE_REVERSIBLE)
+        H5Pset_zfp_reversible_cdata(cd_nelmts, cd_values);
+    else
+        cd_nelmts = 0; /* causes default behavior of ZFP library */
+
+    /* print cd-values array used for filter */
+    printf("\n%d cd_values=", (int) cd_nelmts);
+    for (int i = 0; i < (int) cd_nelmts; i++)
+        printf("%u,", cd_values[i]);
+    printf("\n");
+
+    /* Add filter to the pipeline via generic interface */
+    H5Pset_filter(cpid, H5Z_FILTER_ZFP, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values);
+        
+    return cpid;
+}
 
 std::string H5PartTypeToString(h5part_int64_t type)
 {

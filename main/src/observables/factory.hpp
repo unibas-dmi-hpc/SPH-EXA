@@ -38,6 +38,9 @@
 #include "cstone/sfc/box.hpp"
 #include "io/ifile_io.hpp"
 
+#ifdef SPH_EXA_HAVE_HDF5
+#include "io/ifile_io_h5.hpp"
+#endif
 #ifdef SPH_EXA_HAVE_H5PART
 #include "io/ifile_io_hdf5.hpp"
 #endif
