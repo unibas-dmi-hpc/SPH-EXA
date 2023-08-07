@@ -51,15 +51,15 @@ auto accelerationTimestep(size_t first, size_t last, const Dataset& d)
     T maxAccSq = 0.0;
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        maxAccSq = cstone::maxNormSquareGpu(rawPtr(d.devData.x) + first, rawPtr(d.devData.y) + first,
-                                            rawPtr(d.devData.z) + first, last - first);
+        maxAccSq = cstone::maxNormSquareGpu(rawPtr(d.devData.ax) + first, rawPtr(d.devData.ay) + first,
+                                            rawPtr(d.devData.az) + first, last - first);
     }
     else
     {
 #pragma omp parallel for reduction(max : maxAccSq)
         for (size_t i = first; i < last; ++i)
         {
-            cstone::Vec3<T> X{d.x[i], d.y[i], d.z[i]};
+            cstone::Vec3<T> X{d.ax[i], d.ay[i], d.az[i]};
             maxAccSq = std::max(norm2(X), maxAccSq);
         }
     }
