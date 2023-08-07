@@ -77,6 +77,9 @@ class Domain
         typename AccelSwitchType<Accelerator, SfcSorter, GpuSfcSorter>::template type<LocalIndex, BufferType>;
 
 public:
+    //! @brief floating point type used for the coordinate bounding box and geometric/mass centers of tree nodes
+    using RealType = T;
+
     /*! @brief construct empty Domain
      *
      * @param rank            executing rank
