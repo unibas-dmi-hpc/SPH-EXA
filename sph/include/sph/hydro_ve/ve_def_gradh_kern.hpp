@@ -68,7 +68,7 @@ veDefGradhJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& bo
 
         T dist   = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
         T vloc   = dist * hInv;
-        T w      = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
+        T w      = lt::wharmonic_lt_with_derivative(wh, whd, vloc);
         T dw     = wharmonic_derivative(vloc, w) * sincIndex;
         T dterh  = -(T(3) * w + vloc * dw);
         T xmassj = xm[j];

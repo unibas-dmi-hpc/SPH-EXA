@@ -103,8 +103,8 @@ __global__ void IADGpuKernel(T sincIndex, T K, unsigned ngmax, cstone::Box<T> bo
         if (i >= bodyEnd) { continue; }
 
         unsigned ncCapped = stl::min(ncTrue[0], ngmax);
-        sph::IADJLoopSTD<TravConfig::targetSize>(i, sincIndex, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, h, m,
-                                                 rho, wh, whd, c11, c12, c13, c22, c23, c33);
+        sph::IADJLoopSTD<TravConfig::targetSize>(i, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, h, m, rho, wh,
+                                                 whd, c11, c12, c13, c22, c23, c33);
     }
 }
 

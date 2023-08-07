@@ -10,7 +10,7 @@ namespace sph
 {
 
 template<size_t stride = 1, class Tc, class Tm, class T>
-HOST_DEVICE_FUN inline T densityJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
+HOST_DEVICE_FUN inline T densityJLoop(cstone::LocalIndex i, T K, const cstone::Box<T>& box,
                                       const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
                                       const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd)
 {
@@ -29,7 +29,7 @@ HOST_DEVICE_FUN inline T densityJLoop(cstone::LocalIndex i, T sincIndex, T K, co
 
         T dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
         T vloc = dist * hInv;
-        T w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
+        T w    = lt::wharmonic_lt_with_derivative(wh, whd, vloc);
 
         roloc += w * m[j];
     }

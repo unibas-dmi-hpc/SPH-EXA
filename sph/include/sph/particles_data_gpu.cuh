@@ -172,16 +172,16 @@ public:
 
     DeviceParticlesData()
     {
-        auto wh_table  = ::sph::lt::createWharmonicLookupTable<T, ::sph::lt::size>();
-        auto whd_table = ::sph::lt::createWharmonicDerivativeLookupTable<T, ::sph::lt::size>();
-
-        wh  = DevVector<T>(wh_table.begin(), wh_table.end());
-        whd = DevVector<T>(whd_table.begin(), whd_table.end());
-
         for (int i = 0; i < NST; ++i)
         {
             checkGpuErrors(cudaStreamCreate(&d_stream[i].stream));
         }
+    }
+
+    void uploadTables(const std::array<T, ::sph::lt::size>& whTable, const std::array<T, ::sph::lt::size>& whdTable)
+    {
+        wh  = DevVector<T>(whTable.begin(), whTable.end());
+        whd = DevVector<T>(whdTable.begin(), whdTable.end());
     }
 
     ~DeviceParticlesData()
