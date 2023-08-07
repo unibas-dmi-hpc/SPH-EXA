@@ -39,14 +39,15 @@
 namespace sphexa
 {
 
-template<class MType, class KeyType, class, class, class, class, class>
+template<class MType, class DomainType, class DataType>
 class MultipoleHolderCpu
 {
+    using Ta = typename std::decay_t<decltype(DataType{}.ax)>::value_type;
+
 public:
     MultipoleHolderCpu() = default;
 
-    template<class Dataset, class Domain>
-    void upsweep(const Dataset& d, const Domain& domain)
+    void upsweep(const DataType& d, const DomainType& domain)
     {
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const auto& focusTree = domain.focusTree();
@@ -57,13 +58,12 @@ public:
                                          multipoles_.data());
     }
 
-    template<class Dataset, class Domain>
-    void traverse(Dataset& d, const Domain& domain)
+    void traverse(DataType& d, const DomainType& domain)
     {
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const auto& focusTree = domain.focusTree();
         //! the focused octree, structure only
-        cstone::OctreeView<const KeyType> octree = focusTree.octreeViewAcc();
+        const auto octree = focusTree.octreeViewAcc();
 
         d.egrav = 0;
         ryoanji::computeGravity(octree.childOffsets, octree.internalToLeaf, focusTree.expansionCenters().data(),
@@ -80,14 +80,20 @@ private:
     std::vector<MType> multipoles_;
 };
 
-template<class MType, class KeyType, class Tc, class Th, class Tm, class Ta, class Tf>
+template<class MType, class DomainType, class DataType>
 class MultipoleHolderGpu
 {
+    using KeyType = typename DataType::KeyType;
+    using Tc      = typename std::decay_t<decltype(DataType{}.x)>::value_type;
+    using Th      = typename std::decay_t<decltype(DataType{}.h)>::value_type;
+    using Tm      = typename std::decay_t<decltype(DataType{}.m)>::value_type;
+    using Ta      = typename std::decay_t<decltype(DataType{}.ax)>::value_type;
+    using Tf      = typename DomainType::RealType;
+
 public:
     MultipoleHolderGpu() = default;
 
-    template<class Dataset, class Domain>
-    void upsweep(const Dataset& d, const Domain& domain)
+    void upsweep(const DataType& d, const DomainType& domain)
     {
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const auto& focusTree = domain.focusTree();
@@ -101,8 +107,7 @@ public:
                          domain.globalTree(), focusTree, domain.layout().data(), multipoles_.data());
     }
 
-    template<class Dataset, class Domain>
-    void traverse(Dataset& d, const Domain& domain)
+    void traverse(DataType& d, const DomainType& domain)
     {
         d.egrav = mHolder_.compute(domain.startIndex(), domain.endIndex(), rawPtr(d.devData.x), rawPtr(d.devData.y),
                                    rawPtr(d.devData.z), rawPtr(d.devData.m), rawPtr(d.devData.h), d.g,
