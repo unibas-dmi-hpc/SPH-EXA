@@ -58,10 +58,10 @@ class NbodyProp final : public Propagator<DomainType, DataType>
     using Tmass         = typename DataType::HydroData::Tmass;
     using MultipoleType = ryoanji::CartesianQuadrupole<Tmass>;
 
-    using Acc = typename DataType::AcceleratorType;
-    using MHolder_t =
-        typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
-                                         MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
+    using Acc       = typename DataType::AcceleratorType;
+    using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
+        MultipoleType, DomainType, typename DataType::HydroData>;
+
     MHolder_t mHolder_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
