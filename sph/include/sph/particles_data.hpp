@@ -55,6 +55,8 @@
 namespace sphexa
 {
 
+namespace lt = ::sph::lt;
+
 template<typename T, typename KeyType_, class AccType>
 class ParticlesData : public cstone::FieldStates<ParticlesData<T, KeyType_, AccType>>
 {
@@ -74,11 +76,11 @@ public:
     using FieldVariant =
         std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
 
-    ParticlesData()                     = default;
+    ParticlesData() { devData.uploadTables(wh, whd); }
     ParticlesData(const ParticlesData&) = delete;
 
     uint64_t iteration{1};
-    uint64_t numParticlesGlobal;
+    uint64_t numParticlesGlobal{0};
 
     //! @brief default mean desired number of neighbors per particle, can be overriden per test case or input file
     unsigned ng0{100};
@@ -147,7 +149,7 @@ public:
     }
 
     //! @brief non-stateful variables for statistics
-    uint64_t totalNeighbors;
+    uint64_t totalNeighbors{0};
 
     /*! @brief Particle fields
      *
@@ -185,8 +187,8 @@ public:
 
     DeviceData_t<AccType, T, KeyType> devData;
 
-    const std::array<T, ::sph::lt::size> wh  = ::sph::lt::createWharmonicLookupTable<T, ::sph::lt::size>();
-    const std::array<T, ::sph::lt::size> whd = ::sph::lt::createWharmonicDerivativeLookupTable<T, ::sph::lt::size>();
+    const std::array<T, lt::size> wh  = lt::createWharmonicLookupTable<T, lt::size>(sincIndex);
+    const std::array<T, lt::size> whd = lt::createWharmonicDerivativeLookupTable<T, lt::size>(sincIndex);
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().

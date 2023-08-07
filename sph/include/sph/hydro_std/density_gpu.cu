@@ -46,11 +46,10 @@ using cstone::TravConfig;
 using cstone::TreeNodeIndex;
 
 template<class Tc, class Tm, class T, class KeyType>
-__global__ void cudaDensity(T sincIndex, T K, unsigned ng0, unsigned ngmax, cstone::Box<T> box,
-                            const cstone::LocalIndex* groups, cstone::LocalIndex numGroups,
-                            const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc, const Tc* x, const Tc* y,
-                            const Tc* z, T* h, const Tm* m, const T* wh, const T* whd, T* rho, LocalIndex* nidx,
-                            TreeNodeIndex* globalPool)
+__global__ void cudaDensity(T K, unsigned ng0, unsigned ngmax, cstone::Box<T> box, const cstone::LocalIndex* groups,
+                            cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc,
+                            const Tc* x, const Tc* y, const Tc* z, T* h, const Tm* m, const T* wh, const T* whd, T* rho,
+                            LocalIndex* nidx, TreeNodeIndex* globalPool)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
     unsigned targetIdx   = 0;
@@ -84,8 +83,8 @@ __global__ void cudaDensity(T sincIndex, T K, unsigned ng0, unsigned ngmax, csto
         if (i >= bodyEnd) { continue; }
 
         unsigned ncCapped = stl::min(ncTrue[0], ngmax);
-        rho[i] = sph::densityJLoop<TravConfig::targetSize>(i, sincIndex, K, box, neighborsWarp + laneIdx, ncCapped, x,
-                                                           y, z, h, m, wh, whd);
+        rho[i] = sph::densityJLoop<TravConfig::targetSize>(i, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, h, m,
+                                                           wh, whd);
         nc[i]  = ncTrue[0];
     }
 }
@@ -102,10 +101,9 @@ void computeDensityGpu(size_t startIndex, size_t endIndex, Dataset& d,
 
     unsigned numGroups = d.devData.targetGroups.size() - 1;
     cudaDensity<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, d.ng0, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(),
-        rawPtr(d.devData.nc), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
-        rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.rho), nidxPool,
-        traversalPool);
+        d.K, d.ng0, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(), rawPtr(d.devData.nc),
+        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m),
+        rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.rho), nidxPool, traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 

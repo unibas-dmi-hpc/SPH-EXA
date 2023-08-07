@@ -50,11 +50,10 @@ namespace cuda
 {
 
 template<class Tc, class Tm, class T, class KeyType>
-__global__ void xmassGpu(T sincIndex, T K, unsigned ng0, unsigned ngmax, const cstone::Box<Tc> box,
-                         const cstone::LocalIndex* groups, cstone::LocalIndex numGroups,
-                         const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc, const Tc* x, const Tc* y,
-                         const Tc* z, T* h, const Tm* m, const T* wh, const T* whd, T* xm, cstone::LocalIndex* nidx,
-                         TreeNodeIndex* globalPool)
+__global__ void xmassGpu(T K, unsigned ng0, unsigned ngmax, const cstone::Box<Tc> box, const cstone::LocalIndex* groups,
+                         cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc,
+                         const Tc* x, const Tc* y, const Tc* z, T* h, const Tm* m, const T* wh, const T* whd, T* xm,
+                         cstone::LocalIndex* nidx, TreeNodeIndex* globalPool)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
     unsigned targetIdx   = 0;
@@ -88,8 +87,8 @@ __global__ void xmassGpu(T sincIndex, T K, unsigned ng0, unsigned ngmax, const c
         if (i >= bodyEnd) continue;
 
         unsigned ncCapped = stl::min(ncTrue[0], ngmax);
-        xm[i] = sph::xmassJLoop<TravConfig::targetSize>(i, sincIndex, K, box, neighborsWarp + laneIdx, ncCapped, x, y,
-                                                        z, h, m, wh, whd);
+        xm[i] = sph::xmassJLoop<TravConfig::targetSize>(i, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, h, m, wh,
+                                                        whd);
         nc[i] = ncTrue[0];
     }
 }
@@ -105,10 +104,9 @@ void computeXMass(size_t startIndex, size_t endIndex, Dataset& d, const cstone::
 
     unsigned numGroups = d.devData.targetGroups.size() - 1;
     xmassGpu<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, d.ng0, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(),
-        rawPtr(d.devData.nc), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
-        rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), nidxPool,
-        traversalPool);
+        d.K, d.ng0, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(), rawPtr(d.devData.nc),
+        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m),
+        rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), nidxPool, traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
 
     NcStats::type stats[NcStats::numStats];

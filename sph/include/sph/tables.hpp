@@ -10,8 +10,9 @@ namespace lt
 
 constexpr size_t size = 20000;
 
+//! @brief create a lookup-table for sinc(x)^sincIndex
 template<typename T, std::size_t N>
-std::array<T, N> createWharmonicLookupTable()
+std::array<T, N> createWharmonicLookupTable(T sincIndex)
 {
     std::array<T, N> wh;
 
@@ -19,13 +20,14 @@ std::array<T, N> createWharmonicLookupTable()
     for (size_t i = 0; i < N; ++i)
     {
         T normalizedVal = i / halfsSize;
-        wh[i]           = wharmonic_std(normalizedVal);
+        wh[i]           = std::pow(wharmonic_std(normalizedVal), sincIndex);
     }
     return wh;
 }
 
+//! @brief create a lookup-table for d(sinc(x)^sincIndex)/dx
 template<typename T, std::size_t N>
-std::array<T, N> createWharmonicDerivativeLookupTable()
+std::array<T, N> createWharmonicDerivativeLookupTable(T sincIndex)
 {
     std::array<T, N> whd;
 
@@ -33,7 +35,8 @@ std::array<T, N> createWharmonicDerivativeLookupTable()
     for (size_t i = 0; i < N; ++i)
     {
         T normalizedVal = i / halfsSize;
-        whd[i]          = wharmonic_derivative_std(normalizedVal);
+        whd[i] =
+            sincIndex * std::pow(wharmonic_std(normalizedVal), sincIndex - 1) * wharmonic_derivative_std(normalizedVal);
     }
 
     return whd;
