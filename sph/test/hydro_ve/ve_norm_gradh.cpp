@@ -112,8 +112,8 @@ TEST(VeDefGradh, JLoop)
     {
         xm[i] = mpart / rho0[i];
     }
-    auto [kx, gradh] = sph::veDefGradhJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(),
-                                            z.data(), h.data(), m.data(), wh.data(), whd.data(), xm.data());
+    auto [kx, gradh] = sph::veDefGradhJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
+                                            h.data(), m.data(), wh.data(), whd.data(), xm.data());
 
     T density = kx * m[0] / xm[0];
     EXPECT_NEAR(density, 3.4662283566584293e1, 8e-7);
@@ -155,9 +155,8 @@ TEST(VeDefGradh, JLoopPBC)
      */
 
     T kx;
-    std::tie(kx, std::ignore) =
-        sph::veDefGradhJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
-                             h.data(), m.data(), wh.data(), whd.data(), xm.data());
+    std::tie(kx, std::ignore) = sph::veDefGradhJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(),
+                                                     z.data(), h.data(), m.data(), wh.data(), whd.data(), xm.data());
 
     EXPECT_NEAR(kx * m[0] / xm[0], 0.17929212174617015, 1e-9);
 }
