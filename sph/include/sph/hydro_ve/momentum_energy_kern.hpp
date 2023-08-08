@@ -69,9 +69,9 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T K, const cstone::Box<T>& box, con
                        unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy,
                        const T* vz, const T* h, const Tm* m, const T* prho, const T* c, const T* c11, const T* c12,
                        const T* c13, const T* c22, const T* c23, const T* c33, const T Atmin, const T Atmax,
-                       const T ramp, const T* wh, const T* whd, const T* kx, const T* xm, const T* alpha, const T* dV11,
-                       const T* dV12, const T* dV13, const T* dV22, const T* dV23, const T* dV33, T* grad_P_x,
-                       T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
+                       const T ramp, const T* wh, const T* /*whd*/, const T* kx, const T* xm, const T* alpha,
+                       const T* dV11, const T* dV12, const T* dV13, const T* dV22, const T* dV23, const T* dV33,
+                       T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
 {
     auto xi  = x[i];
     auto yi  = y[i];
@@ -138,8 +138,8 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, T K, const cstone::Box<T>& box, con
         T v2 = dist * hjInv;
 
         T hjInv3 = hjInv * hjInv * hjInv;
-        T Wi     = hiInv3 * lt::wharmonic_lt_with_derivative(wh, whd, v1);
-        T Wj     = hjInv3 * lt::wharmonic_lt_with_derivative(wh, whd, v2);
+        T Wi     = hiInv3 * lt::lookup(wh, v1);
+        T Wj     = hjInv3 * lt::lookup(wh, v2);
 
         T termA1_i = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
         T termA2_i = -(c12i * rx + c22i * ry + c23i * rz) * Wi;

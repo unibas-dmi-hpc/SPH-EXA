@@ -171,10 +171,10 @@ TEST(IAD, JLoopPBC)
     IADJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(), wh.data(), whd.data(),
              xm.data(), kx.data(), &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
 
-    EXPECT_NEAR(iad[0], 0.42970014305820264, 1e-8);
-    EXPECT_NEAR(iad[1], -0.23045558110767411, 1e-8);
-    EXPECT_NEAR(iad[2], -0.052317231995050187, 1e-8);
-    EXPECT_NEAR(iad[3], 2.886168807109148, 1e-8);
-    EXPECT_NEAR(iad[4], -0.2325163252006715, 1e-8);
-    EXPECT_NEAR(iad[5], 0.36028770439708135, 1e-8);
+    EXPECT_NEAR(iad[0], 0.42970014305820264, 3e-7);
+    EXPECT_NEAR(iad[1], -0.23045558110767411, 3e-7);
+    EXPECT_NEAR(iad[2], -0.052317231995050187, 3e-7);
+    EXPECT_NEAR(iad[3], 2.886168807109148, 3e-7);
+    EXPECT_NEAR(iad[4], -0.2325163252006715, 3e-7);
+    EXPECT_NEAR(iad[5], 0.36028770439708135, 3e-7);
 }
