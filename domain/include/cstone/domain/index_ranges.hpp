@@ -152,16 +152,6 @@ public:
         return count;
     }
 
-    std::size_t sendCount(int myRank) const
-    {
-        size_t count = 0;
-        for (std::size_t i = 0; i < data_.size(); ++i)
-        {
-            if (int(i) != myRank) { count += (*this)[i].totalCount(); }
-        }
-        return count;
-    }
-
     auto begin() { return data_.begin(); }
     auto end() { return data_.end(); }
 
@@ -183,5 +173,27 @@ inline size_t maxNumRanges(const SendList& sendList)
     }
     return ret;
 }
+
+class SendRanges : public std::vector<LocalIndex>
+{
+    using Base = std::vector<LocalIndex>;
+
+    size_t size() const { return Base::size(); };
+
+public:
+    SendRanges() = default;
+    explicit SendRanges(int s)
+        : Base(s)
+    {
+    }
+
+    int numRanks() const { return int(Base::size()) - 1; }
+
+    LocalIndex count(int rank) const
+    {
+        if ((*this)[rank + 1] >= (*this)[rank]) { return (*this)[rank + 1] - (*this)[rank]; }
+        else { return 0; }
+    }
+};
 
 } // namespace cstone

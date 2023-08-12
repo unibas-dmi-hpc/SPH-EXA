@@ -46,9 +46,8 @@ template<class T, class IndexType>
 extern void gatherGpu(const IndexType* ordering, size_t numElements, const T* src, T* buffer);
 
 //! @brief Lambda to avoid templated functors that would become template-template parameters when passed to functions.
-inline auto gatherGpuL = [](const auto* ordering, auto numElements, const auto* src, const auto dest) {
-    gatherGpu(ordering, numElements, src, dest);
-};
+inline auto gatherGpuL = [](const auto* ordering, auto numElements, const auto* src, const auto dest)
+{ gatherGpu(ordering, numElements, src, dest); };
 
 template<class T>
 struct MinMaxGpu

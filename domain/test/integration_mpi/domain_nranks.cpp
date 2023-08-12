@@ -258,3 +258,74 @@ TEST(FocusDomain, assignmentShift)
     EXPECT_TRUE(std::count(property.begin(), property.end(), -1) == 0);
     EXPECT_TRUE(std::count(property.begin(), property.end(), rank) == domain.nParticles());
 }
+
+TEST(FocusDomain, reapplySync)
+{
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+
+    using Real    = double;
+    using KeyType = unsigned;
+
+    Box<Real> box(0, 1);
+    LocalIndex numParticlesPerRank = 10000;
+    unsigned bucketSize            = 1024;
+    unsigned bucketSizeFocus       = 8;
+    float theta                    = 0.5;
+
+    // Note: rank used as seed, so each rank will get different coordinates
+    RandomCoordinates<Real, SfcKind<KeyType>> coordinates(numParticlesPerRank, box, rank);
+
+    std::vector<Real> x(coordinates.x().begin(), coordinates.x().end());
+    std::vector<Real> y(coordinates.y().begin(), coordinates.y().end());
+    std::vector<Real> z(coordinates.z().begin(), coordinates.z().end());
+    std::vector<Real> h(numParticlesPerRank, 0.1 / std::cbrt(numRanks));
+    std::vector<KeyType> particleKeys(x.size());
+
+    Domain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
+
+    std::vector<Real> s1, s2, s3;
+    domain.sync(particleKeys, x, y, z, h, std::tuple{}, std::tie(s1, s2, s3));
+
+    // modify coordinates
+    {
+        RandomCoordinates<Real, SfcKind<KeyType>> scord(domain.nParticles(), box, numRanks + rank);
+        std::copy(scord.x().begin(), scord.x().end(), x.begin() + domain.startIndex());
+        std::copy(scord.y().begin(), scord.y().end(), y.begin() + domain.startIndex());
+        std::copy(scord.z().begin(), scord.z().end(), z.begin() + domain.startIndex());
+    }
+
+    std::vector<Real> property(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+    {
+        property[i] = numParticlesPerRank * rank + i;
+    }
+
+    std::vector<Real> propertyCpy = property;
+
+    // exchange property together with sync
+    domain.sync(particleKeys, x, y, z, h, std::tie(property), std::tie(s1, s2, s3));
+
+    domain.reapplySync(std::tie(propertyCpy), s1, s2, s3);
+
+    EXPECT_EQ(property.size(), propertyCpy.size());
+
+    int numPass = 0;
+    for (int i = domain.startIndex(); i < domain.endIndex(); ++i)
+    {
+        if (property[i] == propertyCpy[i]) numPass++;
+    }
+    EXPECT_EQ(numPass, domain.nParticles());
+
+    {
+        std::vector<Real> a(property.begin() + domain.startIndex(), property.begin() + domain.endIndex());
+        std::vector<Real> b(propertyCpy.begin() + domain.startIndex(), propertyCpy.begin() + domain.endIndex());
+        std::sort(a.begin(), a.end());
+        std::sort(b.begin(), b.end());
+        std::vector<Real> s(a.size());
+        auto it       = std::set_intersection(a.begin(), a.end(), b.begin(), b.end(), s.begin());
+        int numCommon = it - s.begin();
+        EXPECT_EQ(numCommon, domain.nParticles());
+    }
+}

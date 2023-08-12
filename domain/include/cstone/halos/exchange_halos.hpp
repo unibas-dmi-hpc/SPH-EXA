@@ -87,8 +87,8 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
     {
         MPI_Status status;
         mpiRecvSync(receiveBuffer.data(), receiveBuffer.size(), MPI_ANY_SOURCE, haloExchangeTag, &status);
-        int receiveRank       = status.MPI_SOURCE;
-        size_t receiveCount   = incomingHalos[receiveRank].totalCount();
+        int receiveRank     = status.MPI_SOURCE;
+        size_t receiveCount = incomingHalos[receiveRank].totalCount();
 
         auto scatterRanges = [inHalos = incomingHalos[receiveRank]](auto arrayPair)
         {

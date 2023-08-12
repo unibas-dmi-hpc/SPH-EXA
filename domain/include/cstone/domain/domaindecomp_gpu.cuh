@@ -54,16 +54,15 @@ namespace cstone
  * Converts the global assignment particle keys ranges into particle indices with binary search
  */
 template<class KeyType>
-SendList createSendListGpu(const SpaceCurveAssignment& assignment,
-                           gsl::span<const KeyType> treeLeaves,
-                           gsl::span<const KeyType> particleKeys,
-                           KeyType* d_searchKeys,
-                           LocalIndex* d_indices)
+SendRanges createSendRangesGpu(const SpaceCurveAssignment& assignment,
+                               gsl::span<const KeyType> treeLeaves,
+                               gsl::span<const KeyType> particleKeys,
+                               KeyType* d_searchKeys,
+                               LocalIndex* d_indices)
 {
     size_t numRanks = assignment.numRanks();
-    using IndexType = SendManifest::IndexType;
 
-    SendList ret(numRanks);
+    SendRanges ret(numRanks + 1);
 
     std::vector<KeyType> searchKeys(numRanks);
     for (int rank = 0; rank < numRanks; ++rank)
@@ -73,14 +72,8 @@ SendList createSendListGpu(const SpaceCurveAssignment& assignment,
 
     memcpyH2D(searchKeys.data(), searchKeys.size(), d_searchKeys);
     lowerBoundGpu(particleKeys.begin(), particleKeys.end(), d_searchKeys, d_searchKeys + numRanks, d_indices);
-
-    std::vector<IndexType> indices(numRanks + 1, particleKeys.size());
-    memcpyD2H(d_indices, numRanks, indices.data());
-
-    for (int rank = 0; rank < numRanks; ++rank)
-    {
-        ret[rank].addRange(indices[rank], indices[rank + 1]);
-    }
+    memcpyD2H(d_indices, numRanks, ret.data());
+    ret.back() = particleKeys.size();
 
     return ret;
 }

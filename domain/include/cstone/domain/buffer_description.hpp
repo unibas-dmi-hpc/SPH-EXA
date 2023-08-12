@@ -77,13 +77,29 @@ auto computeByteOffsets(size_t count, int alignment, Arrays... arrays)
 }
 
 template<int alignment, class... Arrays>
-size_t
-computeTotalSendBytes(const SendList& sendList, int thisRank, size_t numBytesHeader, Arrays... arrays)
+size_t computeTotalSendBytes(const SendList& sendList, int thisRank, size_t numBytesHeader, Arrays... arrays)
 {
     size_t totalSendBytes = 0;
     for (int destinationRank = 0; destinationRank < int(sendList.size()); ++destinationRank)
     {
         size_t sendCount = sendList[destinationRank].totalCount();
+        if (destinationRank == thisRank || sendCount == 0) { continue; }
+
+        size_t particleBytes = computeByteOffsets(sendCount, alignment, arrays...).back();
+        //! we add @a alignment bytes to the start of each message to provide space for the message length
+        totalSendBytes += numBytesHeader + particleBytes;
+    }
+
+    return totalSendBytes;
+}
+
+template<int alignment, class... Arrays>
+size_t computeTotalSendBytes(const SendRanges& sends, int thisRank, size_t numBytesHeader, Arrays... arrays)
+{
+    size_t totalSendBytes = 0;
+    for (int destinationRank = 0; destinationRank < sends.numRanks(); ++destinationRank)
+    {
+        size_t sendCount = sends.count(destinationRank);
         if (destinationRank == thisRank || sendCount == 0) { continue; }
 
         size_t particleBytes = computeByteOffsets(sendCount, alignment, arrays...).back();
@@ -208,6 +224,14 @@ assignedEnvelope(BufferDescription bufDesc, LocalIndex numPresent, LocalIndex nu
 
     if (fitHead) { return {bufDesc.start - numIncoming, bufDesc.end}; }
     else { return {bufDesc.start, bufDesc.end + numIncoming}; }
+}
+
+template<class It>
+LocalIndex findInLog(It first, It last, int rank)
+{
+    auto it = std::find_if(first, last, [rank](auto e) { return std::get<0>(e) == rank; });
+    assert(it != last);
+    return std::get<1>(*it);
 }
 
 template<class Vector>

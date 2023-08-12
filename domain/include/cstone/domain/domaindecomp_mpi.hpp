@@ -48,10 +48,7 @@ size_t numElementsFit(size_t numBytesAvail, Arrays... arrays)
     return numBytesAvail / bytesPerElement;
 }
 
-void encodeSendCountCpu(uint64_t count, char* sendPtr)
-{
-    memcpy(sendPtr, &count, sizeof(uint64_t));
-}
+void encodeSendCountCpu(uint64_t count, char* sendPtr) { memcpy(sendPtr, &count, sizeof(uint64_t)); }
 
 template<class T>
 uint64_t decodeSendCountCpu(T* recvPtr)
@@ -83,25 +80,26 @@ uint64_t decodeSendCountCpu(T* recvPtr)
  *           already present on @p thisRank.
  */
 template<class... Arrays>
-void exchangeParticles(const SendList& sendList,
+void exchangeParticles(const SendRanges& sends,
                        int thisRank,
                        BufferDescription bufDesc,
                        LocalIndex numParticlesAssigned,
                        const LocalIndex* ordering,
+                       std::vector<std::tuple<int, LocalIndex>>& receiveLog,
                        Arrays... arrays)
 {
-    constexpr int domExTag    = static_cast<int>(P2pTags::domainExchange);
     using TransferType        = uint64_t;
     constexpr int alignment   = sizeof(TransferType);
     constexpr int headerBytes = round_up(sizeof(uint64_t), alignment);
+    bool record               = receiveLog.empty();
+    int domExTag              = static_cast<int>(P2pTags::domainExchange) + (record ? 0 : 1);
 
     std::vector<std::vector<char>> sendBuffers;
     std::vector<MPI_Request> sendRequests;
 
-    for (int destinationRank = 0; destinationRank < int(sendList.size()); ++destinationRank)
+    for (int destinationRank = 0; destinationRank < sends.numRanks(); ++destinationRank)
     {
-        const auto& sends = sendList[destinationRank];
-        size_t sendCount  = sends.totalCount();
+        size_t sendCount = sends.count(destinationRank);
         if (destinationRank == thisRank || sendCount == 0) { continue; }
 
         size_t numSent = 0;
@@ -113,7 +111,7 @@ void exchangeParticles(const SendList& sendList,
 
             std::vector<char> sendBuffer(headerBytes + computeByteOffsets(nextSendCount, alignment, arrays...).back());
             encodeSendCountCpu(nextSendCount, sendBuffer.data());
-            packArrays<alignment>(gatherCpu, ordering + sends.rangeStart(0) + numSent, nextSendCount,
+            packArrays<alignment>(gatherCpu, ordering + sends[destinationRank] + numSent, nextSendCount,
                                   sendBuffer.data() + headerBytes, arrays + bufDesc.start...);
 
             mpiSendAsyncAs<TransferType>(sendBuffer.data(), sendBuffer.size(), destinationRank, domExTag, sendRequests);
@@ -123,7 +121,7 @@ void exchangeParticles(const SendList& sendList,
         assert(numSent == sendCount);
     }
 
-    LocalIndex numParticlesPresent = sendList[thisRank].totalCount();
+    LocalIndex numParticlesPresent = sends.count(thisRank);
     LocalIndex receiveStart        = domain_exchange::receiveStart(bufDesc, numParticlesPresent, numParticlesAssigned);
     LocalIndex receiveEnd          = receiveStart + numParticlesAssigned - numParticlesPresent;
 
@@ -142,8 +140,12 @@ void exchangeParticles(const SendList& sendList,
         size_t receiveCount = decodeSendCountCpu(receiveBuffer.data());
         assert(receiveStart + receiveCount <= receiveEnd);
 
+        LocalIndex receiveLocation = receiveStart;
+        if (record) { receiveLog.emplace_back(receiveRank, receiveStart); }
+        else { receiveLocation = domain_exchange::findInLog(receiveLog.begin(), receiveLog.end(), receiveRank); }
+
         char* particleData = receiveBuffer.data() + headerBytes;
-        auto packTuple     = packBufferPtrs<alignment>(particleData, receiveCount, (arrays + receiveStart)...);
+        auto packTuple     = packBufferPtrs<alignment>(particleData, receiveCount, (arrays + receiveLocation)...);
         auto scatterRanges = [receiveCount](auto arrayPair) { std::copy_n(arrayPair[1], receiveCount, arrayPair[0]); };
         for_each_tuple(scatterRanges, packTuple);
 
