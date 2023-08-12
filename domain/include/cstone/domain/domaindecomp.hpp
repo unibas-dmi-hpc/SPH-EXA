@@ -306,26 +306,19 @@ void translateAssignment(const SpaceCurveAssignment& assignment,
  * Converts the global assignment particle keys ranges into particle indices with binary search
  */
 template<class KeyType>
-SendList createSendList(const SpaceCurveAssignment& assignment,
-                        gsl::span<const KeyType> treeLeaves,
-                        gsl::span<const KeyType> particleKeys)
+SendRanges createSendRanges(const SpaceCurveAssignment& assignment,
+                            gsl::span<const KeyType> treeLeaves,
+                            gsl::span<const KeyType> particleKeys)
 {
-    using IndexType = SendManifest::IndexType;
-    int numRanks    = assignment.numRanks();
+    int numRanks = assignment.numRanks();
 
-    SendList ret(numRanks);
-
-    std::vector<IndexType> particleLocations(numRanks + 1, particleKeys.size());
+    SendRanges ret(numRanks + 1);
     for (int rank = 0; rank < numRanks; ++rank)
     {
         KeyType rangeStart = treeLeaves[assignment.firstNodeIdx(rank)];
-        particleLocations[rank] =
-            std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart) - particleKeys.begin();
+        ret[rank] = std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart) - particleKeys.begin();
     }
-    for (int rank = 0; rank < numRanks; ++rank)
-    {
-        ret[rank].addRange(particleLocations[rank], particleLocations[rank + 1]);
-    }
+    ret.back() = particleKeys.size();
 
     return ret;
 }

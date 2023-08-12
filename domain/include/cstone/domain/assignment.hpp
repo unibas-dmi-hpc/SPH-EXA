@@ -120,10 +120,9 @@ public:
         assignment_ = std::move(newAssignment);
 
         exchanges_ =
-            createSendList<KeyType>(assignment_, tree_.treeLeaves(), {particleKeys + bufDesc.start, numParticles});
+            createSendRanges<KeyType>(assignment_, tree_.treeLeaves(), {particleKeys + bufDesc.start, numParticles});
 
-        return domain_exchange::exchangeBufferSize(bufDesc, exchanges_[myRank_].totalCount(),
-                                                   assignment_.totalCount(myRank_));
+        return domain_exchange::exchangeBufferSize(bufDesc, numPresent(), numAssigned());
     }
 
     /*! @brief Distribute particles to their assigned ranks based on previous assignment
@@ -156,12 +155,11 @@ public:
                     T* z,
                     Arrays... particleProperties) const
     {
-        LocalIndex numAssigned = assignment_.totalCount(myRank_);
-        exchangeParticles(exchanges_, myRank_, bufDesc, numAssigned, reorderFunctor.getReorderMap(), x, y, z,
+        receiveLog_.clear();
+        exchangeParticles(exchanges_, myRank_, bufDesc, numAssigned(), reorderFunctor.getMap(), receiveLog_, x, y, z,
                           particleProperties...);
 
-        auto [newStart, newEnd] =
-            domain_exchange::assignedEnvelope(bufDesc, exchanges_[myRank_].totalCount(), numAssigned);
+        auto [newStart, newEnd] = domain_exchange::assignedEnvelope(bufDesc, numPresent(), numAssigned());
         LocalIndex envelopeSize = newEnd - newStart;
         gsl::span<KeyType> keyView(keys + newStart, envelopeSize);
 
@@ -169,14 +167,18 @@ public:
         // sort keys and keep track of the ordering
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
-        // thanks to the sorting, we now know the exact range of the assigned particles:
-        // [newStart + offset, newStart + offset + numAssigned]
-        LocalIndex offset =
-            findNodeAbove(keyView.data(), keyView.size(), tree_.treeLeaves()[assignment_.firstNodeIdx(myRank_)]);
-        // restrict the reordering to take only the assigned particles into account and ignore the others
-        reorderFunctor.restrictRange(offset, numAssigned);
+        return std::make_tuple(newStart, keyView.subspan(numSendDown(), numAssigned()));
+    }
 
-        return std::make_tuple(newStart, keyView.subspan(offset, numAssigned));
+    //! @brief repeat exchange from last call to assign()
+    template<class SVec, class... Arrays>
+    auto redoExchange(BufferDescription bufDesc,
+                      const LocalIndex* ordering,
+                      SVec& /*sendScratch*/,
+                      SVec& /*receiveScratch*/,
+                      Arrays... particleProperties) const
+    {
+        exchangeParticles(exchanges_, myRank_, bufDesc, numAssigned(), ordering, receiveLog_, particleProperties...);
     }
 
     //! @brief read only visibility of the global octree leaves to the outside
@@ -190,6 +192,10 @@ public:
     //! @brief return the space filling curve rank assignment of the last call to @a assign()
     const SpaceCurveAssignment& assignment() const { return assignment_; }
 
+    LocalIndex numSendDown() const { return exchanges_[myRank_]; }
+    LocalIndex numPresent() const { return exchanges_.count(myRank_); }
+    LocalIndex numAssigned() const { return assignment_.totalCount(myRank_); }
+
 private:
     int myRank_;
     int numRanks_;
@@ -199,7 +205,8 @@ private:
     Box<T> box_;
 
     SpaceCurveAssignment assignment_;
-    SendList exchanges_;
+    SendRanges exchanges_;
+    mutable std::vector<std::tuple<int, LocalIndex>> receiveLog_;
 
     //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;
