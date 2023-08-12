@@ -41,8 +41,8 @@ TEST(BufferDescription, computeByteOffsets1)
     size_t sendCount           = 1001;
 
     double* p1 = nullptr;
-    float* p2 = nullptr;
-    long* p3 = nullptr;
+    float* p2  = nullptr;
+    long* p3   = nullptr;
     util::array<size_t, 3> elementSizes{sizeof(*p1), sizeof(*p2), sizeof(*p3)};
 
     auto offsets = computeByteOffsets(sendCount, alignment, p1, p2, p3);

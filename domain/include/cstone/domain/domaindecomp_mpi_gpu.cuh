@@ -81,22 +81,24 @@ char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
  *           already present on @p thisRank.
  */
 template<class DeviceVector, class... Arrays>
-void exchangeParticlesGpu(const SendList& sendList,
+void exchangeParticlesGpu(const SendRanges& sends,
                           int thisRank,
                           BufferDescription bufDesc,
                           LocalIndex numParticlesAssigned,
                           DeviceVector& sendScratchBuffer,
                           DeviceVector& receiveScratchBuffer,
                           const LocalIndex* ordering,
+                          std::vector<std::tuple<int, LocalIndex>>& receiveLog,
                           Arrays... arrays)
 {
-    constexpr int domainExchangeTag = static_cast<int>(P2pTags::domainExchange);
-    using TransferType              = uint64_t;
-    constexpr int alignment         = 128;
-    constexpr int headerBytes       = round_up(sizeof(uint64_t), alignment);
+    using TransferType        = uint64_t;
+    constexpr int alignment   = 128;
+    constexpr int headerBytes = round_up(sizeof(uint64_t), alignment);
     static_assert(alignment % sizeof(TransferType) == 0);
+    bool record  = receiveLog.empty();
+    int domExTag = static_cast<int>(P2pTags::domainExchange) + (record ? 0 : 1);
 
-    size_t totalSendBytes    = computeTotalSendBytes<alignment>(sendList, thisRank, headerBytes, arrays...);
+    size_t totalSendBytes    = computeTotalSendBytes<alignment>(sends, thisRank, headerBytes, arrays...);
     const size_t oldSendSize = reallocateBytes(sendScratchBuffer, totalSendBytes);
     char* const sendBuffer   = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
 
@@ -105,21 +107,21 @@ void exchangeParticlesGpu(const SendList& sendList,
     std::vector<MPI_Request> sendRequests;
 
     char* sendPtr = sendBuffer;
-    for (int destinationRank = 0; destinationRank < int(sendList.size()); ++destinationRank)
+    for (int destinationRank = 0; destinationRank < sends.numRanks(); ++destinationRank)
     {
-        size_t sendCount = sendList[destinationRank].totalCount();
+        size_t sendCount = sends.count(destinationRank);
         if (destinationRank == thisRank || sendCount == 0) { continue; }
-        size_t sendStart = sendList[destinationRank].rangeStart(0);
+        size_t sendStart = sends[destinationRank];
 
         encodeSendCount(sendCount, sendPtr);
         size_t numBytes = headerBytes + packArrays<alignment>(gatherGpuL, ordering + sendStart, sendCount,
                                                               sendPtr + headerBytes, arrays + bufDesc.start...);
         checkGpuErrors(cudaDeviceSynchronize());
-        mpiSendGpuDirect(sendPtr, numBytes, destinationRank, domainExchangeTag, sendRequests, sendBuffers);
+        mpiSendGpuDirect(sendPtr, numBytes, destinationRank, domExTag, sendRequests, sendBuffers);
         sendPtr += numBytes;
     }
 
-    LocalIndex numParticlesPresent = sendList[thisRank].totalCount();
+    LocalIndex numParticlesPresent = sends.count(thisRank);
     LocalIndex receiveStart        = domain_exchange::receiveStart(bufDesc, numParticlesPresent, numParticlesAssigned);
     LocalIndex receiveEnd          = receiveStart + numParticlesAssigned - numParticlesPresent;
 
@@ -127,7 +129,7 @@ void exchangeParticlesGpu(const SendList& sendList,
     while (receiveStart != receiveEnd)
     {
         MPI_Status status;
-        MPI_Probe(MPI_ANY_SOURCE, domainExchangeTag, MPI_COMM_WORLD, &status);
+        MPI_Probe(MPI_ANY_SOURCE, domExTag, MPI_COMM_WORLD, &status);
         int receiveRank = status.MPI_SOURCE;
         int receiveCountTransfer;
         MPI_Get_count(&status, MpiType<TransferType>{}, &receiveCountTransfer);
@@ -135,14 +137,18 @@ void exchangeParticlesGpu(const SendList& sendList,
         size_t receiveCountBytes = receiveCountTransfer * sizeof(TransferType);
         reallocateBytes(receiveScratchBuffer, receiveCountBytes);
         char* receiveBuffer = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
-        mpiRecvGpuDirect(reinterpret_cast<TransferType*>(receiveBuffer), receiveCountTransfer, receiveRank,
-                         domainExchangeTag, &status);
+        mpiRecvGpuDirect(reinterpret_cast<TransferType*>(receiveBuffer), receiveCountTransfer, receiveRank, domExTag,
+                         &status);
 
         size_t receiveCount;
         receiveBuffer = decodeSendCount(receiveBuffer, &receiveCount, alignment);
         assert(receiveStart + receiveCount <= receiveEnd);
 
-        auto packTuple     = packBufferPtrs<alignment>(receiveBuffer, receiveCount, (arrays + receiveStart)...);
+        LocalIndex receiveLocation = receiveStart;
+        if (record) { receiveLog.emplace_back(receiveRank, receiveStart); }
+        else { receiveLocation = domain_exchange::findInLog(receiveLog.begin(), receiveLog.end(), receiveRank); }
+
+        auto packTuple     = packBufferPtrs<alignment>(receiveBuffer, receiveCount, (arrays + receiveLocation)...);
         auto scatterRanges = [receiveCount](auto arrayPair)
         {
             checkGpuErrors(cudaMemcpy(arrayPair[0], arrayPair[1],

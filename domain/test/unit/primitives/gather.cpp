@@ -57,8 +57,8 @@ void CpuGatherTest()
     std::vector<KeyType> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
 
     std::vector<unsigned> scratch;
-    SfcSorter<IndexType, std::vector<unsigned>> cpuGather(scratch);
-    cpuGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
+    SfcSorter<IndexType, std::vector<unsigned>> sorter(scratch);
+    sorter.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
     {
         std::vector<KeyType> refCodes{0, 10, 20, 30, 40, 50, 60, 70, 80, 90};
@@ -67,7 +67,7 @@ void CpuGatherTest()
 
     std::vector<ValueType> values{-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
     std::vector<ValueType> probe = values;
-    cpuGather(values.data() + 2, probe.data() + 2, 0, codes.size());
+    gatherCpu(sorter.getMap(), codes.size(), values.data() + 2, probe.data() + 2);
     std::vector<ValueType> reference{-2, -1, 0, 2, 4, 6, 8, 1, 3, 5, 7, 9, 10, 11};
 
     EXPECT_EQ(probe, reference);

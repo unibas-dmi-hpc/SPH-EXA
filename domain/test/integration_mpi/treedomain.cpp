@@ -90,7 +90,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::iota(begin(ordering), end(ordering), 0);
 
     auto assignment = singleRangeSfcSplit(counts, numRanks);
-    auto sendList   = createSendList<KeyType>(assignment, tree, coords.particleKeys());
+    auto sends      = createSendRanges<KeyType>(assignment, tree, coords.particleKeys());
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), numParticles * numRanks);
 
@@ -99,15 +99,15 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<T> z(coords.z().begin(), coords.z().end());
 
     LocalIndex numAssigned = assignment.totalCount(thisRank);
-    LocalIndex numPresent  = sendList[thisRank].totalCount();
+    LocalIndex numPresent  = sends.count(thisRank);
 
     BufferDescription bufDesc{0, numParticles, numParticles};
     bufDesc.size = domain_exchange::exchangeBufferSize(bufDesc, numPresent, numAssigned);
     reallocate(bufDesc.size, x, y, z);
-    exchangeParticles(sendList, Rank(thisRank), bufDesc, numAssigned, ordering.data(), x.data(), y.data(), z.data());
+    std::vector<std::tuple<int, LocalIndex>> log;
+    exchangeParticles(sends, Rank(thisRank), bufDesc, numAssigned, ordering.data(), log, x.data(), y.data(), z.data());
 
-    domain_exchange::extractLocallyOwned(bufDesc, numPresent, numAssigned,
-                                         ordering.data() + sendList[thisRank].rangeStart(0), x, y, z);
+    domain_exchange::extractLocallyOwned(bufDesc, numPresent, numAssigned, ordering.data() + sends[thisRank], x, y, z);
 
     /// post-exchange test:
     /// if the global tree build and assignment is repeated, no particles are exchanged anymore
@@ -130,16 +130,16 @@ void globalRandomGaussian(int thisRank, int numRanks)
     EXPECT_EQ(tree, newTree);
     EXPECT_EQ(counts, newCounts);
 
-    auto newSendList = createSendList<KeyType>(assignment, newTree, {newCodes.data(), numAssigned});
+    auto newSends = createSendRanges<KeyType>(assignment, newTree, {newCodes.data(), numAssigned});
 
     for (int rank = 0; rank < numRanks; ++rank)
     {
         // the new send list now indicates that all elements on the current rank
         // stay where they are
-        if (rank == thisRank) EXPECT_EQ(newSendList[rank].totalCount(), numAssigned);
+        if (rank == thisRank) EXPECT_EQ(newSends.count(rank), numAssigned);
         // no particles are sent to other ranks
         else
-            EXPECT_EQ(newSendList[rank].totalCount(), 0);
+            EXPECT_EQ(newSends.count(rank), 0);
     }
 }
 

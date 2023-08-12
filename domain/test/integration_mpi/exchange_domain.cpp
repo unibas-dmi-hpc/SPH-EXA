@@ -76,7 +76,8 @@ void exchangeAllToAll(int thisRank, int numRanks)
 
     int segmentSize = gridSize / numRanks;
 
-    SendList sendList(numRanks);
+    SendRanges sends(numRanks + 1);
+    sends.back() = gridSize;
     for (int rank = 0; rank < numRanks; ++rank)
     {
         int lower = rank * segmentSize;
@@ -84,26 +85,25 @@ void exchangeAllToAll(int thisRank, int numRanks)
 
         if (rank == numRanks - 1) upper += gridSize % numRanks;
 
-        // there's only one range per rank
-        sendList[rank].addRange(lower, upper);
+        sends[rank] = lower;
     }
 
     BufferDescription bufDesc{0, gridSize, gridSize};
-    LocalIndex numPartPresent  = sendList[thisRank].totalCount();
+    LocalIndex numPartPresent  = sends.count(thisRank);
     LocalIndex numPartAssigned = numPartPresent * numRanks;
-    bufDesc.size = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
+    bufDesc.size               = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
     reallocate(bufDesc.size, x, y);
 
-    exchangeParticles(sendList, thisRank, bufDesc, numPartAssigned, ordering.data(), x.data(), y.data());
+    std::vector<std::tuple<int, LocalIndex>> log;
+    exchangeParticles(sends, thisRank, bufDesc, numPartAssigned, ordering.data(), log, x.data(), y.data());
 
-    ex::extractLocallyOwned(bufDesc, numPartPresent, numPartAssigned,
-                            ordering.data() + sendList[thisRank].rangeStart(0), x, y);
+    ex::extractLocallyOwned(bufDesc, numPartPresent, numPartAssigned, ordering.data() + sends[thisRank], x, y);
 
     std::vector<T> refX(numPartAssigned);
     for (int rank = 0; rank < numRanks; ++rank)
     {
         std::iota(begin(refX) + rank * numPartPresent, begin(refX) + rank * numPartPresent + numPartPresent,
-                  sendList[thisRank].rangeStart(0));
+                  sends[thisRank]);
     }
 
     std::vector<T> refY;
@@ -155,22 +155,24 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     int nex      = 10;
     int nextRank = (thisRank + 1) % numRanks;
 
-    SendList sendList(numRanks);
+    SendRanges sends(numRanks + 1);
     // keep all but the last nex elements
-    sendList[thisRank].addRange(0, gridSize - nex);
+    sends[thisRank] = gridSize - nex;
     // send last nex to nextRank
-    sendList[nextRank].addRange(gridSize - nex, gridSize);
+    sends[nextRank] = nex;
+    std::exclusive_scan(sends.begin(), sends.end(), sends.begin(), 0);
 
     BufferDescription bufDesc{0, gridSize, gridSize};
-    LocalIndex numPartPresent  = sendList[thisRank].totalCount();
+    LocalIndex numPartPresent  = sends.count(thisRank);
     LocalIndex numPartAssigned = gridSize;
     bufDesc.size               = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
     reallocate(bufDesc.size, x, y, testArray);
 
-    exchangeParticles(sendList, thisRank, bufDesc, gridSize, ordering.data(), x.data(), y.data(), testArray.data());
+    std::vector<std::tuple<int, LocalIndex>> log;
+    exchangeParticles(sends, thisRank, bufDesc, gridSize, ordering.data(), log, x.data(), y.data(), testArray.data());
 
-    ex::extractLocallyOwned(bufDesc, numPartPresent, numPartAssigned,
-                            ordering.data() + sendList[thisRank].rangeStart(0), x, y, testArray);
+    ex::extractLocallyOwned(bufDesc, numPartPresent, numPartAssigned, ordering.data() + sends[thisRank], x, y,
+                            testArray);
 
     int incomingRank = (thisRank - 1 + numRanks) % numRanks;
     std::vector<double> refX(gridSize, thisRank);
