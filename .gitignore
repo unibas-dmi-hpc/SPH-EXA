@@ -45,3 +45,7 @@ test/constants.txt
 *.exe
 *.out
 *.app
+
+# Python runtime cache
+__pycache__
+*.pyc

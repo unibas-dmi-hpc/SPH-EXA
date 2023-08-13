@@ -1,7 +1,8 @@
-# Trigger actions defined in the associated file "trigger_binning_actions.yaml"
+# Trigger actions defined in the associated file "binning_actions.yaml"
 #
 # Written by Jean M. Favre
-# tested Tue Jun  7 03:32:58 PM CEST 2022
+# Updated by Yiqing Zhu
+# tested Tue Jun  4 22:00 CEST 2023
 -
   action: "add_triggers"
   triggers:
@@ -12,4 +13,4 @@
     t2:
       params:
         condition: "cycle() % 5 == 0"
-        actions_file: "test.yaml"
+        actions_file: "rank_color.yaml"

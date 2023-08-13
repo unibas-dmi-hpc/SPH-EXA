@@ -164,7 +164,7 @@ int main(int argc, char** argv)
             fileWriter->closeStep();
         }
 
-        viz::execute(d, domain.startIndex(), domain.endIndex());
+        viz::execute(d, propagator, domain.startIndex(), domain.endIndex(), rank);
         if (isWallClockReached)
         {
             d.iteration++;

@@ -33,6 +33,7 @@ if (NOT OpenMP_CXX_INTERFACE_LINK_OPTIONS)
     set_property(TARGET OpenMP::OpenMP_CXX PROPERTY INTERFACE_LINK_OPTIONS ${OpenMP_CXX_INTERFACE_LINK_OPTIONS})
 endif()
 
+include_directories("/home/appcell/spack/opt/spack/linux-ubuntu22.04-skylake/gcc-11.3.0/openmpi-4.1.5-ej4bfoygrfqlhn76um3frnrup3bodmpt/include")
 include(CTest)
 include(CheckLanguage)
 

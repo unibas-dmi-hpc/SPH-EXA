@@ -98,6 +98,7 @@ public:
     DevVector<unsigned> nc;                                 // number of neighbors of each particle
     DevVector<T>        dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
 
+
     //! @brief SPH interpolation kernel lookup tables
     DevVector<T> wh;
     DevVector<T> whd;

@@ -90,14 +90,11 @@ public:
         box_ = makeGlobalBox(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start, numParticles, box_);
 
         gsl::span<KeyType> keyView(particleKeys + bufDesc.start, numParticles);
-
         // compute SFC particle keys only for particles participating in tree build
         computeSfcKeys(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start, sfcKindPointer(keyView.data()),
                        numParticles, box_);
-
         // sort keys and keep track of ordering for later use
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
-
         gsl::span<const KeyType> oldLeaves = tree_.treeLeaves();
         std::vector<KeyType> oldBoundaries(assignment_.numRanks() + 1);
         for (size_t rank = 0; rank < oldBoundaries.size() - 1; ++rank)
@@ -114,7 +111,6 @@ public:
             while (!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_))
                 ;
         }
-
         auto newAssignment = singleRangeSfcSplit(nodeCounts_, numRanks_);
         limitBoundaryShifts<KeyType>(oldBoundaries, tree_.treeLeaves(), nodeCounts_, newAssignment);
         assignment_ = std::move(newAssignment);

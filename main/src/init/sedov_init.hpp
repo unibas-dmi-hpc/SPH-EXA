@@ -113,19 +113,15 @@ public:
 
         auto [first, last] = partitionRange(numParticlesGlobal, rank, numRanks);
         d.resize(last - first);
-
         T              r = settings_.at("r1");
         cstone::Box<T> globalBox(-r, r, cstone::BoundaryType::periodic);
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
         syncCoords<KeyType>(rank, numRanks, numParticlesGlobal, d.x, d.y, d.z, globalBox);
         d.resize(d.x.size());
-
         settings_["numParticlesGlobal"] = double(numParticlesGlobal);
         BuiltinWriter attributeSetter(settings_);
         d.loadOrStoreAttributes(&attributeSetter);
-
         initSedovFields(d, settings_);
-
         return globalBox;
     }
 

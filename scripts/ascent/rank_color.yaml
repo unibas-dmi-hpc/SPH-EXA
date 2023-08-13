@@ -1,0 +1,38 @@
+- 
+  action: add_pipelines
+  pipelines:
+    pl1:
+      f1:
+        type: threshold
+        params: 
+          field: ranks
+          min_value: -1
+          max_value: 500
+      # f2:
+      #   type: "expression"
+      #   params:
+      #     expression: "field('y') + 1.2"
+      #     name: "my_cycle"
+- 
+  action: add_queries
+  queries:
+    q1:
+      pipeline: "pl1"
+      params:
+        expression: "cycle()"
+        name: "my_cycle"
+- 
+  action: add_scenes
+  scenes: 
+    s1: 
+      plots: 
+        p1: 
+          field: ranks
+          type: pseudocolor
+          pipeline: pl1
+      image_prefix: ../sphexa-vis/output/step_.%05d
+-
+  action: "save_session"
+  file_name: "ascent_session"
+  expression_list:
+    - my_cycle
