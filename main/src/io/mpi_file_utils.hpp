@@ -206,6 +206,7 @@ static void write_h5z_field(H5ZType& h5z, const std::string& fieldName, const do
     hsize_t      size[2];
     size[0]   = 3;
     size[1]   = 3;
+    H5Dset_extent(h5z.dset_id, size);
     dataset.extend( size );
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
