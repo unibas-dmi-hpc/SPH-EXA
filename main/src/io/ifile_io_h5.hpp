@@ -109,8 +109,17 @@ public:
         // set number of particles that each rank will write
         // H5PartSetNumParticles(h5File_, numParticles);
 
+        // h5z_ = fileutils::start_zfp(pathStep_, "step0", "step0ds", numParticles, 10);
+
+        if (std::filesystem::exists(path))
+        {
+            h5z_ = fileutils::open_h5z_file(path, "step0", "step0ds", numParticles, 10);
+        }
+        else { h5z_ = fileutils::create_h5z_file(path, "step0", "step0ds", numParticles, 10); }
         
-        h5z_ = fileutils::start_zfp(pathStep_, "step0", "step0ds", numParticles, 10);
+        add_h5z_step(h5z_, numParticles);
+        
+        return;
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
@@ -126,7 +135,10 @@ public:
             }, field);
     }
 
-    void closeStep() override { H5PartCloseFile(h5File_); }
+    void closeStep() override { 
+        H5PartCloseFile(h5File_);
+        fileutils::close_zfp(h5z_);
+    }
 
 private:
     MPI_Comm comm_;
