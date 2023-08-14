@@ -28,10 +28,10 @@ TEST(GlobalDomainResize, resize)
     float theta    = 1.0;
     Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize, theta);
 
-    std::vector<T> x{0.55};
-    std::vector<T> y{0.55};
-    std::vector<T> z{0.55};
-    std::vector<T> h{0.05};
+    std::vector<T> x{0.55, 0.56};
+    std::vector<T> y{0.55, 0.56};
+    std::vector<T> z{0.55, 0.56};
+    std::vector<T> h{0.05, 0.05};
 
     std::vector<KeyType> keys(x.size());
     std::vector<T> s1, s2, s3;
@@ -42,57 +42,54 @@ TEST(GlobalDomainResize, resize)
     {
         EXPECT_EQ(domain.startIndex(), 0);
         EXPECT_EQ(domain.endIndex(), 2);
-        EXPECT_EQ(domain.nParticlesWithHalos(), 2);
+        EXPECT_EQ(domain.nParticlesWithHalos(), 4);
     }
     else if (rank == 1)
     {
-        EXPECT_EQ(domain.startIndex(), 0);
-        EXPECT_EQ(domain.endIndex(), 0);
-        EXPECT_EQ(domain.nParticlesWithHalos(), 0);
+        EXPECT_EQ(domain.startIndex(), 2);
+        EXPECT_EQ(domain.endIndex(), 4);
+        EXPECT_EQ(domain.nParticlesWithHalos(), 4);
     }
 
-    if (rank == 0)
+    // Add two new particles on each rank
+    int n_new = 2;
+    // If halos are large enough, no resizing required
+    int add_size = n_new - int(domain.endIndex()) + int(x.size());
+    // Resize
+    if (add_size > 0)
     {
-        // Add one particle
-        int n_new = 1;
-        // If halos are large enough, no resizing required
-        int add_size = n_new - int(domain.endIndex()) + int(x.size());
-        // Resize
-        if (add_size > 0)
-        {
-            size_t new_size = std::max(domain.nParticlesWithHalos(), (unsigned int)(x.size() + add_size));
-            x.resize(new_size);
-            y.resize(new_size);
-            z.resize(new_size);
-            h.resize(new_size);
-            keys.resize(new_size);
-            std::cout << "Rank " << rank << " resize done, new size: " << new_size << std::endl;
-        }
-        unsigned endBefore = domain.endIndex();
-        domain.setEndIndex(domain.endIndex() + n_new);
-        // Add new particle
-        x.at(endBefore)           = x.at(domain.startIndex());
-        y.at(endBefore)           = y.at(domain.startIndex());
-        z.at(endBefore)           = z.at(domain.startIndex());
-        h.at(endBefore)           = h.at(domain.startIndex());
-        x.at(domain.startIndex()) = 0.59;
-        y.at(domain.startIndex()) = 0.59;
-        z.at(domain.startIndex()) = 0.59;
-        h.at(domain.startIndex()) = 0.01;
+        size_t new_size = std::max(domain.nParticlesWithHalos(), (unsigned int)(x.size() + add_size));
+        x.resize(new_size);
+        y.resize(new_size);
+        z.resize(new_size);
+        h.resize(new_size);
+        keys.resize(new_size);
+        std::cout << "Rank " << rank << " resize done, new size: " << new_size << std::endl;
     }
+    unsigned endBefore = domain.endIndex();
+    domain.setEndIndex(domain.endIndex() + n_new);
+    // Add new particle
+    x.at(endBefore)     = 0.59;
+    y.at(endBefore)     = 0.59;
+    z.at(endBefore)     = 0.59;
+    h.at(endBefore)     = 0.01;
+    x.at(endBefore + 1) = 0.60;
+    y.at(endBefore + 1) = 0.60;
+    z.at(endBefore + 1) = 0.60;
+    h.at(endBefore + 1) = 0.01;
 
     domain.sync(keys, x, y, z, h, std::tuple{}, std::tie(s1, s2, s3));
 
     if (rank == 0)
     {
         EXPECT_EQ(domain.startIndex(), 0);
-        EXPECT_EQ(domain.endIndex(), 2);
-        EXPECT_EQ(domain.nParticlesWithHalos(), 3);
+        EXPECT_EQ(domain.endIndex(), 4);
+        EXPECT_EQ(domain.nParticlesWithHalos(), 8);
     }
     else if (rank == 1)
     {
-        EXPECT_EQ(domain.startIndex(), 2);
-        EXPECT_EQ(domain.endIndex(), 3);
-        EXPECT_EQ(domain.nParticlesWithHalos(), 3);
+        EXPECT_EQ(domain.startIndex(), 0);
+        EXPECT_EQ(domain.endIndex(), 4);
+        EXPECT_EQ(domain.nParticlesWithHalos(), 4);
     }
 }
