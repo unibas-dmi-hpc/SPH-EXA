@@ -94,30 +94,24 @@ public:
         lastIndex_  = lastIndex;
         pathStep_   = path;
 
+        currStep_ = currStep_ +1;
+
         if (std::filesystem::exists(path))
         {
             h5File_ = fileutils::openH5Part(path, H5PART_APPEND | H5PART_VFD_MPIIO_IND, comm_);
         }
         else { h5File_ = fileutils::openH5Part(path, H5PART_WRITE | H5PART_VFD_MPIIO_IND, comm_); }
 
-        
-        // // create the next step
-        // h5part_int64_t numSteps = H5PartGetNumSteps(h5File_);
-        // H5PartSetStep(h5File_, numSteps);
-
         uint64_t numParticles = lastIndex - firstIndex;
+
         // set number of particles that each rank will write
-        // H5PartSetNumParticles(h5File_, numParticles);
-
-        // h5z_ = fileutils::start_zfp(pathStep_, "step0", "step0ds", numParticles, 10);
-
         if (std::filesystem::exists(path))
         {
             h5z_ = fileutils::open_h5z_file(path, "step0", "step0ds", numParticles, 10);
         }
         else { h5z_ = fileutils::create_h5z_file(path, "step0", "step0ds", numParticles, 10); }
         
-        add_h5z_step(h5z_, numParticles);
+        add_h5z_step(h5z_, "step_" + std::to_string(currStep_), numParticles);
         
         return;
     }
@@ -131,7 +125,7 @@ public:
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
         std::visit([this, &key](auto arg) { 
-            fileutils::write_h5z_field(h5z_, key, arg + firstIndex_); 
+            fileutils::write_h5z_field(h5z_, arg + firstIndex_); 
             }, field);
     }
 
@@ -145,6 +139,7 @@ private:
 
     size_t      firstIndex_, lastIndex_;
     std::string pathStep_;
+    size_t currStep_ = 0;
 
     H5PartFile* h5File_;
     std::string groupName_, datasetName_;

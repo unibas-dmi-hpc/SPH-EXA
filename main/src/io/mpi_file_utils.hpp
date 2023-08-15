@@ -34,10 +34,7 @@
 #include <iostream>
 
 #include "H5Part.h"
-// #include "hdf5.h"
 #include "H5Cpp.h"
-// #include "H5Zzfp_lib.h"
-// #include "H5Zzfp_props.h"
 #include "H5Zzfp_plugin.h"
 
 namespace sphexa
@@ -66,12 +63,11 @@ static hid_t setup_filter(int n, hsize_t *chunk, int zfpmode,
     unsigned int minbits, unsigned int maxbits, unsigned int maxprec, int minexp)
 {
     hid_t cpid;
+    hid_t status;
 
     /* setup dataset creation properties */
-    // if (0 > (cpid = H5Pcreate(H5P_DATASET_CREATE))) SET_ERROR(H5Pcreate);
-    // if (0 > H5Pset_chunk(cpid, n, chunk)) SET_ERROR(H5Pset_chunk);
     cpid = H5Pcreate(H5P_DATASET_CREATE);
-    H5Pset_chunk(cpid, n, chunk);
+    status = H5Pset_chunk(cpid, n, chunk);
 
 
     unsigned int cd_values[10];
@@ -96,12 +92,11 @@ static hid_t setup_filter(int n, hsize_t *chunk, int zfpmode,
     for (int i = 0; i < (int) cd_nelmts; i++)
         printf("%u,", cd_values[i]);
     printf("\n");
-
-    if(const char* env_p = std::getenv("HDF5_PLUGIN_PATH"))
-        std::cout << "Your PATH is: " << env_p << '\n';
+    const char* env_p = std::getenv("HDF5_PLUGIN_PATH");
+    std::cout << "Your PATH is: " << env_p << '\n';
 
     /* Add filter to the pipeline via generic interface */
-    H5Pset_filter(cpid, H5Z_FILTER_ZFP, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values);
+    // status = H5Pset_filter(cpid, H5Z_FILTER_ZFP, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values);
         
     return cpid;
 }
@@ -131,31 +126,13 @@ static H5ZType create_h5z_file(std::string fileName, std::string groupName, std:
     // Create a group
     h5z.group_id = H5Gcreate2(h5z.file_id, groupName.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-    // Create a dataset
-    h5z.dspace_id = H5Screate_simple(1, dims, NULL);
-    // h5z.dset_id = H5Dcreate2(
-    //     h5z.group_id, datasetName.c_str(), H5T_STD_I32BE, h5z.dspace_id, H5P_DEFAULT, h5z.cpid, H5P_DEFAULT);
-
     return h5z;
 }
 
 static H5ZType open_h5z_file(std::string fileName, std::string groupName, std::string datasetName, int nRow, int nCol)
 {
-    // Setup filter
-    hsize_t chunk = nRow;
-    int zfpmode = H5Z_ZFP_MODE_RATE;
-    double rate = 4;
-    double acc = 0;
-    unsigned int prec = 11;
-    unsigned int minbits = 0;
-    unsigned int maxbits = 4171;
-    unsigned int maxprec = 64;
-    int minexp = -1074;
 
     H5ZType h5z;
-
-    h5z.cpid = setup_filter(1, &chunk, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
-
     herr_t status;
 
     // Setup dataset dimensions and input data
@@ -172,62 +149,79 @@ static H5ZType open_h5z_file(std::string fileName, std::string groupName, std::s
     // Create a group
     h5z.group_id = H5Gcreate2(h5z.file_id, groupName.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-    // Create a dataset
-    // h5z.dspace_id = H5Screate_simple(1, dims, NULL);
-    // h5z.dset_id = H5Dcreate2(
-    //     h5z.group_id, datasetName.c_str(), H5T_STD_I32BE, h5z.dspace_id, H5P_DEFAULT, h5z.cpid, H5P_DEFAULT);
-
     return h5z;
 }
 
+static void add_filter(H5ZType& h5z) {
+    // Setup filter
+    hsize_t chunk_dims[2] ={2, 5};
+    int zfpmode = H5Z_ZFP_MODE_RATE;
+    double rate = 4;
+    double acc = 0;
+    unsigned int prec = 11;
+    unsigned int minbits = 0;
+    unsigned int maxbits = 4171;
+    unsigned int maxprec = 64;
+    int minexp = -1074;
+
+    h5z.cpid = setup_filter(1, chunk_dims, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
+}
+
+
 // nRow: num of particles. nCol: num of data fields.
 // Setup dataset dimensions
-static void add_h5z_step(H5ZType& h5z, int nRow, int nCol = 0) {
+static void add_h5z_step(H5ZType& h5z, std::string fieldName, hsize_t nRow, hsize_t nCol = 0) {
     hsize_t dims[2] = {nRow, nCol};
     hsize_t maxdims[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
     h5z.dspace_id = H5Screate_simple(1, dims, maxdims);
 
     // dataset has to be chunked to be extendable
-    H5::DSetCreatPropList cparms;
     hsize_t chunk_dims[2] ={2, 5};
-    cparms.setChunk(1, chunk_dims);
-    int fill_val = 0;
-    cparms.setFillValue(H5::PredType::NATIVE_INT, &fill_val);
+
+    // // Modify dataset creation properties, i.e. enable chunking
+    // hid_t prop   = H5Pcreate(H5P_DATASET_CREATE);
+    // h5z.status = H5Pset_chunk(prop, 1, chunk_dims);
+
+    add_filter(h5z);
 
     h5z.dset_id = H5Dcreate2(
-        h5z.group_id, fieldName.c_str(), H5T_STD_I32BE, h5z.dspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        h5z.group_id, fieldName.c_str(), H5T_STD_I32BE, h5z.dspace_id, H5P_DEFAULT, h5z.cpid, H5P_DEFAULT);
 }
 
-static void write_h5z_field(H5ZType& h5z, const std::string& fieldName, const float* field) {
+static void write_h5z_field(H5ZType& h5z, const float* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const std::string& fieldName, const double* field) {
+static void write_h5z_field(H5ZType& h5z, const double* field) {
     hsize_t      size[2];
-    size[0]   = 3;
-    size[1]   = 3;
+    hsize_t      old_size[2];
+    hsize_t      max_size[2];
+    H5Sget_simple_extent_dims(h5z.dspace_id, old_size, max_size);
+    size[0]   = old_size[0];
+    size[1]   = old_size[1] + 1;
+
     H5Dset_extent(h5z.dset_id, size);
-    dataset.extend( size );
+
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const std::string& fieldName, const char* field) {
+static void write_h5z_field(H5ZType& h5z, const char* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_CHAR, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const std::string& fieldName, const int* field) {
+static void write_h5z_field(H5ZType& h5z, const int* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const std::string& fieldName, const unsigned int* field) {
+static void write_h5z_field(H5ZType& h5z, const unsigned int* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const std::string& fieldName, const long int* field) {
+static void write_h5z_field(H5ZType& h5z, const long int* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_LONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const std::string& fieldName, const long unsigned int* field) {
+static void write_h5z_field(H5ZType& h5z, const long unsigned int* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
@@ -343,25 +337,6 @@ static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const h
 }
 
 static void close_zfp(H5ZType& h5z) {
-    // Close dataset after writing
-    // h5z.status = H5Dclose(h5z.dset_id);
-
-    // Retrieve result size and preallocate vector
-    // std::vector<double> result;
-    // dset_id = H5Dopen(file_id, groupName + "/" + datasetName, H5P_DEFAULT);
-    // dspace_id = H5Dget_space(dset_id);
-    // ndims = H5Sget_simple_extent_ndims(dspace_id);
-    // hsize_t res_dims[ndims];
-    // status = H5Sget_simple_extent_dims(dspace_id, res_dims, NULL);
-    // int res_sz = 1;
-    // for (int i = 0; i < ndims; i++) {
-    //     res_sz *= res_dims[i];
-    // }
-    // result.resize(res_sz);
-
-    // Read the data
-    // status = H5Dread(dset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, result.data());
-
     // Close the dataset and group
     h5z.status = H5Sclose(h5z.dspace_id);
     h5z.status = H5Dclose(h5z.dset_id);
