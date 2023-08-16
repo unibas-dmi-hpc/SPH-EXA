@@ -82,7 +82,7 @@ public:
         {
             fileutils::sphexaWriteFileAttrib(h5_file, it->first.c_str(), &(it->second), 1);
         }
-
+        
         H5PartCloseFile(h5_file);
     }
 
@@ -94,44 +94,40 @@ public:
         lastIndex_  = lastIndex;
         pathStep_   = path;
 
-        currStep_ = currStep_ +1;
-
         if (std::filesystem::exists(path))
         {
-            h5File_ = fileutils::openH5Part(path, H5PART_APPEND | H5PART_VFD_MPIIO_IND, comm_);
+            h5z_ = fileutils::openHDF5File(path);
         }
-        else { h5File_ = fileutils::openH5Part(path, H5PART_WRITE | H5PART_VFD_MPIIO_IND, comm_); }
-
-        uint64_t numParticles = lastIndex - firstIndex;
-
-        // set number of particles that each rank will write
-        if (std::filesystem::exists(path))
-        {
-            h5z_ = fileutils::open_h5z_file(path, "step0", "step0ds", numParticles, 10);
+        else {
+            h5z_ = fileutils::createHDF5File(path);
         }
-        else { h5z_ = fileutils::create_h5z_file(path, "step0", "step0ds", numParticles, 10); }
         
-        add_h5z_step(h5z_, "step_" + std::to_string(currStep_), numParticles);
+        uint64_t numParticles = lastIndex - firstIndex;
+        currStep_ = currStep_ + 1;
+        pathStep_ = "step_" + std::to_string(currStep_);
+
+        addHDF5Step(h5z_, pathStep_, numParticles);
         
         return;
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit([this, &key, size](auto arg) { fileutils::sphexaWriteStepAttrib(h5File_, key.c_str(), arg, size); },
+        std::visit([this, &key, size](auto arg) { 
+            // fileutils::sphexaWriteStepAttrib(h5File_, key.c_str(), arg, size); 
+            },
                    val);
     }
 
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
         std::visit([this, &key](auto arg) { 
-            fileutils::write_h5z_field(h5z_, arg + firstIndex_); 
+            fileutils::writeHDF5Field(h5z_, pathStep_, arg + firstIndex_); 
             }, field);
     }
 
     void closeStep() override { 
-        H5PartCloseFile(h5File_);
-        fileutils::close_zfp(h5z_);
+        fileutils::closeHDF5File(h5z_);
     }
 
 private:
@@ -142,7 +138,6 @@ private:
     size_t currStep_ = 0;
 
     H5PartFile* h5File_;
-    std::string groupName_, datasetName_;
     fileutils::H5ZType h5z_;
 
 };

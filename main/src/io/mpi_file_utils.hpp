@@ -32,7 +32,7 @@
 
 #include <vector>
 #include <iostream>
-
+#include <mpi.h>
 #include "H5Part.h"
 #include "H5Cpp.h"
 #include "H5Zzfp_plugin.h"
@@ -51,25 +51,17 @@ struct H5ZType {
     hid_t file_id;
     hid_t dset_id;
     hid_t dspace_id;
-    hid_t group_id;
     hid_t cpid;
     hid_t status;
 };
 
 
-
-static hid_t setup_filter(int n, hsize_t *chunk, int zfpmode,
+static hid_t setupCompressor(int rankNum, hsize_t *chunkSizes, int zfpmode,
     double rate, double acc, unsigned int prec,
     unsigned int minbits, unsigned int maxbits, unsigned int maxprec, int minexp)
 {
     hid_t cpid;
     hid_t status;
-
-    /* setup dataset creation properties */
-    cpid = H5Pcreate(H5P_DATASET_CREATE);
-    status = H5Pset_chunk(cpid, n, chunk);
-
-
     unsigned int cd_values[10];
     size_t cd_nelmts = 10;
 
@@ -87,74 +79,89 @@ static hid_t setup_filter(int n, hsize_t *chunk, int zfpmode,
     else
         cd_nelmts = 0; /* causes default behavior of ZFP library */
 
-    /* print cd-values array used for filter */
-    printf("\n%d cd_values=", (int) cd_nelmts);
-    for (int i = 0; i < (int) cd_nelmts; i++)
-        printf("%u,", cd_values[i]);
-    printf("\n");
-    const char* env_p = std::getenv("HDF5_PLUGIN_PATH");
-    std::cout << "Your PATH is: " << env_p << '\n';
+    // // print cd-values array used for filter
+    // printf("\n%d cd_values=", (int) cd_nelmts);
+    // for (int i = 0; i < (int) cd_nelmts; i++)
+    //     printf("%u,", cd_values[i]);
+    // printf("\n");
 
-    /* Add filter to the pipeline via generic interface */
-    // status = H5Pset_filter(cpid, H5Z_FILTER_ZFP, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values);
-        
+    // hid_t ret_val;
+    // // enable ONLY filter plugins
+    // herr_t aa = H5PLset_loading_state(H5PL_FILTER_PLUGIN);
+    // if ( aa < 0) {
+    //     ret_val = EXIT_FAILURE;
+    // }
+
+    // // ensure that "/tmp" is at the front of the search path list
+    // if (H5PLprepend("/home/appcell/unibas/zfpbuild/plugin") < 0) {
+    //     ret_val = EXIT_FAILURE;
+    // }
+
+    // unsigned size, mask;
+    // char     buf[255];
+
+    // // retrieve the number of entries in the plugin path list
+    // if (H5PLsize(&size) < 0) {
+    //     ret_val = EXIT_FAILURE;
+    // }
+    // printf("Number of stored plugin paths: %d\n", size);
+
+    // // check the plugin state mask
+    // if (H5PLget_loading_state(&mask) < 0) {
+    //     ret_val = EXIT_FAILURE;
+    // }
+    // printf("Filter plugins %s be loaded.\n", (mask & H5PL_FILTER_PLUGIN) == 1 ? "can" : "can't");
+    // printf("VOL plugins %s be loaded.\n", (mask & H5PL_VOL_PLUGIN) == 2 ? "can" : "can't");
+
+    // // print the paths in the plugin path list
+    // for (unsigned i = 0; i < size; ++i) {
+    //     if (H5PLget(i, buf, 255) < 0) {
+    //         ret_val = EXIT_FAILURE;
+    //         break;
+    //     }
+    //     printf("%s\n", buf);
+    // }
+
+    // First the dataset has to be chunked to enable 3rd party filters
+    cpid = H5Pcreate(H5P_DATASET_CREATE);
+    status = H5Pset_chunk(cpid, rankNum, chunkSizes);
+    status = H5Pset_filter(cpid, H5Z_FILTER_ZFP, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values);
+    // status = H5Pset_filter(cpid, (H5Z_filter_t)305, H5Z_FLAG_MANDATORY, (size_t)6, cd_values);
     return cpid;
 }
 
-static H5ZType create_h5z_file(std::string fileName, std::string groupName, std::string datasetName, int nRow, int nCol)
+static H5ZType createHDF5File(std::string fileName)
 {
-    // Setup filter
-    hsize_t chunk = nRow;
-    int zfpmode = H5Z_ZFP_MODE_RATE;
-    double rate = 4;
-    double acc = 0;
-    unsigned int prec = 11;
-    unsigned int minbits = 0;
-    unsigned int maxbits = 4171;
-    unsigned int maxprec = 64;
-    int minexp = -1074;
-
     H5ZType h5z;
-
-    h5z.cpid = setup_filter(1, &chunk, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
-
     herr_t status;
-
-    // Open a file
     h5z.file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-
-    // Create a group
-    h5z.group_id = H5Gcreate2(h5z.file_id, groupName.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
     return h5z;
 }
 
-static H5ZType open_h5z_file(std::string fileName, std::string groupName, std::string datasetName, int nRow, int nCol)
+static H5ZType openHDF5File(std::string fileName)
 {
-
     H5ZType h5z;
     herr_t status;
+    hid_t access_plist;
+    hid_t file_id;
 
-    // Setup dataset dimensions and input data
-    int ndims = nCol;
-    hsize_t dims[ndims];
-    for (size_t i=0; i<ndims; i++) {
-        dims[i] = nRow;
-    }
-    std::vector<double> data(nRow, nCol);
+    // Enable the file to be accessible from multiple ranks
+    access_plist = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
 
-    // Open a file
-    h5z.file_id = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-
-    // Create a group
-    h5z.group_id = H5Gcreate2(h5z.file_id, groupName.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
+    h5z.file_id = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, access_plist);
     return h5z;
 }
 
-static void add_filter(H5ZType& h5z) {
-    // Setup filter
-    hsize_t chunk_dims[2] ={2, 5};
+static void closeHDF5File(H5ZType& h5z) {
+    h5z.status = H5Pclose(h5z.cpid);
+    h5z.status = H5Sclose(h5z.dspace_id);
+    h5z.status = H5Dclose(h5z.dset_id);
+    h5z.status = H5Fclose(h5z.file_id);
+}
+
+static void addHDF5Filter(H5ZType& h5z) {
+    // ZFP
     int zfpmode = H5Z_ZFP_MODE_RATE;
     double rate = 4;
     double acc = 0;
@@ -163,36 +170,47 @@ static void add_filter(H5ZType& h5z) {
     unsigned int maxbits = 4171;
     unsigned int maxprec = 64;
     int minexp = -1074;
+    hsize_t chunk_dims[2] ={4, 1};
+    h5z.cpid = setupCompressor(2, chunk_dims, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
 
-    h5z.cpid = setup_filter(1, chunk_dims, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
+    // Built-in compressors
+    htri_t          avail;
+    herr_t          status;
+    unsigned int    filter_info;
+    hid_t           file, space, dset, dcpl;
+    avail = H5Zfilter_avail(H5Z_FILTER_DEFLATE);
+    h5z.cpid = H5Pcreate (H5P_DATASET_CREATE);
+    status = H5Pset_deflate(h5z.cpid, 0);
+    status = H5Pset_chunk(h5z.cpid, 2, chunk_dims);
 }
 
-
-// nRow: num of particles. nCol: num of data fields.
+// nRow: num of particles. nCol: num of data fields
 // Setup dataset dimensions
-static void add_h5z_step(H5ZType& h5z, std::string fieldName, hsize_t nRow, hsize_t nCol = 0) {
+static void addHDF5Step(H5ZType& h5z, std::string fieldName, hsize_t nRow, hsize_t nCol = 0) {
     hsize_t dims[2] = {nRow, nCol};
     hsize_t maxdims[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
-    h5z.dspace_id = H5Screate_simple(1, dims, maxdims);
+    h5z.dspace_id = H5Screate_simple(2, dims, maxdims);
+    addHDF5Filter(h5z);
 
-    // dataset has to be chunked to be extendable
-    hsize_t chunk_dims[2] ={2, 5};
-
-    // // Modify dataset creation properties, i.e. enable chunking
-    // hid_t prop   = H5Pcreate(H5P_DATASET_CREATE);
-    // h5z.status = H5Pset_chunk(prop, 1, chunk_dims);
-
-    add_filter(h5z);
-
-    h5z.dset_id = H5Dcreate2(
-        h5z.group_id, fieldName.c_str(), H5T_STD_I32BE, h5z.dspace_id, H5P_DEFAULT, h5z.cpid, H5P_DEFAULT);
+    // Create database
+    h5z.dset_id = H5Dcreate2(h5z.file_id, fieldName.c_str(), H5T_NATIVE_DOUBLE, h5z.dspace_id, H5P_DEFAULT, h5z.cpid, H5P_DEFAULT);
 }
 
-static void write_h5z_field(H5ZType& h5z, const float* field) {
+static void createHDF5Database(H5ZType& h5z, std::string fieldName, hsize_t nRow, hsize_t nCol = 0) {
+    hsize_t dims[2] = {nRow, nCol};
+    hsize_t maxdims[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
+    h5z.dspace_id = H5Screate_simple(2, dims, maxdims);
+    addHDF5Filter(h5z);
+
+    // Create database
+    h5z.dset_id = H5Dcreate2(h5z.file_id, fieldName.c_str(), H5T_NATIVE_DOUBLE, h5z.dspace_id, H5P_DEFAULT, h5z.cpid, H5P_DEFAULT);
+}
+
+static void writeHDF5Field(H5ZType& h5z, const float* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const double* field) {
+static void writeHDF5Field(H5ZType& h5z, const double* field) {
     hsize_t      size[2];
     hsize_t      old_size[2];
     hsize_t      max_size[2];
@@ -201,31 +219,30 @@ static void write_h5z_field(H5ZType& h5z, const double* field) {
     size[1]   = old_size[1] + 1;
 
     H5Dset_extent(h5z.dset_id, size);
-
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const char* field) {
+static void writeHDF5Field(H5ZType& h5z, const char* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_CHAR, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const int* field) {
+static void writeHDF5Field(H5ZType& h5z, const int* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const unsigned int* field) {
+static void writeHDF5Field(H5ZType& h5z, const unsigned int* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const long int* field) {
+static void writeHDF5Field(H5ZType& h5z, const long int* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_LONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_field(H5ZType& h5z, const long unsigned int* field) {
+static void writeHDF5Field(H5ZType& h5z, const long unsigned int* field) {
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const float* field) {
+static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const float* field) {
     hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
     hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
     hid_t attrib_id = H5Acreate(
@@ -241,7 +258,7 @@ static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const h
     H5Pclose(attrib_properties_id);
 }
 
-static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const double* field) {
+static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const double* field) {
     hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
     hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
     hid_t attrib_id = H5Acreate(
@@ -257,7 +274,7 @@ static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const h
     H5Pclose(attrib_properties_id);
 }
 
-static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const char* field) {
+static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const char* field) {
     hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
     hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
     hid_t attrib_id = H5Acreate(
@@ -273,7 +290,7 @@ static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const h
     H5Pclose(attrib_properties_id);
 }
 
-static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const int* field) {
+static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const int* field) {
     hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
     hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
     hid_t attrib_id = H5Acreate(
@@ -288,7 +305,8 @@ static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const h
     H5Sclose(space_id);
     H5Pclose(attrib_properties_id);
 }
-static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const unsigned int* field) {
+
+static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const unsigned int* field) {
     hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
     hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
     hid_t attrib_id = H5Acreate(
@@ -304,7 +322,7 @@ static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const h
     H5Pclose(attrib_properties_id);
 }
 
-static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const long int* field) {
+static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const long int* field) {
     hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
     hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
     hid_t attrib_id = H5Acreate(
@@ -320,7 +338,7 @@ static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const h
     H5Pclose(attrib_properties_id);
 }
 
-static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const long unsigned int* field) {
+static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const long unsigned int* field) {
     hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
     hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
     hid_t attrib_id = H5Acreate(
@@ -334,17 +352,6 @@ static void write_h5z_attrib(H5ZType& h5z, const std::string& fieldName, const h
     H5Aclose(attrib_id);
     H5Sclose(space_id);
     H5Pclose(attrib_properties_id);
-}
-
-static void close_zfp(H5ZType& h5z) {
-    // Close the dataset and group
-    h5z.status = H5Sclose(h5z.dspace_id);
-    h5z.status = H5Dclose(h5z.dset_id);
-    h5z.status = H5Gclose(h5z.group_id);
-    h5z.status = H5Pclose(h5z.cpid);
-
-    // Close the file
-    h5z.status = H5Fclose(h5z.file_id);
 }
 
 std::string H5PartTypeToString(h5part_int64_t type)
