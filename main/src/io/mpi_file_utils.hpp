@@ -85,7 +85,7 @@ static hid_t setupCompressor(int rankNum, hsize_t *chunkSizes, int zfpmode,
     //     printf("%u,", cd_values[i]);
     // printf("\n");
 
-    // hid_t ret_val;
+    hid_t ret_val;
     // // enable ONLY filter plugins
     // herr_t aa = H5PLset_loading_state(H5PL_FILTER_PLUGIN);
     // if ( aa < 0) {
@@ -93,9 +93,9 @@ static hid_t setupCompressor(int rankNum, hsize_t *chunkSizes, int zfpmode,
     // }
 
     // // ensure that "/tmp" is at the front of the search path list
-    // if (H5PLprepend("/home/appcell/unibas/zfpbuild/plugin") < 0) {
-    //     ret_val = EXIT_FAILURE;
-    // }
+    if (H5PLprepend("/home/appcell/unibas/zfpbuild/plugin") < 0) {
+        ret_val = EXIT_FAILURE;
+    }
 
     // unsigned size, mask;
     // char     buf[255];
@@ -126,6 +126,19 @@ static hid_t setupCompressor(int rankNum, hsize_t *chunkSizes, int zfpmode,
     cpid = H5Pcreate(H5P_DATASET_CREATE);
     status = H5Pset_chunk(cpid, rankNum, chunkSizes);
     status = H5Pset_filter(cpid, H5Z_FILTER_ZFP, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values);
+    htri_t avail;
+    unsigned filter_config;
+    /*
+    * Check that filter is registered with the library now.
+    * If it is registered, retrieve filter's configuration.
+    */
+    avail = H5Zfilter_avail(H5Z_FILTER_ZFP);
+    if (avail) {
+        status = H5Zget_filter_info (H5Z_FILTER_ZFP, &filter_config);
+        if ( (filter_config & H5Z_FILTER_CONFIG_ENCODE_ENABLED) &&
+        (filter_config & H5Z_FILTER_CONFIG_DECODE_ENABLED) )
+            printf ("filter is available for encoding and decoding.\n");
+    }
     // status = H5Pset_filter(cpid, (H5Z_filter_t)305, H5Z_FLAG_MANDATORY, (size_t)6, cd_values);
     return cpid;
 }

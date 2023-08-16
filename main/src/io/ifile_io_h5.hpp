@@ -122,7 +122,7 @@ public:
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
         std::visit([this, &key](auto arg) { 
-            fileutils::writeHDF5Field(h5z_, pathStep_, arg + firstIndex_); 
+            fileutils::writeHDF5Field(h5z_, arg + firstIndex_); 
             }, field);
     }
 
