@@ -189,3 +189,58 @@ TEST(cooling_grackle2, test2)
     }
     std::fclose(file);
 }
+
+TEST(cooling_grackle2, test3)
+{
+    using Real = double;
+    cooling::Cooler<Real>         cd;
+    std::map<std::string, double> grackleOptions;
+    grackleOptions["cooling::m_code_in_ms"]           = 1e16;
+    grackleOptions["cooling::l_code_in_kpc"]          = 46400;
+    grackleOptions["cooling::use_grackle"]            = 1;
+    grackleOptions["cooling::with_radiative_cooling"] = 1;
+    grackleOptions["cooling::primordial_chemistry"]   = 1;
+    grackleOptions["cooling::dust_chemistry"]         = 0;
+    grackleOptions["cooling::UVbackground"]           = 0;
+    grackleOptions["cooling::metal_cooling"]          = 0;
+
+    sphexa::BuiltinWriter attributeSetter(grackleOptions);
+    cd.loadOrStoreAttributes(&attributeSetter);
+    cd.init(0);
+
+    constexpr Real tiny_number = 1.e-20;
+    constexpr Real dt          = 6.49211e-05; // grackle_units.time_units;
+
+    auto rho                      = std::vector<Real>{0.144253};
+    auto u                        = std::vector<Real>{0.05};
+    auto HI_fraction              = std::vector<Real>{0.76};
+    auto HII_fraction             = std::vector<Real>{tiny_number};
+    auto HM_fraction              = std::vector<Real>{tiny_number};
+    auto HeI_fraction             = std::vector<Real>{0.24};
+    auto HeII_fraction            = std::vector<Real>{tiny_number};
+    auto HeIII_fraction           = std::vector<Real>{tiny_number};
+    auto H2I_fraction             = std::vector<Real>{tiny_number};
+    auto H2II_fraction            = std::vector<Real>{tiny_number};
+    auto DI_fraction              = std::vector<Real>{2.0 * 3.4e-5};
+    auto DII_fraction             = std::vector<Real>{tiny_number};
+    auto HDI_fraction             = std::vector<Real>{tiny_number};
+    auto e_fraction               = std::vector<Real>{tiny_number};
+    auto metal_fraction           = std::vector<Real>{tiny_number};
+
+    auto volumetric_heating_rate  = std::vector<Real>{tiny_number};
+    auto specific_heating_rate    = std::vector<Real>{tiny_number};
+    auto RT_heating_rate          = std::vector<Real>{tiny_number};
+    auto RT_HI_ionization_rate    = std::vector<Real>{tiny_number};
+    auto RT_HeI_ionization_rate   = std::vector<Real>{tiny_number};
+    auto RT_HeII_ionization_rate  = std::vector<Real>{tiny_number};
+    auto RT_H2_dissociation_rate  = std::vector<Real>{tiny_number};
+    auto H2_self_shielding_length = std::vector<Real>{tiny_number};
+
+    cd.cool_particle(dt, rho[0], u[0], HI_fraction[0], HII_fraction[0], HM_fraction[0], HeI_fraction[0],
+                     HeII_fraction[0], HeIII_fraction[0], H2I_fraction[0], H2II_fraction[0], DI_fraction[0],
+                     DII_fraction[0], HDI_fraction[0], e_fraction[0], metal_fraction[0], volumetric_heating_rate[0],
+                     specific_heating_rate[0], RT_heating_rate[0], RT_HI_ionization_rate[0], RT_HeI_ionization_rate[0],
+                     RT_HeII_ionization_rate[0], RT_H2_dissociation_rate[0], H2_self_shielding_length[0]);
+
+    std::cout << "HI_fraction " << HI_fraction[0] << std::endl;
+}

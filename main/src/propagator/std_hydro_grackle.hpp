@@ -212,10 +212,36 @@ public:
         timer.step("Timestep");
 
 #pragma omp parallel for schedule(static)
-        for (size_t i = first; i < last; i++)
+        for (size_t i = first; i < 1; i++)
         {
             T u_old  = d.u[i];
             T u_cool = d.u[i];
+
+            std::cout << "minDt        " << d.minDt << std::endl;
+            std::cout << "density      " << d.rho[i] << std::endl;
+            std::cout << "u            " << d.u[i] << std::endl;
+            std::cout << "HI_fraction  " << get<"HI_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "HII_fraction " << get<"HII_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "HM_fraction  " << get<"HM_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "HeI_fraction " << get<"HeI_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "HeII_fractio " << get<"HeII_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "HeIII_fracti " << get<"HeIII_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "H2I_fraction " << get<"H2I_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "H2II_fractio " << get<"H2II_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "DI_fraction  " << get<"DI_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "DII_fraction " << get<"DII_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "HDI_fraction " << get<"HDI_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "e_fraction   " << get<"e_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "metal_fracti " << get<"metal_fraction">(simData.chem)[i] << std::endl;
+            std::cout << "volumetric_h " << get<"volumetric_heating_rate">(simData.chem)[i] << std::endl;
+            std::cout << "specific_hea " << get<"specific_heating_rate">(simData.chem)[i] << std::endl;
+            std::cout << "RT_heating_r " << get<"RT_heating_rate">(simData.chem)[i] << std::endl;
+            std::cout << "RT_HI_ioniza " << get<"RT_HI_ionization_rate">(simData.chem)[i] << std::endl;
+            std::cout << "RT_HeI_ioniz " << get<"RT_HeI_ionization_rate">(simData.chem)[i] << std::endl;
+            std::cout << "RT_HeII_ioni " << get<"RT_HeII_ionization_rate">(simData.chem)[i] << std::endl;
+            std::cout << "RT_H2_dissoc " << get<"RT_H2_dissociation_rate">(simData.chem)[i] << std::endl;
+            std::cout << "H2_self_shie " << get<"H2_self_shielding_length">(simData.chem)[i] << std::endl;
+
             cooling_data.cool_particle(
                 d.minDt, d.rho[i], u_cool, get<"HI_fraction">(simData.chem)[i], get<"HII_fraction">(simData.chem)[i],
                 get<"HM_fraction">(simData.chem)[i], get<"HeI_fraction">(simData.chem)[i],
@@ -228,6 +254,8 @@ public:
                 get<"RT_HI_ionization_rate">(simData.chem)[i], get<"RT_HeI_ionization_rate">(simData.chem)[i],
                 get<"RT_HeII_ionization_rate">(simData.chem)[i], get<"RT_H2_dissociation_rate">(simData.chem)[i],
                 get<"H2_self_shielding_length">(simData.chem)[i]);
+
+            std::cout << "HI_fraction " << get<"HI_fraction">(simData.chem)[i] << std::endl;
             const T du = (u_cool - u_old) / d.minDt;
             d.du[i] += du;
         }
