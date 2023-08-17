@@ -35,7 +35,7 @@
 #include <vector>
 
 #include "cstone/primitives/mpi_wrappers.hpp"
-#include "cstone/domain/index_ranges.hpp"
+#include "cstone/domain/buffer_description.hpp"
 
 namespace cstone
 {
@@ -43,55 +43,45 @@ namespace cstone
 template<class... Arrays>
 void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outgoingHalos, Arrays... arrays)
 {
-    using IndexType         = SendManifest::IndexType;
-    constexpr int numArrays = sizeof...(Arrays);
-    constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
-
-    std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
+    using IndexType     = SendManifest::IndexType;
+    int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
 
     std::vector<std::vector<char>> sendBuffers;
     std::vector<MPI_Request> sendRequests;
-
-    int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
 
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
         size_t sendCount = outgoingHalos[destinationRank].totalCount();
         if (sendCount == 0) continue;
 
-        util::array<size_t, numArrays> arrayByteOffsets = sendCount * elementSizes;
-        size_t totalBytes = std::accumulate(arrayByteOffsets.begin(), arrayByteOffsets.end(), size_t(0));
-        std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
+        std::vector<char> buffer(computeByteOffsets(sendCount, 1, arrays...).back());
 
-        std::vector<char> buffer(totalBytes);
-        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
+        auto packSendBuffer = [outHalos = outgoingHalos[destinationRank]](auto arrayPair)
         {
-            size_t outputOffset = arrayByteOffsets[arrayIndex];
-            for (std::size_t rangeIdx = 0; rangeIdx < outgoingHalos[destinationRank].nRanges(); ++rangeIdx)
+            for (std::size_t rangeIdx = 0; rangeIdx < outHalos.nRanges(); ++rangeIdx)
             {
-                size_t lowerIndex = outgoingHalos[destinationRank].rangeStart(rangeIdx) * elementSizes[arrayIndex];
-                size_t upperIndex = outgoingHalos[destinationRank].rangeEnd(rangeIdx) * elementSizes[arrayIndex];
-
-                std::copy(data[arrayIndex] + lowerIndex, data[arrayIndex] + upperIndex, buffer.data() + outputOffset);
-                outputOffset += upperIndex - lowerIndex;
+                std::copy_n(arrayPair[0] + outHalos.rangeStart(rangeIdx), outHalos.count(rangeIdx), arrayPair[1]);
+                arrayPair[1] += outHalos.count(rangeIdx);
             }
-        }
+        };
 
-        mpiSendAsync(buffer.data(), totalBytes, destinationRank, haloExchangeTag, sendRequests);
+        auto packTuple = packBufferPtrs<1>(buffer.data(), sendCount, arrays...);
+        for_each_tuple(packSendBuffer, packTuple);
+
+        mpiSendAsync(buffer.data(), buffer.size(), destinationRank, haloExchangeTag, sendRequests);
         sendBuffers.push_back(std::move(buffer));
     }
 
     int numMessages            = 0;
     std::size_t maxReceiveSize = 0;
-    for (std::size_t sourceRank = 0; sourceRank < incomingHalos.size(); ++sourceRank)
-        if (incomingHalos[sourceRank].totalCount() > 0)
-        {
-            numMessages++;
-            maxReceiveSize = std::max(maxReceiveSize, incomingHalos[sourceRank].totalCount());
-        }
+    for (const auto& incomingHalo : incomingHalos)
+    {
+        numMessages += int(incomingHalo.totalCount() > 0);
+        maxReceiveSize = std::max(maxReceiveSize, incomingHalo.totalCount());
+    }
+    size_t maxReceiveBytes = computeByteOffsets(maxReceiveSize, 1, arrays...).back();
 
-    size_t bytesPerParticle = std::accumulate(elementSizes.begin(), elementSizes.end(), size_t(0));
-    std::vector<char> receiveBuffer(maxReceiveSize * bytesPerParticle);
+    std::vector<char> receiveBuffer(maxReceiveBytes);
 
     while (numMessages > 0)
     {
@@ -100,23 +90,18 @@ void haloexchange(int epoch, const SendList& incomingHalos, const SendList& outg
         int receiveRank     = status.MPI_SOURCE;
         size_t receiveCount = incomingHalos[receiveRank].totalCount();
 
-        util::array<size_t, numArrays> arrayByteOffsets = receiveCount * elementSizes;
-        std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
-
-        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
+        auto scatterRanges = [inHalos = incomingHalos[receiveRank]](auto arrayPair)
         {
-            size_t inputOffset = arrayByteOffsets[arrayIndex];
-            for (std::size_t rangeIdx = 0; rangeIdx < incomingHalos[receiveRank].nRanges(); ++rangeIdx)
+            for (size_t rangeIdx = 0; rangeIdx < inHalos.nRanges(); ++rangeIdx)
             {
-                IndexType offset  = incomingHalos[receiveRank].rangeStart(rangeIdx) * elementSizes[arrayIndex];
-                size_t countBytes = incomingHalos[receiveRank].count(rangeIdx) * elementSizes[arrayIndex];
-
-                std::copy(receiveBuffer.data() + inputOffset, receiveBuffer.data() + inputOffset + countBytes,
-                          data[arrayIndex] + offset);
-
-                inputOffset += countBytes;
+                std::copy_n(arrayPair[1], inHalos.count(rangeIdx), arrayPair[0] + inHalos.rangeStart(rangeIdx));
+                arrayPair[1] += inHalos.count(rangeIdx);
             }
-        }
+        };
+
+        auto packTuple = packBufferPtrs<1>(receiveBuffer.data(), receiveCount, arrays...);
+        for_each_tuple(scatterRanges, packTuple);
+
         numMessages--;
     }
 

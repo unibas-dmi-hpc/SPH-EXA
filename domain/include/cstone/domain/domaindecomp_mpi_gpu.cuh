@@ -37,7 +37,7 @@
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/util/reallocate.hpp"
 
-#include "domaindecomp.hpp"
+#include "buffer_description.hpp"
 
 namespace cstone
 {
@@ -72,9 +72,6 @@ char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
  *                                 operations performed are identical for each input array. Upon completion, arrays will
  *                                 contain elements from the specified ranges and ranks.
  *                                 The order in which the incoming ranges are grouped is random. ON DEVICE.
- * @return                         (newStart, newEnd) tuple of indices delimiting the new range of assigned
- *                                 particles post-exchange. Note: this range may contain left-over particles
- *                                 from the previous assignment.
  *
  *  Example: If sendList[ri] contains the range [upper, lower), all elements (arrays+inputOffset)[ordering[upper:lower]]
  *           will be sent to rank ri. At the destination ri, the incoming elements
@@ -84,27 +81,24 @@ char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
  *           already present on @p thisRank.
  */
 template<class DeviceVector, class... Arrays>
-std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList,
-                                                        int thisRank,
-                                                        LocalIndex particleStart,
-                                                        LocalIndex particleEnd,
-                                                        LocalIndex arraySize,
-                                                        LocalIndex numParticlesAssigned,
-                                                        DeviceVector& sendScratchBuffer,
-                                                        DeviceVector& receiveScratchBuffer,
-                                                        const LocalIndex* ordering,
-                                                        Arrays... arrays)
+void exchangeParticlesGpu(const SendRanges& sends,
+                          int thisRank,
+                          BufferDescription bufDesc,
+                          LocalIndex numParticlesAssigned,
+                          DeviceVector& sendScratchBuffer,
+                          DeviceVector& receiveScratchBuffer,
+                          const LocalIndex* ordering,
+                          std::vector<std::tuple<int, LocalIndex>>& receiveLog,
+                          Arrays... arrays)
 {
-    constexpr int domainExchangeTag = static_cast<int>(P2pTags::domainExchange);
-    constexpr int numArrays         = sizeof...(Arrays);
-    constexpr auto indices          = makeIntegralTuple(std::make_index_sequence<numArrays>{});
-    constexpr size_t alignment      = 128;
-    constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
-
-    using TransferType = uint64_t;
+    using TransferType        = uint64_t;
+    constexpr int alignment   = 128;
+    constexpr int headerBytes = round_up(sizeof(uint64_t), alignment);
     static_assert(alignment % sizeof(TransferType) == 0);
+    bool record  = receiveLog.empty();
+    int domExTag = static_cast<int>(P2pTags::domainExchange) + (record ? 0 : 1);
 
-    size_t totalSendBytes    = computeTotalSendBytes(sendList, elementSizes, thisRank, alignment);
+    size_t totalSendBytes    = computeTotalSendBytes<alignment>(sends, thisRank, headerBytes, arrays...);
     const size_t oldSendSize = reallocateBytes(sendScratchBuffer, totalSendBytes);
     char* const sendBuffer   = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
 
@@ -112,87 +106,30 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
     std::vector<std::vector<TransferType, util::DefaultInitAdaptor<TransferType>>> sendBuffers;
     std::vector<MPI_Request> sendRequests;
 
-    std::array<char*, numArrays> sourceArrays{reinterpret_cast<char*>(arrays + particleStart)...};
     char* sendPtr = sendBuffer;
-    for (int destinationRank = 0; destinationRank < int(sendList.size()); ++destinationRank)
+    for (int destinationRank = 0; destinationRank < sends.numRanks(); ++destinationRank)
     {
-        const auto& sends = sendList[destinationRank];
-        size_t sendCount  = sends.totalCount();
+        size_t sendCount = sends.count(destinationRank);
         if (destinationRank == thisRank || sendCount == 0) { continue; }
+        size_t sendStart = sends[destinationRank];
 
         encodeSendCount(sendCount, sendPtr);
-        auto byteOffsets = computeByteOffsets(sendCount, elementSizes, alignment);
-        auto gatherArray = [sendPtr, sendCount, ordering, &sourceArrays, &byteOffsets, &elementSizes,
-                            rStart = sends.rangeStart(0)](auto arrayIndex)
-        {
-            size_t outputOffset = byteOffsets[arrayIndex];
-            char* bufferPtr     = sendPtr + alignment + outputOffset;
-            using ElementType   = util::array<float, elementSizes[arrayIndex] / sizeof(float)>;
-            gatherGpu(ordering + rStart, sendCount, reinterpret_cast<ElementType*>(sourceArrays[arrayIndex]),
-                      reinterpret_cast<ElementType*>(bufferPtr));
-        };
-        for_each_tuple(gatherArray, indices);
+        size_t numBytes = headerBytes + packArrays<alignment>(gatherGpuL, ordering + sendStart, sendCount,
+                                                              sendPtr + headerBytes, arrays + bufDesc.start...);
         checkGpuErrors(cudaDeviceSynchronize());
-
-        mpiSendGpuDirect(reinterpret_cast<TransferType*>(sendPtr),
-                         (alignment + byteOffsets.back()) / sizeof(TransferType), destinationRank, domainExchangeTag,
-                         sendRequests, sendBuffers);
-        sendPtr += alignment + byteOffsets.back();
+        mpiSendGpuDirect(sendPtr, numBytes, destinationRank, domExTag, sendRequests, sendBuffers);
+        sendPtr += numBytes;
     }
 
-    LocalIndex numParticlesPresent = sendList[thisRank].totalCount();
-    LocalIndex numIncoming         = numParticlesAssigned - numParticlesPresent;
+    LocalIndex numParticlesPresent = sends.count(thisRank);
+    LocalIndex receiveStart        = domain_exchange::receiveStart(bufDesc, numParticlesPresent, numParticlesAssigned);
+    LocalIndex receiveEnd          = receiveStart + numParticlesAssigned - numParticlesPresent;
 
-    bool fitHead = particleStart >= numIncoming;
-    bool fitTail = arraySize - particleEnd >= numIncoming;
-
-    LocalIndex receiveStart, newParticleStart, newParticleEnd;
-    if (fitHead)
-    {
-        receiveStart     = particleStart - numIncoming;
-        newParticleStart = particleStart - numIncoming;
-        newParticleEnd   = particleEnd;
-    }
-    else if (fitTail)
-    {
-        receiveStart     = particleEnd;
-        newParticleStart = particleStart;
-        newParticleEnd   = particleEnd + numIncoming;
-    }
-    else
-    {
-        receiveStart     = 0;
-        newParticleStart = 0;
-        newParticleEnd   = numParticlesAssigned;
-    }
-
-    std::array<char*, numArrays> destinationArrays{reinterpret_cast<char*>(arrays + receiveStart)...};
     const size_t oldRecvSize = receiveScratchBuffer.size();
-
-    if (!fitHead && !fitTail && numIncoming > 0 && numParticlesPresent > 0)
-    {
-        std::size_t requiredBytes = numParticlesPresent * *std::max_element(elementSizes.begin(), elementSizes.end());
-        reallocateBytes(receiveScratchBuffer, requiredBytes);
-        char* bufferPtr = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
-
-        auto gatherArray = [bufferPtr, ordering, &sourceArrays, &destinationArrays, &elementSizes,
-                            rStart = sendList[thisRank].rangeStart(0), count = numParticlesPresent](auto index)
-        {
-            using ElementType = util::array<float, elementSizes[index] / sizeof(float)>;
-            gatherGpu(ordering + rStart, count, reinterpret_cast<ElementType*>(sourceArrays[index]),
-                      reinterpret_cast<ElementType*>(bufferPtr));
-            checkGpuErrors(
-                cudaMemcpy(destinationArrays[index], bufferPtr, count * elementSizes[index], cudaMemcpyDeviceToDevice));
-            destinationArrays[index] += count * elementSizes[index];
-        };
-        for_each_tuple(gatherArray, indices);
-        checkGpuErrors(cudaDeviceSynchronize());
-    }
-
-    while (numParticlesPresent != numParticlesAssigned)
+    while (receiveStart != receiveEnd)
     {
         MPI_Status status;
-        MPI_Probe(MPI_ANY_SOURCE, domainExchangeTag, MPI_COMM_WORLD, &status);
+        MPI_Probe(MPI_ANY_SOURCE, domExTag, MPI_COMM_WORLD, &status);
         int receiveRank = status.MPI_SOURCE;
         int receiveCountTransfer;
         MPI_Get_count(&status, MpiType<TransferType>{}, &receiveCountTransfer);
@@ -200,24 +137,28 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
         size_t receiveCountBytes = receiveCountTransfer * sizeof(TransferType);
         reallocateBytes(receiveScratchBuffer, receiveCountBytes);
         char* receiveBuffer = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
-        mpiRecvGpuDirect(reinterpret_cast<TransferType*>(receiveBuffer), receiveCountTransfer, receiveRank,
-                         domainExchangeTag, &status);
+        mpiRecvGpuDirect(reinterpret_cast<TransferType*>(receiveBuffer), receiveCountTransfer, receiveRank, domExTag,
+                         &status);
 
         size_t receiveCount;
         receiveBuffer = decodeSendCount(receiveBuffer, &receiveCount, alignment);
-        assert(numParticlesPresent + receiveCount <= numParticlesAssigned);
+        assert(receiveStart + receiveCount <= receiveEnd);
 
-        auto byteOffsets = computeByteOffsets(receiveCount, elementSizes, alignment);
-        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
+        LocalIndex receiveLocation = receiveStart;
+        if (record) { receiveLog.emplace_back(receiveRank, receiveStart); }
+        else { receiveLocation = domain_exchange::findInLog(receiveLog.begin(), receiveLog.end(), receiveRank); }
+
+        auto packTuple     = packBufferPtrs<alignment>(receiveBuffer, receiveCount, (arrays + receiveLocation)...);
+        auto scatterRanges = [receiveCount](auto arrayPair)
         {
-            char* source = receiveBuffer + byteOffsets[arrayIndex];
-            checkGpuErrors(cudaMemcpy(destinationArrays[arrayIndex], source, receiveCount * elementSizes[arrayIndex],
+            checkGpuErrors(cudaMemcpy(arrayPair[0], arrayPair[1],
+                                      receiveCount * sizeof(std::decay_t<decltype(*arrayPair[0])>),
                                       cudaMemcpyDeviceToDevice));
-            destinationArrays[arrayIndex] += receiveCount * elementSizes[arrayIndex];
-        }
+        };
+        for_each_tuple(scatterRanges, packTuple);
         checkGpuErrors(cudaDeviceSynchronize());
 
-        numParticlesPresent += receiveCount;
+        receiveStart += receiveCount;
     }
 
     if (not sendRequests.empty())
@@ -228,8 +169,6 @@ std::tuple<LocalIndex, LocalIndex> exchangeParticlesGpu(const SendList& sendList
 
     reallocateDevice(sendScratchBuffer, oldSendSize, 1.01);
     reallocateDevice(receiveScratchBuffer, oldRecvSize, 1.01);
-
-    return {newParticleStart, newParticleEnd};
 
     // If this process is going to send messages with rank/tag combinations
     // already sent in this function, this can lead to messages being mixed up

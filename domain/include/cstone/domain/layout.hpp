@@ -56,24 +56,6 @@
 namespace cstone
 {
 
-/*! @brief Layout description for particle buffers
- *
- * Common usage: storing the sub-range of locally owned/assigned particles within particle buffers
- *
- * 0       start              end      size
- * |-------|------------------|--------|
- *   halos   locally assigned   halos
- */
-struct BufferDescription
-{
-    //! @brief subrange start
-    LocalIndex start;
-    //! @brief subrange end
-    LocalIndex end;
-    //! @brief total size of the buffer
-    LocalIndex size;
-};
-
 /*! @brief calculates the complementary range of the input ranges
  *
  * Input:  │      ------    -----   --     ----     --  │
@@ -213,18 +195,21 @@ inline SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
     return ret;
 }
 
-template<class ReorderFunctor, class... Arrays1, class... Arrays2>
-void reorderArrays(const ReorderFunctor& reorderFunctor,
-                   size_t inputOffset,
-                   size_t outputOffset,
-                   std::tuple<Arrays1&...> arrays,
-                   std::tuple<Arrays2&...> scratchBuffers)
+//! @brief reorder with state-less function object
+template<class Gather, class... Arrays1, class... Arrays2>
+void gatherArrays(Gather&& gatherFunc,
+                  const LocalIndex* ordering,
+                  LocalIndex numElements,
+                  LocalIndex inputOffset,
+                  LocalIndex outputOffset,
+                  std::tuple<Arrays1&...> arrays,
+                  std::tuple<Arrays2&...> scratchBuffers)
 {
-    auto reorderArray = [inputOffset, outputOffset, &reorderFunctor, &scratchBuffers](auto& array)
+    auto reorderArray = [ordering, numElements, inputOffset, outputOffset, &gatherFunc, &scratchBuffers](auto& array)
     {
         auto& swapSpace = util::pickType<decltype(array)>(scratchBuffers);
         assert(swapSpace.size() == array.size());
-        reorderFunctor(rawPtr(array) + inputOffset, rawPtr(swapSpace) + outputOffset);
+        gatherFunc(ordering, numElements, rawPtr(array) + inputOffset, rawPtr(swapSpace) + outputOffset);
         swap(swapSpace, array);
     };
 

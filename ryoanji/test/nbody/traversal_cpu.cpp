@@ -74,7 +74,7 @@ TEST(Gravity, TreeWalk)
 
     // layout[i] is equal to the index in (x,y,z,m) of the first particle in leaf cell with index i
     std::vector<LocalIndex> layout(octree.numLeafNodes + 1);
-    stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
+    std::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
     auto toInternal = leafToInternal(octree);
 

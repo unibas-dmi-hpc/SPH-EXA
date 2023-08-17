@@ -52,7 +52,7 @@ public:
 
     GpuSfcSorter(const GpuSfcSorter&) = delete;
 
-    const IndexType* getReorderMap() const { return ordering(); }
+    const IndexType* getMap() const { return ordering(); }
 
     /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
      *
@@ -71,50 +71,21 @@ public:
     template<class KeyType>
     void setMapFromCodes(KeyType* first, KeyType* last)
     {
-        offset_     = 0;
-        mapSize_    = std::size_t(last - first);
-        numExtract_ = mapSize_;
-
+        mapSize_ = std::size_t(last - first);
         reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
         sequenceGpu(ordering(), mapSize_, LocalIndex(0));
         sortByKeyGpu(first, last, ordering());
     }
 
-    /*! @brief reorder the array @a values according to the reorder map provided previously
-     *
-     * @a values must have at least as many elements as the reorder map provided in the last call
-     * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
-     */
-    template<class T>
-    void operator()(const T* source, T* destination, IndexType offset, IndexType numExtract) const
-    {
-        gatherGpu(ordering() + offset, numExtract, source, destination);
-    }
-
-    template<class T>
-    void operator()(const T* source, T* destination) const
-    {
-        this->operator()(source, destination, offset_, numExtract_);
-    }
-
-    void restrictRange(std::size_t offset, std::size_t numExtract)
-    {
-        assert(offset + numExtract <= mapSize_);
-
-        offset_     = offset;
-        numExtract_ = numExtract;
-    }
+    auto gatherFunc() const { return gatherGpuL; }
 
 private:
     IndexType* ordering() { return reinterpret_cast<IndexType*>(rawPtr(buffer_)); }
     const IndexType* ordering() const { return reinterpret_cast<const IndexType*>(rawPtr(buffer_)); }
 
-    std::size_t offset_{0};
-    std::size_t numExtract_{0};
-    std::size_t mapSize_{0};
-
     //! @brief reference to (non-owning) buffer for ordering
     BufferType& buffer_;
+    std::size_t mapSize_{0};
 };
 
 } // namespace cstone
