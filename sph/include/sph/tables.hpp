@@ -55,7 +55,7 @@ HOST_DEVICE_FUN inline T lookup(const T* table, T v)
 
     int idx = v * invDx;
 
-    T derivative = (table[idx + 1] - table[idx]) * invDx;
+    T derivative = (idx >= numIntervals) ? 0.0 : (table[idx + 1] - table[idx]) * invDx;
 
     return (idx >= numIntervals) ? 0.0 : table[idx] + derivative * (v - T(idx) * dx);
 }
