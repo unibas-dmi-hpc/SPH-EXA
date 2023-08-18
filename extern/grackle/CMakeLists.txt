@@ -45,7 +45,7 @@ target_include_directories(grackle PUBLIC ${PROJECT_SOURCE_DIR}/grackle_repo/src
 target_include_directories(grackle PUBLIC ${CMAKE_BINARY_DIR}/extern/grackle)
 target_link_libraries(grackle ${HDF5_LIBRARIES} ${MPI_C_LIBRARIES} gfortran)
 target_compile_definitions(grackle PRIVATE LINUX H5_USE_16_API PIC)
-target_compile_definitions(grackle PRIVATE OMIT_LEGACY_INTERNAL_GRACKLE_FUNC)
+target_compile_definitions(grackle PUBLIC OMIT_LEGACY_INTERNAL_GRACKLE_FUNC)
 set_target_properties(grackle PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Language specific compilation flags.

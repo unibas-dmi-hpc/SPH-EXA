@@ -110,5 +110,39 @@ void computeTimestep(size_t first, size_t last, Dataset& d)
     d.minDt_m1 = d.minDt;
     d.minDt    = minDtGlobal;
 }
+template<class Dataset, typename Cooler, typename Chem>
+void computeTimestep_cool(size_t first, size_t last, Dataset& d, Cooler& cooler, Chem& chem)
+{
+    using T = typename Dataset::RealType;
+
+    T minDtAcc = (d.g != 0.0) ? accelerationTimestep(first, last, d) : INFINITY;
+
+    T minTc(INFINITY);
+#pragma omp parallel for reduction(min : minTc)
+    for (size_t i = first; i < last; i++)
+    {
+        const T cooling_time = cooler.cooling_time(
+            d.rho[i], d.u[i], get<"HI_fraction">(chem)[i], get<"HII_fraction">(chem)[i], get<"HM_fraction">(chem)[i],
+            get<"HeI_fraction">(chem)[i], get<"HeII_fraction">(chem)[i], get<"HeIII_fraction">(chem)[i],
+            get<"H2I_fraction">(chem)[i], get<"H2II_fraction">(chem)[i], get<"DI_fraction">(chem)[i],
+            get<"DII_fraction">(chem)[i], get<"HDI_fraction">(chem)[i], get<"e_fraction">(chem)[i],
+            get<"metal_fraction">(chem)[i], get<"volumetric_heating_rate">(chem)[i],
+            get<"specific_heating_rate">(chem)[i], get<"RT_heating_rate">(chem)[i],
+            get<"RT_HI_ionization_rate">(chem)[i], get<"RT_HeI_ionization_rate">(chem)[i],
+            get<"RT_HeII_ionization_rate">(chem)[i], get<"RT_H2_dissociation_rate">(chem)[i],
+            get<"H2_self_shielding_length">(chem)[i]);
+        minTc = std::min(std::abs(cooling_time), minTc);
+    }
+    std::cout << "minTc: " << minTc << std::endl;
+    T minDtLoc = std::min({minDtAcc, d.minDtCourant, d.minDtRho, d.maxDtIncrease * d.minDt, 0.01 * minTc});
+
+    T minDtGlobal;
+    MPI_Allreduce(&minDtLoc, &minDtGlobal, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
+
+    d.ttot += minDtGlobal;
+
+    d.minDt_m1 = d.minDt;
+    d.minDt    = minDtGlobal;
+}
 
 } // namespace sph

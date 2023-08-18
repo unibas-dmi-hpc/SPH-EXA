@@ -55,6 +55,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     const auto* vz   = d.vz.data();
     const auto* m    = d.m.data();
     const auto* temp = d.temp.data();
+    const auto* u    = d.u.data();
 
     util::array<double, 3> linmom{0.0, 0.0, 0.0};
     util::array<double, 3> angmom{0.0, 0.0, 0.0};
@@ -62,7 +63,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     double sharedCv = sph::idealGasCv(d.muiConst, d.gamma);
     bool   haveMui  = !d.mui.empty();
 
-#pragma omp declare reduction(+ : util::array <double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
+#pragma omp declare reduction(+ : util::array<double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
 
     double eKin = 0.0;
 #pragma omp parallel for reduction(+ : eKin, linmom, angmom)
@@ -79,8 +80,18 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 
     double eInt = 0.0;
 
-    if (!d.temp.empty())
+    if (!d.u.empty())
     {
+#pragma omp parallel for reduction(+ : eInt)
+        for (size_t i = startIndex; i < endIndex; i++)
+        {
+            auto mi = m[i];
+            eInt += u[i] * mi;
+        }
+    }
+    else if (!d.temp.empty())
+    {
+
 #pragma omp parallel for reduction(+ : eInt)
         for (size_t i = startIndex; i < endIndex; i++)
         {

@@ -51,6 +51,8 @@ public:
     using FieldVector     = std::vector<ValueType, std::allocator<ValueType>>;
     using RealType        = T;
     using AcceleratorType = cstone::CpuTag;
+    using FieldVariant =
+        std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
 
     std::array<FieldVector<T>, numFields> fields;
 
@@ -58,10 +60,7 @@ public:
 
     auto data()
     {
-        using FieldType =
-            std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
-
-        return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
+        return std::apply([](auto&... fields) { return std::array<FieldVariant, sizeof...(fields)>{&fields...}; },
                           dataTuple());
     }
 
