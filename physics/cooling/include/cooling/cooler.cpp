@@ -68,7 +68,8 @@ private:
         "radiative_transfer_coupled_rate_solver", "radiative_transfer_intermediate_step",
         "radiative_transfer_hydrogen_only", "self_shielding_method", "H2_self_shielding", "H2_custom_shielding",
         "h2_charge_exchange_rate", "h2_dust_rate", "h2_h_cooling_rate", "collisional_excitation_rates",
-        "collisional_ionisation_rates", "recombination_cooling_rates", "bremsstrahlung_cooling_rates"};
+        "collisional_ionisation_rates", "recombination_cooling_rates", "bremsstrahlung_cooling_rates", "max_iterations",
+        "exit_after_iterations_exceeded"};
 
     auto fieldsTuple()
     {
@@ -90,7 +91,8 @@ private:
             d.radiative_transfer_coupled_rate_solver, d.radiative_transfer_intermediate_step,
             d.radiative_transfer_hydrogen_only, d.self_shielding_method, d.H2_self_shielding, d.H2_custom_shielding,
             d.h2_charge_exchange_rate, d.h2_dust_rate, d.h2_h_cooling_rate, d.collisional_excitation_rates,
-            d.collisional_ionisation_rates, d.recombination_cooling_rates, d.bremsstrahlung_cooling_rates);
+            d.collisional_ionisation_rates, d.recombination_cooling_rates, d.bremsstrahlung_cooling_rates,
+            d.max_iterations, d.exit_after_iterations_exceeded);
     }
     static_assert(fieldNames.size() == std::tuple_size_v<decltype(((Impl*)nullptr)->fieldsTuple())>);
 
