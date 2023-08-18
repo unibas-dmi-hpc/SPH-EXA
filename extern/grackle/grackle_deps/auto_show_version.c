@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include "grackle_float.h"
 #include "grackle_types.h"
 
 grackle_version get_grackle_version() {
