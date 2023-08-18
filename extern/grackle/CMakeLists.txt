@@ -38,7 +38,7 @@ add_library(grackle ${grackle_SRCS})
 
 set(PRECISION_DEFINE GRACKLE_FLOAT_8)
 configure_file(${PROJECT_SOURCE_DIR}/config/grackle_float.in.h ${PROJECT_BINARY_DIR}/grackle_float.h)
-target_include_directories(grackle PRIVATE ${PROJECT_BINARY_DIR})
+target_include_directories(grackle PUBLIC ${PROJECT_BINARY_DIR})
 
 target_include_directories(grackle PRIVATE ${HDF5_INCLUDE_DIRS} ${MPI_C_INCLUDE_PATH})
 target_include_directories(grackle PUBLIC ${PROJECT_SOURCE_DIR}/grackle_repo/src/clib)
