@@ -53,7 +53,9 @@ private:
 
     chemistry_data getDefaultChemistryData()
     {
-        chemistry_data data_default    = _set_default_chemistry_parameters();
+
+        chemistry_data data_default;
+        local_initialize_chemistry_parameters(&data_default);
         data_default.grackle_data_file = &grackle_data_file_path[0];
         return data_default;
     }
@@ -198,7 +200,8 @@ void Cooler<T>::Impl::init(const double ms_sim, const double kp_sim, const int c
     std::cout << global_values.units.density_units << "\t" << global_values.units.time_units << "\t"
               << global_values.units.length_units << "\n";
 
-    global_values.data = _set_default_chemistry_parameters();
+    local_initialize_chemistry_parameters(&global_values.data);
+    //global_values.data = _set_default_chemistry_parameters();
 
     global_values.data.grackle_data_file = &grackle_data_file_path[0];
 
@@ -211,7 +214,7 @@ void Cooler<T>::Impl::init(const double ms_sim, const double kp_sim, const int c
         global_values.data.grackle_data_file = &grackle_data_file_path[0];
     }
 
-    if (0 == _initialize_chemistry_data(&global_values.data, &global_values.rates, &global_values.units))
+    if (0 == local_initialize_chemistry_data(&global_values.data, &global_values.rates, &global_values.units))
     {
         std::cout << global_values.data.with_radiative_cooling << std::endl;
         throw std::runtime_error("Grackle: Error in _initialize_chemistry_data");
