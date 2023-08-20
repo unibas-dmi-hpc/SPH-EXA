@@ -104,11 +104,11 @@ public:
             h5z_ = fileutils::createHDF5File(path, comm_);
         }
         
-        uint64_t numParticles = lastIndex - firstIndex;
+        h5z_.numParticles = lastIndex - firstIndex;
         currStep_ = currStep_ + 1;
         pathStep_ = "step_" + std::to_string(currStep_);
 
-        addHDF5Step(h5z_, pathStep_, numParticles);
+        addHDF5Step(h5z_, pathStep_);
         
         return;
     }
@@ -116,7 +116,7 @@ public:
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
         std::visit([this, &key, size](auto arg) { 
-            // fileutils::sphexaWriteStepAttrib(h5File_, key.c_str(), arg, size); 
+            fileutils::writeHDF5Attrib(h5z_, key.c_str(), arg, size); 
             },
                    val);
     }
@@ -124,7 +124,7 @@ public:
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
         std::visit([this, &key](auto arg) { 
-            fileutils::writeHDF5Field(h5z_, arg + firstIndex_); 
+            fileutils::writeHDF5Field(h5z_, key, arg + firstIndex_); 
             }, field);
     }
 
