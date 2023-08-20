@@ -35,7 +35,6 @@
 #include <mpi.h>
 #include "H5Part.h"
 #include "H5Cpp.h"
-// #include "H5Zzfp_lib.h"
 #include "H5Zzfp.h"
 
 namespace sphexa
@@ -66,7 +65,7 @@ struct H5ZType {
     hid_t status;
 };
 
-static void setupCompressor(H5ZType& h5z, int zfpmode,
+static void setupZFP(H5ZType& h5z, int zfpmode,
     double rate, double acc, unsigned int prec,
     unsigned int minbits, unsigned int maxbits, unsigned int maxprec, int minexp)
 {
@@ -89,67 +88,7 @@ static void setupCompressor(H5ZType& h5z, int zfpmode,
     else if (zfpmode == H5Z_ZFP_MODE_REVERSIBLE)
         H5Pset_zfp_reversible(h5z.cpid);
 
-    // /* setup zfp filter via generic (cd_values) interface */
-    // if (zfpmode == H5Z_ZFP_MODE_RATE)
-    //     H5Pset_zfp_rate_cdata(rate, cd_nelmts, cd_values);
-    // else if (zfpmode == H5Z_ZFP_MODE_PRECISION)
-    //     H5Pset_zfp_precision_cdata(prec, cd_nelmts, cd_values);
-    // else if (zfpmode == H5Z_ZFP_MODE_ACCURACY)
-    //     H5Pset_zfp_accuracy_cdata(acc, cd_nelmts, cd_values);
-    // else if (zfpmode == H5Z_ZFP_MODE_EXPERT)
-    //     H5Pset_zfp_expert_cdata(minbits, maxbits, maxprec, minexp, cd_nelmts, cd_values);
-    // else if (zfpmode == H5Z_ZFP_MODE_REVERSIBLE)
-    //     H5Pset_zfp_reversible_cdata(cd_nelmts, cd_values);
-    // else
-    //     cd_nelmts = 0;
-
-    // // print cd-values array used for filter
-    // printf("\n%d cd_values=", (int) cd_nelmts);
-    // for (int i = 0; i < (int) cd_nelmts; i++)
-    //     printf("%u,", cd_values[i]);
-    // printf("\n");
-
     hid_t ret_val;
-    // // enable ONLY filter plugins
-    // herr_t aa = H5PLset_loading_state(H5PL_FILTER_PLUGIN);
-    // if ( aa < 0) {
-    //     ret_val = EXIT_FAILURE;
-    // }
-
-    // // ensure that "/tmp" is at the front of the search path list
-    if (H5PLprepend("/home/appcell/unibas/zfpbuild/plugin") < 0) {
-        ret_val = EXIT_FAILURE;
-    }
-
-    // unsigned size, mask;
-    // char     buf[255];
-
-    // // retrieve the number of entries in the plugin path list
-    // if (H5PLsize(&size) < 0) {
-    //     ret_val = EXIT_FAILURE;
-    // }
-    // printf("Number of stored plugin paths: %d\n", size);
-
-    // // check the plugin state mask
-    // if (H5PLget_loading_state(&mask) < 0) {
-    //     ret_val = EXIT_FAILURE;
-    // }
-    // printf("Filter plugins %s be loaded.\n", (mask & H5PL_FILTER_PLUGIN) == 1 ? "can" : "can't");
-    // printf("VOL plugins %s be loaded.\n", (mask & H5PL_VOL_PLUGIN) == 2 ? "can" : "can't");
-
-    // // print the paths in the plugin path list
-    // for (unsigned i = 0; i < size; ++i) {
-    //     if (H5PLget(i, buf, 255) < 0) {
-    //         ret_val = EXIT_FAILURE;
-    //         break;
-    //     }
-    //     printf("%s\n", buf);
-    // }
-
-    // First the dataset has to be chunked to enable 3rd party filters
-
-
-    // status = H5Zregister(H5PLget_plugin_info());
     
     htri_t avail;
     unsigned filter_config;
@@ -166,7 +105,6 @@ static void setupCompressor(H5ZType& h5z, int zfpmode,
     }
 
     status = H5Pset_filter(h5z.cpid, H5Z_FILTER_ZFP, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values);
-    // status = H5Pset_filter(cpid, (H5Z_filter_t)305, H5Z_FLAG_MANDATORY, (size_t)6, cd_values);
     return;
 }
 
@@ -218,7 +156,7 @@ static void addHDF5Filter(H5ZType& h5z) {
         unsigned int maxbits = 4171;
         unsigned int maxprec = 64;
         int minexp = -1074;
-        setupCompressor(h5z, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
+        setupZFP(h5z, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
     }
     if (h5z.compression == CompressionMethod::gzip) {
         status = H5Pset_deflate(h5z.cpid, 9);
