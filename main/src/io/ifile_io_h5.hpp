@@ -98,10 +98,10 @@ public:
 
         if (std::filesystem::exists(path))
         {
-            h5z_ = fileutils::openHDF5File(path);
+            h5z_ = fileutils::openHDF5File(path, comm_);
         }
         else {
-            h5z_ = fileutils::createHDF5File(path);
+            h5z_ = fileutils::createHDF5File(path, comm_);
         }
         
         uint64_t numParticles = lastIndex - firstIndex;

@@ -108,26 +108,37 @@ static void setupZFP(H5ZType& h5z, int zfpmode,
     return;
 }
 
-static H5ZType createHDF5File(std::string fileName)
+static H5ZType createHDF5File(std::string fileName, MPI_Comm comm)
 {
     H5ZType h5z;
     herr_t status;
-    h5z.file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    hid_t  access_plist;
+    herr_t ret;
+
+    // Enable the file to be accessible from multiple ranks
+    access_plist = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(access_plist, comm, MPI_INFO_NULL);
+
+    h5z.file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, access_plist);
+    ret = H5Pclose(access_plist);
     return h5z;
 }
 
-static H5ZType openHDF5File(std::string fileName)
+//! @brief Open in parallel mode if supported, otherwise serial if numRanks == 1
+static H5ZType openHDF5File(std::string fileName, MPI_Comm comm)
 {
     H5ZType h5z;
     herr_t status;
     hid_t access_plist;
     hid_t file_id;
+    herr_t ret;
 
     // Enable the file to be accessible from multiple ranks
     access_plist = H5Pcreate(H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
+    H5Pset_fapl_mpio(access_plist, comm, MPI_INFO_NULL);
 
     h5z.file_id = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, access_plist);
+    ret = H5Pclose(access_plist);
     return h5z;
 }
 
@@ -184,10 +195,44 @@ static void addHDF5Step(H5ZType& h5z, std::string fieldName, hsize_t nRow, hsize
 }
 
 static void writeHDF5Field(H5ZType& h5z, const float* field) {
+    // When writing, each process has an independent hyperslab
+    // /* set up dimensions of the slab this process accesses */
+    // start[0]  = curr_rank_num * SPACE1_DIM1 / total_rank_num;
+    // start[1]  = 0;
+    // count[0]  = SPACE1_DIM1 / total_rank_num;
+    // count[1]  = SPACE1_DIM2;
+    // stride[0] = 1;
+    // stride[1] = 1;
+    // printf("start[]=(%lu,%lu), count[]=(%lu,%lu), total datapoints=%lu\n", (unsigned long)start[0],
+    //        (unsigned long)start[1], (unsigned long)count[0], (unsigned long)count[1],
+    //        (unsigned long)(count[0] * count[1]));
+
+    // /* put some trivial data in the data_array */
+    // dataset_fill(start, count, stride, &data_array1[0][0]);
+    // MESG("data_array initialized");
+
+    // /* create a file dataspace independently */
+    // file_dataspace = H5Dget_space(dataset1);
+    // assert(file_dataspace != FAIL);
+    // MESG("H5Dget_space succeed");
+    // ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, start, stride, count, NULL);
+    // assert(ret != FAIL);
+    // MESG("H5Sset_hyperslab succeed");
+
+    // /* create a memory dataspace independently */
+    // mem_dataspace = H5Screate_simple(SPACE1_RANK, count, NULL);
+    // assert(mem_dataspace != FAIL);
+
+    // /* write data independently */
+    // ret = H5Dwrite(dataset1, H5T_NATIVE_INT, mem_dataspace, file_dataspace, H5P_DEFAULT, data_array1);
+    // assert(ret != FAIL);
+    // MESG("H5Dwrite succeed");
+
+
     h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
 }
 
-static void writeHDF5Field(H5ZType& h5z, const double* field) {
+static void writeHDF5Field_(H5ZType& h5z, const void* field, hid_t dataType) {
     hsize_t      size[2];
     hsize_t      old_size[2];
     hsize_t      max_size[2];
@@ -196,139 +241,75 @@ static void writeHDF5Field(H5ZType& h5z, const double* field) {
     size[1]   = old_size[1] + 1;
 
     H5Dset_extent(h5z.dset_id, size);
-    h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
+    h5z.status = H5Dwrite(h5z.dset_id, dataType, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
+}
+
+static void writeHDF5Field(H5ZType& h5z, const double* field) {
+    writeHDF5Field_(h5z, (const void*)field, H5T_NATIVE_DOUBLE);
 }
 
 static void writeHDF5Field(H5ZType& h5z, const char* field) {
-    h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_CHAR, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
+    writeHDF5Field_(h5z, (const void*)field, H5T_NATIVE_CHAR);
 }
 
 static void writeHDF5Field(H5ZType& h5z, const int* field) {
-    h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
+    writeHDF5Field_(h5z, (const void*)field, H5T_NATIVE_INT32);
 }
 
 static void writeHDF5Field(H5ZType& h5z, const unsigned int* field) {
-    h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
+    writeHDF5Field_(h5z, (const void*)field, H5T_NATIVE_UINT32);
 }
 
 static void writeHDF5Field(H5ZType& h5z, const long int* field) {
-    h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_LONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
+    writeHDF5Field_(h5z, (const void*)field, H5T_NATIVE_LONG);
 }
 
 static void writeHDF5Field(H5ZType& h5z, const long unsigned int* field) {
-    h5z.status = H5Dwrite(h5z.dset_id, H5T_NATIVE_ULONG, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
+    writeHDF5Field_(h5z, (const void*)field, H5T_NATIVE_ULONG);
+}
+
+static void writeHDF5Attrib_(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const void* field, hid_t dataType) {
+    hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
+    hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
+    hid_t attrib_id = H5Acreate(
+        h5z.file_id,
+        fieldName.c_str(),
+        dataType,
+        space_id,
+        attrib_properties_id,
+        H5P_DEFAULT
+    );
+    H5Aclose(attrib_id);
+    H5Sclose(space_id);
+    H5Pclose(attrib_properties_id);
 }
 
 static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const float* field) {
-    hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
-    hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
-    hid_t attrib_id = H5Acreate(
-        h5z.file_id,
-        fieldName.c_str(),
-        H5T_NATIVE_FLOAT,
-        space_id,
-        attrib_properties_id,
-        H5P_DEFAULT
-    );
-    H5Aclose(attrib_id);
-    H5Sclose(space_id);
-    H5Pclose(attrib_properties_id);
+    writeHDF5Attrib_(h5z, fieldName, attrib_nelem, (const void*)field, H5T_NATIVE_FLOAT);
 }
 
 static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const double* field) {
-    hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
-    hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
-    hid_t attrib_id = H5Acreate(
-        h5z.file_id,
-        fieldName.c_str(),
-        H5T_NATIVE_DOUBLE,
-        space_id,
-        attrib_properties_id,
-        H5P_DEFAULT
-    );
-    H5Aclose(attrib_id);
-    H5Sclose(space_id);
-    H5Pclose(attrib_properties_id);
+    writeHDF5Attrib_(h5z, fieldName, attrib_nelem, (const void*)field, H5T_NATIVE_DOUBLE);
 }
 
 static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const char* field) {
-    hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
-    hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
-    hid_t attrib_id = H5Acreate(
-        h5z.file_id,
-        fieldName.c_str(),
-        H5T_NATIVE_CHAR,
-        space_id,
-        attrib_properties_id,
-        H5P_DEFAULT
-    );
-    H5Aclose(attrib_id);
-    H5Sclose(space_id);
-    H5Pclose(attrib_properties_id);
+    writeHDF5Attrib_(h5z, fieldName, attrib_nelem, (const void*)field, H5T_NATIVE_CHAR);
 }
 
 static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const int* field) {
-    hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
-    hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
-    hid_t attrib_id = H5Acreate(
-        h5z.file_id,
-        fieldName.c_str(),
-        H5T_NATIVE_INT32,
-        space_id,
-        attrib_properties_id,
-        H5P_DEFAULT
-    );
-    H5Aclose(attrib_id);
-    H5Sclose(space_id);
-    H5Pclose(attrib_properties_id);
+    writeHDF5Attrib_(h5z, fieldName, attrib_nelem, (const void*)field, H5T_NATIVE_INT32);
 }
 
 static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const unsigned int* field) {
-    hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
-    hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
-    hid_t attrib_id = H5Acreate(
-        h5z.file_id,
-        fieldName.c_str(),
-        H5T_NATIVE_UINT32,
-        space_id,
-        attrib_properties_id,
-        H5P_DEFAULT
-    );
-    H5Aclose(attrib_id);
-    H5Sclose(space_id);
-    H5Pclose(attrib_properties_id);
+    writeHDF5Attrib_(h5z, fieldName, attrib_nelem, (const void*)field, H5T_NATIVE_UINT32);
 }
 
 static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const long int* field) {
-    hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
-    hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
-    hid_t attrib_id = H5Acreate(
-        h5z.file_id,
-        fieldName.c_str(),
-        H5T_NATIVE_LONG,
-        space_id,
-        attrib_properties_id,
-        H5P_DEFAULT
-    );
-    H5Aclose(attrib_id);
-    H5Sclose(space_id);
-    H5Pclose(attrib_properties_id);
+    writeHDF5Attrib_(h5z, fieldName, attrib_nelem, (const void*)field, H5T_NATIVE_LONG);
 }
 
 static void writeHDF5Attrib(H5ZType& h5z, const std::string& fieldName, const hsize_t attrib_nelem, const long unsigned int* field) {
-    hid_t space_id = H5Screate_simple ( 1, &attrib_nelem, NULL );
-    hid_t attrib_properties_id = H5Pcreate(H5P_ATTRIBUTE_CREATE);
-    hid_t attrib_id = H5Acreate(
-        h5z.file_id,
-        fieldName.c_str(),
-        H5T_NATIVE_ULONG,
-        space_id,
-        attrib_properties_id,
-        H5P_DEFAULT
-    );
-    H5Aclose(attrib_id);
-    H5Sclose(space_id);
-    H5Pclose(attrib_properties_id);
+    writeHDF5Attrib_(h5z, fieldName, attrib_nelem, (const void*)field, H5T_NATIVE_ULONG);
 }
 
 std::string H5PartTypeToString(h5part_int64_t type)
