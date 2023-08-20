@@ -35,7 +35,8 @@
 #include <mpi.h>
 #include "H5Part.h"
 #include "H5Cpp.h"
-#include "H5Zzfp_plugin.h"
+// #include "H5Zzfp_lib.h"
+#include "H5Zzfp.h"
 
 namespace sphexa
 {
@@ -47,7 +48,17 @@ struct H5PartType
 {
 };
 
+enum class CompressionMethod
+{
+    none,
+    deflate,
+    gzip,
+    szip,
+    zfp
+};
+
 struct H5ZType {
+    CompressionMethod compression;
     hid_t file_id;
     hid_t dset_id;
     hid_t dspace_id;
@@ -55,29 +66,42 @@ struct H5ZType {
     hid_t status;
 };
 
-
-static hid_t setupCompressor(int rankNum, hsize_t *chunkSizes, int zfpmode,
+static void setupCompressor(H5ZType& h5z, int zfpmode,
     double rate, double acc, unsigned int prec,
     unsigned int minbits, unsigned int maxbits, unsigned int maxprec, int minexp)
 {
-    hid_t cpid;
     hid_t status;
     unsigned int cd_values[10];
     size_t cd_nelmts = 10;
 
-    /* setup zfp filter via generic (cd_values) interface */
+    H5Z_zfp_initialize();
+
+    /* Setup the filter using properties interface. These calls also add
+       the filter to the pipeline */
     if (zfpmode == H5Z_ZFP_MODE_RATE)
-        H5Pset_zfp_rate_cdata(rate, cd_nelmts, cd_values);
+        H5Pset_zfp_rate(h5z.cpid, rate);
     else if (zfpmode == H5Z_ZFP_MODE_PRECISION)
-        H5Pset_zfp_precision_cdata(prec, cd_nelmts, cd_values);
+        H5Pset_zfp_precision(h5z.cpid, prec);
     else if (zfpmode == H5Z_ZFP_MODE_ACCURACY)
-        H5Pset_zfp_accuracy_cdata(acc, cd_nelmts, cd_values);
+        H5Pset_zfp_accuracy(h5z.cpid, acc);
     else if (zfpmode == H5Z_ZFP_MODE_EXPERT)
-        H5Pset_zfp_expert_cdata(minbits, maxbits, maxprec, minexp, cd_nelmts, cd_values);
+        H5Pset_zfp_expert(h5z.cpid, minbits, maxbits, maxprec, minexp);
     else if (zfpmode == H5Z_ZFP_MODE_REVERSIBLE)
-        H5Pset_zfp_reversible_cdata(cd_nelmts, cd_values);
-    else
-        cd_nelmts = 0; /* causes default behavior of ZFP library */
+        H5Pset_zfp_reversible(h5z.cpid);
+
+    // /* setup zfp filter via generic (cd_values) interface */
+    // if (zfpmode == H5Z_ZFP_MODE_RATE)
+    //     H5Pset_zfp_rate_cdata(rate, cd_nelmts, cd_values);
+    // else if (zfpmode == H5Z_ZFP_MODE_PRECISION)
+    //     H5Pset_zfp_precision_cdata(prec, cd_nelmts, cd_values);
+    // else if (zfpmode == H5Z_ZFP_MODE_ACCURACY)
+    //     H5Pset_zfp_accuracy_cdata(acc, cd_nelmts, cd_values);
+    // else if (zfpmode == H5Z_ZFP_MODE_EXPERT)
+    //     H5Pset_zfp_expert_cdata(minbits, maxbits, maxprec, minexp, cd_nelmts, cd_values);
+    // else if (zfpmode == H5Z_ZFP_MODE_REVERSIBLE)
+    //     H5Pset_zfp_reversible_cdata(cd_nelmts, cd_values);
+    // else
+    //     cd_nelmts = 0;
 
     // // print cd-values array used for filter
     // printf("\n%d cd_values=", (int) cd_nelmts);
@@ -123,9 +147,10 @@ static hid_t setupCompressor(int rankNum, hsize_t *chunkSizes, int zfpmode,
     // }
 
     // First the dataset has to be chunked to enable 3rd party filters
-    cpid = H5Pcreate(H5P_DATASET_CREATE);
-    status = H5Pset_chunk(cpid, rankNum, chunkSizes);
-    status = H5Pset_filter(cpid, H5Z_FILTER_ZFP, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values);
+
+
+    // status = H5Zregister(H5PLget_plugin_info());
+    
     htri_t avail;
     unsigned filter_config;
     /*
@@ -139,8 +164,10 @@ static hid_t setupCompressor(int rankNum, hsize_t *chunkSizes, int zfpmode,
         (filter_config & H5Z_FILTER_CONFIG_DECODE_ENABLED) )
             printf ("filter is available for encoding and decoding.\n");
     }
+
+    status = H5Pset_filter(h5z.cpid, H5Z_FILTER_ZFP, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values);
     // status = H5Pset_filter(cpid, (H5Z_filter_t)305, H5Z_FLAG_MANDATORY, (size_t)6, cd_values);
-    return cpid;
+    return;
 }
 
 static H5ZType createHDF5File(std::string fileName)
@@ -167,6 +194,9 @@ static H5ZType openHDF5File(std::string fileName)
 }
 
 static void closeHDF5File(H5ZType& h5z) {
+    if (h5z.compression == CompressionMethod::zfp) {
+        H5Z_zfp_finalize();
+    }
     h5z.status = H5Pclose(h5z.cpid);
     h5z.status = H5Sclose(h5z.dspace_id);
     h5z.status = H5Dclose(h5z.dset_id);
@@ -174,42 +204,38 @@ static void closeHDF5File(H5ZType& h5z) {
 }
 
 static void addHDF5Filter(H5ZType& h5z) {
-    // ZFP
-    int zfpmode = H5Z_ZFP_MODE_RATE;
-    double rate = 4;
-    double acc = 0;
-    unsigned int prec = 11;
-    unsigned int minbits = 0;
-    unsigned int maxbits = 4171;
-    unsigned int maxprec = 64;
-    int minexp = -1074;
-    hsize_t chunk_dims[2] ={4, 1};
-    h5z.cpid = setupCompressor(2, chunk_dims, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
-
-    // Built-in compressors
-    htri_t          avail;
     herr_t          status;
-    unsigned int    filter_info;
-    hid_t           file, space, dset, dcpl;
-    avail = H5Zfilter_avail(H5Z_FILTER_DEFLATE);
-    h5z.cpid = H5Pcreate (H5P_DATASET_CREATE);
-    status = H5Pset_deflate(h5z.cpid, 0);
+    hsize_t chunk_dims[2] ={1000, 1};
+    h5z.cpid = H5Pcreate(H5P_DATASET_CREATE);
     status = H5Pset_chunk(h5z.cpid, 2, chunk_dims);
+
+    if (h5z.compression == CompressionMethod::zfp) {
+        int zfpmode = H5Z_ZFP_MODE_RATE;
+        double rate = 4;
+        double acc = 0;
+        unsigned int prec = 11;
+        unsigned int minbits = 0;
+        unsigned int maxbits = 4171;
+        unsigned int maxprec = 64;
+        int minexp = -1074;
+        setupCompressor(h5z, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
+    }
+    if (h5z.compression == CompressionMethod::gzip) {
+        status = H5Pset_deflate(h5z.cpid, 9);
+    }
+    if (h5z.compression == CompressionMethod::szip) {
+        unsigned szip_options_mask;
+        unsigned szip_pixels_per_block;
+
+        szip_options_mask = H5_SZIP_NN_OPTION_MASK;
+        szip_pixels_per_block = 16;
+        status = H5Pset_szip(h5z.cpid, szip_options_mask, szip_pixels_per_block);
+    }
 }
 
 // nRow: num of particles. nCol: num of data fields
 // Setup dataset dimensions
 static void addHDF5Step(H5ZType& h5z, std::string fieldName, hsize_t nRow, hsize_t nCol = 0) {
-    hsize_t dims[2] = {nRow, nCol};
-    hsize_t maxdims[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
-    h5z.dspace_id = H5Screate_simple(2, dims, maxdims);
-    addHDF5Filter(h5z);
-
-    // Create database
-    h5z.dset_id = H5Dcreate2(h5z.file_id, fieldName.c_str(), H5T_NATIVE_DOUBLE, h5z.dspace_id, H5P_DEFAULT, h5z.cpid, H5P_DEFAULT);
-}
-
-static void createHDF5Database(H5ZType& h5z, std::string fieldName, hsize_t nRow, hsize_t nCol = 0) {
     hsize_t dims[2] = {nRow, nCol};
     hsize_t maxdims[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
     h5z.dspace_id = H5Screate_simple(2, dims, maxdims);

@@ -130,6 +130,7 @@ Arguments:
 * ```-w NUM``` : Dump particle data every NUM iterations (time-steps) if NUM is integer. Dump data at the specified physical time if NUM is real.
 * ```-f FIELDS```: Comma separated list of particle fields for file output dumps. See a list of common ouput fields below.
 * ```--quiet``` : Don't print any output to stdout
+* ```--compression METHOD``` : Choose the compression program of output. Available methods: `gzip`(deflate level 9 by default), `szip`, `zfp`.
 
 Implemented cases:
 * ```--sedov```: spherical blast wave

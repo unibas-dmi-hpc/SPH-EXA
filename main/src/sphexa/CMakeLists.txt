@@ -26,7 +26,7 @@ function(enableH5ZZFP exename)
             endif()
             target_include_directories(${exename} PUBLIC ${HDF5_INCLUDE_DIRS} ${H5ZZFP_DIR}/include)
             # Here H5Z-ZFP is used as a library
-            target_link_libraries(${exename} PUBLIC ${HDF5_LIBRARIES} ${H5ZZFP_DIR}/lib/libh5zzfp.a)
+            target_link_libraries(${exename} PRIVATE h5z_zfp_static)
         else()
             message(STATUS "No HDF5 support")
             set(SPH_EXA_WITH_HDF5 OFF)

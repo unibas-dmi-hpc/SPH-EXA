@@ -46,17 +46,19 @@
 
 namespace sphexa
 {
-// using namespace H5;
 class HDF5Writer : public IFileWriter
 {
 public:
     using Base      = IFileWriter;
     using FieldType = typename Base::FieldType;
 
-    explicit HDF5Writer(MPI_Comm comm)
+    explicit HDF5Writer(MPI_Comm comm, const std::string & compressionMethod)
         : comm_(comm)
         , h5File_(nullptr)
     {
+        if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
+        if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
+        if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
     }
 
     /*! @brief write simulation parameters to file

@@ -42,11 +42,11 @@
 namespace sphexa
 {
 
-std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm)
+std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const std::string & compressionMethod)
 {
     if (ascii) { return std::make_unique<AsciiWriterNew>(comm); }
 #ifdef SPH_EXA_HAVE_HDF5
-    else { return std::make_unique<HDF5Writer>(comm); }
+    else { return std::make_unique<HDF5Writer>(comm, compressionMethod); }
 #endif
 // #ifdef SPH_EXA_HAVE_H5PART
 //     else { return std::make_unique<H5PartWriter>(comm); }
