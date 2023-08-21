@@ -4,7 +4,7 @@ project(sphexa-cooling)
 set(CMAKE_CXX_STANDARD 20)
 
 set(CSTONE_DIR ${CMAKE_SOURCE_DIR}/domain/include)
-set(FILE_DIR ${CMAKE_SOURCE_DIR}/main/src)
+set(MAIN_APP_DIR ${CMAKE_SOURCE_DIR}/main/src)
 
 #include(CTest)
 #include(CheckLanguage)
