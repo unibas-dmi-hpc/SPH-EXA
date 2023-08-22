@@ -33,7 +33,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/fields/particles_get.hpp"
+#include "cstone/fields/field_get.hpp"
 #include "sph/particles_data.hpp"
 
 using namespace sphexa;
@@ -182,7 +182,7 @@ TEST(ParticlesData, getFieldList)
     d.resize(1);
     d.rho[0] = 1;
 
-    using Fields = cstone::FieldList<"x", "y", "rho">;
+    using Fields = util::FieldList<"x", "y", "rho">;
 
     auto acc = get<Fields>(d);
 
