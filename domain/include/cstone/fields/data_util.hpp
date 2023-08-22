@@ -25,6 +25,8 @@
 
 /*! @file
  * @brief Utility functions to resolve names of particle fields to pointers
+ *
+ * C++17 compatible for use with Simulation Datasets
  */
 
 #pragma once

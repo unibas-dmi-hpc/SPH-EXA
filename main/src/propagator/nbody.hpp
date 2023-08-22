@@ -33,7 +33,7 @@
 
 #include <variant>
 
-#include "cstone/fields/particles_get.hpp"
+#include "cstone/fields/field_get.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/positions.hpp"
 #include "sph/timestep.hpp"
@@ -45,7 +45,7 @@ namespace sphexa
 {
 
 using namespace sph;
-using cstone::FieldList;
+using util::FieldList;
 
 template<class DomainType, class DataType>
 class NbodyProp final : public Propagator<DomainType, DataType>

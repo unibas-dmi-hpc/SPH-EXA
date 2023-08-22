@@ -4,6 +4,7 @@ set(UNIT_TESTS
         domain/domaindecomp.cpp
         domain/index_ranges.cpp
         domain/layout.cpp
+        fields/field_get.cpp
         focus/octree_focus.cpp
         focus/source_center.cpp
         neighbors/findneighbors.cpp
@@ -28,6 +29,7 @@ set(UNIT_TESTS
         tree/cs_util.cpp
         util/array.cpp
         util/util.cpp
+        util/value_list.cpp
         test_main.cpp)
 
 add_executable(component_units ${UNIT_TESTS} neighbors/all_to_all.hpp)

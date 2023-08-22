@@ -32,7 +32,7 @@
 
 #include <array>
 
-#include "cstone/util/util.hpp"
+#include "cstone/util/constexpr_string.hpp"
 
 namespace constexpr_to_string
 {
@@ -102,7 +102,7 @@ public:
 template<auto N, int base = 10, typename char_type = char>
 constexpr to_string_t<N, base, char_type> to_string;
 
-template<StructuralString S>
+template<util::StructuralString S>
 struct ConstexprWrapper
 {
     constexpr operator char*() noexcept { return S.value; }
@@ -110,10 +110,10 @@ struct ConstexprWrapper
 };
 
 //! Forces constexpr for the contained compile-time string
-template<StructuralString S>
+template<util::StructuralString S>
 constexpr ConstexprWrapper<S> ConstexprOnly;
 
-template<StructuralString Prefix, size_t... Is>
+template<util::StructuralString Prefix, size_t... Is>
 constexpr std::array<const char*, sizeof...(Is)> enumerateFieldNames_helper(std::index_sequence<Is...>)
 {
     constexpr size_t N = sizeof...(Is);
@@ -127,9 +127,14 @@ constexpr std::array<const char*, sizeof...(Is)> enumerateFieldNames_helper(std:
 
 } // namespace constexpr_to_string
 
+namespace util
+{
+
 //! @brief Generates a sequence "0", "1", ..., "N-1" of compile-time strings each
 template<StructuralString Prefix, size_t N>
 constexpr std::array<const char*, N> enumerateFieldNames()
 {
     return constexpr_to_string::enumerateFieldNames_helper<Prefix>(std::make_index_sequence<N>{});
 }
+
+} // namespace util

@@ -34,20 +34,20 @@
 
 #include <variant>
 
-#include "cstone/fields/particles_get.hpp"
+#include "cstone/fields/field_get.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/sph.hpp"
 
 #include "cooling/cooler.hpp"
 
-#include "ipropagator.hpp"
+#include "std_hydro.hpp"
 #include "gravity_wrapper.hpp"
 
 namespace sphexa
 {
 
 using namespace sph;
-using cstone::FieldList;
+using util::FieldList;
 
 template<class DomainType, class DataType>
 class HydroGrackleProp final : public HydroProp<DomainType, DataType>
