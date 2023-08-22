@@ -34,7 +34,7 @@
 
 #include <variant>
 
-#include "cstone/fields/particles_get.hpp"
+#include "cstone/fields/field_get.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/sph.hpp"
 
@@ -45,7 +45,7 @@ namespace sphexa
 {
 
 using namespace sph;
-using cstone::FieldList;
+using util::FieldList;
 
 template<bool avClean, class DomainType, class DataType>
 class HydroVeProp : public Propagator<DomainType, DataType>
