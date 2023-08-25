@@ -35,7 +35,7 @@
 
 #include "cstone/fields/enumerate.hpp"
 #include "cstone/fields/field_states.hpp"
-#include "cstone/fields/particles_get.hpp"
+#include "cstone/fields/field_get.hpp"
 #include "cstone/util/reallocate.hpp"
 
 namespace cooling

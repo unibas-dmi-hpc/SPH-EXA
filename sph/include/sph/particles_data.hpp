@@ -35,6 +35,8 @@
 #include <variant>
 
 #include "cstone/cuda/cuda_utils.hpp"
+#include "cstone/fields/data_util.hpp"
+#include "cstone/fields/field_states.hpp"
 #include "cstone/tree/accel_switch.hpp"
 #include "cstone/tree/definitions.h"
 #include "cstone/tree/octree.hpp"
@@ -43,8 +45,6 @@
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
 
-#include "cstone/fields/data_util.hpp"
-#include "cstone/fields/field_states.hpp"
 #include "particles_data_stubs.hpp"
 
 #if defined(USE_CUDA)

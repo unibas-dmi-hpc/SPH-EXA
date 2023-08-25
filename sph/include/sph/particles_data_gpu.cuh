@@ -36,13 +36,12 @@
 #include <variant>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/fields/field_states.hpp"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/tree/accel_switch.hpp"
 #include "cstone/tree/definitions.h"
 #include "cstone/util/reallocate.hpp"
 
-#include "cstone/fields/data_util.hpp"
-#include "cstone/fields/field_states.hpp"
 #include "tables.hpp"
 
 namespace sphexa
