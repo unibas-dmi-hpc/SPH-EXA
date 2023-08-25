@@ -31,14 +31,17 @@
 
 #pragma once
 
+#include <array>
 #include <cstring>
 #include <optional>
 #include <memory>
 #include <map>
-#include <any>
 #include <variant>
 #include <vector>
 #include <iostream>
+
+#include "cstone/util/traits.hpp"
+#include "cstone/util/value_list.hpp"
 
 namespace cooling
 {
@@ -46,6 +49,34 @@ namespace cooling
 template<typename T>
 struct Cooler
 {
+    //! Grackle field names
+    inline static constexpr std::array fieldNames{"HI_fraction",
+                                                  "HII_fraction",
+                                                  "HM_fraction",
+                                                  "HeI_fraction",
+                                                  "HeII_fraction",
+                                                  "HeIII_fraction",
+                                                  "H2I_fraction",
+                                                  "H2II_fraction",
+                                                  "DI_fraction",
+                                                  "DII_fraction",
+                                                  "HDI_fraction",
+                                                  "e_fraction",
+                                                  "metal_fraction",
+                                                  "volumetric_heating_rate",
+                                                  "specific_heating_rate",
+                                                  "RT_heating_rate",
+                                                  "RT_HI_ionization_rate",
+                                                  "RT_HeI_ionization_rate",
+                                                  "RT_HeII_ionization_rate",
+                                                  "RT_H2_dissociation_rate",
+                                                  "H2_self_shielding_length"};
+
+    inline static constexpr size_t numFields = fieldNames.size();
+
+    using CoolingFields = util::MakeFieldList<Cooler<T>>::Fields;
+    using ParticleType  = util::Reduce<std::tuple, util::Repeat<util::TypeList<std::add_pointer_t<T>>, numFields>>;
+
     Cooler();
 
     ~Cooler();
@@ -54,47 +85,25 @@ struct Cooler
     void init(int comoving_coordinates, std::optional<T> time_unit = std::nullopt);
 
     //! @brief Calls the GRACKLE library to integrate the cooling and chemistry fields
-    void cool_particle(const T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction,
-                       T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction,
-                       T& DII_fraction, T& HDI_fraction, T& e_fraction, T& metal_fraction, T& volumetric_heating_rate,
-                       T& specific_heating_rate, T& RT_heating_rate, T& RT_HI_ionization_rate,
-                       T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate, T& RT_H2_dissociation_rate,
-                       T& H2_self_shielding_length);
+    void cool_particle(T dt, T& rho, T& u, const ParticleType& particle);
 
     //! @brief Calculate the temperature in K (physical units) from the internal energy (code units) and the chemistry
     //! composition
-    T energy_to_temperature(const T& dt, T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction,
-                            T& HeII_fraction, T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction,
-                            T& DII_fraction, T& HDI_fraction, T& e_fraction, T& metal_fraction,
-                            T& volumetric_heating_rate, T& specific_heating_rate, T& RT_heating_rate,
-                            T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
-                            T& RT_H2_dissociation_rate, T& H2_self_shielding_length);
+    T energy_to_temperature(T dt, T rho, T u, const ParticleType& particle);
 
     //! @brief Calculate pressure using the chemistry composition
-    T pressure(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction, T& HeII_fraction,
-               T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction, T& DII_fraction, T& HDI_fraction,
-               T& e_fraction, T& metal_fraction, T& volumetric_heating_rate, T& specific_heating_rate,
-               T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate, T& RT_HeII_ionization_rate,
-               T& RT_H2_dissociation_rate, T& H2_self_shielding_length);
+    T pressure(T rho, T u, const ParticleType& particle);
 
     //! @brief Calculate adiabatic index from chemistry composition
-    T adiabatic_index(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction, T& HeII_fraction,
-                      T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction, T& DII_fraction,
-                      T& HDI_fraction, T& e_fraction, T& metal_fraction, T& volumetric_heating_rate,
-                      T& specific_heating_rate, T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate,
-                      T& RT_HeII_ionization_rate, T& RT_H2_dissociation_rate, T& H2_self_shielding_length);
+    T adiabatic_index(T rho, T u, const ParticleType& particle);
 
-    T cooling_time(T& rho, T& u, T& HI_fraction, T& HII_fraction, T& HM_fraction, T& HeI_fraction, T& HeII_fraction,
-                   T& HeIII_fraction, T& H2I_fraction, T& H2II_fraction, T& DI_fraction, T& DII_fraction,
-                   T& HDI_fraction, T& e_fraction, T& metal_fraction, T& volumetric_heating_rate,
-                   T& specific_heating_rate, T& RT_heating_rate, T& RT_HI_ionization_rate, T& RT_HeI_ionization_rate,
-                   T& RT_HeII_ionization_rate, T& RT_H2_dissociation_rate, T& H2_self_shielding_length);
+    T cooling_time(T rho, T u, const ParticleType& particle);
 
     template<class Archive>
     void loadOrStoreAttributes(Archive* ar)
     {
-        auto fieldNames = getFieldNames();
-        auto fields     = getFields();
+        auto parameterNames = getParameterNames();
+        auto parameters     = getParameters();
         //! @brief load or store an attribute, skips non-existing attributes on load.
         auto optionalIO = [ar](const std::string& attribute, auto* location, size_t attrSize)
         {
@@ -108,9 +117,9 @@ struct Cooler
                           << " not set in file or initializer, setting to default value " << *location << std::endl;
             }
         };
-        for (size_t i = 0; i < fieldNames.size(); i++)
+        for (size_t i = 0; i < parameterNames.size(); i++)
         {
-            std::visit([&](auto* location) { optionalIO(std::string(fieldNames[i]), location, 1); }, fields[i]);
+            std::visit([&](auto* location) { optionalIO(std::string(parameterNames[i]), location, 1); }, parameters[i]);
         }
     }
 
@@ -118,7 +127,7 @@ private:
     struct Impl;
     std::unique_ptr<Impl> impl_ptr;
     using FieldVariant = std::variant<float*, double*, int*>;
-    static std::vector<const char*> getFieldNames();
-    std::vector<FieldVariant>       getFields();
+    static std::vector<const char*> getParameterNames();
+    std::vector<FieldVariant>       getParameters();
 };
 } // namespace cooling

@@ -35,6 +35,7 @@
 #include <variant>
 
 #include "cstone/fields/field_get.hpp"
+#include "cstone/util/value_list.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/sph.hpp"
 
@@ -56,8 +57,9 @@ class HydroGrackleProp final : public HydroProp<DomainType, DataType>
     using Base = HydroProp<DomainType, DataType>;
     using Base::timer;
 
-    using T       = typename DataType::RealType;
-    using KeyType = typename DataType::KeyType;
+    using T        = typename DataType::RealType;
+    using KeyType  = typename DataType::KeyType;
+    using ChemData = typename DataType::ChemData;
 
     cooling::Cooler<T> cooling_data;
 
@@ -71,12 +73,8 @@ class HydroGrackleProp final : public HydroProp<DomainType, DataType>
     using DependentFields =
         FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
 
-    using CoolingFields =
-        FieldList<"HI_fraction", "HII_fraction", "HM_fraction", "HeI_fraction", "HeII_fraction", "HeIII_fraction",
-                  "H2I_fraction", "H2II_fraction", "DI_fraction", "DII_fraction", "HDI_fraction", "e_fraction",
-                  "metal_fraction", "volumetric_heating_rate", "specific_heating_rate", "RT_heating_rate",
-                  "RT_HI_ionization_rate", "RT_HeI_ionization_rate", "RT_HeII_ionization_rate",
-                  "RT_H2_dissociation_rate", "H2_self_shielding_length">;
+    //! @brief All fields listed in Chemistry data are used. This could be overridden with a sublist if desired
+    using CoolingFields = typename util::MakeFieldList<ChemData>::Fields;
 
 public:
     HydroGrackleProp(std::ostream& output, size_t rank)
@@ -216,18 +214,8 @@ public:
         {
             T u_old  = d.u[i];
             T u_cool = d.u[i];
-            cooling_data.cool_particle(
-                d.minDt, d.rho[i], u_cool, get<"HI_fraction">(simData.chem)[i], get<"HII_fraction">(simData.chem)[i],
-                get<"HM_fraction">(simData.chem)[i], get<"HeI_fraction">(simData.chem)[i],
-                get<"HeII_fraction">(simData.chem)[i], get<"HeIII_fraction">(simData.chem)[i],
-                get<"H2I_fraction">(simData.chem)[i], get<"H2II_fraction">(simData.chem)[i],
-                get<"DI_fraction">(simData.chem)[i], get<"DII_fraction">(simData.chem)[i],
-                get<"HDI_fraction">(simData.chem)[i], get<"e_fraction">(simData.chem)[i],
-                get<"metal_fraction">(simData.chem)[i], get<"volumetric_heating_rate">(simData.chem)[i],
-                get<"specific_heating_rate">(simData.chem)[i], get<"RT_heating_rate">(simData.chem)[i],
-                get<"RT_HI_ionization_rate">(simData.chem)[i], get<"RT_HeI_ionization_rate">(simData.chem)[i],
-                get<"RT_HeII_ionization_rate">(simData.chem)[i], get<"RT_H2_dissociation_rate">(simData.chem)[i],
-                get<"H2_self_shielding_length">(simData.chem)[i]);
+            cooling_data.cool_particle(d.minDt, d.rho[i], u_cool,
+                                       cstone::getPointers(get<CoolingFields>(simData.chem), i));
             const T du = (u_cool - u_old) / d.minDt;
             d.du[i] += du;
         }

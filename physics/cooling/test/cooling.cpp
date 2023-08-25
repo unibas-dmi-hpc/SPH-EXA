@@ -1,12 +1,12 @@
 
-#define CONFIG_BFLOAT_8
-
-#include "cooling/cooler.hpp"
 #include <iostream>
 #include <vector>
 #include <cmath>
 #include "gtest/gtest.h"
 
+#include "cooling/cooler.hpp"
+
+#include "cstone/fields/field_get.hpp"
 #include "io/ifile_io.hpp"
 
 TEST(cooling_grackle, test1a)
@@ -84,11 +84,13 @@ TEST(cooling_grackle, test1a)
     std::cout << HeI_fraction[0] << std::endl;
     std::cout << metal_fraction[0] << std::endl;
 
-    cd.cool_particle(dt / time_units, rho[0], u[0], HI_fraction[0], HII_fraction[0], HM_fraction[0], HeI_fraction[0],
-                     HeII_fraction[0], HeIII_fraction[0], H2I_fraction[0], H2II_fraction[0], DI_fraction[0],
-                     DII_fraction[0], HDI_fraction[0], e_fraction[0], metal_fraction[0], volumetric_heating_rate[0],
-                     specific_heating_rate[0], RT_heating_rate[0], RT_HI_ionization_rate[0], RT_HeI_ionization_rate[0],
-                     RT_HeII_ionization_rate[0], RT_H2_dissociation_rate[0], H2_self_shielding_length[0]);
+    auto grData =
+        std::tie(HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction, HeIII_fraction, H2I_fraction,
+                 H2II_fraction, DI_fraction, DII_fraction, HDI_fraction, e_fraction, metal_fraction,
+                 volumetric_heating_rate, specific_heating_rate, RT_heating_rate, RT_HI_ionization_rate,
+                 RT_HeI_ionization_rate, RT_HeII_ionization_rate, RT_H2_dissociation_rate, H2_self_shielding_length);
+
+    cd.cool_particle(dt / time_units, rho[0], u[0], cstone::getPointers(grData, 0));
 
     std::cout << HI_fraction[0] << std::endl;
 
@@ -166,12 +168,13 @@ TEST(cooling_grackle2, test2)
         auto RT_H2_dissociation_rate  = std::vector<Real>{0.};
         auto H2_self_shielding_length = std::vector<Real>{0.};
 
-        cd.cool_particle(dt, rho[0], u[0], HI_fraction[0], HII_fraction[0], HM_fraction[0], HeI_fraction[0],
-                         HeII_fraction[0], HeIII_fraction[0], H2I_fraction[0], H2II_fraction[0], DI_fraction[0],
-                         DII_fraction[0], HDI_fraction[0], e_fraction[0], metal_fraction[0], volumetric_heating_rate[0],
-                         specific_heating_rate[0], RT_heating_rate[0], RT_HI_ionization_rate[0],
-                         RT_HeI_ionization_rate[0], RT_HeII_ionization_rate[0], RT_H2_dissociation_rate[0],
-                         H2_self_shielding_length[0]);
+      auto grData =
+          std::tie(HI_fraction, HII_fraction, HM_fraction, HeI_fraction, HeII_fraction, HeIII_fraction, H2I_fraction,
+                   H2II_fraction, DI_fraction, DII_fraction, HDI_fraction, e_fraction, metal_fraction,
+                   volumetric_heating_rate, specific_heating_rate, RT_heating_rate, RT_HI_ionization_rate,
+                   RT_HeI_ionization_rate, RT_HeII_ionization_rate, RT_H2_dissociation_rate, H2_self_shielding_length);
+
+        cd.cool_particle(dt, rho[0], u[0], cstone::getPointers(grData, 0));
 
         return u[0];
     };
