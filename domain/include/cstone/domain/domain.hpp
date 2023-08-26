@@ -467,7 +467,8 @@ private:
         std::apply([size = x.size()](auto&... arrays) { checkSizesEqual(size, arrays...); }, distributedArrays);
 
         // Global tree build and assignment
-        auto exchangeSize = global_.assign(bufDesc_, sorter, rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
+        auto exchangeSize = global_.assign(bufDesc_, sorter, std::get<0>(scratchBuffers), std::get<1>(scratchBuffers),
+                                           rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
         lowMemReallocate(exchangeSize, 1.01, distributedArrays, scratchBuffers);
 
         return std::apply(

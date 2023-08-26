@@ -77,6 +77,31 @@ public:
         sortByKeyGpu(first, last, ordering());
     }
 
+    template<class KeyType>
+    void setMapFromCodes(KeyType* first, KeyType* last, KeyType* keyBuf, IndexType* valueBuf)
+    {
+        mapSize_ = std::size_t(last - first);
+        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
+        sequenceGpu(ordering(), mapSize_, LocalIndex(0));
+        sortByKeyGpu(first, last, ordering(), keyBuf, valueBuf);
+    }
+
+    template<class KeyType, class KeyBuf, class ValueBuf>
+    void setMapFromCodes(KeyType* first, KeyType* last, KeyBuf& keyBuf, ValueBuf& valueBuf)
+    {
+        mapSize_ = std::size_t(last - first);
+        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
+        sequenceGpu(ordering(), mapSize_, LocalIndex(0));
+
+        auto s1 = reallocateBytes(keyBuf, mapSize_ * sizeof(KeyType));
+        auto s2 = reallocateBytes(valueBuf, mapSize_ * sizeof(IndexType));
+
+        setMapFromCodes(first, last, (KeyType*)rawPtr(keyBuf), (IndexType*)rawPtr(valueBuf));
+
+        reallocateDevice(keyBuf, s1, 1.01);
+        reallocateDevice(valueBuf, s2, 1.01);
+    }
+
     auto gatherFunc() const { return gatherGpuL; }
 
 private:
