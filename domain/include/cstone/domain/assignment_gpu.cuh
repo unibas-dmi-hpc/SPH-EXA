@@ -81,6 +81,8 @@ public:
      * @param[in]  bufDesc         Buffer description of @a keys, @a x, @a y, @a z with range of assigned particles
      * @param[in]  sfcSorter       records the SFC order of the owned input coordinates
      * @param[out] particleKeys    will contain sorted particle SFC keys, length = bufDesc.size, on DEVICE
+     * @param[-]   s0              device scratch vector
+     * @param[-]   s1              device scratch vector
      * @param[in]  x               x coordinates, length = bufDesc.size, ON DEVICE
      * @param[in]  y               y coordinates, length = bufDesc.size, ON DEVICE
      * @param[in]  z               z coordinates, length = bufDesc.size, ON DEVICE
@@ -88,9 +90,15 @@ public:
      *
      * This function does not modify / communicate any particle data.
      */
-    template<class Sorter>
-    LocalIndex
-    assign(BufferDescription bufDesc, Sorter& sfcSorter, KeyType* particleKeys, const T* x, const T* y, const T* z)
+    template<class Sorter, class DevVector>
+    LocalIndex assign(BufferDescription bufDesc,
+                      Sorter& sfcSorter,
+                      DevVector& s0,
+                      DevVector& s1,
+                      KeyType* particleKeys,
+                      const T* x,
+                      const T* y,
+                      const T* z)
     {
         // number of locally assigned particles to consider for global tree building
         LocalIndex numParticles = bufDesc.end - bufDesc.start;
@@ -103,7 +111,7 @@ public:
         computeSfcKeysGpu(x + start, y + start, z + start, sfcKindPointer(keyView.data()), numParticles, box_);
 
         // sort keys and keep track of ordering for later use
-        sfcSorter.setMapFromCodes(keyView.begin(), keyView.end());
+        sfcSorter.setMapFromCodes(keyView.begin(), keyView.end(), s0, s1);
 
         gsl::span<const KeyType> oldLeaves = tree_.treeLeaves();
         std::vector<KeyType> oldBoundaries(assignment_.numRanks() + 1);
@@ -176,7 +184,7 @@ public:
 
         computeSfcKeysGpu(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.data()), envelopeSize, box_);
         // sort keys and keep track of the ordering
-        sfcSorter.setMapFromCodes(keyView.begin(), keyView.end());
+        sfcSorter.setMapFromCodes(keyView.begin(), keyView.end(), sendScratch, receiveScratch);
 
         return std::make_tuple(newStart, keyView.subspan(numSendDown(), numAssigned()));
     }
