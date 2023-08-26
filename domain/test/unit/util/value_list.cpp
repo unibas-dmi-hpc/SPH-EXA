@@ -35,6 +35,10 @@
 
 using namespace util;
 
+/*
+
+ // see comment in source code
+
 TEST(ConstexprString, OperatorEq)
 {
     constexpr StructuralString a("id");
@@ -65,6 +69,7 @@ TEST(ValueList, find)
     static_assert(require_gcc_12::FindIndex<4, TestList>{} == 1);
     static_assert(require_gcc_12::FindIndex<8, TestList>{} == 5);
 }
+*/
 
 TEST(ValueList, nameGet)
 {

@@ -80,9 +80,15 @@ public:
      *
      * This function does not modify / communicate any particle data.
      */
-    template<class Reorderer>
-    LocalIndex assign(
-        BufferDescription bufDesc, Reorderer& reorderFunctor, KeyType* particleKeys, const T* x, const T* y, const T* z)
+    template<class Reorderer, class Vector>
+    LocalIndex assign(BufferDescription bufDesc,
+                      Reorderer& reorderFunctor,
+                      Vector& /*sratch0*/,
+                      Vector& /*scratch1*/,
+                      KeyType* particleKeys,
+                      const T* x,
+                      const T* y,
+                      const T* z)
     {
         // number of locally assigned particles to consider for global tree building
         LocalIndex numParticles = bufDesc.end - bufDesc.start;
