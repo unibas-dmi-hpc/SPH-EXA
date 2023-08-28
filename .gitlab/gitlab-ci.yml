@@ -248,7 +248,7 @@ sph:test:cuda:sphexa:gpu:
     - ln -fs /usr/local/bin/sedov_solution .
     - wget --quiet ${DEPS_PATH}/in/glass.h5
     - echo "# --- sedov:gpu"
-    - /usr/local/bin/sphexa-cuda --init sedov -s 200 -n 50 -w 200 -f x,y,z,h,m,p,rho,vx,vy,vz,temp -o /scratch/out_sedov.h5 --quiet
+    - /usr/local/bin/sphexa-cuda --init sedov --glass ./glass.h5 -s 200 -n 50 -w 200 -f x,y,z,h,m,p,rho,vx,vy,vz,temp -o /scratch/out_sedov.h5 --quiet
     - python3 /usr/local/bin/compare_solutions.py -s 200 /scratch/out_sedov.h5 > /scratch/sedov.rpt
     #
     - echo "# --- noh:gpu"
