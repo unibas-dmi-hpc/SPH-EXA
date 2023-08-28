@@ -9,7 +9,7 @@ namespace cooling
 
 //! @brief the maximum time-step based on local particles that Grackle can tolerate
 template<class Dataset, typename Cooler, typename Chem>
-void coolingTimestep(size_t first, size_t last, Dataset& d, Cooler& cooler, Chem& chem)
+auto coolingTimestep(size_t first, size_t last, Dataset& d, Cooler& cooler, Chem& chem)
 {
     using T             = typename Dataset::RealType;
     using CoolingFields = typename Cooler::CoolingFields;
