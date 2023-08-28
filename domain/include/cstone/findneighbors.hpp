@@ -90,7 +90,7 @@ HOST_DEVICE_FUN constexpr T distanceSq(T x1, T y1, T z1, T x2, T y2, T z2, const
  * @param[in]  box             coordinate bounding box that was used to calculate the Morton codes
  * @param[in]  ngmax           maximum number of neighbors per particle
  * @param[out] neighbors       output to store the neighbors
- * @return                     neighbor count of particle @p i
+ * @return                     neighbor count of particle @p i, does not include self-reference; min return val is 0.
  */
 template<class T, class KeyType>
 HOST_DEVICE_FUN unsigned findNeighbors(LocalIndex i,

@@ -64,10 +64,10 @@ void computeIADImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone
 #pragma omp parallel for schedule(static)
     for (cstone::LocalIndex i = startIndex; i < endIndex; ++i)
     {
-        size_t   ni = i - startIndex;
-        unsigned nc = std::min(neighborsCount[i], d.ngmax);
-        IADJLoopSTD(i, d.K, box, neighbors + d.ngmax * ni, nc, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22, c23,
-                    c33);
+        size_t   ni       = i - startIndex;
+        unsigned ncCapped = std::min(neighborsCount[i] - 1, d.ngmax);
+        IADJLoopSTD(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22,
+                    c23, c33);
     }
 }
 

@@ -63,8 +63,8 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, Dataset& d, const cs
     {
         size_t ni = i - startIndex;
 
-        unsigned nc = std::min(neighborsCount[i], d.ngmax);
-        rho[i]      = densityJLoop(i, d.K, box, neighbors + d.ngmax * ni, nc, x, y, z, h, m, wh, whd);
+        unsigned ncCapped = std::min(neighborsCount[i] - 1, d.ngmax);
+        rho[i]            = densityJLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, h, m, wh, whd);
 
 #ifndef NDEBUG
         if (std::isnan(rho[i]))

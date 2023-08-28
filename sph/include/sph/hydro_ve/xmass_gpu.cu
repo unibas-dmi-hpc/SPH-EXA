@@ -49,6 +49,8 @@ using cstone::TreeNodeIndex;
 namespace cuda
 {
 
+__device__ bool nc_h_convergenceFailure = false;
+
 template<class Tc, class Tm, class T, class KeyType>
 __global__ void xmassGpu(T K, unsigned ng0, unsigned ngmax, const cstone::Box<Tc> box, const cstone::LocalIndex* groups,
                          cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc,
@@ -73,23 +75,27 @@ __global__ void xmassGpu(T K, unsigned ng0, unsigned ngmax, const cstone::Box<Tc
         cstone::LocalIndex bodyEnd   = groups[targetIdx + 1];
         cstone::LocalIndex i         = bodyBegin + laneIdx;
 
-        auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
+        unsigned ncSph =
+            1 + traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool)[0];
 
-        constexpr int ncMaxIteration = 10;
-        for (int ncIt = 0; ncIt < ncMaxIteration; ++ncIt)
+        constexpr int ncMaxIteration = 9;
+        for (int ncIt = 0; ncIt <= ncMaxIteration; ++ncIt)
         {
-            bool repeat = (ncTrue[0] < ng0 / 4 || ncTrue[0] > ngmax) && i < bodyEnd;
+            bool repeat = (ncSph < ng0 / 4 || (ncSph - 1) > ngmax) && i < bodyEnd;
             if (!cstone::ballotSync(repeat)) { break; }
-            if (repeat) h[i] = updateH(ng0, ncTrue[0], h[i]);
-            ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
+            if (repeat) { h[i] = updateH(ng0, ncSph, h[i]); }
+            ncSph =
+                1 + traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool)[0];
+
+            if (ncIt == ncMaxIteration) { nc_h_convergenceFailure = true; }
         }
 
         if (i >= bodyEnd) continue;
 
-        unsigned ncCapped = stl::min(ncTrue[0], ngmax);
+        unsigned ncCapped = stl::min(ncSph - 1, ngmax);
         xm[i] = sph::xmassJLoop<TravConfig::targetSize>(i, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, h, m, wh,
                                                         whd);
-        nc[i] = ncTrue[0];
+        nc[i] = ncSph;
     }
 }
 
@@ -112,12 +118,16 @@ void computeXMass(size_t startIndex, size_t endIndex, Dataset& d, const cstone::
     NcStats::type stats[NcStats::numStats];
     checkGpuErrors(cudaMemcpyFromSymbol(stats, cstone::ncStats, NcStats::numStats * sizeof(NcStats::type)));
 
+    bool convergenceFailure;
+    checkGpuErrors(cudaMemcpyFromSymbol(&convergenceFailure, nc_h_convergenceFailure, sizeof(bool)));
+
     NcStats::type maxP2P   = stats[cstone::NcStats::maxP2P];
     NcStats::type maxStack = stats[cstone::NcStats::maxStack];
 
     d.devData.stackUsedNc = maxStack;
 
     if (maxP2P == 0xFFFFFFFF) { throw std::runtime_error("GPU traversal stack exhausted in neighbor search\n"); }
+    if (convergenceFailure) { throw std::runtime_error("coupled nc/h-updated failed to converge"); }
 }
 
 #define COMPUTE_XMASS_GPU(RealType, KeyType)                                                                           \
