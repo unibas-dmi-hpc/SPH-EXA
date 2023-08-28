@@ -206,7 +206,8 @@ public:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        computeTimestep_cool(first, last, d, cooling_data, simData.chem);
+        auto minDtCooling = cooling::coolingTimestep(first, last, cooling_data, simData.chem);
+        computeTimestep(first, last, d, minDtCooling);
         timer.step("Timestep");
 
 #pragma omp parallel for schedule(static)

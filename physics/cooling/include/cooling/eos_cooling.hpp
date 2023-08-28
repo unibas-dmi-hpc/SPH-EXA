@@ -2,15 +2,34 @@
 // Created by Noah Kubli on 09.07.23.
 //
 
-#ifndef SPHEXA_EOS_COOLING_HPP
-#define SPHEXA_EOS_COOLING_HPP
+#pragma once
+
+namespace cooling
+{
+
+//! @brief the maximum time-step based on local particles that Grackle can tolerate
+template<class Dataset, typename Cooler, typename Chem>
+void coolingTimestep(size_t first, size_t last, Dataset& d, Cooler& cooler, Chem& chem)
+{
+    using T             = typename Dataset::RealType;
+    using CoolingFields = typename Cooler::CoolingFields;
+
+    T minTc(INFINITY);
+#pragma omp parallel for reduction(min : minTc)
+    for (size_t i = first; i < last; i++)
+    {
+        const T cooling_time = cooler.cooling_time(d.rho[i], d.u[i], cstone::getPointers(get<CoolingFields>(chem), i));
+        minTc                = std::min(std::abs(cooling_time), minTc);
+    }
+    return minTc;
+}
 
 template<typename HydroData, typename ChemData, typename Cooler>
 void eos_cooling(size_t startIndex, size_t endIndex, HydroData& d, ChemData& chem, Cooler& cooler)
 {
     using CoolingFields = typename Cooler::CoolingFields;
-    using T         = typename HydroData::RealType;
-    const auto* rho = d.rho.data();
+    using T             = typename HydroData::RealType;
+    const auto* rho     = d.rho.data();
 
     auto* p = d.p.data();
     auto* c = d.c.data();
@@ -25,4 +44,5 @@ void eos_cooling(size_t startIndex, size_t endIndex, HydroData& d, ChemData& che
         c[i]          = sound_speed;
     }
 }
-#endif // SPHEXA_EOS_COOLING_HPP
+
+} // namespace cooling
