@@ -22,16 +22,18 @@ void findNeighborsSph(const T* x, const T* y, const T* z, T* h, LocalIndex first
 #pragma omp parallel for reduction(+ : numFails)
     for (LocalIndex i = 0; i < numWork; ++i)
     {
-        LocalIndex id = i + firstId;
-        nc[i]         = findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
+        LocalIndex id    = i + firstId;
+        unsigned   ncSph = 1 + findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
 
         int iteration = 0;
-        while (ngmin > nc[i] || nc[i] > ngmax && iteration++ < maxIteration)
+        while (ngmin > ncSph || (ncSph - 1) > ngmax && iteration++ < maxIteration)
         {
-            h[id] = updateH(ng0, nc[i], h[id]);
-            nc[i] = findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
+            h[id] = updateH(ng0, ncSph, h[id]);
+            ncSph = 1 + findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
         }
         numFails += (iteration == maxIteration);
+
+        nc[i] = ncSph;
     }
 
     if (numFails)

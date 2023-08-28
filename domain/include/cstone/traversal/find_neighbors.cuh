@@ -234,11 +234,11 @@ __device__ uint2 traverseWarp(unsigned* nc_i,
     if (laneIdx == 0) { cellQueue[0] = initNodeIdx; }
 
     // these variables are always identical on all warp lanes
-    int numSources   = 1; // current stack size
-    int newSources   = 0; // stack size for next level
-    int oldSources   = 0; // cell indices done
-    int sourceOffset = 0; // current level stack pointer, once this reaches numSources, the level is done
-    int bdyFillLevel = 0; // fill level of the source body warp queue
+    int numSources   = 1;  // current stack size
+    int newSources   = 0;  // stack size for next level
+    int oldSources   = 0;  // cell indices done
+    int sourceOffset = 0;  // current level stack pointer, once this reaches numSources, the level is done
+    int bdyFillLevel = 0;  // fill level of the source body warp queue
 
     while (numSources > 0) // While there are source cells to traverse
     {
@@ -256,7 +256,7 @@ __device__ uint2 traverseWarp(unsigned* nc_i,
         const int childBegin        = childOffsets[sourceQueue]; // First child cell
         const bool isNode           = childBegin;
         const bool isClose          = cellOverlap<UsePbc>(curSrcCenter, curSrcSize, targetCenter, targetSize, box);
-        const bool isSource         = sourceIdx < numSources; // Source index is within bounds
+        const bool isSource         = sourceIdx < numSources;                       // Source index is within bounds
         const bool isDirect         = isClose && !isNode && isSource;
         const int leafIdx           = (isDirect) ? internalToLeaf[sourceQueue] : 0; // the cstone leaf index
 
@@ -270,7 +270,7 @@ __device__ uint2 traverseWarp(unsigned* nc_i,
         newSources += numChildWarp; // Increment source cell count for next loop
 
         // check for cellQueue overflow
-        const unsigned stackUsed = newSources + numSources - sourceOffset; // current cellQueue size
+        const unsigned stackUsed = newSources + numSources - sourceOffset;         // current cellQueue size
         maxStack                 = max(stackUsed, maxStack);
         if (stackUsed > TravConfig::memPerWarp) { return {0xFFFFFFFF, maxStack}; } // Exit if cellQueue overflows
 
@@ -278,11 +278,11 @@ __device__ uint2 traverseWarp(unsigned* nc_i,
         const int firstBody     = layout[leafIdx];
         const int numBodies     = (layout[leafIdx + 1] - firstBody) & -int(isDirect); // Number of bodies in cell
         bool directTodo         = numBodies;
-        const int numBodiesScan = inclusiveScanInt(numBodies);                      // Inclusive scan of numBodies
-        int numBodiesLane       = numBodiesScan - numBodies;                        // Exclusive scan of numBodies
-        int numBodiesWarp       = shflSync(numBodiesScan, GpuConfig::warpSize - 1); // Total numBodies of current warp
+        const int numBodiesScan = inclusiveScanInt(numBodies);                        // Inclusive scan of numBodies
+        int numBodiesLane       = numBodiesScan - numBodies;                          // Exclusive scan of numBodies
+        int numBodiesWarp       = shflSync(numBodiesScan, GpuConfig::warpSize - 1);   // Total numBodies of current warp
         int prevBodyIdx         = 0;
-        while (numBodiesWarp > 0) // While there are bodies to process from current source cell set
+        while (numBodiesWarp > 0)   // While there are bodies to process from current source cell set
         {
             tempQueue[laneIdx] = 1; // Default scan input is 1, such that consecutive lanes load consecutive bodies
             if (directTodo && (numBodiesLane < GpuConfig::warpSize))
@@ -418,6 +418,24 @@ warpBbox(const util::array<Vec4<Tc>, TravConfig::nwt>& pos_i)
     return thrust::make_tuple(targetCenter, targetSize);
 }
 
+/*! @brief Find neighbors of a group of given particles, does not count self reference: min return value is 0
+ *
+ * @param[in]  bodyBegin   index of first particle in (x,y,z) to look for neighbors
+ * @param[in]  bodyEnd     last (excluding) index of particle to look for neighbors
+ * @param[in]  x           particle x coordinates
+ * @param[in]  y           particle y coordinates
+ * @param[in]  z           particle z coordinates
+ * @param[in]  h           particle smoothing lengths
+ * @param[in]  tree        octree connectivity and cell data
+ * @param[in]  box         global coordinate bounding box
+ * @param[out] warpNidx    storage for up to ngmax neighbor part. indices for each of the (bodyEnd - bodyBegin) targets
+ * @param[in]  ngmax       maximum number of neighbors to store
+ * @param[-]   globalPool  global memory for cell traversal stack
+ * @return                 actual neighbor count of the particle handled by the executing warp lane, can be > ngmax,
+ *                         minimum returned value is 0
+ *
+ * Note: Number of handled particles (bodyEnd - bodyBegin) should be GpuConfig::warpSize * TravConfig::nwt or smaller
+ */
 template<class Tc, class Th, class KeyType>
 __device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::LocalIndex bodyBegin,
                                                                     cstone::LocalIndex bodyEnd,
@@ -426,7 +444,7 @@ __device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::Loca
                                                                     const Tc* __restrict__ z,
                                                                     const Th* __restrict__ h,
                                                                     const OctreeNsView<Tc, KeyType>& tree,
-                                                                    const Box<Tc> box,
+                                                                    const Box<Tc>& box,
                                                                     cstone::LocalIndex* warpNidx,
                                                                     unsigned ngmax,
                                                                     TreeNodeIndex* globalPool)
@@ -457,8 +475,8 @@ __device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::Loca
     bool anyPbc = box.boundaryX() == pbc || box.boundaryY() == pbc || box.boundaryZ() == pbc;
     bool usePbc = anyPbc && !insideBox(targetCenter, targetSize, box);
 
-    util::array<unsigned, TravConfig::nwt> nc_i;
-    nc_i *= 0;
+    util::array<unsigned, TravConfig::nwt> nc_i; // NOLINT
+    nc_i = 0;
 
     // start traversal with node 1 (first child of the root), implies siblings as well
     // if traversal should be started at node x, then initNode should be set to the first child of x
