@@ -128,7 +128,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
         std::tie(eKin, eInt, linmom, angmom) = conservedQuantitiesGpu(
             sph::idealGasCv(d.muiConst, d.gamma), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
             rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.temp),
-            rawPtr(d.devData.m), startIndex, endIndex);
+            rawPtr(d.devData.u), rawPtr(d.devData.m), startIndex, endIndex);
     }
     else
     {
