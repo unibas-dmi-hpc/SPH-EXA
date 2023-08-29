@@ -99,9 +99,6 @@ struct Cooler
 
     T cooling_time(T rho, T u, const ParticleType& particle);
 
-    //Parameter for cooling time criterion
-    T ct_crit{0.1};
-
     template<class Archive>
     void loadOrStoreAttributes(Archive* ar)
     {
@@ -124,7 +121,6 @@ struct Cooler
         {
             std::visit([&](auto* location) { optionalIO(std::string(parameterNames[i]), location, 1); }, parameters[i]);
         }
-        optionalIO("ct_crit", &ct_crit, 1);
     }
 
 private:
