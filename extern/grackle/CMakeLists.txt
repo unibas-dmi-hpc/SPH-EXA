@@ -37,7 +37,7 @@ set(grackle_SRCS
 add_library(grackle ${grackle_SRCS})
 
 set(PRECISION_DEFINE GRACKLE_FLOAT_8)
-configure_file(${PROJECT_SOURCE_DIR}/config/grackle_float.in.h ${CMAKE_BINARY_DIR}/extern/grackle/grackle_deps/grackle_float.h)
+configure_file(${PROJECT_SOURCE_DIR}/config/grackle_float.h.in ${CMAKE_BINARY_DIR}/extern/grackle/grackle_deps/grackle_float.h)
 
 target_include_directories(grackle PUBLIC ${PROJECT_SOURCE_DIR}/grackle_repo/src/clib)
 target_include_directories(grackle PUBLIC ${PROJECT_BINARY_DIR}/grackle_deps)
