@@ -38,6 +38,8 @@
 #include "cstone/fields/field_get.hpp"
 #include "cstone/util/reallocate.hpp"
 
+#include "cooling/cooler.hpp"
+
 namespace cooling
 {
 
@@ -45,12 +47,16 @@ template<class T>
 class ChemistryData : public cstone::FieldStates<ChemistryData<T>>
 {
 public:
-    inline static constexpr size_t numFields = 21;
-
     template<class ValueType>
     using FieldVector     = std::vector<ValueType, std::allocator<ValueType>>;
     using RealType        = T;
     using AcceleratorType = cstone::CpuTag;
+    using FieldVariant =
+        std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
+
+    //! Grackle field names
+    inline static constexpr std::array fieldNames = Cooler<RealType>::fieldNames;
+    inline static constexpr size_t     numFields  = fieldNames.size();
 
     std::array<FieldVector<T>, numFields> fields;
 
@@ -58,10 +64,7 @@ public:
 
     auto data()
     {
-        using FieldType =
-            std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
-
-        return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
+        return std::apply([](auto&... fields) { return std::array<FieldVariant, sizeof...(fields)>{&fields...}; },
                           dataTuple());
     }
 
@@ -78,31 +81,6 @@ public:
             }
         }
     }
-
-    //! Grackle field names
-    inline static constexpr std::array fieldNames{"HI_fraction",
-                                                  "HII_fraction",
-                                                  "HM_fraction",
-                                                  "HeI_fraction",
-                                                  "HeII_fraction",
-                                                  "HeIII_fraction",
-                                                  "H2I_fraction",
-                                                  "H2II_fraction",
-                                                  "DI_fraction",
-                                                  "DII_fraction",
-                                                  "HDI_fraction",
-                                                  "e_fraction",
-                                                  "metal_fraction",
-                                                  "volumetric_heating_rate",
-                                                  "specific_heating_rate",
-                                                  "RT_heating_rate",
-                                                  "RT_HI_ionization_rate",
-                                                  "RT_HeI_ionization_rate",
-                                                  "RT_HeII_ionization_rate",
-                                                  "RT_H2_dissociation_rate",
-                                                  "H2_self_shielding_length"};
-
-    static_assert(fieldNames.size() == numFields);
 
 private:
     template<size_t... Is>
