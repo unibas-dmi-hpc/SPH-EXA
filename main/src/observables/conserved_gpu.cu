@@ -89,10 +89,7 @@ conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* v
     {
         eInt = cv * thrust::inner_product(thrust::device, m + first, m + last, temp + first, Tt(0.0));
     }
-    else if (u != nullptr)
-    {
-        eInt = thrust::inner_product(thrust::device, m + first, m + last, u + first, Tt(0.0));
-    }
+    else if (u != nullptr) { eInt = thrust::inner_product(thrust::device, m + first, m + last, u + first, Tt(0.0)); }
 
     return {0.5 * eKin, eInt, linMom, angMom};
 }

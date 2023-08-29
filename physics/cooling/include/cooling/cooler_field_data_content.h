@@ -112,18 +112,18 @@ struct cooler_field_data_content
 
     void get_field_data(T& rho, T& u, const ParticleType& particle)
     {
-        rho                      = gr_rho;
-        u                        = gr_u;
-        *std::get<0>(particle)  /*HI_fraction             */ = HI_density / gr_rho;
-        *std::get<1>(particle)  /*HII_fraction            */ = HII_density / gr_rho;
-        *std::get<2>(particle)  /*HM_fraction             */ = HM_density / gr_rho;
-        *std::get<3>(particle)  /*HeI_fraction            */ = HeI_density / gr_rho;
-        *std::get<4>(particle)  /*HeII_fraction           */ = HeII_density / gr_rho;
-        *std::get<5>(particle)  /*HeIII_fraction          */ = HeIII_density / gr_rho;
-        *std::get<6>(particle)  /*H2I_fraction            */ = H2I_density / gr_rho;
-        *std::get<7>(particle)  /*H2II_fraction           */ = H2II_density / gr_rho;
-        *std::get<8>(particle)  /*DI_fraction             */ = DI_density / gr_rho;
-        *std::get<9>(particle)  /*DII_fraction            */ = DII_density / gr_rho;
+        rho                                                  = gr_rho;
+        u                                                    = gr_u;
+        *std::get<0>(particle) /*HI_fraction             */  = HI_density / gr_rho;
+        *std::get<1>(particle) /*HII_fraction            */  = HII_density / gr_rho;
+        *std::get<2>(particle) /*HM_fraction             */  = HM_density / gr_rho;
+        *std::get<3>(particle) /*HeI_fraction            */  = HeI_density / gr_rho;
+        *std::get<4>(particle) /*HeII_fraction           */  = HeII_density / gr_rho;
+        *std::get<5>(particle) /*HeIII_fraction          */  = HeIII_density / gr_rho;
+        *std::get<6>(particle) /*H2I_fraction            */  = H2I_density / gr_rho;
+        *std::get<7>(particle) /*H2II_fraction           */  = H2II_density / gr_rho;
+        *std::get<8>(particle) /*DI_fraction             */  = DI_density / gr_rho;
+        *std::get<9>(particle) /*DII_fraction            */  = DII_density / gr_rho;
         *std::get<10>(particle) /*HDI_fraction            */ = HDI_density / gr_rho;
         *std::get<11>(particle) /*e_fraction              */ = e_density / gr_rho;
         *std::get<12>(particle) /*metal_fraction          */ = metal_density / gr_rho;

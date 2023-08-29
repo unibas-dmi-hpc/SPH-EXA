@@ -99,7 +99,7 @@ struct Cooler
 
     T cooling_time(T rho, T u, const ParticleType& particle);
 
-    //Parameter for cooling time criterion
+    // Parameter for cooling time criterion
     T ct_crit{0.1};
 
     template<class Archive>
