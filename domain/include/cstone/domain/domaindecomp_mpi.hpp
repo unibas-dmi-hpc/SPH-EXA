@@ -32,6 +32,7 @@
 #pragma once
 
 #include <cstring>
+#include <climits>
 
 #include "buffer_description.hpp"
 #include "cstone/primitives/mpi_wrappers.hpp"
