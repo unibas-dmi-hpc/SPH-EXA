@@ -67,7 +67,7 @@ auto accelerationTimestep(size_t first, size_t last, const Dataset& d)
     return d.etaAcc * std::sqrt(d.eps / std::sqrt(maxAccSq));
 }
 
-//! @brief limit time-step based on divergence of velocity
+//! @brief limit time-step based on divergence of velocity, this is called in the propagator when Divv is available
 template<class Dataset>
 auto rhoTimestep(size_t first, size_t last, const Dataset& d)
 {
@@ -93,14 +93,14 @@ auto rhoTimestep(size_t first, size_t last, const Dataset& d)
     return d.Krho / std::abs(maxDivv);
 }
 
-template<class Dataset>
-void computeTimestep(size_t first, size_t last, Dataset& d)
+template<class Dataset, class... Ts>
+void computeTimestep(size_t first, size_t last, Dataset& d, Ts... extraTimesteps)
 {
     using T = typename Dataset::RealType;
 
     T minDtAcc = (d.g != 0.0) ? accelerationTimestep(first, last, d) : INFINITY;
 
-    T minDtLoc = std::min({minDtAcc, d.minDtCourant, d.minDtRho, d.maxDtIncrease * d.minDt});
+    T minDtLoc = std::min({minDtAcc, d.minDtCourant, d.minDtRho, d.maxDtIncrease * d.minDt, extraTimesteps...});
 
     T minDtGlobal;
     MPI_Allreduce(&minDtLoc, &minDtGlobal, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
