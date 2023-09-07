@@ -28,7 +28,7 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include "cstone/util/util.hpp"
+#include "cstone/primitives/math.hpp"
 #include "source_center.hpp"
 #include "source_center_gpu.h"
 

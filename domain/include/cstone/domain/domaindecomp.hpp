@@ -44,16 +44,6 @@
 namespace cstone
 {
 
-/*! @brief a custom type for type safety in function calls
- *
- * The resulting type behaves like an int, except that explicit
- * conversion is required in function calls. Used e.g. in
- * SpaceCurveAssignment::addRange to force the caller to write
- * addRange(Rank(r), a,b,c) instead of addRange(r,a,b,c).
- * This makes it impossible to unintentionally mix up the arguments.
- */
-using Rank = StrongType<int, struct RankTag>;
-
 /*! @brief stores which parts of the SFC belong to which rank, on a per-rank basis
  *
  * The storage layout allows fast look-up of the SFC code ranges that a given rank
@@ -81,7 +71,7 @@ public:
     }
 
     //! @brief add an index/code range to rank @p rank
-    void addRange(Rank rank, TreeNodeIndex lower, TreeNodeIndex upper, std::size_t cnt)
+    void addRange(int rank, TreeNodeIndex lower, TreeNodeIndex upper, std::size_t cnt)
     {
         // make sure that there's no holes or overlap between or with the range of the previous rank
         assert(rankAssignment_[rank] == lower || rankAssignment_[rank] == untouched);
@@ -177,7 +167,7 @@ inline SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& glo
         }
 
         // other distribution strategies might have more than one range per rank
-        ret.addRange(Rank(split), leavesDone, j, splitCount);
+        ret.addRange(split, leavesDone, j, splitCount);
         leavesDone = j;
     }
 
@@ -242,7 +232,7 @@ void limitBoundaryShifts(gsl::span<const KeyType> oldBoundaries,
         {
             std::size_t segmentCount = std::accumulate(counts.begin() + newIndexBoundaries[rank],
                                                        counts.begin() + newIndexBoundaries[rank + 1], std::size_t(0));
-            newAssignment.addRange(Rank(rank), newIndexBoundaries[rank], newIndexBoundaries[rank + 1], segmentCount);
+            newAssignment.addRange(rank, newIndexBoundaries[rank], newIndexBoundaries[rank + 1], segmentCount);
         }
     }
 }

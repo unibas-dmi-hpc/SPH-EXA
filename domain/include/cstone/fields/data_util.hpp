@@ -34,7 +34,7 @@
 #include <vector>
 #include <variant>
 
-#include "cstone/util/traits.hpp"
+#include "cstone/util/type_list.hpp"
 
 namespace cstone
 {

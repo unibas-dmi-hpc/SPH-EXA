@@ -30,8 +30,8 @@
  */
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/primitives/math.hpp"
 #include "cstone/util/tuple.hpp"
-#include "cstone/util/util.hpp"
 
 #include "sph/sph_gpu.hpp"
 #include "sph/eos.hpp"
@@ -56,7 +56,7 @@ void computeEOS_HydroStd(size_t firstParticle, size_t lastParticle, Tt mui, Tt g
                          Tp* p, Tc* c)
 {
     unsigned numThreads = 256;
-    unsigned numBlocks  = iceil(lastParticle - firstParticle, numThreads);
+    unsigned numBlocks  = cstone::iceil(lastParticle - firstParticle, numThreads);
     cudaEOS_HydroStd<<<numBlocks, numThreads>>>(firstParticle, lastParticle, mui, gamma, temp, rho, p, c);
     checkGpuErrors(cudaDeviceSynchronize());
 }

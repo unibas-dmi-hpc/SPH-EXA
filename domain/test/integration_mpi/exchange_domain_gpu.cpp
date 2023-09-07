@@ -78,7 +78,7 @@ void exchangeAllToAll(int thisRank, int numRanks)
 
     int segmentSize = gridSize / numRanks;
 
-    SendRanges sends(numRanks);
+    SendRanges sends(numRanks + 1);
     sends.back() = gridSize;
     for (int rank = 0; rank < numRanks; ++rank)
     {
@@ -110,7 +110,7 @@ void exchangeAllToAll(int thisRank, int numRanks)
     reallocateDevice(d_y, bufDesc.size, 1.0);
 
     std::vector<std::tuple<int, LocalIndex>> log;
-    exchangeParticlesGpu(sends, Rank(thisRank), bufDesc, numParticlesThisRank, sendScratch, receiveScratch,
+    exchangeParticlesGpu(sends, thisRank, bufDesc, numParticlesThisRank, sendScratch, receiveScratch,
                          rawPtr(d_ordering), log, rawPtr(d_x), rawPtr(d_y));
 
     reallocate(bufDesc.size, x, y);
@@ -193,7 +193,7 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     reallocateDevice(d_testArray, bufDesc.size, 1.0);
 
     std::vector<std::tuple<int, LocalIndex>> log;
-    exchangeParticlesGpu(sends, Rank(thisRank), bufDesc, gridSize, sendScratch, receiveScratch, rawPtr(d_ordering), log,
+    exchangeParticlesGpu(sends, thisRank, bufDesc, gridSize, sendScratch, receiveScratch, rawPtr(d_ordering), log,
                          rawPtr(d_x), rawPtr(d_y), rawPtr(d_testArray));
 
     reallocate(bufDesc.size, x, y, testArray);

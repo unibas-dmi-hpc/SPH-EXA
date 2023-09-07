@@ -37,7 +37,6 @@
 #include <vector>
 
 #include "cstone/tree/definitions.h"
-#include "cstone/util/util.hpp"
 
 namespace cstone
 {

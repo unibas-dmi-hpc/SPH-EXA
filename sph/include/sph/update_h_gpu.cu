@@ -30,7 +30,7 @@
 
 #include <cmath>
 
-#include "cstone/util/util.hpp"
+#include "cstone/primitives/math.hpp"
 #include "cstone/tree/definitions.h"
 #include "sph/kernels.hpp"
 
@@ -50,7 +50,7 @@ template<class Th>
 void updateSmoothingLengthGpu(size_t first, size_t last, unsigned ng0, const unsigned* nc, Th* h)
 {
     unsigned numThreads = 256;
-    unsigned numBlocks  = iceil(last - first, 256);
+    unsigned numBlocks  = cstone::iceil(last - first, 256);
 
     updateSmoothingLengthGpuKernel<<<numBlocks, numThreads>>>(first, last, ng0, nc, h);
 }

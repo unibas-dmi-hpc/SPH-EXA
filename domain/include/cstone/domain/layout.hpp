@@ -51,7 +51,8 @@
 #include <vector>
 
 #include "cstone/domain/domaindecomp.hpp"
-#include "cstone/util/traits.hpp"
+#include "cstone/util/tuple_util.hpp"
+#include "cstone/util/type_list.hpp"
 
 namespace cstone
 {
@@ -213,7 +214,7 @@ void gatherArrays(Gather&& gatherFunc,
         swap(swapSpace, array);
     };
 
-    for_each_tuple(reorderArray, arrays);
+    util::for_each_tuple(reorderArray, arrays);
 }
 
 } // namespace cstone

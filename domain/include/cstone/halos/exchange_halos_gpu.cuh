@@ -40,7 +40,7 @@
 #include "cstone/primitives/mpi_cuda.cuh"
 #include "cstone/domain/buffer_description.hpp"
 #include "cstone/util/reallocate.hpp"
-#include "cstone/util/util.hpp"
+#include "cstone/util/tuple_util.hpp"
 
 #include "gather_halos_gpu.h"
 

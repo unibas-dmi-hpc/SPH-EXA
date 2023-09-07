@@ -40,7 +40,6 @@
 #include "cstone/primitives/stl.hpp"
 #include "cstone/tree/definitions.h"
 #include "cstone/util/tuple.hpp"
-#include "cstone/util/util.hpp"
 
 namespace cstone
 {

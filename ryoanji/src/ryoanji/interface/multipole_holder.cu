@@ -32,6 +32,7 @@
 #include <thrust/device_vector.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/primitives/math.hpp"
 #include "cstone/util/reallocate.hpp"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
 #include "ryoanji/nbody/direct.cuh"
@@ -127,7 +128,7 @@ public:
     {
         int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
         int numTargets       = targets_.size() - 1;
-        int numBlocks        = iceil(numTargets, numWarpsPerBlock);
+        int numBlocks        = cstone::iceil(numTargets, numWarpsPerBlock);
         numBlocks            = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
         LocalIndex poolSize  = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
