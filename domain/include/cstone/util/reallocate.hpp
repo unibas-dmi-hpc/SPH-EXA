@@ -30,6 +30,7 @@
 #pragma once
 
 #include "cstone/cuda/cuda_stubs.h"
+#include "cstone/util/tuple_util.hpp"
 
 template<class Vector>
 extern void reallocateDevice(Vector&, size_t, double);
@@ -109,12 +110,12 @@ void lowMemReallocate(size_t size,
                       std::tuple<Vectors2&...> scratch)
 {
     // if the new size exceeds capacity, we first deallocate all scratch buffers to make space for the reallocations
-    for_each_tuple(
+    util::for_each_tuple(
         [size](auto& v)
         {
             if (size > v.capacity()) { std::decay_t<decltype(v)>{}.swap(v); }
         },
         scratch);
-    for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, conserved);
-    for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, scratch);
+    util::for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, conserved);
+    util::for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, scratch);
 }

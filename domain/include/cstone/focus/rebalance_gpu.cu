@@ -33,7 +33,7 @@
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/focus/rebalance.hpp"
 #include "cstone/focus/rebalance_gpu.h"
-#include "cstone/util/util.hpp"
+#include "cstone/primitives/math.hpp"
 
 namespace cstone
 {

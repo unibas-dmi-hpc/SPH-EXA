@@ -51,7 +51,7 @@
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/sfc/sfc_gpu.h"
 #include "cstone/util/reallocate.hpp"
-#include "cstone/util/traits.hpp"
+#include "cstone/util/type_list.hpp"
 
 namespace cstone
 {
@@ -206,7 +206,7 @@ public:
         auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
         ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> sorter(sfcOrder);
 
-        auto scratch = discardLastElement(scratchBuffers);
+        auto scratch = util::discardLastElement(scratchBuffers);
 
         auto [exchangeStart, keyView] =
             distribute(sorter, particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratch);
@@ -258,7 +258,7 @@ public:
         auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
         ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> sorter(sfcOrder);
 
-        auto scratch = discardLastElement(scratchBuffers);
+        auto scratch = util::discardLastElement(scratchBuffers);
 
         auto [exchangeStart, keyView] =
             distribute(sorter, particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratch);
@@ -441,7 +441,7 @@ private:
         static_assert(std::is_same_v<typename KeyVec::value_type, KeyType>);
         static_assert(std::tuple_size_v<ScratchBuffers> >= 3);
 
-        auto tup               = discardLastElement(scratchBuffers);
+        auto tup               = util::discardLastElement(scratchBuffers);
         constexpr auto indices = std::make_tuple(util::FindIndex<ConservedVectors&, std::decay_t<decltype(tup)>>{}...);
 
         auto valueTypeCheck = [](auto index)
@@ -450,7 +450,7 @@ private:
                 index < std::tuple_size_v<std::decay_t<decltype(tup)>>,
                 "one of the conserved fields has a value type that was not found among the available scratch buffers");
         };
-        for_each_tuple(valueTypeCheck, indices);
+        util::for_each_tuple(valueTypeCheck, indices);
     }
 
     template<class Sorter, class KeyVec, class VectorX, class... Vectors1, class... Vectors2>
@@ -549,7 +549,7 @@ private:
             else { omp_copy(array.begin(), array.begin() + size, swapSpace.begin() + dest); }
             swap(array, swapSpace);
         };
-        for_each_tuple(relocate, orderedBuffers);
+        util::for_each_tuple(relocate, orderedBuffers);
 
         // reorder the unordered buffers
         gatherArrays(sorter.gatherFunc(), sorter.getMap() + global_.numSendDown(), global_.numAssigned(), exchangeStart,

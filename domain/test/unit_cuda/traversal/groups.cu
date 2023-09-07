@@ -41,7 +41,6 @@
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/traversal/groups.cuh"
 #include "cstone/tree/cs_util.hpp"
-#include "cstone/util/util.hpp"
 
 using namespace cstone;
 

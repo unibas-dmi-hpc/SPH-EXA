@@ -35,7 +35,7 @@
 #include <variant>
 
 #include "cstone/sfc/box.hpp"
-#include "cstone/util/traits.hpp"
+#include "cstone/util/type_list.hpp"
 
 namespace sphexa
 {

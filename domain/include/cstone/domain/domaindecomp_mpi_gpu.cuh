@@ -155,7 +155,7 @@ void exchangeParticlesGpu(const SendRanges& sends,
                                       receiveCount * sizeof(std::decay_t<decltype(*arrayPair[0])>),
                                       cudaMemcpyDeviceToDevice));
         };
-        for_each_tuple(scatterRanges, packTuple);
+        util::for_each_tuple(scatterRanges, packTuple);
         checkGpuErrors(cudaDeviceSynchronize());
 
         receiveStart += receiveCount;

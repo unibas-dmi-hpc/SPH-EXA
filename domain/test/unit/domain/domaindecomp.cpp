@@ -47,8 +47,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0), 0, 3, 15);
-        ref.addRange(Rank(1), 3, 6, 16);
+        ref.addRange(0, 0, 3, 15);
+        ref.addRange(1, 3, 6, 16);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -58,8 +58,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0), 0, 3, 15);
-        ref.addRange(Rank(1), 3, 6, 16);
+        ref.addRange(0, 0, 3, 15);
+        ref.addRange(1, 3, 6, 16);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -69,8 +69,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0), 0, 3, 16);
-        ref.addRange(Rank(1), 3, 6, 15);
+        ref.addRange(0, 0, 3, 16);
+        ref.addRange(1, 3, 6, 15);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -81,13 +81,13 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0), 0, 1, 4);
-        ref.addRange(Rank(1), 1, 3, 7);
-        ref.addRange(Rank(2), 3, 4, 3);
-        ref.addRange(Rank(3), 4, 6, 7);
-        ref.addRange(Rank(4), 6, 7, 4);
-        ref.addRange(Rank(5), 7, 9, 7);
-        ref.addRange(Rank(6), 9, 10, 3);
+        ref.addRange(0, 0, 1, 4);
+        ref.addRange(1, 1, 3, 7);
+        ref.addRange(2, 3, 4, 3);
+        ref.addRange(3, 4, 6, 7);
+        ref.addRange(4, 6, 7, 4);
+        ref.addRange(5, 7, 9, 7);
+        ref.addRange(6, 9, 10, 3);
         EXPECT_EQ(ref, splits);
     }
 }
@@ -97,10 +97,10 @@ TEST(DomainDecomposition, AssignmentFindRank)
 {
     int nRanks = 4;
     SpaceCurveAssignment assignment(nRanks);
-    assignment.addRange(Rank(0), 0, 1, 0);
-    assignment.addRange(Rank(1), 1, 3, 0);
-    assignment.addRange(Rank(2), 3, 4, 0);
-    assignment.addRange(Rank(3), 4, 5, 0);
+    assignment.addRange(0, 0, 1, 0);
+    assignment.addRange(1, 1, 3, 0);
+    assignment.addRange(2, 3, 4, 0);
+    assignment.addRange(3, 4, 5, 0);
 
     EXPECT_EQ(0, assignment.findRank(0));
     EXPECT_EQ(1, assignment.findRank(1));
@@ -124,8 +124,8 @@ static void sendListMinimal()
 
     int nRanks = 2;
     SpaceCurveAssignment assignment(nRanks);
-    assignment.addRange(Rank(0), 0, 2, 0);
-    assignment.addRange(Rank(1), 2, 4, 0);
+    assignment.addRange(0, 0, 2, 0);
+    assignment.addRange(1, 2, 4, 0);
 
     // note: codes input needs to be sorted
     auto sendList = createSendRanges<KeyType>(assignment, tree, codes);

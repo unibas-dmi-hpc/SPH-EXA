@@ -31,6 +31,7 @@
 #pragma once
 
 #include "cstone/cuda/gpu_config.cuh"
+#include "cstone/primitives/math.hpp"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/primitives/warpscan.cuh"
 #include "cstone/sfc/sfc.hpp"

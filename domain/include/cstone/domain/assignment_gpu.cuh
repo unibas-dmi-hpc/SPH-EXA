@@ -211,6 +211,7 @@ public:
     //! @brief return the space filling curve rank assignment of the last call to @a assign()
     const SpaceCurveAssignment& assignment() const { return assignment_; }
 
+    //! @brief number of local particles to be sent to lower ranks
     LocalIndex numSendDown() const { return exchanges_[myRank_]; }
     LocalIndex numPresent() const { return exchanges_.count(myRank_); }
     LocalIndex numAssigned() const { return assignment_.totalCount(myRank_); }

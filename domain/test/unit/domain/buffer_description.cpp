@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Space filling curve octree assignment to ranks tests
+ * @brief Buffer description tests
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */

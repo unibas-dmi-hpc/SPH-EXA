@@ -33,8 +33,10 @@
 
 #include "cstone/domain/index_ranges.hpp"
 #include "cstone/primitives/gather.hpp"
+#include "cstone/primitives/math.hpp"
 #include "cstone/tree/definitions.h"
-#include "cstone/util/traits.hpp"
+#include "cstone/util/tuple_util.hpp"
+#include "cstone/util/type_list.hpp"
 
 namespace cstone
 {
@@ -145,7 +147,7 @@ auto packBufferPtrs(char* packedBufferBase, size_t arraySize, Arrays... arrays)
     static_assert((... && std::is_pointer_v<Arrays>)&&"all arrays must be pointers");
     constexpr int numArrays = sizeof...(Arrays);
     constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
-    constexpr auto indices = makeIntegralTuple(std::make_index_sequence<numArrays>{});
+    constexpr auto indices = util::makeIntegralTuple(std::make_index_sequence<numArrays>{});
 
     const std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
 
@@ -166,7 +168,7 @@ auto packBufferPtrs(char* packedBufferBase, size_t arraySize, Arrays... arrays)
         std::get<index>(ret) = util::array<ElementType*, 2>{srcPtr, packedPtr};
     };
 
-    for_each_tuple(packOneBuffer, indices);
+    util::for_each_tuple(packOneBuffer, indices);
 
     return ret;
 }
@@ -179,7 +181,7 @@ std::size_t packArrays(F&& gather, const LocalIndex* ordering, LocalIndex numEle
     { gather(ordering, numElements, arrayPair[0], arrayPair[1]); };
 
     auto packTuple = packBufferPtrs<alignment>(buffer, numElements, arrays...);
-    for_each_tuple(gatherArray, packTuple);
+    util::for_each_tuple(gatherArray, packTuple);
 
     std::size_t numBytesPacked = computeByteOffsets(numElements, alignment, arrays...).back();
     return numBytesPacked;
