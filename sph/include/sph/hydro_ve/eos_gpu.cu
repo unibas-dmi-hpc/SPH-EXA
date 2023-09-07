@@ -30,8 +30,8 @@
  */
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/primitives/math.hpp"
 #include "cstone/util/tuple.hpp"
-#include "cstone/util/util.hpp"
 
 #include "sph/sph_gpu.hpp"
 #include "sph/eos.hpp"
@@ -63,7 +63,7 @@ void computeEOS(size_t firstParticle, size_t lastParticle, Tt mui, Tt gamma, con
                 Thydro* p)
 {
     unsigned numThreads = 256;
-    unsigned numBlocks  = iceil(lastParticle - firstParticle, numThreads);
+    unsigned numBlocks  = cstone::iceil(lastParticle - firstParticle, numThreads);
     cudaEOS<<<numBlocks, numThreads>>>(firstParticle, lastParticle, mui, gamma, temp, m, kx, xm, gradh, prho, c, rho,
                                        p);
     checkGpuErrors(cudaDeviceSynchronize());

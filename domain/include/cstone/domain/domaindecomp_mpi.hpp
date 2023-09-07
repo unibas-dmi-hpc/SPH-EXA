@@ -148,7 +148,7 @@ void exchangeParticles(const SendRanges& sends,
         char* particleData = receiveBuffer.data() + headerBytes;
         auto packTuple     = packBufferPtrs<alignment>(particleData, receiveCount, (arrays + receiveLocation)...);
         auto scatterRanges = [receiveCount](auto arrayPair) { std::copy_n(arrayPair[1], receiveCount, arrayPair[0]); };
-        for_each_tuple(scatterRanges, packTuple);
+        util::for_each_tuple(scatterRanges, packTuple);
 
         receiveStart += receiveCount;
     }

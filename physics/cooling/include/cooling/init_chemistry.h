@@ -5,7 +5,6 @@
 #pragma once
 
 #include <iostream>
-#include "cstone/util/util.hpp"
 #include "cstone/fields/field_get.hpp"
 
 namespace cooling

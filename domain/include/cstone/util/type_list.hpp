@@ -36,7 +36,6 @@
 #include <type_traits>
 
 #include "cstone/primitives/stl.hpp"
-#include "util.hpp"
 
 namespace util
 {
@@ -346,5 +345,12 @@ struct SwapArg<Base<T, I>, Arg>
 {
     using type = Base<Arg, I>;
 };
+
+//! @brief return the index sequence of the subList entries in the baseList
+template<class... Ts1, class... Ts2>
+auto subsetIndices(TypeList<Ts1...> /*subList*/, TypeList<Ts2...> /*baseList*/)
+{
+    return std::index_sequence<FindIndex<Ts1, TypeList<Ts2...>>{}...>{};
+}
 
 } // namespace util

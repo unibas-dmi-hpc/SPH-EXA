@@ -29,6 +29,7 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include "cstone/primitives/math.hpp"
 #include "cstone/traversal/collisions_gpu.h"
 
 namespace cstone

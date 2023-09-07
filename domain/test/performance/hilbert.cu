@@ -38,8 +38,8 @@
 #include <thrust/sort.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/primitives/math.hpp"
 #include "cstone/sfc/sfc_gpu.h"
-#include "cstone/util/util.hpp"
 
 #include "timing.cuh"
 

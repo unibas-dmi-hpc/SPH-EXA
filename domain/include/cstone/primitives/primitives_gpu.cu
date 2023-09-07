@@ -40,7 +40,8 @@
 #include <thrust/sort.h>
 
 #include "cstone/cuda/errorcheck.cuh"
-#include "cstone/util/util.hpp"
+#include "cstone/primitives/math.hpp"
+#include "cstone/util/array.hpp"
 #include "primitives_gpu.h"
 
 namespace cstone

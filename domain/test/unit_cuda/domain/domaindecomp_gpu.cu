@@ -46,8 +46,8 @@ static void sendListMinimalGpu()
 
     int numRanks = 2;
     SpaceCurveAssignment assignment(numRanks);
-    assignment.addRange(Rank(0), 0, 2, 0);
-    assignment.addRange(Rank(1), 2, 4, 0);
+    assignment.addRange(0, 0, 2, 0);
+    assignment.addRange(1, 2, 4, 0);
 
     thrust::device_vector<KeyType> d_keys = codes;
     thrust::device_vector<KeyType> d_searchKeys(numRanks);
