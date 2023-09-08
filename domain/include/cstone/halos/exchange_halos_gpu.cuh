@@ -55,7 +55,7 @@ void haloExchangeGpu(int epoch,
                      DevVec2& receiveScratchBuffer,
                      Arrays... arrays)
 {
-    constexpr int alignment = 1;
+    constexpr int alignment = 8;
     using IndexType         = SendManifest::IndexType;
 
     int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
