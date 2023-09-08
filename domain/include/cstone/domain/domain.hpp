@@ -212,7 +212,7 @@ public:
             distribute(sorter, particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratch);
         // h is already reordered here for use in halo discovery
         gatherArrays(sorter.gatherFunc(), sorter.getMap() + global_.numSendDown(), global_.numAssigned(), exchangeStart,
-                     0, std::tie(h), scratch);
+                     0, std::tie(h), util::reverse(scratch));
 
         float invThetaEff      = invThetaMinMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
@@ -263,7 +263,7 @@ public:
         auto [exchangeStart, keyView] =
             distribute(sorter, particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratch);
         gatherArrays(sorter.gatherFunc(), sorter.getMap() + global_.numSendDown(), global_.numAssigned(), exchangeStart,
-                     0, std::tie(x, y, z, h, m), scratch);
+                     0, std::tie(x, y, z, h, m), util::reverse(scratch));
 
         float invThetaEff      = invThetaVecMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
@@ -537,11 +537,12 @@ private:
         }
 
         // relocate ordered buffer contents from offset 0 to offset newBufDesc.start
-        auto relocate = [size = keyView.size(), dest = newBufDesc.start, &scratchBuffers](auto& array)
+        auto relocate =
+            [size = keyView.size(), dest = newBufDesc.start, scratch = util::reverse(scratchBuffers)](auto& array)
         {
             static_assert(util::FindIndex<decltype(array), std::tuple<Arrays3&...>>{} < sizeof...(Arrays3),
                           "No suitable scratch buffer available");
-            auto& swapSpace = util::pickType<decltype(array)>(scratchBuffers);
+            auto& swapSpace = util::pickType<decltype(array)>(scratch);
             if constexpr (IsDeviceVector<std::decay_t<decltype(array)>>{})
             {
                 memcpyD2D(rawPtr(array), size, rawPtr(swapSpace) + dest);
@@ -553,7 +554,7 @@ private:
 
         // reorder the unordered buffers
         gatherArrays(sorter.gatherFunc(), sorter.getMap() + global_.numSendDown(), global_.numAssigned(), exchangeStart,
-                     newBufDesc.start, unorderedBuffers, scratchBuffers);
+                     newBufDesc.start, unorderedBuffers, util::reverse(scratchBuffers));
 
         // newBufDesc is now the valid buffer description
         prevBufDesc_ = bufDesc_;
