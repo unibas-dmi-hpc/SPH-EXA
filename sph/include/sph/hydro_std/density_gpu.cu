@@ -48,7 +48,7 @@ using cstone::TreeNodeIndex;
 __device__ bool nc_h_convergenceFailure = false;
 
 template<class Tc, class Tm, class T, class KeyType>
-__global__ void cudaDensity(T K, unsigned ng0, unsigned ngmax, cstone::Box<T> box, const cstone::LocalIndex* groups,
+__global__ void cudaDensity(Tc K, unsigned ng0, unsigned ngmax, cstone::Box<Tc> box, const cstone::LocalIndex* groups,
                             cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, unsigned* nc,
                             const Tc* x, const Tc* y, const Tc* z, T* h, const Tm* m, const T* wh, const T* whd, T* rho,
                             LocalIndex* nidx, TreeNodeIndex* globalPool)

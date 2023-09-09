@@ -47,7 +47,7 @@ using cstone::TravConfig;
 using cstone::TreeNodeIndex;
 
 template<typename Tc, class Tm, class T, class KeyType>
-__global__ void veDefGradhGpu(T K, unsigned ngmax, const cstone::Box<Tc> box, const cstone::LocalIndex* groups,
+__global__ void veDefGradhGpu(Tc K, unsigned ngmax, const cstone::Box<Tc> box, const cstone::LocalIndex* groups,
                               cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x,
                               const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd, const T* xm,
                               T* kx, T* gradh, cstone::LocalIndex* nidx, TreeNodeIndex* globalPool)

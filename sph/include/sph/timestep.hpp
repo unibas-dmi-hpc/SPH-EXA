@@ -71,7 +71,7 @@ auto accelerationTimestep(size_t first, size_t last, const Dataset& d)
 template<class Dataset>
 auto rhoTimestep(size_t first, size_t last, const Dataset& d)
 {
-    using T = typename Dataset::RealType;
+    using T = std::decay_t<decltype(d.divv[0])>;
 
     T maxDivv = -INFINITY;
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})

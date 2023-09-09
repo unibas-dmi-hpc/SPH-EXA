@@ -42,7 +42,7 @@ namespace cuda
 {
 
 template<class Tt, class Tm, class Thydro>
-__global__ void cudaEOS(size_t firstParticle, size_t lastParticle, Tt mui, Tt gamma, const Tt* temp, const Tm* m,
+__global__ void cudaEOS(size_t firstParticle, size_t lastParticle, Tm mui, Tt gamma, const Tt* temp, const Tm* m,
                         const Thydro* kx, const Thydro* xm, const Thydro* gradh, Thydro* prho, Thydro* c, Thydro* rho,
                         Thydro* p)
 {
@@ -58,7 +58,7 @@ __global__ void cudaEOS(size_t firstParticle, size_t lastParticle, Tt mui, Tt ga
 }
 
 template<class Tt, class Tm, class Thydro>
-void computeEOS(size_t firstParticle, size_t lastParticle, Tt mui, Tt gamma, const Tt* temp, const Tm* m,
+void computeEOS(size_t firstParticle, size_t lastParticle, Tm mui, Tt gamma, const Tt* temp, const Tm* m,
                 const Thydro* kx, const Thydro* xm, const Thydro* gradh, Thydro* prho, Thydro* c, Thydro* rho,
                 Thydro* p)
 {
@@ -70,7 +70,7 @@ void computeEOS(size_t firstParticle, size_t lastParticle, Tt mui, Tt gamma, con
 }
 
 #define COMPUTE_EOS(Ttemp, Tm, Thydro)                                                                                 \
-    template void computeEOS(size_t firstParticle, size_t lastParticle, Ttemp mui, Ttemp gamma, const Ttemp* temp,     \
+    template void computeEOS(size_t firstParticle, size_t lastParticle, Tm mui, Ttemp gamma, const Ttemp* temp,        \
                              const Tm* m, const Thydro* kx, const Thydro* xm, const Thydro* gradh, Thydro* prho,       \
                              Thydro* c, Thydro* rho, Thydro* p)
 

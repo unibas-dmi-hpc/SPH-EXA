@@ -53,8 +53,8 @@ TEST(AVswitches, JLoop)
     T mpart = 3.781038064465603e26;
     T dt    = 0.3;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 

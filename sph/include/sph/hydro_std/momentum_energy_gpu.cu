@@ -51,7 +51,7 @@ using cstone::TreeNodeIndex;
 static __device__ float minDt_device;
 
 template<class Tc, class Tm, class T, class Tm1, class KeyType>
-__global__ void cudaGradP(T K, T Kcour, unsigned ngmax, cstone::Box<T> box, const cstone::LocalIndex* groups,
+__global__ void cudaGradP(Tc K, Tc Kcour, unsigned ngmax, cstone::Box<Tc> box, const cstone::LocalIndex* groups,
                           cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x,
                           const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz, const T* h, const Tm* m,
                           const T* rho, const T* p, const T* c, const T* c11, const T* c12, const T* c13, const T* c22,

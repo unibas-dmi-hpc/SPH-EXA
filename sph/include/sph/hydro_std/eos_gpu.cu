@@ -42,7 +42,7 @@ namespace cuda
 {
 
 template<class Tt, class Trho, class Tp, class Tc>
-__global__ void cudaEOS_HydroStd(size_t firstParticle, size_t lastParticle, Tt mui, Tt gamma, const Tt* temp,
+__global__ void cudaEOS_HydroStd(size_t firstParticle, size_t lastParticle, Trho mui, Tt gamma, const Tt* temp,
                                  const Trho* rho, Tp* p, Tc* c)
 {
     unsigned i = firstParticle + blockDim.x * blockIdx.x + threadIdx.x;
@@ -52,7 +52,7 @@ __global__ void cudaEOS_HydroStd(size_t firstParticle, size_t lastParticle, Tt m
 }
 
 template<class Tt, class Trho, class Tp, class Tc>
-void computeEOS_HydroStd(size_t firstParticle, size_t lastParticle, Tt mui, Tt gamma, const Tt* temp, const Trho* rho,
+void computeEOS_HydroStd(size_t firstParticle, size_t lastParticle, Trho mui, Tt gamma, const Tt* temp, const Trho* rho,
                          Tp* p, Tc* c)
 {
     unsigned numThreads = 256;
@@ -62,7 +62,7 @@ void computeEOS_HydroStd(size_t firstParticle, size_t lastParticle, Tt mui, Tt g
 }
 
 template void computeEOS_HydroStd(size_t, size_t, double, double, const double*, const double*, double*, double*);
-template void computeEOS_HydroStd(size_t, size_t, double, double, const double*, const float*, float*, float*);
+template void computeEOS_HydroStd(size_t, size_t, float, double, const double*, const float*, float*, float*);
 template void computeEOS_HydroStd(size_t, size_t, float, float, const float*, const float*, float*, float*);
 
 } // namespace cuda
