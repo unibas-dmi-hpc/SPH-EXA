@@ -48,8 +48,8 @@ TEST(IAD, JLoop)
     T K         = compute_3d_k(sincIndex);
     T mpart     = 3.781038064465603e26;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
@@ -137,8 +137,8 @@ TEST(IAD, JLoopPBC)
     T sincIndex = 6.0;
     T K         = compute_3d_k(sincIndex);
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     // box length in any dimension must be bigger than 4*h for any particle
     // otherwise the PBC evaluation does not select the closest image

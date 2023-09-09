@@ -235,6 +235,7 @@ const MType* MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::deviceMultipol
 
 MHOLDER_SPH(double, double, double, double, double, uint64_t, double);
 MHOLDER_SPH(double, double, float, double, double, uint64_t, float);
+MHOLDER_SPH(double, float, float, float, double, uint64_t, float);
 MHOLDER_SPH(float, float, float, float, float, uint64_t, float);
 
 #define MHOLDER_CART(Tc, Th, Tm, Ta, Tf, KeyType, MVal)                                                                \
@@ -242,6 +243,7 @@ MHOLDER_SPH(float, float, float, float, float, uint64_t, float);
 
 MHOLDER_CART(double, double, double, double, double, uint64_t, double);
 MHOLDER_CART(double, double, float, double, double, uint64_t, float);
+MHOLDER_CART(double, float, float, float, double, uint64_t, float);
 MHOLDER_CART(float, float, float, float, float, uint64_t, float);
 
 #define DIRECT_SUM(T)                                                                                                  \

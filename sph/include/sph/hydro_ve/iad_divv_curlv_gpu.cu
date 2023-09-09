@@ -48,7 +48,7 @@ using cstone::TravConfig;
 using cstone::TreeNodeIndex;
 
 template<class Tc, class T, class KeyType>
-__global__ void iadDivvCurlvGpu(T K, unsigned ngmax, const cstone::Box<Tc> box, const cstone::LocalIndex* groups,
+__global__ void iadDivvCurlvGpu(Tc K, unsigned ngmax, const cstone::Box<Tc> box, const cstone::LocalIndex* groups,
                                 cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x,
                                 const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz, const T* h,
                                 const T* wh, const T* whd, const T* xm, const T* kx, T* c11, T* c12, T* c13, T* c22,

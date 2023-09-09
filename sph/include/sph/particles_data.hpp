@@ -61,11 +61,13 @@ template<typename T, typename KeyType_, class AccType>
 class ParticlesData : public cstone::FieldStates<ParticlesData<T, KeyType_, AccType>>
 {
 public:
-    using KeyType         = KeyType_;
-    using RealType        = T;
-    using Tmass           = float;
-    using XM1Type         = float;
     using AcceleratorType = AccType;
+
+    using KeyType   = KeyType_;
+    using RealType  = T;
+    using HydroType = float;
+    using XM1Type   = float;
+    using Tmass     = float;
 
     template<class ValueType>
     using PinnedVec = std::vector<ValueType, PinnedAlloc_t<AcceleratorType, ValueType>>;
@@ -112,7 +114,7 @@ public:
     T gamma{5.0 / 3.0};
 
     //! @brief mean molecular weight of ions for models that use one value for all particles
-    T muiConst{10.0};
+    Tmass muiConst{10.0};
 
     //! @brief Unified interface to attribute initialization, reading and writing
     template<class Archive>
@@ -156,30 +158,31 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    FieldVector<T>        x, y, z;                            // Positions
-    FieldVector<XM1Type>  x_m1, y_m1, z_m1;                   // Difference between current and previous positions
-    FieldVector<T>        vx, vy, vz;                         // Velocities
-    FieldVector<T>        rho;                                // Density
-    FieldVector<T>        temp;                               // Temperature
-    FieldVector<T>        u;                                  // Internal Energy
-    FieldVector<T>        p;                                  // Pressure
-    FieldVector<T>        prho;                               // p / (kx * m^2 * gradh)
-    FieldVector<T>        h;                                  // Smoothing Length
-    FieldVector<Tmass>    m;                                  // Mass
-    FieldVector<T>        c;                                  // Speed of sound
-    FieldVector<T>        cv;                                 // Specific heat
-    FieldVector<T>        mue, mui;                           // mean molecular weight (electrons, ions)
-    FieldVector<T>        divv, curlv;                        // Div(velocity), Curl(velocity)
-    FieldVector<T>        ax, ay, az;                         // acceleration
-    FieldVector<XM1Type>  du, du_m1;                          // energy rate of change (du/dt)
-    FieldVector<T>        c11, c12, c13, c22, c23, c33;       // IAD components
-    FieldVector<T>        alpha;                              // AV coeficient
-    FieldVector<T>        xm;                                 // Volume element definition
-    FieldVector<T>        kx;                                 // Volume element normalization
-    FieldVector<T>        gradh;                              // grad(h) term
-    FieldVector<KeyType>  keys;                               // Particle space-filling-curve keys
-    FieldVector<unsigned> nc;                                 // number of neighbors of each particle
-    FieldVector<T>        dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
+    FieldVector<T>         x, y, z;                            // Positions
+    FieldVector<XM1Type>   x_m1, y_m1, z_m1;                   // Difference between current and previous positions
+    FieldVector<HydroType> vx, vy, vz;                         // Velocities
+    FieldVector<HydroType> rho;                                // Density
+    FieldVector<T>         temp;                               // Temperature
+    FieldVector<T>         u;                                  // Internal Energy
+    FieldVector<HydroType> p;                                  // Pressure
+    FieldVector<HydroType> prho;                               // p / (kx * m^2 * gradh)
+    FieldVector<HydroType> h;                                  // Smoothing Length
+    FieldVector<Tmass>     m;                                  // Mass
+    FieldVector<HydroType> c;                                  // Speed of sound
+    FieldVector<HydroType> cv;                                 // Specific heat
+    FieldVector<HydroType> mue, mui;                           // mean molecular weight (electrons, ions)
+    FieldVector<HydroType> divv, curlv;                        // Div(velocity), Curl(velocity)
+    FieldVector<HydroType> ax, ay, az;                         // acceleration
+    FieldVector<T>         du;                                 // energy rate of change (du/dt)
+    FieldVector<XM1Type>   du_m1;                              // previous energy rate of change (du/dt)
+    FieldVector<HydroType> c11, c12, c13, c22, c23, c33;       // IAD components
+    FieldVector<HydroType> alpha;                              // AV coeficient
+    FieldVector<HydroType> xm;                                 // Volume element definition
+    FieldVector<HydroType> kx;                                 // Volume element normalization
+    FieldVector<HydroType> gradh;                              // grad(h) term
+    FieldVector<KeyType>   keys;                               // Particle space-filling-curve keys
+    FieldVector<unsigned>  nc;                                 // number of neighbors of each particle
+    FieldVector<HydroType> dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
 
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
     std::vector<cstone::LocalIndex>             neighbors;
@@ -187,8 +190,8 @@ public:
 
     DeviceData_t<AccType, T, KeyType> devData;
 
-    const std::array<T, lt::size> wh  = lt::createWharmonicLookupTable<T, lt::size>(sincIndex);
-    const std::array<T, lt::size> whd = lt::createWharmonicDerivativeLookupTable<T, lt::size>(sincIndex);
+    const std::array<HydroType, lt::size> wh  = lt::createWharmonicTable<HydroType, lt::size>(sincIndex);
+    const std::array<HydroType, lt::size> whd = lt::createWharmonicDerivativeTable<HydroType, lt::size>(sincIndex);
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
@@ -276,14 +279,14 @@ public:
     // Min. Atwood number in ramp function in momentum equation (crossed/uncrossed selection)
     // Complete uncrossed option (Atmin>=1.d50, Atmax it doesn't matter).
     // Complete crossed (Atmin and Atmax negative)
-    constexpr static T Atmin = 0.1;
-    constexpr static T Atmax = 0.2;
-    constexpr static T ramp  = 1.0 / (Atmax - Atmin);
+    constexpr static HydroType Atmin = 0.1;
+    constexpr static HydroType Atmax = 0.2;
+    constexpr static HydroType ramp  = 1.0 / (Atmax - Atmin);
 
     // AV switches floor and ceiling
-    constexpr static T alphamin       = 0.05;
-    constexpr static T alphamax       = 1.0;
-    constexpr static T decay_constant = 0.2;
+    constexpr static HydroType alphamin       = 0.05;
+    constexpr static HydroType alphamax       = 1.0;
+    constexpr static HydroType decay_constant = 0.2;
 
     // Interpolation kernel normalization constant
     const static T K;

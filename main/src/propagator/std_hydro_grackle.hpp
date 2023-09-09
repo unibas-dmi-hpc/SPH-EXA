@@ -217,7 +217,8 @@ public:
         {
             T u_old  = d.u[i];
             T u_cool = d.u[i];
-            cooling_data.cool_particle(d.minDt, d.rho[i], u_cool,
+            T rhoi   = d.rho[i];
+            cooling_data.cool_particle(T(d.minDt), rhoi, u_cool,
                                        cstone::getPointers(get<CoolingFields>(simData.chem), i));
             const T du = (u_cool - u_old) / d.minDt;
             d.du[i] += du;

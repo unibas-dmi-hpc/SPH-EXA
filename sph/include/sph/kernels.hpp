@@ -21,7 +21,7 @@ HOST_DEVICE_FUN inline T compute_3d_k(T n)
 
 //! @brief compute time-step based on the signal velocity
 template<class T1, class T2, class T3>
-HOST_DEVICE_FUN inline auto tsKCourant(T1 maxvsignal, T2 h, T3 c, double Kcour)
+HOST_DEVICE_FUN inline auto tsKCourant(T1 maxvsignal, T2 h, T3 c, float Kcour)
 {
     using T = std::common_type_t<T1, T2, T3>;
     T v     = maxvsignal > T(0) ? maxvsignal : c;
