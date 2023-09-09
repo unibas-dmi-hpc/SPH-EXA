@@ -7,9 +7,9 @@ namespace sph
 
 using cstone::LocalIndex;
 
-template<class T, class KeyType>
-void findNeighborsSph(const T* x, const T* y, const T* z, T* h, LocalIndex firstId, LocalIndex lastId,
-                      const cstone::Box<T>& box, const cstone::OctreeNsView<T, KeyType>& treeView, unsigned ng0,
+template<class Tc, class T, class KeyType>
+void findNeighborsSph(const Tc* x, const Tc* y, const Tc* z, T* h, LocalIndex firstId, LocalIndex lastId,
+                      const cstone::Box<Tc>& box, const cstone::OctreeNsView<Tc, KeyType>& treeView, unsigned ng0,
                       unsigned ngmax, LocalIndex* neighbors, unsigned* nc)
 {
     LocalIndex numWork = lastId - firstId;

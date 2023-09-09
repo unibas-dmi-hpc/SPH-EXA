@@ -12,7 +12,7 @@ constexpr int size = 20000;
 
 //! @brief create a lookup-table for sinc(x)^sincIndex
 template<typename T, std::size_t N>
-std::array<T, N> createWharmonicLookupTable(T sincIndex)
+std::array<T, N> createWharmonicTable(double sincIndex)
 {
     constexpr int    numIntervals = N - 1;
     std::array<T, N> wh;
@@ -28,7 +28,7 @@ std::array<T, N> createWharmonicLookupTable(T sincIndex)
 
 //! @brief create a lookup-table for d(sinc(x)^sincIndex)/dx
 template<typename T, std::size_t N>
-std::array<T, N> createWharmonicDerivativeLookupTable(T sincIndex)
+std::array<T, N> createWharmonicDerivativeTable(double sincIndex)
 {
     constexpr int    numIntervals = N - 1;
     std::array<T, N> whd;

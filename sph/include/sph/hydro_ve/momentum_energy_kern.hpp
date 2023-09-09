@@ -65,7 +65,7 @@ HOST_DEVICE_FUN T avRvCorrection(util::array<Tc, 3> R, Tc eta_ab, T eta_crit, co
 
 template<bool avClean, size_t stride = 1, class Tc, class Tm, class T, class Tm1>
 HOST_DEVICE_FUN inline void
-momentumAndEnergyJLoop(cstone::LocalIndex i, T K, const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
+momentumAndEnergyJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
                        unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy,
                        const T* vz, const T* h, const Tm* m, const T* prho, const T* c, const T* c11, const T* c12,
                        const T* c13, const T* c22, const T* c23, const T* c33, const T Atmin, const T Atmax,

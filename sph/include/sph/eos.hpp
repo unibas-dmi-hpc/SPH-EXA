@@ -10,11 +10,11 @@ namespace sph
 {
 
 //! @brief returns the heat capacity for given mean molecular weight
-template<class T>
-HOST_DEVICE_FUN constexpr T idealGasCv(T mui, T gamma)
+template<class T1, class T2>
+HOST_DEVICE_FUN constexpr T1 idealGasCv(T1 mui, T2 gamma)
 {
-    constexpr T R = 8.317e7;
-    return R / mui / (gamma - T(1));
+    constexpr T1 R = 8.317e7;
+    return R / mui / (gamma - T1(1));
 }
 
 /*! @brief Reduced version of Ideal gas EOS for internal energy
@@ -27,10 +27,10 @@ HOST_DEVICE_FUN constexpr T idealGasCv(T mui, T gamma)
  * This EOS is used for simple cases where we don't need the temperature.
  * Returns pressure, speed of sound
  */
-template<class T1, class T2>
-HOST_DEVICE_FUN auto idealGasEOS(T1 temp, T2 rho, T1 mui, T1 gamma)
+template<class T1, class T2, class T3>
+HOST_DEVICE_FUN auto idealGasEOS(T1 temp, T2 rho, T3 mui, T1 gamma)
 {
-    using Tc = std::common_type_t<T1, T2>;
+    using Tc = std::common_type_t<T1, T2, T3>;
 
     Tc tmp = idealGasCv(mui, gamma) * temp * (gamma - Tc(1));
     Tc p   = rho * tmp;

@@ -73,7 +73,7 @@ using cstone::TreeNodeIndex;
  * @param[out] c33
  */
 template<class Tc, class Tm, class T, class KeyType>
-__global__ void IADGpuKernel(T K, unsigned ngmax, cstone::Box<T> box, const cstone::LocalIndex* groups,
+__global__ void IADGpuKernel(Tc K, unsigned ngmax, cstone::Box<Tc> box, const cstone::LocalIndex* groups,
                              cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x,
                              const Tc* y, const Tc* z, const T* h, const Tm* m, const T* rho, const T* wh, const T* whd,
                              T* c11, T* c12, T* c13, T* c22, T* c23, T* c33, LocalIndex* nidx,

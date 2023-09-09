@@ -231,8 +231,8 @@ HOST_DEVICE_FUN inline Vec3<T> putInBox(Vec3<T> X, const Box<T>& box)
 }
 
 //! @brief Legacy PBC
-template<class T>
-HOST_DEVICE_FUN inline void applyPBC(const cstone::Box<T>& box, T r, T& xx, T& yy, T& zz)
+template<class Tc, class T>
+HOST_DEVICE_FUN inline void applyPBC(const cstone::Box<Tc>& box, T r, T& xx, T& yy, T& zz)
 {
     bool pbcX = (box.boundaryX() == BoundaryType::periodic);
     bool pbcY = (box.boundaryY() == BoundaryType::periodic);
@@ -257,11 +257,11 @@ HOST_DEVICE_FUN inline void applyPBC(const cstone::Box<T>& box, T r, T& xx, T& y
 template<class Tc, class T>
 HOST_DEVICE_FUN inline T distancePBC(const cstone::Box<Tc>& box, T hi, Tc x1, Tc y1, Tc z1, Tc x2, Tc y2, Tc z2)
 {
-    Tc xx = x1 - x2;
-    Tc yy = y1 - y2;
-    Tc zz = z1 - z2;
+    T xx = x1 - x2;
+    T yy = y1 - y2;
+    T zz = z1 - z2;
 
-    applyPBC<Tc>(box, 2.0 * hi, xx, yy, zz);
+    applyPBC(box, T(2) * hi, xx, yy, zz);
 
     return std::sqrt(xx * xx + yy * yy + zz * zz);
 }

@@ -53,7 +53,7 @@ using cstone::TreeNodeIndex;
 static __device__ float minDt_ve_device;
 
 template<bool avClean, class Tc, class Tm, class T, class Tm1, class KeyType>
-__global__ void momentumEnergyGpu(T K, T Kcour, T Atmin, T Atmax, T ramp, unsigned ngmax, const cstone::Box<T> box,
+__global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsigned ngmax, const cstone::Box<Tc> box,
                                   const cstone::LocalIndex* groups, cstone::LocalIndex numGroups,
                                   const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x, const Tc* y, const Tc* z,
                                   const T* vx, const T* vy, const T* vz, const T* h, const Tm* m, const T* prho,
