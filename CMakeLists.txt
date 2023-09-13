@@ -71,6 +71,9 @@ if (SPH_EXA_WITH_H5PART)
     endif ()
 endif ()
 
+option(SPH_EXA_WITH_HDF5 "Enable HDF5 IO using complete HDF5" ON)
+add_subdirectory(./extern/h5zzfp)
+
 set(INSITU None CACHE STRING "Enable in-situ support")
 set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent)
 

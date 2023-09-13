@@ -90,6 +90,7 @@ int main(int argc, char** argv)
     const bool               quiet             = parser.exists("--quiet");
     const bool               avClean           = parser.exists("--avclean");
     const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
+    const std::string        compressionMethod = parser.get("--compression", std::string(""));
     const bool               writeEnabled      = writeFrequencyStr != "0" || !writeExtra.empty();
     std::string              outFile           = parser.get("-o", "./dump_" + initCond);
 
@@ -100,7 +101,7 @@ int main(int argc, char** argv)
     //! @brief evaluate user choice for different kind of actions
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank);
-    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD);
+    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD, compressionMethod);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
     Dataset simData;
