@@ -30,6 +30,8 @@
 
 #pragma once
 
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "H5Part.h"
@@ -38,11 +40,6 @@ namespace sphexa
 {
 namespace fileutils
 {
-
-template<class T>
-struct H5PartType
-{
-};
 
 std::string H5PartTypeToString(h5part_int64_t type)
 {
@@ -54,6 +51,11 @@ std::string H5PartTypeToString(h5part_int64_t type)
 
     return "H5PART_UNKNOWN";
 }
+
+template<class T>
+struct H5PartType
+{
+};
 
 template<>
 struct H5PartType<double>
@@ -152,6 +154,18 @@ std::vector<std::string> stepAttributeNames(H5PartFile* h5_file)
     return setNames;
 }
 
+template<class T>
+auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const T* value, size_t numElements)
+{
+    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PartType<T>{}, value, numElements);
+}
+
+template<class T>
+auto sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const T* value, size_t numElements)
+{
+    return H5PartWriteFileAttrib(h5_file, name.c_str(), H5PartType<T>{}, value, numElements);
+}
+
 /* read fields */
 
 inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, double* field)
@@ -230,60 +244,6 @@ inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& f
 inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const uint64_t* field)
 {
     return H5PartWriteDataInt64(h5_file, fieldName.c_str(), (const h5part_int64_t*)field);
-}
-
-/* write step attributes */
-
-auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const double* value, size_t numElements)
-{
-    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
-}
-
-auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const float* value, size_t numElements)
-{
-    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
-}
-
-auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const char* value, size_t numElements)
-{
-    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_CHAR, value, numElements);
-}
-
-auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const int* value, size_t numElements)
-{
-    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT32, value, numElements);
-}
-
-auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const int64_t* value, size_t numElements)
-{
-    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT64, value, numElements);
-}
-
-auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const unsigned* value, size_t numElements)
-{
-    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT32, value, numElements);
-}
-
-auto sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, const uint64_t* value, size_t numElements)
-{
-    return H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_INT64, value, numElements);
-}
-
-/* write file attributes */
-
-auto sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const double* value, size_t numElements)
-{
-    return H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
-}
-
-auto sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const float* value, size_t numElements)
-{
-    return H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
-}
-
-auto sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const char* value, size_t numElements)
-{
-    return H5PartWriteFileAttrib(h5_file, name.c_str(), H5PART_CHAR, value, numElements);
 }
 
 //! @brief Open in parallel mode if supported, otherwise serial if numRanks == 1
