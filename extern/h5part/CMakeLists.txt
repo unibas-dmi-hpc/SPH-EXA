@@ -49,7 +49,6 @@ endif()
 # libraries
 #--------------------------------------------------------
 target_link_libraries(H5Part ${HDF5_LIBRARIES})
-message(${HDF5_LIBRARIES})
 
 #--------------------------------------------------------
 # Includes, configuration headers
