@@ -34,7 +34,7 @@
 #include <iostream>
 #include <mpi.h>
 #include "H5Part.h"
-#include "H5Cpp.h"
+#include "hdf5.h"
 #include "H5Zzfp.h"
 
 namespace sphexa
