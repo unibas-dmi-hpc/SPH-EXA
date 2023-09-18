@@ -197,3 +197,19 @@ TEST(ParticlesData, getFieldList)
     auto& xRef = get<"x">(d);
     EXPECT_EQ(d.x.data(), xRef.data());
 }
+
+TEST(ParticlesData, setOutput)
+{
+    ParticlesData<double, unsigned, cstone::CpuTag> d;
+
+    std::vector<std::string> fields{"x", "y", "rho", "SomeOtherField"};
+
+    d.setOutputFields(fields);
+
+    // "SomeOtherField" is not recognized by ParticlesData, therefore it will be left-over in @a fields
+    EXPECT_EQ(fields.size(), 1);
+    EXPECT_EQ(fields[0], "SomeOtherField");
+
+    std::vector<std::string> ref{"x", "y", "rho"};
+    EXPECT_EQ(d.outputFieldNames, ref);
+}

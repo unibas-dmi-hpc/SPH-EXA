@@ -60,6 +60,23 @@ public:
     // NuclearData nuclear;
 
     MPI_Comm comm;
+
+    //! @brief record user selection of output fields
+    void setOutputFields(std::vector<std::string> outFields)
+    {
+        hydro.setOutputFields(outFields);
+        chem.setOutputFields(outFields);
+
+        if (!outFields.empty())
+        {
+            std::string msg;
+            for (auto& s : outFields)
+            {
+                msg += s + ", ";
+            }
+            throw std::runtime_error("The following fields for output were not found: " + msg);
+        }
+    }
 };
 
 } // namespace sphexa

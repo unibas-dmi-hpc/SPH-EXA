@@ -113,6 +113,7 @@ public:
     {
         std::vector<std::string> ret{"x", "y", "z", "h", "m"};
         for_each_tuple([&ret](auto f) { ret.push_back(f.value); }, make_tuple(ConservedFields{}));
+        for_each_tuple([&ret](auto f) { ret.push_back(f.value); }, make_tuple(CoolingFields{}));
         return ret;
     }
 

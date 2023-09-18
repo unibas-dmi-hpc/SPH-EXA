@@ -236,7 +236,7 @@ public:
                     int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
-                    std::visit([writer, c = column, key = d.fieldNames[fidx]](auto field)
+                    std::visit([writer, c = column, key = d.outputFieldNames[i]](auto field)
                                { writer->writeField(key, field->data(), c); },
                                fieldPointers[fidx]);
                     outputFields.erase(outputFields.begin() + i);

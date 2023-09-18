@@ -199,6 +199,9 @@ public:
         "c22",   "c23",  "c33", "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv", "alpha",
         "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
 
+    //! @brief dataset prefix to be prepended to fieldNames for structured output
+    static const inline std::string prefix{};
+
     static_assert(!cstone::HaveGpu<AcceleratorType>{} ||
                       fieldNames.size() == DeviceData_t<AccType, T, KeyType>::fieldNames.size(),
                   "ParticlesData on CPU and GPU must have the same fields");
@@ -228,10 +231,23 @@ public:
                           dataTuple());
     }
 
-    void setOutputFields(const std::vector<std::string>& outFields)
+    /*! @brief mark fields file output
+     *
+     * @param outFields  list of field names
+     *
+     * Selected fields that match existing names contained in @a fieldNames will be removed from the argument
+     * @p field names.
+     */
+    void setOutputFields(std::vector<std::string>& outFields)
     {
-        outputFieldNames   = outFields;
-        outputFieldIndices = cstone::fieldStringsToInt(outFields, fieldNames);
+        auto hasField = [](const std::string& field)
+        { return cstone::getFieldIndex(field, fieldNames) < fieldNames.size(); };
+
+        std::copy_if(outFields.begin(), outFields.end(), std::back_inserter(outputFieldNames), hasField);
+        outputFieldIndices = cstone::fieldStringsToInt(outputFieldNames, fieldNames);
+        std::for_each(outputFieldNames.begin(), outputFieldNames.end(), [](auto& f) { f = prefix + f; });
+
+        outFields.erase(std::remove_if(outFields.begin(), outFields.end(), hasField), outFields.end());
     }
 
     void resize(size_t size)

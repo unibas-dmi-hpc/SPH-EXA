@@ -186,14 +186,13 @@ public:
     }
 
     void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
-                    const cstone::Box<T>& box) override
+                    const cstone::Box<T>& /*box*/) override
     {
-        auto&            d             = simData.hydro;
-        auto             fieldPointers = d.data();
-        std::vector<int> outputFields  = d.outputFieldIndices;
-
-        auto output = [&]()
+        auto output = [&](auto& d)
         {
+            auto             fieldPointers = d.data();
+            std::vector<int> outputFields  = d.outputFieldIndices;
+
             for (int i = int(outputFields.size()) - 1; i >= 0; --i)
             {
                 int fidx = outputFields[i];
@@ -202,25 +201,26 @@ public:
                     int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
-                    std::visit([writer, c = column, key = d.fieldNames[fidx]](auto field)
+                    std::visit([writer, c = column, key = d.outputFieldNames[i]](auto field)
                                { writer->writeField(key, field->data(), c); },
                                fieldPointers[fidx]);
                     outputFields.erase(outputFields.begin() + i);
                 }
             }
+
+            if (!outputFields.empty() && Base::rank_ == 0)
+            {
+                std::cout << "WARNING: the following fields are not in use and therefore not output: ";
+                for (int fidx = 0; fidx < outputFields.size() - 1; ++fidx)
+                {
+                    std::cout << d.fieldNames[fidx] << ",";
+                }
+                std::cout << d.fieldNames[outputFields.back()] << std::endl;
+            }
         };
 
-        output();
-
-        if (!outputFields.empty() && Base::rank_ == 0)
-        {
-            std::cout << "WARNING: the following fields are not in use and therefore not output: ";
-            for (int fidx = 0; fidx < outputFields.size() - 1; ++fidx)
-            {
-                std::cout << d.fieldNames[fidx] << ",";
-            }
-            std::cout << d.fieldNames[outputFields.back()] << std::endl;
-        }
+        output(simData.hydro);
+        output(simData.chem);
     }
 };
 
