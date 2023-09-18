@@ -33,7 +33,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/fields/particles_get.hpp"
+#include "cstone/fields/field_get.hpp"
 #include "sph/particles_data.hpp"
 
 using namespace sphexa;
@@ -182,7 +182,7 @@ TEST(ParticlesData, getFieldList)
     d.resize(1);
     d.rho[0] = 1;
 
-    using Fields = cstone::FieldList<"x", "y", "rho">;
+    using Fields = util::FieldList<"x", "y", "rho">;
 
     auto acc = get<Fields>(d);
 
@@ -196,4 +196,20 @@ TEST(ParticlesData, getFieldList)
     EXPECT_EQ(d.x.data(), get<std::get<0>(tup)>(d).data());
     auto& xRef = get<"x">(d);
     EXPECT_EQ(d.x.data(), xRef.data());
+}
+
+TEST(ParticlesData, setOutput)
+{
+    ParticlesData<double, unsigned, cstone::CpuTag> d;
+
+    std::vector<std::string> fields{"x", "y", "rho", "SomeOtherField"};
+
+    d.setOutputFields(fields);
+
+    // "SomeOtherField" is not recognized by ParticlesData, therefore it will be left-over in @a fields
+    EXPECT_EQ(fields.size(), 1);
+    EXPECT_EQ(fields[0], "SomeOtherField");
+
+    std::vector<std::string> ref{"x", "y", "rho"};
+    EXPECT_EQ(d.outputFieldNames, ref);
 }

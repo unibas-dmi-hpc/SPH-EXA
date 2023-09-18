@@ -43,10 +43,10 @@ namespace sph
 
 template<size_t stride = 1, class Tc, class T>
 HOST_DEVICE_FUN inline T
-AVswitchesJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
+AVswitchesJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
                 unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz,
                 const T* h, const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
-                const T* c33, const T* wh, const T* whd, const T* kx, const T* xm, const T* divv, const T dt,
+                const T* c33, const T* wh, const T* /*whd*/, const T* kx, const T* xm, const T* divv, const Tc dt,
                 const T alphamin, const T alphamax, const T decay_constant, T alpha_i)
 {
     auto xi  = x[i];
@@ -101,7 +101,7 @@ AVswitchesJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& bo
         vijsignal_i = stl::max(vijsignal_i, vijsignal_ij);
 
         T v1 = dist * hiInv;
-        T Wi = K * hiInv3 * math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wi = K * hiInv3 * lt::lookup(wh, v1);
 
         T termA1 = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
         T termA2 = -(c12i * rx + c22i * ry + c23i * rz) * Wi;

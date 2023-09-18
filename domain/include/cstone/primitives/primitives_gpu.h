@@ -45,6 +45,10 @@ extern void scaleGpu(T* first, T* last, T value);
 template<class T, class IndexType>
 extern void gatherGpu(const IndexType* ordering, size_t numElements, const T* src, T* buffer);
 
+//! @brief Lambda to avoid templated functors that would become template-template parameters when passed to functions.
+inline auto gatherGpuL = [](const auto* ordering, auto numElements, const auto* src, const auto dest)
+{ gatherGpu(ordering, numElements, src, dest); };
+
 template<class T>
 struct MinMaxGpu
 {
@@ -78,6 +82,9 @@ extern Tout reduceGpu(const Tin* input, size_t numElements, Tout init);
 
 template<class IndexType>
 extern void sequenceGpu(IndexType* input, size_t numElements, IndexType init);
+
+template<class KeyType, class ValueType>
+extern void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values, KeyType* keyBuf, ValueType* valueBuf);
 
 template<class KeyType, class ValueType>
 extern void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values);

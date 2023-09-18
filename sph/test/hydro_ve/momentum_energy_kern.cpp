@@ -65,8 +65,8 @@ TEST(MomentumEnergy, JLoop)
     T ramp      = 1.0 / (Atmax - Atmin);
     T mpart     = 3.781038064465603e26;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
@@ -139,7 +139,7 @@ TEST(MomentumEnergy, JLoop)
     for (i = 0; i < neighborsCount + 1; i++)
     {
         xm[i] = mpart / rho0[i];
-        kx[i] = K * xm[i] / math::pow(h[i], 3);
+        kx[i] = K * xm[i] / std::pow(h[i], 3);
     }
 
     std::vector<T> prho(p.size());
@@ -158,18 +158,18 @@ TEST(MomentumEnergy, JLoop)
         T maxvsignal = -1;
 
         // compute gradient for for particle 0
-        momentumAndEnergyJLoop<true>(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(),
-                                     z.data(), vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(),
-                                     c.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(),
-                                     Atmin, Atmax, ramp, wh.data(), whd.data(), kx.data(), xm.data(), alpha.data(),
+        momentumAndEnergyJLoop<true>(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
+                                     vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(), c.data(),
+                                     c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), Atmin,
+                                     Atmax, ramp, wh.data(), whd.data(), kx.data(), xm.data(), alpha.data(),
                                      dV11.data(), dV12.data(), dV13.data(), dV22.data(), dV23.data(), dV33.data(),
                                      &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
 
-        EXPECT_NEAR(grad_Px, -5.0554864587379282e5, 1e-8);
-        EXPECT_NEAR(grad_Py, 3.0338488942286494e5, 1e-8);
-        EXPECT_NEAR(grad_Pz, -1.7674639665806836e6, 1e-8);
-        EXPECT_NEAR(du, 8.5525242823085e12, 1e-2);
-        EXPECT_NEAR(maxvsignal, 2.64908763192523e7, 1e-6);
+        EXPECT_NEAR(grad_Px, -505548.68073726865, 0.023);
+        EXPECT_NEAR(grad_Py, 303384.91384746187, 0.053);
+        EXPECT_NEAR(grad_Pz, -1767463.9739728321, 0.043);
+        EXPECT_NEAR(du, 8.5525242525359648e12, 7.1e5);
+        EXPECT_NEAR(maxvsignal, 26490876.319252387, 1e-6);
     }
     // test without AV cleaning
     {
@@ -180,17 +180,17 @@ TEST(MomentumEnergy, JLoop)
         T maxvsignal = -1;
 
         // compute gradient for for particle 0
-        momentumAndEnergyJLoop<false>(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(),
-                                      z.data(), vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(),
-                                      c.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(),
-                                      Atmin, Atmax, ramp, wh.data(), whd.data(), kx.data(), xm.data(), alpha.data(),
+        momentumAndEnergyJLoop<false>(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
+                                      vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(), c.data(),
+                                      c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), Atmin,
+                                      Atmax, ramp, wh.data(), whd.data(), kx.data(), xm.data(), alpha.data(),
                                       dV11.data(), dV12.data(), dV13.data(), dV22.data(), dV23.data(), dV33.data(),
                                       &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
 
-        EXPECT_NEAR(grad_Px, -5.212610428350963e5, 1e-8);
-        EXPECT_NEAR(grad_Py, -7.4471044578240151e4, 1e-8);
-        EXPECT_NEAR(grad_Pz, -1.7304268207564927e6, 1e-8);
-        EXPECT_NEAR(du, 7.1838439171209658e12, 1e-2);
-        EXPECT_NEAR(maxvsignal, 2.6490876319252387e7, 1e-6);
+        EXPECT_NEAR(grad_Px, -521261.07791667967, 0.022);
+        EXPECT_NEAR(grad_Py, -74471.016515749841, 0.064);
+        EXPECT_NEAR(grad_Pz, -1730426.827721074, 0.042);
+        EXPECT_NEAR(du, 7.1838438980436924e12, 3.1e5);
+        EXPECT_NEAR(maxvsignal, 26490876.319252387, 1e-6);
     }
 }

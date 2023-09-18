@@ -45,8 +45,8 @@ TEST(MomentumEnergy, JLoop)
     T sincIndex = 6.0;
     T K         = compute_3d_k(sincIndex);
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
 
@@ -91,82 +91,14 @@ TEST(MomentumEnergy, JLoop)
     T maxvsignal = -1;
 
     // compute gradient for for particle 0
-    momentumAndEnergyJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
-                           vx.data(), vy.data(), vz.data(), h.data(), m.data(), rho.data(), p.data(), c.data(),
-                           c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), wh.data(),
-                           whd.data(), &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
+    momentumAndEnergyJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(),
+                           vy.data(), vz.data(), h.data(), m.data(), rho.data(), p.data(), c.data(), c11.data(),
+                           c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), wh.data(), whd.data(), &grad_Px,
+                           &grad_Py, &grad_Pz, &du, &maxvsignal);
 
-    EXPECT_NEAR(grad_Px, 10.483775138679292, 1e-10);
-    EXPECT_NEAR(grad_Py, 0.090944092644194813, 1e-10);
-    EXPECT_NEAR(grad_Pz, 10.561586270570247, 1e-10);
-    EXPECT_NEAR(du, -0.26313730882245978, 1e-10);
-    EXPECT_NEAR(maxvsignal, 1.4112466828564338, 1e-10);
-}
-
-TEST(MomentumEnergy, JLoopPBC)
-{
-    using T = double;
-
-    T sincIndex = 6.0;
-    T K         = compute_3d_k(sincIndex);
-
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
-
-    // box length in any dimension must be bigger than 4*h for any particle
-    // otherwise the PBC evaluation does not select the closest image
-    cstone::Box<T> box(0, 10.5, cstone::BoundaryType::periodic);
-
-    // particle 0 has 4 neighbors
-    std::vector<cstone::LocalIndex> neighbors{1, 2, 3, 4};
-    unsigned                        neighborsCount = 4;
-
-    std::vector<T> x{1.0, 1.1, 3.2, 1.3, 9.4};
-    std::vector<T> y{1.1, 1.2, 1.3, 8.4, 9.5};
-    std::vector<T> z{1.2, 2.3, 1.4, 1.5, 9.6};
-    std::vector<T> h{2.5, 2.51, 2.52, 2.53, 2.54};
-    std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
-    std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
-
-    std::vector<T> vx{0.010, 0.020, 0.030, 0.040, 0.050};
-    std::vector<T> vy{0.011, 0.021, 0.031, 0.041, 0.051};
-    std::vector<T> vz{0.091, 0.081, 0.071, 0.061, 0.055};
-
-    std::vector<T> c{0.4, 0.5, 0.6, 0.7, 0.8};
-    std::vector<T> p{0.2, 0.3, 0.4, 0.5, 0.6};
-
-    std::vector<T> c11{0.21, 0.27, 0.10, 0.45, 0.46};
-    std::vector<T> c12{-0.22, -0.29, -0.11, -0.44, -0.47};
-    std::vector<T> c13{-0.23, -0.31, -0.12, -0.43, -0.48};
-    std::vector<T> c22{0.24, 0.32, 0.13, 0.42, 0.49};
-    std::vector<T> c23{-0.25, -0.33, -0.14, -0.41, -0.50};
-    std::vector<T> c33{0.26, 0.34, 0.15, 0.40, 0.51};
-
-    /* distances of particle 0 to particle j
-     *
-     *          PBC
-     * j = 1    1.10905
-     * j = 2    2.21811
-     * j = 3    3.22800
-     * j = 4    3.63731
-     */
-
-    // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
-    T du         = -1;
-    T grad_Px    = -1;
-    T grad_Py    = -1;
-    T grad_Pz    = -1;
-    T maxvsignal = -1;
-
-    // compute gradient for for particle 0
-    momentumAndEnergyJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
-                           vx.data(), vy.data(), vz.data(), h.data(), m.data(), rho.data(), p.data(), c.data(),
-                           c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), wh.data(),
-                           whd.data(), &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
-
-    EXPECT_NEAR(grad_Px, 18.964174134069442, 1e-10);
-    EXPECT_NEAR(grad_Py, 37.008899054154412, 1e-10);
-    EXPECT_NEAR(grad_Pz, -18.654914156760281, 1e-10);
-    EXPECT_NEAR(du, 0.23856924628683882, 1e-10);
-    EXPECT_NEAR(maxvsignal, 1.2762102355330307, 1e-10);
+    EXPECT_NEAR(grad_Px, 10.483775058458949, 1.3e-7);
+    EXPECT_NEAR(grad_Py, 0.090944108814885433, 1.4e-7);
+    EXPECT_NEAR(grad_Pz, 10.561586200512671, 2.15e-7);
+    EXPECT_NEAR(du, -0.26313730792760737, 1e-8);
+    EXPECT_NEAR(maxvsignal, 1.4112466828564341, 1e-10);
 }

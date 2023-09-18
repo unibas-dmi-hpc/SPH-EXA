@@ -52,7 +52,7 @@ public:
 
     GpuSfcSorter(const GpuSfcSorter&) = delete;
 
-    const IndexType* getReorderMap() const { return ordering(); }
+    const IndexType* getMap() const { return ordering(); }
 
     /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
      *
@@ -71,50 +71,46 @@ public:
     template<class KeyType>
     void setMapFromCodes(KeyType* first, KeyType* last)
     {
-        offset_     = 0;
-        mapSize_    = std::size_t(last - first);
-        numExtract_ = mapSize_;
-
+        mapSize_ = std::size_t(last - first);
         reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
         sequenceGpu(ordering(), mapSize_, LocalIndex(0));
         sortByKeyGpu(first, last, ordering());
     }
 
-    /*! @brief reorder the array @a values according to the reorder map provided previously
-     *
-     * @a values must have at least as many elements as the reorder map provided in the last call
-     * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
-     */
-    template<class T>
-    void operator()(const T* source, T* destination, IndexType offset, IndexType numExtract) const
+    template<class KeyType>
+    void setMapFromCodes(KeyType* first, KeyType* last, KeyType* keyBuf, IndexType* valueBuf)
     {
-        gatherGpu(ordering() + offset, numExtract, source, destination);
+        mapSize_ = std::size_t(last - first);
+        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
+        sequenceGpu(ordering(), mapSize_, LocalIndex(0));
+        sortByKeyGpu(first, last, ordering(), keyBuf, valueBuf);
     }
 
-    template<class T>
-    void operator()(const T* source, T* destination) const
+    template<class KeyType, class KeyBuf, class ValueBuf>
+    void setMapFromCodes(KeyType* first, KeyType* last, KeyBuf& keyBuf, ValueBuf& valueBuf)
     {
-        this->operator()(source, destination, offset_, numExtract_);
+        mapSize_ = std::size_t(last - first);
+        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
+        sequenceGpu(ordering(), mapSize_, LocalIndex(0));
+
+        auto s1 = reallocateBytes(keyBuf, mapSize_ * sizeof(KeyType));
+        auto s2 = reallocateBytes(valueBuf, mapSize_ * sizeof(IndexType));
+
+        setMapFromCodes(first, last, (KeyType*)rawPtr(keyBuf), (IndexType*)rawPtr(valueBuf));
+
+        reallocateDevice(keyBuf, s1, 1.01);
+        reallocateDevice(valueBuf, s2, 1.01);
     }
 
-    void restrictRange(std::size_t offset, std::size_t numExtract)
-    {
-        assert(offset + numExtract <= mapSize_);
-
-        offset_     = offset;
-        numExtract_ = numExtract;
-    }
+    auto gatherFunc() const { return gatherGpuL; }
 
 private:
     IndexType* ordering() { return reinterpret_cast<IndexType*>(rawPtr(buffer_)); }
     const IndexType* ordering() const { return reinterpret_cast<const IndexType*>(rawPtr(buffer_)); }
 
-    std::size_t offset_{0};
-    std::size_t numExtract_{0};
-    std::size_t mapSize_{0};
-
     //! @brief reference to (non-owning) buffer for ordering
     BufferType& buffer_;
+    std::size_t mapSize_{0};
 };
 
 } // namespace cstone

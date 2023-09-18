@@ -38,9 +38,11 @@
 namespace sph
 {
 
-template<class T, class Dataset>
-void computeMomentumEnergyStdImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
+template<class Tc, class Dataset>
+void computeMomentumEnergyStdImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box)
 {
+    using T = typename Dataset::HydroType;
+
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
 
@@ -71,9 +73,6 @@ void computeMomentumEnergyStdImpl(size_t startIndex, size_t endIndex, Dataset& d
     const auto* wh  = d.wh.data();
     const auto* whd = d.whd.data();
 
-    const T K         = d.K;
-    const T sincIndex = d.sincIndex;
-
     T minDt = INFINITY;
 
 #pragma omp parallel for schedule(static) reduction(min : minDt)
@@ -83,8 +82,8 @@ void computeMomentumEnergyStdImpl(size_t startIndex, size_t endIndex, Dataset& d
 
         T maxvsignal = 0;
 
-        unsigned nc = std::min(neighborsCount[i], d.ngmax);
-        momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, vx, vy, vz, h, m, rho, p, c,
+        unsigned ncCapped = std::min(neighborsCount[i] - 1, d.ngmax);
+        momentumAndEnergyJLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, vx, vy, vz, h, m, rho, p, c,
                                c11, c12, c13, c22, c23, c33, wh, whd, grad_P_x, grad_P_y, grad_P_z, du, &maxvsignal);
 
         T dt_i = tsKCourant(maxvsignal, h[i], c[i], d.Kcour);

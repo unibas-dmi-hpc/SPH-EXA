@@ -53,22 +53,16 @@ namespace cstone
  *
  * Converts the global assignment particle keys ranges into particle indices with binary search
  */
-template<class KeyType, class DeviceVector>
-SendList createSendListGpu(const SpaceCurveAssignment& assignment,
-                           gsl::span<const KeyType> treeLeaves,
-                           gsl::span<const KeyType> particleKeys,
-                           DeviceVector& sendScratch,
-                           DeviceVector& receiveScratch)
+template<class KeyType>
+SendRanges createSendRangesGpu(const SpaceCurveAssignment& assignment,
+                               gsl::span<const KeyType> treeLeaves,
+                               gsl::span<const KeyType> particleKeys,
+                               KeyType* d_searchKeys,
+                               LocalIndex* d_indices)
 {
     size_t numRanks = assignment.numRanks();
-    using IndexType = SendManifest::IndexType;
 
-    size_t ssz = reallocateBytes(sendScratch, numRanks * sizeof(KeyType));
-    size_t rsz = reallocateBytes(receiveScratch, numRanks * sizeof(LocalIndex));
-    gsl::span<KeyType> d_searchKeys{reinterpret_cast<KeyType*>(rawPtr(sendScratch)), numRanks};
-    gsl::span<LocalIndex> d_indices{reinterpret_cast<LocalIndex*>(rawPtr(receiveScratch)), numRanks};
-
-    SendList ret(numRanks);
+    SendRanges ret(numRanks + 1);
 
     std::vector<KeyType> searchKeys(numRanks);
     for (int rank = 0; rank < numRanks; ++rank)
@@ -76,20 +70,10 @@ SendList createSendListGpu(const SpaceCurveAssignment& assignment,
         searchKeys[rank] = treeLeaves[assignment.firstNodeIdx(rank)];
     }
 
-    memcpyH2D(searchKeys.data(), searchKeys.size(), d_searchKeys.data());
-    lowerBoundGpu(particleKeys.begin(), particleKeys.end(), d_searchKeys.begin(), d_searchKeys.end(),
-                  d_indices.begin());
-
-    std::vector<IndexType> indices(numRanks + 1, particleKeys.size());
-    memcpyD2H(d_indices.data(), numRanks, indices.data());
-
-    for (int rank = 0; rank < numRanks; ++rank)
-    {
-        ret[rank].addRange(indices[rank], indices[rank + 1]);
-    }
-
-    reallocateDevice(sendScratch, ssz, 1.0);
-    reallocateDevice(receiveScratch, rsz, 1.0);
+    memcpyH2D(searchKeys.data(), searchKeys.size(), d_searchKeys);
+    lowerBoundGpu(particleKeys.begin(), particleKeys.end(), d_searchKeys, d_searchKeys + numRanks, d_indices);
+    memcpyD2H(d_indices, numRanks, ret.data());
+    ret.back() = particleKeys.size();
 
     return ret;
 }

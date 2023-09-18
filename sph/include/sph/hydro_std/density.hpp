@@ -58,16 +58,13 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, Dataset& d, const cs
 
     auto* rho = d.rho.data();
 
-    const T K         = d.K;
-    const T sincIndex = d.sincIndex;
-
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
         size_t ni = i - startIndex;
 
-        unsigned nc = std::min(neighborsCount[i], d.ngmax);
-        rho[i]      = densityJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, h, m, wh, whd);
+        unsigned ncCapped = std::min(neighborsCount[i] - 1, d.ngmax);
+        rho[i]            = densityJLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, h, m, wh, whd);
 
 #ifndef NDEBUG
         if (std::isnan(rho[i]))

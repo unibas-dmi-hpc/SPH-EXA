@@ -35,13 +35,53 @@
 
 #include "cstone/util/aligned_alloc.hpp"
 #include "cstone/util/noinit_alloc.hpp"
-#include "cstone/util/traits.hpp"
+#include "cstone/util/tuple_util.hpp"
 
 using namespace util;
 
 template<class T>
 using AllocatorType = DefaultInitAdaptor<T, AlignedAllocator<T, 64>>;
-// using AllocatorType = DefaultInitAdaptor<T, std::allocator<T>>;
+
+TEST(Utils, ForEachTuple)
+{
+    std::vector<int> a{90};
+    std::vector<double> b{3.14};
+
+    auto tup = std::tie(a, b);
+
+    for_each_tuple([](auto& v) { v.push_back(2); }, tup);
+
+    EXPECT_EQ(a.size(), 2);
+    EXPECT_EQ(b.size(), 2);
+}
+
+TEST(Utils, TupleReverse)
+{
+    std::vector<int> a{90};
+    std::vector<double> b{3.14};
+    auto tup = std::tie(a, b);
+
+    auto revTup = reverse(tup);
+
+    EXPECT_EQ(std::get<1>(revTup)[0], a[0]);
+
+    a.push_back(91);
+
+    EXPECT_EQ(std::get<1>(revTup)[1], a[1]);
+}
+
+TEST(Utils, ForEachTupleRvalue)
+{
+    std::vector<int> a{90};
+    std::vector<double> b{3.14};
+
+    auto tup = std::tie(a, b);
+
+    for_each_tuple([](auto& v) { v.push_back(2); }, reverse(tup));
+
+    EXPECT_EQ(a.size(), 2);
+    EXPECT_EQ(b.size(), 2);
+}
 
 /*! @brief noinit allocation test
  *
@@ -76,18 +116,6 @@ TEST(Utils, AlignedNoInitAlloc)
 
     // std::copy(v.begin(), v.end(), std::ostream_iterator<double>(std::cout, " "));
     // std::cout << " address: " << v.data() << std::endl;
-}
-
-TEST(Utils, round_up)
-{
-    EXPECT_EQ(round_up(127, 128), 128);
-    EXPECT_EQ(round_up(128, 128), 128);
-    EXPECT_EQ(round_up(129, 128), 256);
-    EXPECT_EQ(round_up(257, 128), 384);
-
-    EXPECT_EQ(round_up(127lu, 128lu), 128lu);
-    EXPECT_EQ(round_up(128lu, 128lu), 128lu);
-    EXPECT_EQ(round_up(129lu, 128lu), 256lu);
 }
 
 TEST(Utils, discardLastElement)

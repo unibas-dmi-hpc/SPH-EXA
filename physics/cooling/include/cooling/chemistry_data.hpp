@@ -35,8 +35,10 @@
 
 #include "cstone/fields/enumerate.hpp"
 #include "cstone/fields/field_states.hpp"
-#include "cstone/fields/particles_get.hpp"
+#include "cstone/fields/field_get.hpp"
 #include "cstone/util/reallocate.hpp"
+
+#include "cooling/cooler.hpp"
 
 namespace cooling
 {
@@ -45,12 +47,16 @@ template<class T>
 class ChemistryData : public cstone::FieldStates<ChemistryData<T>>
 {
 public:
-    inline static constexpr size_t numFields = 21;
-
     template<class ValueType>
     using FieldVector     = std::vector<ValueType, std::allocator<ValueType>>;
     using RealType        = T;
     using AcceleratorType = cstone::CpuTag;
+    using FieldVariant =
+        std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
+
+    //! Grackle field names
+    inline static constexpr std::array fieldNames = Cooler<RealType>::fieldNames;
+    inline static constexpr size_t     numFields  = fieldNames.size();
 
     std::array<FieldVector<T>, numFields> fields;
 
@@ -58,10 +64,7 @@ public:
 
     auto data()
     {
-        using FieldType =
-            std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
-
-        return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
+        return std::apply([](auto&... fields) { return std::array<FieldVariant, sizeof...(fields)>{&fields...}; },
                           dataTuple());
     }
 
@@ -79,30 +82,28 @@ public:
         }
     }
 
-    //! Grackle field names
-    inline static constexpr std::array fieldNames{"HI_fraction",
-                                                  "HII_fraction",
-                                                  "HM_fraction",
-                                                  "HeI_fraction",
-                                                  "HeII_fraction",
-                                                  "HeIII_fraction",
-                                                  "H2I_fraction",
-                                                  "H2II_fraction",
-                                                  "DI_fraction",
-                                                  "DII_fraction",
-                                                  "HDI_fraction",
-                                                  "e_fraction",
-                                                  "metal_fraction",
-                                                  "volumetric_heating_rate",
-                                                  "specific_heating_rate",
-                                                  "RT_heating_rate",
-                                                  "RT_HI_ionization_rate",
-                                                  "RT_HeI_ionization_rate",
-                                                  "RT_HeII_ionization_rate",
-                                                  "RT_H2_dissociation_rate",
-                                                  "H2_self_shielding_length"};
+    //! @brief particle fields selected for file output
+    std::vector<int>         outputFieldIndices;
+    std::vector<std::string> outputFieldNames;
 
-    static_assert(fieldNames.size() == numFields);
+    void setOutputFields(std::vector<std::string>& outFields)
+    {
+        auto hasField = [](const std::string& field)
+        { return cstone::getFieldIndex(field, fieldNames) < fieldNames.size(); };
+
+        std::copy_if(outFields.begin(), outFields.end(), std::back_inserter(outputFieldNames), hasField);
+        outputFieldIndices = cstone::fieldStringsToInt(outputFieldNames, fieldNames);
+        std::for_each(outputFieldNames.begin(), outputFieldNames.end(), [](auto& f) { f = prefix + f; });
+
+        outFields.erase(std::remove_if(outFields.begin(), outFields.end(), hasField), outFields.end());
+    }
+
+    template<class Archive>
+    void loadOrStoreAttributes(Archive* /*ar*/)
+    {
+    }
+
+    static const inline std::string prefix{"chem::"};
 
 private:
     template<size_t... Is>

@@ -47,7 +47,8 @@ namespace sphexa
  * @param[in] vx         x-velocities
  * @param[in] vy         v-velocities
  * @param[in] vz         z-velocities
- * @param[in] temp       temperatures
+ * @param[in] temp       temperatures, can be nullptr
+ * @param[in] u          internal energies, can be nullptr
  * @param[in] m          masses
  * @param[in] first      first particle index to include in the sum
  * @param[in] last       last particle index to include in the sum
@@ -55,7 +56,7 @@ namespace sphexa
  */
 template<class Tc, class Tv, class Tt, class Tm>
 extern std::tuple<double, double, cstone::Vec3<double>, cstone::Vec3<double>>
-conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz,
-                       const Tt* temp, const Tm* m, size_t first, size_t last);
+conservedQuantitiesGpu(double cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz,
+                       const Tt* temp, const Tt* u, const Tm* m, size_t first, size_t last);
 
 } // namespace sphexa

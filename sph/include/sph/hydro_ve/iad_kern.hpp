@@ -42,9 +42,9 @@ namespace sph
 {
 
 template<size_t stride = 1, class Tc, class T>
-HOST_DEVICE_FUN inline void IADJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
+HOST_DEVICE_FUN inline void IADJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box,
                                      const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
-                                     const Tc* y, const Tc* z, const Tc* h, const T* wh, const T* whd, const T* xm,
+                                     const Tc* y, const Tc* z, const T* h, const T* wh, const T* /*whd*/, const T* xm,
                                      const T* kx, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
 {
     T tau11 = 0.0, tau12 = 0.0, tau13 = 0.0, tau22 = 0.0, tau23 = 0.0, tau33 = 0.0;
@@ -70,7 +70,7 @@ HOST_DEVICE_FUN inline void IADJLoop(cstone::LocalIndex i, T sincIndex, T K, con
 
         // calculate the v as ratio between the distance and the smoothing length
         T vloc = dist * hiInv;
-        T w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
+        T w    = lt::lookup(wh, vloc);
 
         T volj_w = xm[j] / kx[j] * w;
 

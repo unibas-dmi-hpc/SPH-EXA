@@ -35,7 +35,9 @@
 #include <iostream>
 #include <numeric>
 
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 #include "cstone/primitives/stl.hpp"
 
@@ -55,11 +57,13 @@ void exclusiveScan(const T1* in, T2* out, size_t numElements)
     constexpr int blockSize = (8192 + 16384) / sizeof(T1);
 
     int numThreads = 1;
+#ifdef _OPENMP
 #pragma omp parallel
     {
 #pragma omp single
         numThreads = omp_get_num_threads();
     }
+#endif
 
     T2 superBlock[2][numThreads + 1];
     std::fill(superBlock[0], superBlock[0] + numThreads + 1, 0);
@@ -70,12 +74,15 @@ void exclusiveScan(const T1* in, T2* out, size_t numElements)
 
 #pragma omp parallel num_threads(numThreads)
     {
-        int tid = omp_get_thread_num();
+        int tid = 0;
+#ifdef _OPENMP
+        tid = omp_get_thread_num();
+#endif
         for (size_t step = 0; step < nSteps; ++step)
         {
             size_t stepOffset = step * elementsPerStep + tid * blockSize;
 
-            stl::exclusive_scan(in + stepOffset, in + stepOffset + blockSize, out + stepOffset, 0);
+            std::exclusive_scan(in + stepOffset, in + stepOffset + blockSize, out + stepOffset, 0);
 
             superBlock[step % 2][tid] = out[stepOffset + blockSize - 1] + in[stepOffset + blockSize - 1];
 
@@ -93,7 +100,7 @@ void exclusiveScan(const T1* in, T2* out, size_t numElements)
 
     // remainder
     T2 stepSum = superBlock[(nSteps + 1) % 2][numThreads];
-    stl::exclusive_scan(in + nSteps * elementsPerStep, in + numElements, out + nSteps * elementsPerStep, stepSum);
+    std::exclusive_scan(in + nSteps * elementsPerStep, in + numElements, out + nSteps * elementsPerStep, stepSum);
 }
 
 template<class T>

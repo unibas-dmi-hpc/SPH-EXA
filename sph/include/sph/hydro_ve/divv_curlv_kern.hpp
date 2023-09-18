@@ -43,10 +43,10 @@ namespace sph
 
 template<size_t stride = 1, typename Tc, class T>
 HOST_DEVICE_FUN inline void
-divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
+divV_curlVJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
                 unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz,
                 const T* h, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
-                const T* wh, const T* whd, const T* kx, const T* xm, T* divv, T* curlv, T* dV11, T* dV12, T* dV13,
+                const T* wh, const T* /*whd*/, const T* kx, const T* xm, T* divv, T* curlv, T* dV11, T* dV12, T* dV13,
                 T* dV22, T* dV23, T* dV33, bool doGradV)
 {
     auto xi  = x[i];
@@ -89,7 +89,7 @@ divV_curlVJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& b
         T vz_ji = vz[j] - vzi;
 
         T v1 = dist * hiInv;
-        T Wi = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wi = lt::lookup(wh, v1);
 
         cstone::Vec3<T> termA;
         termA[0] = -(c11i * rx + c12i * ry + c13i * rz) * Wi;

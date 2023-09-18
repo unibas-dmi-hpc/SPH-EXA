@@ -36,10 +36,23 @@
 #include <type_traits>
 
 #include "cstone/primitives/stl.hpp"
-#include "util.hpp"
 
 namespace util
 {
+
+// Like std::void_t but for values
+template<auto...>
+using void_value_t = void;
+
+template<class T, class = void>
+struct HasValueMember : std::false_type
+{
+};
+
+template<class T>
+struct HasValueMember<T, void_value_t<T::value>> : std::true_type
+{
+};
 
 //! @brief Base template for a holder of entries of different data types
 template<class... Ts>
@@ -176,20 +189,6 @@ template<template<class...> class L, int N, class... Ts>
 struct Repeat_<L<Ts...>, N, std::enable_if_t<N >= 1>>
 {
     typedef typename RepeatHelper_<L<Ts...>, N, Ts...>::type type;
-};
-
-// Like std::void_t but for values
-template<auto...>
-using void_value_t = void;
-
-template<class T, class = void>
-struct HasValueMember : std::false_type
-{
-};
-
-template<class T>
-struct HasValueMember<T, void_value_t<T::value>> : std::true_type
-{
 };
 
 template<class T, class = void>
@@ -352,19 +351,6 @@ template<class... Ts1, class... Ts2>
 auto subsetIndices(TypeList<Ts1...> /*subList*/, TypeList<Ts2...> /*baseList*/)
 {
     return std::index_sequence<FindIndex<Ts1, TypeList<Ts2...>>{}...>{};
-}
-
-//! brief return a tuple of lvalue references for the specified indices of the argument tuple
-template<class... Ts, size_t... Is>
-auto tieElements(std::tuple<Ts...>& tuple, std::index_sequence<Is...>)
-{
-    return std::tie(std::get<Is>(tuple)...);
-}
-
-template<class... Ts, size_t... Is>
-auto tieElements(const std::tuple<Ts...>& tuple, std::index_sequence<Is...>)
-{
-    return std::tie(std::get<Is>(tuple)...);
 }
 
 } // namespace util

@@ -35,11 +35,11 @@
 #include <sstream>
 #include <variant>
 
-#include "cstone/fields/particles_get.hpp"
+#include "cstone/util/constexpr_string.hpp"
+#include "cstone/fields/field_get.hpp"
 #include "sph/sph.hpp"
 #include "sph/hydro_turb/turbulence_data.hpp"
 
-#include "ipropagator.hpp"
 #include "ve_hydro.hpp"
 #include "gravity_wrapper.hpp"
 
@@ -47,7 +47,6 @@ namespace sphexa
 {
 
 using namespace sph;
-using cstone::FieldStates;
 
 //! @brief VE hydro propagator that adds turbulence stirring to the acceleration prior to position update
 template<bool avClean, class DomainType, class DataType>

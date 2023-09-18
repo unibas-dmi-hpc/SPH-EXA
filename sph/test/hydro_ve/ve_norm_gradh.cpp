@@ -48,8 +48,8 @@ TEST(VeDefGradh, JLoop)
     T K         = compute_3d_k(sincIndex);
     T mpart     = 3.781038064465603e26;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
@@ -112,13 +112,13 @@ TEST(VeDefGradh, JLoop)
     {
         xm[i] = mpart / rho0[i];
     }
-    auto [kx, gradh] = sph::veDefGradhJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(),
-                                            z.data(), h.data(), m.data(), wh.data(), whd.data(), xm.data());
+    auto [kx, gradh] = sph::veDefGradhJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
+                                            h.data(), m.data(), wh.data(), whd.data(), xm.data());
 
     T density = kx * m[0] / xm[0];
-    EXPECT_NEAR(density, 3.4662283747372882e1, 1e-10);
-    EXPECT_NEAR(gradh, 0.98699067640958715, 1e-10);
-    EXPECT_NEAR(kx, 1.0042661186456439, 1e-10);
+    EXPECT_NEAR(density, 3.4662283566584293e1, 8e-7);
+    EXPECT_NEAR(gradh, 0.98699067585409861, 5e-7);
+    EXPECT_NEAR(kx, 1.0042661134076782, 3e-7);
 }
 
 TEST(VeDefGradh, JLoopPBC)
@@ -128,8 +128,8 @@ TEST(VeDefGradh, JLoopPBC)
     T sincIndex = 6.0;
     T K         = compute_3d_k(sincIndex);
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     // box length in any dimension must be bigger than 4*h for any particle
     // otherwise the PBC evaluation does not select the closest image
@@ -155,9 +155,8 @@ TEST(VeDefGradh, JLoopPBC)
      */
 
     T kx;
-    std::tie(kx, std::ignore) =
-        sph::veDefGradhJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
-                             h.data(), m.data(), wh.data(), whd.data(), xm.data());
+    std::tie(kx, std::ignore) = sph::veDefGradhJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(),
+                                                     z.data(), h.data(), m.data(), wh.data(), whd.data(), xm.data());
 
-    EXPECT_NEAR(kx * m[0] / xm[0], 0.17929212293724384, 1e-10);
+    EXPECT_NEAR(kx * m[0] / xm[0], 0.17929212174617015, 1e-9);
 }

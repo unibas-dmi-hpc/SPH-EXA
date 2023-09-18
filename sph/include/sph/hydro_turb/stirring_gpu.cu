@@ -28,9 +28,7 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <cmath>
-
-#include "cstone/util/util.hpp"
+#include "cstone/primitives/math.hpp"
 
 #include "sph/hydro_turb/stirring.hpp"
 
@@ -60,7 +58,7 @@ void computeStirringGpu(size_t startIndex, size_t endIndex, size_t numDim, const
                         const T* amplitudes, T solWeightNorm)
 {
     unsigned numThreads = 256;
-    unsigned numBlocks  = iceil(endIndex - startIndex, numThreads);
+    unsigned numBlocks  = cstone::iceil(endIndex - startIndex, numThreads);
 
     computeStirringKernel<<<numBlocks, numThreads>>>(startIndex, endIndex, numDim, x, y, z, ax, ay, az, numModes, modes,
                                                      st_aka, st_akb, amplitudes, solWeightNorm);

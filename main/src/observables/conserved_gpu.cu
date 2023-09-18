@@ -70,8 +70,8 @@ struct EMom
 
 template<class Tc, class Tv, class Tt, class Tm>
 std::tuple<double, double, Vec3<double>, Vec3<double>>
-conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz,
-                       const Tt* temp, const Tm* m, size_t first, size_t last)
+conservedQuantitiesGpu(double cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz,
+                       const Tt* temp, const Tt* u, const Tm* m, size_t first, size_t last)
 {
     auto it1 = thrust::make_zip_iterator(
         thrust::make_tuple(x + first, y + first, z + first, m + first, vx + first, vy + first, vz + first));
@@ -89,14 +89,15 @@ conservedQuantitiesGpu(Tt cv, const Tc* x, const Tc* y, const Tc* z, const Tv* v
     {
         eInt = cv * thrust::inner_product(thrust::device, m + first, m + last, temp + first, Tt(0.0));
     }
+    else if (u != nullptr) { eInt = thrust::inner_product(thrust::device, m + first, m + last, u + first, Tt(0.0)); }
 
     return {0.5 * eKin, eInt, linMom, angMom};
 }
 
 #define CONSERVED_Q_GPU(Tc, Tv, Tt, Tm)                                                                                \
     template std::tuple<double, double, Vec3<double>, Vec3<double>> conservedQuantitiesGpu(                            \
-        Tt, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz, const Tt* temp,           \
-        const Tm* m, size_t, size_t)
+        double cv, const Tc* x, const Tc* y, const Tc* z, const Tv* vx, const Tv* vy, const Tv* vz, const Tt* temp,    \
+        const Tt* u, const Tm* m, size_t, size_t)
 
 CONSERVED_Q_GPU(double, double, double, double);
 CONSERVED_Q_GPU(double, double, double, float);

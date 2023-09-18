@@ -55,6 +55,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     const auto* vz   = d.vz.data();
     const auto* m    = d.m.data();
     const auto* temp = d.temp.data();
+    const auto* u    = d.u.data();
 
     util::array<double, 3> linmom{0.0, 0.0, 0.0};
     util::array<double, 3> angmom{0.0, 0.0, 0.0};
@@ -79,8 +80,18 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
 
     double eInt = 0.0;
 
-    if (!d.temp.empty())
+    if (!d.u.empty())
     {
+#pragma omp parallel for reduction(+ : eInt)
+        for (size_t i = startIndex; i < endIndex; i++)
+        {
+            auto mi = m[i];
+            eInt += u[i] * mi;
+        }
+    }
+    else if (!d.temp.empty())
+    {
+
 #pragma omp parallel for reduction(+ : eInt)
         for (size_t i = startIndex; i < endIndex; i++)
         {
@@ -117,7 +128,7 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
         std::tie(eKin, eInt, linmom, angmom) = conservedQuantitiesGpu(
             sph::idealGasCv(d.muiConst, d.gamma), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
             rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.temp),
-            rawPtr(d.devData.m), startIndex, endIndex);
+            rawPtr(d.devData.u), rawPtr(d.devData.m), startIndex, endIndex);
     }
     else
     {

@@ -46,25 +46,23 @@ static void sendListMinimalGpu()
 
     int numRanks = 2;
     SpaceCurveAssignment assignment(numRanks);
-    assignment.addRange(Rank(0), 0, 2, 0);
-    assignment.addRange(Rank(1), 2, 4, 0);
+    assignment.addRange(0, 0, 2, 0);
+    assignment.addRange(1, 2, 4, 0);
 
     thrust::device_vector<KeyType> d_keys = codes;
-    thrust::device_vector<double> scratch1;
-    thrust::device_vector<double> scratch2;
+    thrust::device_vector<KeyType> d_searchKeys(numRanks);
+    thrust::device_vector<LocalIndex> d_indices(numRanks);
 
     gsl::span<const KeyType> d_keyView{rawPtr(d_keys), d_keys.size()};
 
     // note: codes input needs to be sorted
-    auto sendList = createSendListGpu<KeyType>(assignment, tree, d_keyView, scratch1, scratch2);
+    auto sendList = createSendRangesGpu<KeyType>(assignment, tree, d_keyView, rawPtr(d_searchKeys), rawPtr(d_indices));
 
-    EXPECT_EQ(sendList[0].totalCount(), 6);
-    EXPECT_EQ(sendList[1].totalCount(), 3);
+    EXPECT_EQ(sendList.count(0), 6);
+    EXPECT_EQ(sendList.count(1), 3);
 
-    EXPECT_EQ(sendList[0].rangeStart(0), 0);
-    EXPECT_EQ(sendList[0].rangeEnd(0), 6);
-    EXPECT_EQ(sendList[1].rangeStart(0), 6);
-    EXPECT_EQ(sendList[1].rangeEnd(0), 9);
+    EXPECT_EQ(sendList[0], 0);
+    EXPECT_EQ(sendList[1], 6);
 }
 
 TEST(DomainDecomposition, createSendListGpu)

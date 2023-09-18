@@ -38,9 +38,9 @@
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/primitives/mpi_cuda.cuh"
-#include "cstone/domain/index_ranges.hpp"
+#include "cstone/domain/buffer_description.hpp"
 #include "cstone/util/reallocate.hpp"
-#include "cstone/util/util.hpp"
+#include "cstone/util/tuple_util.hpp"
 
 #include "gather_halos_gpu.h"
 
@@ -55,28 +55,22 @@ void haloExchangeGpu(int epoch,
                      DevVec2& receiveScratchBuffer,
                      Arrays... arrays)
 {
+    constexpr int alignment = 8;
     using IndexType         = SendManifest::IndexType;
-    constexpr int numArrays = sizeof...(Arrays);
-    constexpr util::array<size_t, numArrays> elementSizes{sizeof(std::decay_t<decltype(*arrays)>)...};
-    const int bytesPerElement = std::accumulate(elementSizes.begin(), elementSizes.end(), 0);
-    constexpr auto indices    = makeIntegralTuple(std::make_index_sequence<numArrays>{});
 
-    std::array<char*, numArrays> data{reinterpret_cast<char*>(arrays)...};
-
-    const size_t oldSendSize = reallocateBytes(sendScratchBuffer, outgoingHalos.totalCount() * bytesPerElement);
-    char* sendBuffer         = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
-
+    int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
     std::vector<MPI_Request> sendRequests;
     std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
 
-    int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
+    const size_t oldSendSize =
+        reallocateBytes(sendScratchBuffer, computeTotalSendBytes<alignment>(outgoingHalos, -1, 0, arrays...));
 
     size_t numRanges = std::max(maxNumRanges(outgoingHalos), maxNumRanges(incomingHalos));
     IndexType* d_range;
     checkGpuErrors(cudaMalloc((void**)&d_range, 2 * numRanges * sizeof(IndexType)));
     IndexType* d_rangeScan = d_range + numRanges;
 
-    char* sendPtr = sendBuffer;
+    char* sendPtr = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
         const auto& outHalos = outgoingHalos[destinationRank];
@@ -88,52 +82,36 @@ void haloExchangeGpu(int epoch,
         checkGpuErrors(
             cudaMemcpy(d_rangeScan, outHalos.scan(), outHalos.nRanges() * sizeof(IndexType), cudaMemcpyHostToDevice));
 
-        util::array<size_t, numArrays> arrayByteOffsets = sendCount * elementSizes;
-        std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
-        size_t sendBytes = sendCount * bytesPerElement;
+        auto gatherArray = [d_range, d_rangeScan, numRanges = outHalos.nRanges(), sendCount](auto arrayPtr)
+        { gatherRanges(d_rangeScan, d_range, numRanges, arrayPtr[0], arrayPtr[1], sendCount); };
 
-        auto gatherArray = [sendPtr, sendCount, &data, &arrayByteOffsets, &elementSizes, d_range, d_rangeScan,
-                            numRanges = outHalos.nRanges()](auto arrayIndex)
-        {
-            size_t outputOffset = arrayByteOffsets[arrayIndex];
-            char* bufferPtr     = sendPtr + outputOffset;
-
-            using ElementType = util::array<float, elementSizes[arrayIndex] / sizeof(float)>;
-            gatherRanges(d_rangeScan, d_range, numRanges, reinterpret_cast<ElementType*>(data[arrayIndex]),
-                         reinterpret_cast<ElementType*>(bufferPtr), sendCount);
-        };
-
-        for_each_tuple(gatherArray, indices);
+        for_each_tuple(gatherArray, packBufferPtrs<alignment>(sendPtr, sendCount, arrays...));
         checkGpuErrors(cudaDeviceSynchronize());
 
-        mpiSendGpuDirect(sendPtr, sendBytes, destinationRank, haloExchangeTag, sendRequests, sendBuffers);
-        sendPtr += sendBytes;
+        size_t numBytesSend = computeByteOffsets(sendCount, alignment, arrays...).back();
+        mpiSendGpuDirect(sendPtr, numBytesSend, int(destinationRank), haloExchangeTag, sendRequests, sendBuffers);
+        sendPtr += numBytesSend;
     }
 
-    int numMessages            = 0;
-    std::size_t maxReceiveSize = 0;
-    for (std::size_t sourceRank = 0; sourceRank < incomingHalos.size(); ++sourceRank)
+    int numMessages       = 0;
+    size_t maxReceiveSize = 0;
+    for (const auto& incomingHalo : incomingHalos)
     {
-        if (incomingHalos[sourceRank].totalCount() > 0)
-        {
-            numMessages++;
-            maxReceiveSize = std::max(maxReceiveSize, incomingHalos[sourceRank].totalCount());
-        }
+        numMessages += int(incomingHalo.totalCount() > 0);
+        maxReceiveSize = std::max(maxReceiveSize, incomingHalo.totalCount());
     }
+    size_t maxReceiveBytes = computeByteOffsets(maxReceiveSize, alignment, arrays...).back();
 
-    const size_t oldRecvSize = reallocateBytes(receiveScratchBuffer, maxReceiveSize * bytesPerElement);
+    const size_t oldRecvSize = reallocateBytes(receiveScratchBuffer, maxReceiveBytes);
     char* receiveBuffer      = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
     while (numMessages > 0)
     {
         MPI_Status status;
-        mpiRecvGpuDirect(receiveBuffer, maxReceiveSize * bytesPerElement, MPI_ANY_SOURCE, haloExchangeTag, &status);
+        mpiRecvGpuDirect(receiveBuffer, maxReceiveBytes, MPI_ANY_SOURCE, haloExchangeTag, &status);
         int receiveRank     = status.MPI_SOURCE;
         const auto& inHalos = incomingHalos[receiveRank];
         size_t receiveCount = inHalos.totalCount();
-
-        util::array<size_t, numArrays> arrayByteOffsets = receiveCount * elementSizes;
-        std::exclusive_scan(arrayByteOffsets.begin(), arrayByteOffsets.end(), arrayByteOffsets.begin(), size_t(0));
 
         // compute indices to extract and upload to GPU
         checkGpuErrors(
@@ -141,18 +119,10 @@ void haloExchangeGpu(int epoch,
         checkGpuErrors(
             cudaMemcpy(d_rangeScan, inHalos.scan(), inHalos.nRanges() * sizeof(IndexType), cudaMemcpyHostToDevice));
 
-        auto scatterArray = [receiveBuffer, receiveCount, &data, &arrayByteOffsets, &elementSizes, d_range, d_rangeScan,
-                             numRanges = inHalos.nRanges()](auto arrayIndex)
-        {
-            size_t outputOffset = arrayByteOffsets[arrayIndex];
-            char* bufferPtr     = receiveBuffer + outputOffset;
+        auto scatterArray = [d_range, d_rangeScan, numRanges = inHalos.nRanges(), receiveCount](auto arrayPtr)
+        { scatterRanges(d_rangeScan, d_range, numRanges, arrayPtr[0], arrayPtr[1], receiveCount); };
 
-            using ElementType = util::array<float, elementSizes[arrayIndex] / sizeof(float)>;
-            scatterRanges(d_rangeScan, d_range, numRanges, reinterpret_cast<ElementType*>(data[arrayIndex]),
-                          reinterpret_cast<ElementType*>(bufferPtr), receiveCount);
-        };
-
-        for_each_tuple(scatterArray, indices);
+        for_each_tuple(scatterArray, packBufferPtrs<alignment>(receiveBuffer, receiveCount, arrays...));
         checkGpuErrors(cudaDeviceSynchronize());
 
         numMessages--;
@@ -165,8 +135,8 @@ void haloExchangeGpu(int epoch,
     }
 
     checkGpuErrors(cudaFree(d_range));
-    reallocateDevice(sendScratchBuffer, oldSendSize, 1.01);
-    reallocateDevice(receiveScratchBuffer, oldRecvSize, 1.01);
+    reallocateDevice(sendScratchBuffer, oldSendSize, 1.0);
+    reallocateDevice(receiveScratchBuffer, oldRecvSize, 1.0);
 
     // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
     // across all ranks before calling this function again.

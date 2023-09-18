@@ -34,7 +34,7 @@
 
 #include <variant>
 
-#include "cstone/fields/particles_get.hpp"
+#include "cstone/fields/field_get.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/sph.hpp"
 
@@ -45,7 +45,7 @@ namespace sphexa
 {
 
 using namespace sph;
-using cstone::FieldList;
+using util::FieldList;
 
 template<class DomainType, class DataType>
 class HydroProp : public Propagator<DomainType, DataType>
@@ -59,10 +59,10 @@ protected:
     using Tmass         = typename DataType::HydroData::Tmass;
     using MultipoleType = ryoanji::CartesianQuadrupole<Tmass>;
 
-    using Acc = typename DataType::AcceleratorType;
-    using MHolder_t =
-        typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
-                                         MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
+    using Acc       = typename DataType::AcceleratorType;
+    using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
+        MultipoleType, DomainType, typename DataType::HydroData>;
+
     MHolder_t mHolder_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
@@ -186,14 +186,13 @@ public:
     }
 
     void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
-                    const cstone::Box<T>& box) override
+                    const cstone::Box<T>& /*box*/) override
     {
-        auto&            d             = simData.hydro;
-        auto             fieldPointers = d.data();
-        std::vector<int> outputFields  = d.outputFieldIndices;
-
-        auto output = [&]()
+        auto output = [&](auto& d)
         {
+            auto             fieldPointers = d.data();
+            std::vector<int> outputFields  = d.outputFieldIndices;
+
             for (int i = int(outputFields.size()) - 1; i >= 0; --i)
             {
                 int fidx = outputFields[i];
@@ -202,15 +201,26 @@ public:
                     int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
-                    std::visit([writer, c = column, key = d.fieldNames[fidx]](auto field)
+                    std::visit([writer, c = column, key = d.outputFieldNames[i]](auto field)
                                { writer->writeField(key, field->data(), c); },
                                fieldPointers[fidx]);
                     outputFields.erase(outputFields.begin() + i);
                 }
             }
+
+            if (!outputFields.empty() && Base::rank_ == 0)
+            {
+                std::cout << "WARNING: the following fields are not in use and therefore not output: ";
+                for (int fidx = 0; fidx < outputFields.size() - 1; ++fidx)
+                {
+                    std::cout << d.fieldNames[fidx] << ",";
+                }
+                std::cout << d.fieldNames[outputFields.back()] << std::endl;
+            }
         };
 
-        output();
+        output(simData.hydro);
+        output(simData.chem);
     }
 };
 

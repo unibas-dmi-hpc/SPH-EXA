@@ -42,6 +42,7 @@
 #include "gtest/gtest.h"
 
 #include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
 #define USE_CUDA
 
@@ -145,11 +146,90 @@ void randomGaussianAssignment(int rank, int numRanks)
     }
 }
 
-TEST(AssignmentGpu, matchTreeCpu)
+TEST(DomainGpu, matchTreeCpu)
 {
     int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
     randomGaussianAssignment<uint64_t, double>(rank, numRanks);
+}
+
+TEST(DomainGpu, reapplySync)
+{
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+
+    using Real    = double;
+    using KeyType = unsigned;
+
+    Box<Real> box(0, 1);
+    LocalIndex numParticlesPerRank = 10000;
+    unsigned bucketSize            = 1024;
+    unsigned bucketSizeFocus       = 8;
+    float theta                    = 0.5;
+
+    // Note: rank used as seed, so each rank will get different coordinates
+    RandomCoordinates<Real, SfcKind<KeyType>> coordinates(numParticlesPerRank, box, rank);
+
+    std::vector<Real> x(coordinates.x().begin(), coordinates.x().end());
+    std::vector<Real> y(coordinates.y().begin(), coordinates.y().end());
+    std::vector<Real> z(coordinates.z().begin(), coordinates.z().end());
+    std::vector<Real> h(numParticlesPerRank, 0.1 / std::cbrt(numRanks));
+    std::vector<KeyType> keys(x.size());
+
+    thrust::device_vector<Real> d_x       = x;
+    thrust::device_vector<Real> d_y       = y;
+    thrust::device_vector<Real> d_z       = z;
+    thrust::device_vector<Real> d_h       = h;
+    thrust::device_vector<KeyType> d_keys = keys;
+
+    Domain<KeyType, Real, GpuTag> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
+
+    thrust::device_vector<Real> s1, s2, gpuOrdering;
+    domain.sync(d_keys, d_x, d_y, d_z, d_h, std::tuple{}, std::tie(s1, s2, gpuOrdering));
+
+    // modify coordinates
+    {
+        RandomCoordinates<Real, SfcKind<KeyType>> scord(domain.nParticles(), box, numRanks + rank);
+        thrust::copy(scord.x().begin(), scord.x().end(), d_x.begin() + domain.startIndex());
+        thrust::copy(scord.y().begin(), scord.y().end(), d_y.begin() + domain.startIndex());
+        thrust::copy(scord.z().begin(), scord.z().end(), d_z.begin() + domain.startIndex());
+    }
+
+    std::vector<Real> host_property(d_x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+    {
+        host_property[i] = numParticlesPerRank * rank + i;
+    }
+    thrust::device_vector<Real> property = host_property;
+
+    // exchange property together with sync
+    domain.sync(d_keys, d_x, d_y, d_z, d_h, std::tie(property), std::tie(s1, s2, gpuOrdering));
+
+    std::vector<Real> hs1, hs2;
+    domain.reapplySync(std::tie(host_property), hs1, hs2, gpuOrdering);
+
+    EXPECT_EQ(property.size(), host_property.size());
+
+    thrust::host_vector<Real> dl_property = property;
+
+    int numPass = 0;
+    for (int i = domain.startIndex(); i < domain.endIndex(); ++i)
+    {
+        if (dl_property[i] == host_property[i]) numPass++;
+    }
+    EXPECT_EQ(numPass, domain.nParticles());
+
+    {
+        std::vector<Real> a(dl_property.begin() + domain.startIndex(), dl_property.begin() + domain.endIndex());
+        std::vector<Real> b(host_property.begin() + domain.startIndex(), host_property.begin() + domain.endIndex());
+        std::sort(a.begin(), a.end());
+        std::sort(b.begin(), b.end());
+        std::vector<Real> s(a.size());
+        auto it       = std::set_intersection(a.begin(), a.end(), b.begin(), b.end(), s.begin());
+        int numCommon = it - s.begin();
+        EXPECT_EQ(numCommon, domain.nParticles());
+    }
 }

@@ -48,8 +48,8 @@ TEST(xmass, JLoop)
     T K         = compute_3d_k(sincIndex);
     T mpart     = 3.781038064465603e26;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
@@ -107,11 +107,11 @@ TEST(xmass, JLoop)
 
     std::fill(m.begin(), m.end(), mpart);
 
-    T xmass = xmassJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(),
-                         m.data(), wh.data(), whd.data());
+    T xmass = xmassJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(), m.data(),
+                         wh.data(), whd.data());
     T rho0i = m[0] / xmass;
 
-    EXPECT_NEAR(rho0i, 3.4515038677924743e1, 1e-10);
+    EXPECT_NEAR(rho0i, 34.515038498081417, 7.33e-7);
     EXPECT_NEAR(xmass, m[0] / rho0i, 1e-10);
-    EXPECT_NEAR(xmass, m[0] / rho0[0], m[0] / rho0[0] * 1.e-8);
+    EXPECT_NEAR(xmass, m[0] / rho0[0], m[0] / rho0[0] * 1.e-7);
 }

@@ -51,15 +51,15 @@ auto accelerationTimestep(size_t first, size_t last, const Dataset& d)
     T maxAccSq = 0.0;
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        maxAccSq = cstone::maxNormSquareGpu(rawPtr(d.devData.x) + first, rawPtr(d.devData.y) + first,
-                                            rawPtr(d.devData.z) + first, last - first);
+        maxAccSq = cstone::maxNormSquareGpu(rawPtr(d.devData.ax) + first, rawPtr(d.devData.ay) + first,
+                                            rawPtr(d.devData.az) + first, last - first);
     }
     else
     {
 #pragma omp parallel for reduction(max : maxAccSq)
         for (size_t i = first; i < last; ++i)
         {
-            cstone::Vec3<T> X{d.x[i], d.y[i], d.z[i]};
+            cstone::Vec3<T> X{d.ax[i], d.ay[i], d.az[i]};
             maxAccSq = std::max(norm2(X), maxAccSq);
         }
     }
@@ -67,11 +67,11 @@ auto accelerationTimestep(size_t first, size_t last, const Dataset& d)
     return d.etaAcc * std::sqrt(d.eps / std::sqrt(maxAccSq));
 }
 
-//! @brief limit time-step based on divergence of velocity
+//! @brief limit time-step based on divergence of velocity, this is called in the propagator when Divv is available
 template<class Dataset>
 auto rhoTimestep(size_t first, size_t last, const Dataset& d)
 {
-    using T = typename Dataset::RealType;
+    using T = std::decay_t<decltype(d.divv[0])>;
 
     T maxDivv = -INFINITY;
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
@@ -93,14 +93,14 @@ auto rhoTimestep(size_t first, size_t last, const Dataset& d)
     return d.Krho / std::abs(maxDivv);
 }
 
-template<class Dataset>
-void computeTimestep(size_t first, size_t last, Dataset& d)
+template<class Dataset, class... Ts>
+void computeTimestep(size_t first, size_t last, Dataset& d, Ts... extraTimesteps)
 {
     using T = typename Dataset::RealType;
 
     T minDtAcc = (d.g != 0.0) ? accelerationTimestep(first, last, d) : INFINITY;
 
-    T minDtLoc = std::min({minDtAcc, d.minDtCourant, d.minDtRho, d.maxDtIncrease * d.minDt});
+    T minDtLoc = std::min({minDtAcc, d.minDtCourant, d.minDtRho, d.maxDtIncrease * d.minDt, extraTimesteps...});
 
     T minDtGlobal;
     MPI_Allreduce(&minDtLoc, &minDtGlobal, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);

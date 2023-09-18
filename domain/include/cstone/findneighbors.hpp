@@ -90,31 +90,31 @@ HOST_DEVICE_FUN constexpr T distanceSq(T x1, T y1, T z1, T x2, T y2, T z2, const
  * @param[in]  box             coordinate bounding box that was used to calculate the Morton codes
  * @param[in]  ngmax           maximum number of neighbors per particle
  * @param[out] neighbors       output to store the neighbors
- * @return                     neighbor count of particle @p i
+ * @return                     neighbor count of particle @p i, does not include self-reference; min return val is 0.
  */
-template<class T, class KeyType>
+template<class Tc, class Th, class KeyType>
 HOST_DEVICE_FUN unsigned findNeighbors(LocalIndex i,
-                                       const T* x,
-                                       const T* y,
-                                       const T* z,
-                                       const T* h,
-                                       const OctreeNsView<T, KeyType>& tree,
-                                       const Box<T>& box,
+                                       const Tc* x,
+                                       const Tc* y,
+                                       const Tc* z,
+                                       const Th* h,
+                                       const OctreeNsView<Tc, KeyType>& tree,
+                                       const Box<Tc>& box,
                                        unsigned ngmax,
                                        LocalIndex* neighbors)
 {
-    T xi = x[i];
-    T yi = y[i];
-    T zi = z[i];
-    T hi = h[i];
+    auto xi = x[i];
+    auto yi = y[i];
+    auto zi = z[i];
+    auto hi = h[i];
 
-    T radiusSq = 4.0 * hi * hi;
-    Vec3<T> particle{xi, yi, zi};
+    auto radiusSq = Th(4.0) * hi * hi;
+    Vec3<Tc> particle{xi, yi, zi};
     unsigned numNeighbors = 0;
 
     auto pbc    = BoundaryType::periodic;
     bool anyPbc = box.boundaryX() == pbc || box.boundaryY() == pbc || box.boundaryZ() == pbc;
-    bool usePbc = anyPbc && !insideBox(particle, {T(2) * hi, T(2) * hi, T(2) * hi}, box);
+    bool usePbc = anyPbc && !insideBox(particle, {Tc(2) * hi, Tc(2) * hi, Tc(2) * hi}, box);
 
     auto overlapsPbc = [particle, radiusSq, centers = tree.centers, sizes = tree.sizes, &box](TreeNodeIndex idx)
     {

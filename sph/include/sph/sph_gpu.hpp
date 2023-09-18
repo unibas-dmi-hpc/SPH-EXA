@@ -37,18 +37,18 @@ template<bool avClean, class Dataset>
 extern void computeMomentumEnergy(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Tu, class Trho, class Tp, class Tc>
-extern void computeEOS_HydroStd(size_t, size_t, Tu, Tu, const Tu*, const Trho*, Tp*, Tc*);
+extern void computeEOS_HydroStd(size_t, size_t, Trho, Tu, const Tu*, const Trho*, Tp*, Tc*);
 
 template<class Tu, class Tm, class Thydro>
-extern void computeEOS(size_t, size_t, Tu, Tu, const Tu*, const Tm*, const Thydro*, const Thydro*, const Thydro*,
-                       Thydro*, Thydro*, Thydro*, Thydro*);
+extern void computeEOS(size_t, size_t, Tm mui, Tu gamma, const Tu*, const Tm*, const Thydro*, const Thydro*,
+                       const Thydro*, Thydro*, Thydro*, Thydro*, Thydro*);
 
 } // namespace cuda
 
-template<class Tc, class Tv, class Ta, class Tm1, class Tu, class Thydro>
+template<class Tc, class Tv, class Ta, class Tdu, class Tm1, class Tu, class Thydro>
 extern void computePositionsGpu(size_t first, size_t last, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx, Tv* vy,
-                                Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, Tu* u, Tm1* du,
-                                Tm1* du_m1, Thydro* h, Thydro* mui, Thydro gamma, Thydro constCv,
+                                Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, Tu* temp, Tu* u,
+                                Tdu* du, Tm1* du_m1, Thydro* h, Thydro* mui, Tc gamma, Tc constCv,
                                 const cstone::Box<Tc>& box);
 
 template<class Th>

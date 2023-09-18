@@ -33,6 +33,7 @@
 
 #include "gtest/gtest.h"
 
+#include "cstone/domain/buffer_description.hpp"
 #include "cstone/domain/domaindecomp.hpp"
 
 using namespace cstone;
@@ -46,8 +47,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0), 0, 3, 15);
-        ref.addRange(Rank(1), 3, 6, 16);
+        ref.addRange(0, 0, 3, 15);
+        ref.addRange(1, 3, 6, 16);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -57,8 +58,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0), 0, 3, 15);
-        ref.addRange(Rank(1), 3, 6, 16);
+        ref.addRange(0, 0, 3, 15);
+        ref.addRange(1, 3, 6, 16);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -68,8 +69,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0), 0, 3, 16);
-        ref.addRange(Rank(1), 3, 6, 15);
+        ref.addRange(0, 0, 3, 16);
+        ref.addRange(1, 3, 6, 15);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -80,13 +81,13 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0), 0, 1, 4);
-        ref.addRange(Rank(1), 1, 3, 7);
-        ref.addRange(Rank(2), 3, 4, 3);
-        ref.addRange(Rank(3), 4, 6, 7);
-        ref.addRange(Rank(4), 6, 7, 4);
-        ref.addRange(Rank(5), 7, 9, 7);
-        ref.addRange(Rank(6), 9, 10, 3);
+        ref.addRange(0, 0, 1, 4);
+        ref.addRange(1, 1, 3, 7);
+        ref.addRange(2, 3, 4, 3);
+        ref.addRange(3, 4, 6, 7);
+        ref.addRange(4, 6, 7, 4);
+        ref.addRange(5, 7, 9, 7);
+        ref.addRange(6, 9, 10, 3);
         EXPECT_EQ(ref, splits);
     }
 }
@@ -96,10 +97,10 @@ TEST(DomainDecomposition, AssignmentFindRank)
 {
     int nRanks = 4;
     SpaceCurveAssignment assignment(nRanks);
-    assignment.addRange(Rank(0), 0, 1, 0);
-    assignment.addRange(Rank(1), 1, 3, 0);
-    assignment.addRange(Rank(2), 3, 4, 0);
-    assignment.addRange(Rank(3), 4, 5, 0);
+    assignment.addRange(0, 0, 1, 0);
+    assignment.addRange(1, 1, 3, 0);
+    assignment.addRange(2, 3, 4, 0);
+    assignment.addRange(3, 4, 5, 0);
 
     EXPECT_EQ(0, assignment.findRank(0));
     EXPECT_EQ(1, assignment.findRank(1));
@@ -123,41 +124,25 @@ static void sendListMinimal()
 
     int nRanks = 2;
     SpaceCurveAssignment assignment(nRanks);
-    assignment.addRange(Rank(0), 0, 2, 0);
-    assignment.addRange(Rank(1), 2, 4, 0);
+    assignment.addRange(0, 0, 2, 0);
+    assignment.addRange(1, 2, 4, 0);
 
     // note: codes input needs to be sorted
-    auto sendList = createSendList<KeyType>(assignment, tree, codes);
+    auto sendList = createSendRanges<KeyType>(assignment, tree, codes);
 
-    EXPECT_EQ(sendList[0].totalCount(), 6);
-    EXPECT_EQ(sendList[1].totalCount(), 3);
+    EXPECT_EQ(sendList.count(0), 6);
+    EXPECT_EQ(sendList.count(1), 3);
 
-    EXPECT_EQ(sendList[0].rangeStart(0), 0);
-    EXPECT_EQ(sendList[0].rangeEnd(0), 6);
-    EXPECT_EQ(sendList[1].rangeStart(0), 6);
-    EXPECT_EQ(sendList[1].rangeEnd(0), 9);
+    EXPECT_EQ(sendList[0], 0);
+    EXPECT_EQ(sendList[0] + sendList.count(0), 6);
+    EXPECT_EQ(sendList[1], 6);
+    EXPECT_EQ(sendList[1] + sendList.count(1), 9);
 }
 
 TEST(DomainDecomposition, createSendList)
 {
     sendListMinimal<unsigned>();
     sendListMinimal<uint64_t>();
-}
-
-TEST(DomainDecomposition, computeByteOffsets)
-{
-    util::array<size_t, 3> elementSizes{8, 4, 8};
-    size_t sendCount = 1001;
-    size_t alignment = 128;
-
-    auto offsets = computeByteOffsets(sendCount, elementSizes, alignment);
-
-    EXPECT_EQ(offsets[0], 0);
-    EXPECT_EQ(offsets[1], round_up(elementSizes[0] * sendCount, alignment));
-    EXPECT_EQ(offsets[2], offsets[1] + round_up(elementSizes[1] * sendCount, alignment));
-    EXPECT_EQ(offsets[3], offsets[2] + round_up(elementSizes[2] * sendCount, alignment));
-
-    EXPECT_EQ(offsets[3], 8064 + 4096 + 8064);
 }
 
 template<class KeyType>

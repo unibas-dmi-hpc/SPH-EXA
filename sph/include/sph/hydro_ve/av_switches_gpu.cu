@@ -46,11 +46,11 @@ using cstone::TravConfig;
 using cstone::TreeNodeIndex;
 
 template<class Tc, class T, class KeyType>
-__global__ void AVswitchesGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<T> box, size_t first, size_t last,
+__global__ void AVswitchesGpu(Tc K, unsigned ngmax, const cstone::Box<Tc> box, size_t first, size_t last,
                               const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x, const Tc* y, const Tc* z,
                               const T* vx, const T* vy, const T* vz, const T* h, const T* c, const T* c11, const T* c12,
                               const T* c13, const T* c22, const T* c23, const T* c33, const T* wh, const T* whd,
-                              const T* kx, const T* xm, const T* divv, T minDt, T alphamin, T alphamax,
+                              const T* kx, const T* xm, const T* divv, Tc minDt, T alphamin, T alphamax,
                               T decay_constant, T* alpha, LocalIndex* nidx, TreeNodeIndex* globalPool)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
@@ -77,9 +77,9 @@ __global__ void AVswitchesGpu(T sincIndex, T K, unsigned ngmax, const cstone::Bo
         if (i >= last) continue;
 
         unsigned ncCapped = stl::min(ncTrue[0], ngmax);
-        alpha[i]          = AVswitchesJLoop<TravConfig::targetSize>(
-            i, sincIndex, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, vx, vy, vz, h, c, c11, c12, c13, c22, c23,
-            c33, wh, whd, kx, xm, divv, minDt, alphamin, alphamax, decay_constant, alpha[i]);
+        alpha[i] = AVswitchesJLoop<TravConfig::targetSize>(i, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, vx,
+                                                           vy, vz, h, c, c11, c12, c13, c22, c23, c33, wh, whd, kx, xm,
+                                                           divv, minDt, alphamin, alphamax, decay_constant, alpha[i]);
     }
 }
 
@@ -94,12 +94,12 @@ void computeAVswitches(size_t startIndex, size_t endIndex, Dataset& d,
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     AVswitchesGpu<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, d.ngmax, box, startIndex, endIndex, d.treeView.nsView(), rawPtr(d.devData.x),
-        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
-        rawPtr(d.devData.h), rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13),
-        rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh),
-        rawPtr(d.devData.whd), rawPtr(d.devData.kx), rawPtr(d.devData.xm), rawPtr(d.devData.divv), d.minDt, d.alphamin,
-        d.alphamax, d.decay_constant, rawPtr(d.devData.alpha), nidxPool, traversalPool);
+        d.K, d.ngmax, box, startIndex, endIndex, d.treeView.nsView(), rawPtr(d.devData.x), rawPtr(d.devData.y),
+        rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h),
+        rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
+        rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.kx),
+        rawPtr(d.devData.xm), rawPtr(d.devData.divv), d.minDt, d.alphamin, d.alphamax, d.decay_constant,
+        rawPtr(d.devData.alpha), nidxPool, traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 

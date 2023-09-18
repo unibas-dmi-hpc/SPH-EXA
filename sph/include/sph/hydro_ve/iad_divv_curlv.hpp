@@ -76,19 +76,16 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, Dataset& d, con
     const auto* kx  = d.kx.data();
     const auto* xm  = d.xm.data();
 
-    const auto K         = d.K;
-    const auto sincIndex = d.sincIndex;
-
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; ++i)
     {
-        size_t   ni = i - startIndex;
-        unsigned nc = std::min(neighborsCount[i], d.ngmax);
+        size_t   ni       = i - startIndex;
+        unsigned ncCapped = std::min(neighborsCount[i] - 1, d.ngmax);
 
-        IADJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22,
-                 c23, c33);
+        IADJLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, h, wh, whd, xm, kx, c11, c12, c13, c22, c23,
+                 c33);
 
-        divV_curlVJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, vx, vy, vz, h, c11, c12, c13, c22,
+        divV_curlVJLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, vx, vy, vz, h, c11, c12, c13, c22,
                         c23, c33, wh, whd, kx, xm, divv, curlv, dV11, dV12, dV13, dV22, dV23, dV33, doGradV);
     }
 }

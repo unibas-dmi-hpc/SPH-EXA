@@ -64,18 +64,20 @@ void syncCoords(size_t rank, size_t numRanks, size_t numParticlesGlobal, Vector&
     cstone::GlobalAssignment<KeyType, T> distributor(rank, numRanks, bucketSize, globalBox);
 
     std::vector<unsigned>                                        orderScratch;
-    cstone::SfcSorter<cstone::LocalIndex, std::vector<unsigned>> reorderFunctor(orderScratch);
+    cstone::SfcSorter<cstone::LocalIndex, std::vector<unsigned>> sorter(orderScratch);
 
     std::vector<T>       scratch1, scratch2;
     std::vector<KeyType> particleKeys(x.size());
     cstone::LocalIndex   newNParticlesAssigned =
-        distributor.assign(bufDesc, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
+        distributor.assign(bufDesc, sorter, scratch1, scratch2, particleKeys.data(), x.data(), y.data(), z.data());
     size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
     reallocate(exchangeSize, particleKeys, x, y, z);
-    auto [exchangeStart, keyView] = distributor.distribute(bufDesc, reorderFunctor, scratch1, scratch2,
-                                                           particleKeys.data(), x.data(), y.data(), z.data());
+    auto [exchangeStart, keyView] =
+        distributor.distribute(bufDesc, sorter, scratch1, scratch2, particleKeys.data(), x.data(), y.data(), z.data());
+
     scratch1.resize(x.size());
-    cstone::reorderArrays(reorderFunctor, exchangeStart, 0, std::tie(x, y, z), std::tie(scratch1));
+    cstone::gatherArrays(sorter.gatherFunc(), sorter.getMap() + distributor.numSendDown(), distributor.numAssigned(),
+                         exchangeStart, 0, std::tie(x, y, z), std::tie(scratch1));
     x.resize(keyView.size());
     y.resize(keyView.size());
     z.resize(keyView.size());

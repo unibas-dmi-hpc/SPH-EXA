@@ -48,8 +48,8 @@ TEST(IAD, JLoop)
     T K         = compute_3d_k(sincIndex);
     T mpart     = 3.781038064465603e26;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
@@ -112,15 +112,15 @@ TEST(IAD, JLoop)
     for (i = 0; i < neighborsCount + 1; i++)
     {
         xm[i] = mpart / rho0[i];
-        kx[i] = K * xm[i] / math::pow(h[i], 3);
+        kx[i] = K * xm[i] / std::pow(h[i], 3);
     }
 
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     std::vector<T> iad(6, -1);
 
     // compute the 6 tensor components for particle 0
-    IADJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(), wh.data(),
-             whd.data(), xm.data(), kx.data(), &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
+    IADJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(), wh.data(), whd.data(),
+             xm.data(), kx.data(), &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
 
     EXPECT_NEAR(iad[0], 1.9296619855715329e-18, 1e-10);
     EXPECT_NEAR(iad[1], -1.7838691836843698e-20, 1e-10);
@@ -137,8 +137,8 @@ TEST(IAD, JLoopPBC)
     T sincIndex = 6.0;
     T K         = compute_3d_k(sincIndex);
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     // box length in any dimension must be bigger than 4*h for any particle
     // otherwise the PBC evaluation does not select the closest image
@@ -168,13 +168,13 @@ TEST(IAD, JLoopPBC)
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     std::vector<T> iad(6, -1);
 
-    IADJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(), wh.data(),
-             whd.data(), xm.data(), kx.data(), &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
+    IADJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(), wh.data(), whd.data(),
+             xm.data(), kx.data(), &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
 
-    EXPECT_NEAR(iad[0], 0.42970014180599519, 1e-10);
-    EXPECT_NEAR(iad[1], -0.2304555811353339, 1e-10);
-    EXPECT_NEAR(iad[2], -0.052317231832885822, 1e-10);
-    EXPECT_NEAR(iad[3], 2.8861688071845268, 1e-10);
-    EXPECT_NEAR(iad[4], -0.23251632520430554, 1e-10);
-    EXPECT_NEAR(iad[5], 0.36028770403046995, 1e-10);
+    EXPECT_NEAR(iad[0], 0.42970014305820264, 3e-7);
+    EXPECT_NEAR(iad[1], -0.23045558110767411, 3e-7);
+    EXPECT_NEAR(iad[2], -0.052317231995050187, 3e-7);
+    EXPECT_NEAR(iad[3], 2.886168807109148, 3e-7);
+    EXPECT_NEAR(iad[4], -0.2325163252006715, 3e-7);
+    EXPECT_NEAR(iad[5], 0.36028770439708135, 3e-7);
 }

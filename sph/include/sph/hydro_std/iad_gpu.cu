@@ -50,7 +50,6 @@ using cstone::TreeNodeIndex;
  *
  * @tparam     T               float or double
  * @tparam     KeyType         32- or 64-bit unsigned integer
- * @param[in]  sincIndex
  * @param[in]  K
  * @param[in]  ngmax           maximum number of neighbors per particle to use
  * @param[in]  box             global coordinate bounding box
@@ -74,7 +73,7 @@ using cstone::TreeNodeIndex;
  * @param[out] c33
  */
 template<class Tc, class Tm, class T, class KeyType>
-__global__ void IADGpuKernel(T sincIndex, T K, unsigned ngmax, cstone::Box<T> box, const cstone::LocalIndex* groups,
+__global__ void IADGpuKernel(Tc K, unsigned ngmax, cstone::Box<Tc> box, const cstone::LocalIndex* groups,
                              cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x,
                              const Tc* y, const Tc* z, const T* h, const Tm* m, const T* rho, const T* wh, const T* whd,
                              T* c11, T* c12, T* c13, T* c22, T* c23, T* c33, LocalIndex* nidx,
@@ -103,8 +102,8 @@ __global__ void IADGpuKernel(T sincIndex, T K, unsigned ngmax, cstone::Box<T> bo
         if (i >= bodyEnd) { continue; }
 
         unsigned ncCapped = stl::min(ncTrue[0], ngmax);
-        sph::IADJLoopSTD<TravConfig::targetSize>(i, sincIndex, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, h, m,
-                                                 rho, wh, whd, c11, c12, c13, c22, c23, c33);
+        sph::IADJLoopSTD<TravConfig::targetSize>(i, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, h, m, rho, wh,
+                                                 whd, c11, c12, c13, c22, c23, c33);
     }
 }
 
@@ -119,11 +118,11 @@ void computeIADGpu(size_t startIndex, size_t endIndex, Dataset& d, const cstone:
 
     unsigned numGroups = d.devData.targetGroups.size() - 1;
     IADGpuKernel<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(),
-        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m),
-        rawPtr(d.devData.rho), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.c11),
-        rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22), rawPtr(d.devData.c23),
-        rawPtr(d.devData.c33), nidxPool, traversalPool);
+        d.K, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(), rawPtr(d.devData.x),
+        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho),
+        rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.c11), rawPtr(d.devData.c12),
+        rawPtr(d.devData.c13), rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), nidxPool,
+        traversalPool);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 

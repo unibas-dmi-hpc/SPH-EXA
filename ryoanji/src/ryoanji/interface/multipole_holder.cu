@@ -32,6 +32,7 @@
 #include <thrust/device_vector.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/primitives/math.hpp"
 #include "cstone/util/reallocate.hpp"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
 #include "ryoanji/nbody/direct.cuh"
@@ -127,7 +128,7 @@ public:
     {
         int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
         int numTargets       = targets_.size() - 1;
-        int numBlocks        = iceil(numTargets, numWarpsPerBlock);
+        int numBlocks        = cstone::iceil(numTargets, numWarpsPerBlock);
         numBlocks            = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
         LocalIndex poolSize  = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
@@ -234,6 +235,7 @@ const MType* MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::deviceMultipol
 
 MHOLDER_SPH(double, double, double, double, double, uint64_t, double);
 MHOLDER_SPH(double, double, float, double, double, uint64_t, float);
+MHOLDER_SPH(double, float, float, float, double, uint64_t, float);
 MHOLDER_SPH(float, float, float, float, float, uint64_t, float);
 
 #define MHOLDER_CART(Tc, Th, Tm, Ta, Tf, KeyType, MVal)                                                                \
@@ -241,6 +243,7 @@ MHOLDER_SPH(float, float, float, float, float, uint64_t, float);
 
 MHOLDER_CART(double, double, double, double, double, uint64_t, double);
 MHOLDER_CART(double, double, float, double, double, uint64_t, float);
+MHOLDER_CART(double, float, float, float, double, uint64_t, float);
 MHOLDER_CART(float, float, float, float, float, uint64_t, float);
 
 #define DIRECT_SUM(T)                                                                                                  \

@@ -62,10 +62,9 @@ void computeVeDefGradhImpl(size_t startIndex, size_t endIndex, Dataset& d, const
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        size_t   ni = i - startIndex;
-        unsigned nc = std::min(neighborsCount[i], d.ngmax);
-        auto [kxi, gradhi] =
-            veDefGradhJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, h, m, wh, whd, xm);
+        size_t   ni        = i - startIndex;
+        unsigned ncCapped  = std::min(neighborsCount[i] - 1, d.ngmax);
+        auto [kxi, gradhi] = veDefGradhJLoop(i, K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, h, m, wh, whd, xm);
 
         kx[i]    = kxi;
         gradh[i] = gradhi;

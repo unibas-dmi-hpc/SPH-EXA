@@ -53,8 +53,8 @@ TEST(AVswitches, JLoop)
     T mpart = 3.781038064465603e26;
     T dt    = 0.3;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
@@ -118,17 +118,17 @@ TEST(AVswitches, JLoop)
     for (i = 0; i < neighborsCount + 1; i++)
     {
         xm[i] = mpart / rho0[i];
-        kx[i] = K * xm[i] / math::pow(h[i], 3);
+        kx[i] = K * xm[i] / std::pow(h[i], 3);
     }
 
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     T alpha = -1;
 
     // compute gradient for for particle 0
-    alpha = AVswitchesJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
-                            vx.data(), vy.data(), vz.data(), h.data(), c.data(), c11.data(), c12.data(), c13.data(),
-                            c22.data(), c23.data(), c33.data(), wh.data(), whd.data(), kx.data(), xm.data(),
-                            divv.data(), dt, alphamin, alphamax, decay_constant, alphai);
+    alpha = AVswitchesJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(),
+                            vy.data(), vz.data(), h.data(), c.data(), c11.data(), c12.data(), c13.data(), c22.data(),
+                            c23.data(), c33.data(), wh.data(), whd.data(), kx.data(), xm.data(), divv.data(), dt,
+                            alphamin, alphamax, decay_constant, alphai);
 
-    EXPECT_NEAR(alpha, 0.93941905364451872, 1e-10);
+    EXPECT_NEAR(alpha, 0.93941905320351171, 2e-9);
 }

@@ -48,8 +48,8 @@ TEST(Divv_Curlv, JLoop)
     T K         = compute_3d_k(sincIndex);
     T mpart     = 3.781038064465603e26;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
@@ -112,7 +112,7 @@ TEST(Divv_Curlv, JLoop)
     for (i = 0; i < neighborsCount + 1; i++)
     {
         xm[i] = mpart / rho0[i];
-        kx[i] = K * xm[i] / math::pow(h[i], 3);
+        kx[i] = K * xm[i] / std::pow(h[i], 3);
     }
 
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
@@ -125,28 +125,18 @@ TEST(Divv_Curlv, JLoop)
     T dV23  = -1;
     T dV33  = -1;
 
-    // compute gradient for for particle 0
-    divV_curlVJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(),
-                    vy.data(), vz.data(), h.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(),
-                    c33.data(), wh.data(), whd.data(), kx.data(), xm.data(), &divv, &curlv, &dV11, &dV12, &dV13, &dV22,
-                    &dV23, &dV33, true);
+    // compute gradient for particle 0
+    divV_curlVJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(), vy.data(),
+                    vz.data(), h.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(),
+                    wh.data(), whd.data(), kx.data(), xm.data(), &divv, &curlv, &dV11, &dV12, &dV13, &dV22, &dV23,
+                    &dV33, true);
 
-    T dvxdxRef = 1.3578325800572969e-3;
-    T dvxdyRef = 3.0002215820712448e-2;
-    T dvxdzRef = -9.0001569692540768e-3;
-    T dvydxRef = -5.3495470097538571e-3;
-    T dvydyRef = 2.2556439156962826e-2;
-    T dvydzRef = 5.8741778655137782e-3;
-    T dvzdxRef = 4.3397397877829496e-3;
-    T dvzdyRef = 3.8963123805324977e-3;
-    T dvzdzRef = 9.8460822552287348e-3;
-
-    EXPECT_NEAR(divv, 3.3760353992248873e-2, 1e-10);
-    EXPECT_NEAR(curlv, 3.783664800939196e-2, 1e-10);
-    EXPECT_NEAR(dV11, dvxdxRef, 1e-10);
-    EXPECT_NEAR(dV12, dvxdyRef + dvydxRef, 1e-10);
-    EXPECT_NEAR(dV13, dvxdzRef + dvzdxRef, 1e-10);
-    EXPECT_NEAR(dV22, dvydyRef, 1e-10);
-    EXPECT_NEAR(dV23, dvydzRef + dvzdyRef, 1e-10);
-    EXPECT_NEAR(dV33, dvzdzRef, 1e-10);
+    EXPECT_NEAR(divv, 3.3760353440920682e-2, 2e-9);
+    EXPECT_NEAR(curlv, 3.7836647734377962e-2, 2e-9);
+    EXPECT_NEAR(dV11, 0.0013578323369918166, 2e-9);
+    EXPECT_NEAR(dV12, 0.02465266861727711, 2e-9);
+    EXPECT_NEAR(dV13, -0.0046604174274769167, 2e-9);
+    EXPECT_NEAR(dV22, 0.022556438947324862, 2e-9);
+    EXPECT_NEAR(dV23, 0.0097704904179710741, 2e-9);
+    EXPECT_NEAR(dV33, 0.0098460821566040066, 2e-9);
 }

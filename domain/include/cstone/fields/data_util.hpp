@@ -25,6 +25,8 @@
 
 /*! @file
  * @brief Utility functions to resolve names of particle fields to pointers
+ *
+ * C++17 compatible for use with Simulation Datasets
  */
 
 #pragma once
@@ -32,7 +34,7 @@
 #include <vector>
 #include <variant>
 
-#include "cstone/util/traits.hpp"
+#include "cstone/util/type_list.hpp"
 
 namespace cstone
 {

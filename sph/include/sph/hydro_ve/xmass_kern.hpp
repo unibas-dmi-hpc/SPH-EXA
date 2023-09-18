@@ -49,9 +49,9 @@ HOST_DEVICE_FUN inline T veDefinition(Tm mass, T rhoZero)
 }
 
 template<size_t stride = 1, class Tc, class Tm, class T>
-HOST_DEVICE_FUN inline T xmassJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<Tc>& box,
+HOST_DEVICE_FUN inline T xmassJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box,
                                     const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
-                                    const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd)
+                                    const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh, const T* /*whd*/)
 {
     auto xi = x[i];
     auto yi = y[i];
@@ -70,7 +70,7 @@ HOST_DEVICE_FUN inline T xmassJLoop(cstone::LocalIndex i, T sincIndex, T K, cons
 
         T dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
         T vloc = dist * hInv;
-        T w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
+        T w    = lt::lookup(wh, vloc);
 
         rho0i += w * m[j];
     }

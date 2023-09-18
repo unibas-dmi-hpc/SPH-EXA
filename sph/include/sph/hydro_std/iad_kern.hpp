@@ -11,10 +11,10 @@ namespace sph
 {
 
 template<size_t stride = 1, class Tc, class Tm, class T>
-HOST_DEVICE_FUN inline void IADJLoopSTD(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box,
+HOST_DEVICE_FUN inline void IADJLoopSTD(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box,
                                         const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
                                         const Tc* y, const Tc* z, const T* h, const Tm* m, const T* rho, const T* wh,
-                                        const T* whd, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
+                                        const T* /*whd*/, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
 {
     T tau11 = 0.0, tau12 = 0.0, tau13 = 0.0, tau22 = 0.0, tau23 = 0.0, tau33 = 0.0;
 
@@ -38,7 +38,7 @@ HOST_DEVICE_FUN inline void IADJLoopSTD(cstone::LocalIndex i, T sincIndex, T K, 
         T dist = std::sqrt(rx * rx + ry * ry + rz * rz);
 
         T vloc = dist * hiInv;
-        T w    = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
+        T w    = lt::lookup(wh, vloc);
 
         T mj_roj_w = m[j] / rho[j] * w;
 

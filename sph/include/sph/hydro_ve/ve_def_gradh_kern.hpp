@@ -42,10 +42,10 @@ namespace sph
 {
 
 template<size_t stride = 1, class Tc, class Tm, class T>
-HOST_DEVICE_FUN inline util::tuple<T, T>
-veDefGradhJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& box, const cstone::LocalIndex* neighbors,
-                unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh,
-                const T* whd, const T* xm)
+HOST_DEVICE_FUN inline util::tuple<T, T> veDefGradhJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box,
+                                                         const cstone::LocalIndex* neighbors, unsigned neighborsCount,
+                                                         const Tc* x, const Tc* y, const Tc* z, const T* h, const Tm* m,
+                                                         const T* wh, const T* whd, const T* xm)
 {
     auto xi     = x[i];
     auto yi     = y[i];
@@ -68,8 +68,8 @@ veDefGradhJLoop(cstone::LocalIndex i, T sincIndex, T K, const cstone::Box<T>& bo
 
         T dist   = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
         T vloc   = dist * hInv;
-        T w      = math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
-        T dw     = wharmonic_derivative(vloc, w) * sincIndex;
+        T w      = lt::lookup(wh, vloc);
+        T dw     = lt::lookup(whd, vloc);
         T dterh  = -(T(3) * w + vloc * dw);
         T xmassj = xm[j];
 

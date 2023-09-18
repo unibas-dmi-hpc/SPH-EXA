@@ -50,8 +50,8 @@ HOST_DEVICE_FUN bool fbcCheck(Tc coord, Th h, Tc top, Tc bottom, bool fbc)
 }
 
 //! @brief update the energy according to Adams-Bashforth (2nd order)
-template<class T>
-HOST_DEVICE_FUN double energyUpdate(double u_old, double dt, double dt_m1, T du, T du_m1)
+template<class T1, class T2>
+HOST_DEVICE_FUN double energyUpdate(double u_old, double dt, double dt_m1, T1 du, T2 du_m1)
 {
     double deltaA = 0.5 * dt * dt / dt_m1;
     double deltaB = dt + deltaA;
@@ -78,19 +78,13 @@ HOST_DEVICE_FUN auto positionUpdate(double dt, double dt_m1, cstone::Vec3<T> X, 
 }
 
 template<class T, class Dataset>
-void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
+void updatePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
-    double dt    = d.minDt;
-    double dt_m1 = d.minDt_m1;
-
     bool fbcX = (box.boundaryX() == cstone::BoundaryType::fixed);
     bool fbcY = (box.boundaryY() == cstone::BoundaryType::fixed);
     bool fbcZ = (box.boundaryZ() == cstone::BoundaryType::fixed);
 
     bool anyFBC = fbcX || fbcY || fbcZ;
-
-    bool haveMui = !d.mui.empty();
-    T    constCv = idealGasCv(d.muiConst, d.gamma);
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
@@ -109,21 +103,37 @@ void computePositionsHost(size_t startIndex, size_t endIndex, Dataset& d, const 
         cstone::Vec3<T> X{d.x[i], d.y[i], d.z[i]};
         cstone::Vec3<T> X_m1{d.x_m1[i], d.y_m1[i], d.z_m1[i]};
         cstone::Vec3<T> V;
-        util::tie(X, V, X_m1) = positionUpdate(dt, dt_m1, X, A, X_m1, box);
+        util::tie(X, V, X_m1) = positionUpdate(d.minDt, d.minDt_m1, X, A, X_m1, box);
 
         util::tie(d.x[i], d.y[i], d.z[i])          = util::tie(X[0], X[1], X[2]);
         util::tie(d.x_m1[i], d.y_m1[i], d.z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
         util::tie(d.vx[i], d.vy[i], d.vz[i])       = util::tie(V[0], V[1], V[2]);
     }
+}
 
-    if (d.temp.empty()) { return; }
+template<class Dataset>
+void updateTempHost(size_t startIndex, size_t endIndex, Dataset& d)
+{
+    bool haveMui = !d.mui.empty();
+    auto constCv = idealGasCv(d.muiConst, d.gamma);
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        T cv       = haveMui ? idealGasCv(d.mui[i], d.gamma) : constCv;
-        T u_old    = cv * d.temp[i];
-        d.temp[i]  = energyUpdate(u_old, dt, dt_m1, d.du[i], d.du_m1[i]) / cv;
+        auto cv    = haveMui ? idealGasCv(d.mui[i], d.gamma) : constCv;
+        auto u_old = cv * d.temp[i];
+        d.temp[i]  = energyUpdate(u_old, d.minDt, d.minDt_m1, d.du[i], d.du_m1[i]) / cv;
+        d.du_m1[i] = d.du[i];
+    }
+}
+
+template<class Dataset>
+void updateIntEnergyHost(size_t startIndex, size_t endIndex, Dataset& d)
+{
+#pragma omp parallel for schedule(static)
+    for (size_t i = startIndex; i < endIndex; i++)
+    {
+        d.u[i]     = energyUpdate(d.u[i], d.minDt, d.minDt_m1, d.du[i], d.du_m1[i]);
         d.du_m1[i] = d.du[i];
     }
 }
@@ -140,10 +150,16 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
                             rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
                             rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1),
                             rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.temp),
-                            rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h), d_mui, d.gamma, constCv,
-                            box);
+                            rawPtr(d.devData.u), rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h),
+                            d_mui, d.gamma, constCv, box);
     }
-    else { computePositionsHost(startIndex, endIndex, d, box); }
+    else
+    {
+        updatePositionsHost(startIndex, endIndex, d, box);
+
+        if (!d.temp.empty()) { updateTempHost(startIndex, endIndex, d); }
+        else if (!d.u.empty()) { updateIntEnergyHost(startIndex, endIndex, d); }
+    }
 }
 
 } // namespace sph

@@ -65,23 +65,16 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, Dataset& d, const
     const auto* kx   = d.kx.data();
     const auto* xm   = d.xm.data();
 
-    const T K         = d.K;
-    const T sincIndex = d.sincIndex;
-
-    const T alphamin       = d.alphamin;
-    const T alphamax       = d.alphamax;
-    const T decay_constant = d.decay_constant;
-
     auto* alpha = d.alpha.data();
 
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; ++i)
     {
-        size_t   ni = i - startIndex;
-        unsigned nc = std::min(neighborsCount[i], d.ngmax);
-        alpha[i] = AVswitchesJLoop(i, sincIndex, K, box, neighbors + d.ngmax * ni, nc, x, y, z, vx, vy, vz, h, c, c11,
-                                   c12, c13, c22, c23, c33, wh, whd, kx, xm, divv, d.minDt, alphamin, alphamax,
-                                   decay_constant, alpha[i]);
+        size_t   ni       = i - startIndex;
+        unsigned ncCapped = std::min(neighborsCount[i] - 1, d.ngmax);
+        alpha[i] = AVswitchesJLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, vx, vy, vz, h, c, c11, c12,
+                                   c13, c22, c23, c33, wh, whd, kx, xm, divv, d.minDt, d.alphamin, d.alphamax,
+                                   d.decay_constant, alpha[i]);
     }
 }
 

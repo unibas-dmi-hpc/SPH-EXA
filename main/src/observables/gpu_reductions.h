@@ -50,14 +50,14 @@ namespace sphexa
  * @param endIndex      last particle to be included
  * @return              a tuple containing the local si, di, ci
  */
-template<class Tc, class Tv, class Tm>
-extern std::tuple<double, double, double> gpuGrowthRate(const Tc* x, const Tc* y, const Tv* vy, const Tm* xm,
-                                                        const Tm* kx, const cstone::Box<Tc>& box, size_t startIndex,
+template<class Tc, class Tv, class T>
+extern std::tuple<double, double, double> gpuGrowthRate(const Tc* x, const Tc* y, const Tv* vy, const T* xm,
+                                                        const T* kx, const cstone::Box<Tc>& box, size_t startIndex,
                                                         size_t endIndex);
 
 /*! @brief compute square of local Mach number sum
  *
- * @tparam     Tc     float or double
+ * @tparam     T      float or double
  * @tparam     Tv     float or double
  * @param[in]  vx     velocities x-component
  * @param[in]  vy     velocities y-component
@@ -67,14 +67,14 @@ extern std::tuple<double, double, double> gpuGrowthRate(const Tc* x, const Tc* y
  * @param[in]  last   last local particle
  * @return
  */
-template<class Tc, class Tv>
-extern double machSquareSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const Tc* c, size_t first, size_t last);
+template<class Tv, class T>
+extern double machSquareSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const T* c, size_t first, size_t last);
 
 /*!@brief sum up the particles that still belong to the cloud
  *
- * @tparam Tc
- * @tparam Tt       float or double
- * @tparam Tm
+ * @tparam T        Hydro field type, float or double
+ * @tparam Tt       Temperature / internal energy field type, float or double
+ * @tparam Tm       mass field type, float or dobule
  * @param temp      particle temperatures
  * @param kx        VE normalization
  * @param xmass     VE definition
@@ -85,7 +85,7 @@ extern double machSquareSumGpu(const Tv* vx, const Tv* vy, const Tv* vz, const T
  * @param last      index of last local particle
  * @return
  */
-template<class Tc, class Tt, class Tm>
-extern size_t survivorsGpu(const Tt* temp, const Tt* kx, const Tc* xmass, const Tm* m, double rhoBubble,
-                           double tempWind, size_t first, size_t last);
+template<class T, class Tt, class Tm>
+extern size_t survivorsGpu(const Tt* temp, const T* kx, const T* xmass, const Tm* m, double rhoBubble, double tempWind,
+                           size_t first, size_t last);
 } // namespace sphexa

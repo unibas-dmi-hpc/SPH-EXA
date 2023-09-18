@@ -46,7 +46,7 @@ constexpr inline bool useGpuDirect = false;
 
 template<class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
 auto mpiSendGpuDirect(T* data,
-                      int count,
+                      size_t count,
                       int rank,
                       int tag,
                       std::vector<MPI_Request>& requests,
@@ -62,6 +62,18 @@ auto mpiSendGpuDirect(T* data,
         return errCode;
     }
     else { return mpiSendAsync(data, count, rank, tag, requests); }
+}
+
+//! @brief Send char buffers cast to a transfer type @p T to mitigate the 32-bit send count limitation of MPI
+template<class T, std::enable_if_t<!std::is_same_v<T, char>, int> = 0>
+auto mpiSendGpuDirect(char* data,
+                      size_t numBytes,
+                      int rank,
+                      int tag,
+                      std::vector<MPI_Request>& requests,
+                      std::vector<std::vector<T, util::DefaultInitAdaptor<T>>>& buffers)
+{
+    return mpiSendGpuDirect(reinterpret_cast<T*>(data), numBytes / sizeof(T), rank, tag, requests, buffers);
 }
 
 template<class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>

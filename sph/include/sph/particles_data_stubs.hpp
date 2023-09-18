@@ -69,6 +69,11 @@ struct DeviceDataFacade
     {
     }
 
+    template<class Table>
+    void uploadTables(const Table&, const Table&)
+    {
+    }
+
     inline static constexpr std::array fieldNames{0};
 };
 

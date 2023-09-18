@@ -33,7 +33,7 @@
 
 #include <variant>
 
-#include "cstone/fields/particles_get.hpp"
+#include "cstone/fields/field_get.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/positions.hpp"
 #include "sph/timestep.hpp"
@@ -45,7 +45,7 @@ namespace sphexa
 {
 
 using namespace sph;
-using cstone::FieldList;
+using util::FieldList;
 
 template<class DomainType, class DataType>
 class NbodyProp final : public Propagator<DomainType, DataType>
@@ -53,15 +53,16 @@ class NbodyProp final : public Propagator<DomainType, DataType>
     using Base = Propagator<DomainType, DataType>;
     using Base::timer;
 
-    using T             = typename DataType::RealType;
     using KeyType       = typename DataType::KeyType;
+    using T             = typename DataType::RealType;
+    using HydroType     = typename DataType::HydroData::HydroType;
     using Tmass         = typename DataType::HydroData::Tmass;
     using MultipoleType = ryoanji::CartesianQuadrupole<Tmass>;
 
-    using Acc = typename DataType::AcceleratorType;
-    using MHolder_t =
-        typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu,
-                                         MultipoleHolderGpu>::template type<MultipoleType, KeyType, T, T, Tmass, T, T>;
+    using Acc       = typename DataType::AcceleratorType;
+    using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
+        MultipoleType, DomainType, typename DataType::HydroData>;
+
     MHolder_t mHolder_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
@@ -71,7 +72,7 @@ class NbodyProp final : public Propagator<DomainType, DataType>
     using ConservedFields = FieldList<"vx", "vy", "vz", "x_m1", "y_m1", "z_m1">;
 
     //! @brief the list of dependent particle fields, these may be used as scratch space during domain sync
-    using DependentFields = FieldList<"ax", "ay", "du_m1", "az">;
+    using DependentFields = FieldList<"ax", "ay", "du", "du_m1", "az">;
 
 public:
     NbodyProp(std::ostream& output, size_t rank, bool isProfilingEnabled)
@@ -124,9 +125,9 @@ public:
         fill(get<"m">(d), 0, first, d.m[first]);
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
-        fill(get<"ax">(d), first, last, T(0));
-        fill(get<"ay">(d), first, last, T(0));
-        fill(get<"az">(d), first, last, T(0));
+        fill(get<"ax">(d), first, last, HydroType(0));
+        fill(get<"ay">(d), first, last, HydroType(0));
+        fill(get<"az">(d), first, last, HydroType(0));
 
         mHolder_.upsweep(d, domain);
         timer.step("Upsweep");

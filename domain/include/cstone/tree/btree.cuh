@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "cstone/primitives/math.hpp"
 #include "btree.hpp"
 
 namespace cstone

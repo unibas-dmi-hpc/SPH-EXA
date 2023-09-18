@@ -51,7 +51,7 @@
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/sfc/sfc_gpu.h"
 #include "cstone/util/reallocate.hpp"
-#include "cstone/util/traits.hpp"
+#include "cstone/util/type_list.hpp"
 
 namespace cstone
 {
@@ -77,6 +77,9 @@ class Domain
         typename AccelSwitchType<Accelerator, SfcSorter, GpuSfcSorter>::template type<LocalIndex, BufferType>;
 
 public:
+    //! @brief floating point type used for the coordinate bounding box and geometric/mass centers of tree nodes
+    using RealType = T;
+
     /*! @brief construct empty Domain
      *
      * @param rank            executing rank
@@ -201,14 +204,15 @@ public:
     {
         staticChecks<KeyVec, VectorX, VectorH, Vectors1...>(scratchBuffers);
         auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
-        ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> reorderer(sfcOrder);
+        ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> sorter(sfcOrder);
 
-        auto scratch = discardLastElement(scratchBuffers);
+        auto scratch = util::discardLastElement(scratchBuffers);
 
         auto [exchangeStart, keyView] =
-            distribute(reorderer, particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratch);
+            distribute(sorter, particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratch);
         // h is already reordered here for use in halo discovery
-        reorderArrays(reorderer, exchangeStart, 0, std::tie(h), scratch);
+        gatherArrays(sorter.gatherFunc(), sorter.getMap() + global_.numSendDown(), global_.numAssigned(), exchangeStart,
+                     0, std::tie(h), util::reverse(scratch));
 
         float invThetaEff      = invThetaMinMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
@@ -234,7 +238,7 @@ public:
                         box(), rawPtr(h), std::get<0>(scratch));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
-        updateLayout(reorderer, exchangeStart, keyView, particleKeys, std::tie(h),
+        updateLayout(sorter, exchangeStart, keyView, particleKeys, std::tie(h),
                      std::tuple_cat(std::tie(x, y, z), particleProperties), scratch);
         setupHalos(particleKeys, x, y, z, h, scratch);
         firstCall_ = false;
@@ -252,13 +256,14 @@ public:
     {
         staticChecks<KeyVec, VectorX, VectorH, VectorM, Vectors1...>(scratchBuffers);
         auto& sfcOrder = std::get<sizeof...(Vectors2) - 1>(scratchBuffers);
-        ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> reorderer(sfcOrder);
+        ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> sorter(sfcOrder);
 
-        auto scratch = discardLastElement(scratchBuffers);
+        auto scratch = util::discardLastElement(scratchBuffers);
 
         auto [exchangeStart, keyView] =
-            distribute(reorderer, particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratch);
-        reorderArrays(reorderer, exchangeStart, 0, std::tie(x, y, z, h, m), scratch);
+            distribute(sorter, particleKeys, x, y, z, std::tuple_cat(std::tie(h, m), particleProperties), scratch);
+        gatherArrays(sorter.gatherFunc(), sorter.getMap() + global_.numSendDown(), global_.numAssigned(), exchangeStart,
+                     0, std::tie(x, y, z, h, m), util::reverse(scratch));
 
         float invThetaEff      = invThetaVecMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
@@ -303,10 +308,63 @@ public:
 
         // diagnostics(keyView.size(), peers);
 
-        updateLayout(reorderer, exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), particleProperties,
+        updateLayout(sorter, exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), particleProperties,
                      scratch);
         setupHalos(particleKeys, x, y, z, h, scratch);
         firstCall_ = false;
+    }
+
+    /*! @brief reapply exchange synchronization pattern from previous call to sync(Grav)() to additional particle fields
+     *
+     * @param[inout] arrays          the arrays to reapply sync to, length prevBufDesc_.size
+     * @param[-]     sendBuffer
+     * @param[-]     receiveBuffer
+     * @param[in]    ordering        the post-particle-exchange SFC ordering
+     */
+    template<class... Vectors, class SendBuffer, class ReceiveBuffer, class OVec>
+    void reapplySync(std::tuple<Vectors&...> arrays,
+                     SendBuffer& sendBuffer,
+                     ReceiveBuffer& receiveBuffer,
+                     OVec& ordering) const
+    {
+        static_assert((... && !IsDeviceVector<Vectors>{}), "reapplySync only support for arrays on CPUs");
+        std::apply([this](auto&... arrays) { this->template checkSizesEqual(this->prevBufDesc_.size, arrays...); },
+                   arrays);
+
+        LocalIndex exSize =
+            domain_exchange::exchangeBufferSize(prevBufDesc_, global_.numPresent(), global_.numAssigned());
+        lowMemReallocate(exSize, 1.01, arrays, {});
+
+        BufferDescription exDesc{prevBufDesc_.start, prevBufDesc_.end, exSize};
+        auto envelope    = domain_exchange::assignedEnvelope(exDesc, global_.numPresent(), global_.numAssigned());
+        LocalIndex shift = prevBufDesc_.start - envelope[0];
+
+        // the intermediate, reconstructed ordering needed for the MPI particle exchange
+        std::vector<LocalIndex> prevOrd(prevBufDesc_.end - prevBufDesc_.start);
+        // the post-exchange ordering that was obtained by sorting after receiving the particles from domain exchange
+        std::vector<LocalIndex> orderingCpu;
+
+        auto* ord = (LocalIndex*)rawPtr(ordering);
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            static_assert(IsDeviceVector<OVec>{}, "Need ordering on GPU for GPU-accelerated domain");
+            orderingCpu.resize(envelope[1] - envelope[0]);
+            memcpyD2H((LocalIndex*)rawPtr(ordering), orderingCpu.size(), orderingCpu.data());
+            ord = orderingCpu.data();
+        }
+
+        std::transform(ord, ord + global_.numSendDown(), prevOrd.data(), [shift](auto i) { return i - shift; });
+        std::transform(ord + global_.numSendDown() + global_.numAssigned(), ord + envelope[1] - envelope[0],
+                       prevOrd.data() + global_.numSendDown() + global_.numPresent(),
+                       [shift](auto i) { return i - shift; });
+
+        std::apply([exDesc, o = prevOrd.data(), &sendBuffer, &receiveBuffer, this](auto&... a)
+                   { global_.redoExchange(exDesc, o, sendBuffer, receiveBuffer, rawPtr(a)...); },
+                   arrays);
+
+        lowMemReallocate(bufDesc_.size, 1.01, arrays, std::tie(sendBuffer, receiveBuffer));
+        gatherArrays(gatherCpu, ord + global_.numSendDown(), global_.numAssigned(), envelope[0], bufDesc_.start, arrays,
+                     std::tie(sendBuffer, receiveBuffer));
     }
 
     //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
@@ -321,6 +379,8 @@ public:
     [[nodiscard]] LocalIndex startIndex() const { return bufDesc_.start; }
     //! @brief return one past the index of the last particle that's part of the local assignment
     [[nodiscard]] LocalIndex endIndex() const { return bufDesc_.end; }
+    //! @brief set the index of the lsat particle (used to increase the number of particles)
+    void setEndIndex(const size_t i) { bufDesc_.end = i; }
     //! @brief return number of locally assigned particles
     [[nodiscard]] LocalIndex nParticles() const { return endIndex() - startIndex(); }
     //! @brief return number of locally assigned particles plus number of halos
@@ -350,8 +410,9 @@ private:
     {
         if (firstCall_)
         {
-            bufDesc_ = {0, LocalIndex(bufferSize), LocalIndex(bufferSize)};
-            layout_  = {0, LocalIndex(bufferSize)};
+            bufDesc_     = {0, LocalIndex(bufferSize), LocalIndex(bufferSize)};
+            prevBufDesc_ = bufDesc_;
+            layout_      = {0, LocalIndex(bufferSize)};
         }
     }
 
@@ -380,7 +441,7 @@ private:
         static_assert(std::is_same_v<typename KeyVec::value_type, KeyType>);
         static_assert(std::tuple_size_v<ScratchBuffers> >= 3);
 
-        auto tup               = discardLastElement(scratchBuffers);
+        auto tup               = util::discardLastElement(scratchBuffers);
         constexpr auto indices = std::make_tuple(util::FindIndex<ConservedVectors&, std::decay_t<decltype(tup)>>{}...);
 
         auto valueTypeCheck = [](auto index)
@@ -389,11 +450,11 @@ private:
                 index < std::tuple_size_v<std::decay_t<decltype(tup)>>,
                 "one of the conserved fields has a value type that was not found among the available scratch buffers");
         };
-        for_each_tuple(valueTypeCheck, indices);
+        util::for_each_tuple(valueTypeCheck, indices);
     }
 
-    template<class Reord, class KeyVec, class VectorX, class... Vectors1, class... Vectors2>
-    auto distribute(Reord& reorderFunctor,
+    template<class Sorter, class KeyVec, class VectorX, class... Vectors1, class... Vectors2>
+    auto distribute(Sorter& sorter,
                     KeyVec& keys,
                     VectorX& x,
                     VectorX& y,
@@ -406,17 +467,15 @@ private:
         std::apply([size = x.size()](auto&... arrays) { checkSizesEqual(size, arrays...); }, distributedArrays);
 
         // Global tree build and assignment
-        LocalIndex newNParticlesAssigned =
-            global_.assign(bufDesc_, reorderFunctor, rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
-
-        size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
+        auto exchangeSize = global_.assign(bufDesc_, sorter, std::get<0>(scratchBuffers), std::get<1>(scratchBuffers),
+                                           rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
         lowMemReallocate(exchangeSize, 1.01, distributedArrays, scratchBuffers);
 
         return std::apply(
-            [&reorderFunctor, &scratchBuffers, this](auto&... arrays)
+            [exchangeSize, &sorter, &scratchBuffers, this](auto&... arrays)
             {
-                return global_.distribute(bufDesc_, reorderFunctor, std::get<0>(scratchBuffers),
-                                          std::get<1>(scratchBuffers), rawPtr(arrays)...);
+                return global_.distribute({bufDesc_.start, bufDesc_.end, exchangeSize}, sorter,
+                                          std::get<0>(scratchBuffers), std::get<1>(scratchBuffers), rawPtr(arrays)...);
             },
             distributedArrays);
     }
@@ -441,8 +500,8 @@ private:
         }
     }
 
-    template<class Reord, class KeyVec, class... Arrays1, class... Arrays2, class... Arrays3>
-    void updateLayout(Reord& reorderFunctor,
+    template<class Sorter, class KeyVec, class... Arrays1, class... Arrays2, class... Arrays3>
+    void updateLayout(Sorter& sorter,
                       LocalIndex exchangeStart,
                       gsl::span<const KeyType> keyView,
                       KeyVec& keys,
@@ -478,11 +537,12 @@ private:
         }
 
         // relocate ordered buffer contents from offset 0 to offset newBufDesc.start
-        auto relocate = [size = keyView.size(), dest = newBufDesc.start, &scratchBuffers](auto& array)
+        auto relocate =
+            [size = keyView.size(), dest = newBufDesc.start, scratch = util::reverse(scratchBuffers)](auto& array)
         {
             static_assert(util::FindIndex<decltype(array), std::tuple<Arrays3&...>>{} < sizeof...(Arrays3),
                           "No suitable scratch buffer available");
-            auto& swapSpace = util::pickType<decltype(array)>(scratchBuffers);
+            auto& swapSpace = util::pickType<decltype(array)>(scratch);
             if constexpr (IsDeviceVector<std::decay_t<decltype(array)>>{})
             {
                 memcpyD2D(rawPtr(array), size, rawPtr(swapSpace) + dest);
@@ -490,19 +550,15 @@ private:
             else { omp_copy(array.begin(), array.begin() + size, swapSpace.begin() + dest); }
             swap(array, swapSpace);
         };
-        for_each_tuple(relocate, orderedBuffers);
+        util::for_each_tuple(relocate, orderedBuffers);
 
         // reorder the unordered buffers
-        reorderArrays(reorderFunctor, exchangeStart, newBufDesc.start, unorderedBuffers, scratchBuffers);
+        gatherArrays(sorter.gatherFunc(), sorter.getMap() + global_.numSendDown(), global_.numAssigned(), exchangeStart,
+                     newBufDesc.start, unorderedBuffers, util::reverse(scratchBuffers));
 
         // newBufDesc is now the valid buffer description
-        std::swap(newBufDesc, bufDesc_);
-    }
-
-    void prepareFlags(TreeNodeIndex numLeafNodes)
-    {
-        reallocateDestructive(haloFlags_, numLeafNodes, 1.01);
-        std::fill(begin(haloFlags_), end(haloFlags_), 0);
+        prevBufDesc_ = bufDesc_;
+        bufDesc_     = newBufDesc;
     }
 
     void diagnostics(size_t assignedSize, gsl::span<int> peers)
@@ -566,7 +622,7 @@ private:
      *  i.e. the index of the first particle that belongs to this rank and is not a halo
      *  Second element: index (upper bound) of last particle that belongs to the assignment
      */
-    BufferDescription bufDesc_{0, 0, 0};
+    BufferDescription prevBufDesc_{0, 0, 0}, bufDesc_{0, 0, 0};
 
     /*! @brief locally focused, fully traversable octree, used for halo discovery and exchange
      *
@@ -580,7 +636,6 @@ private:
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     AccVector<LocalIndex> layoutAcc_;
     std::vector<LocalIndex> layout_;
-    std::vector<int> haloFlags_;
 
     using Distributor_t =
         typename AccelSwitchType<Accelerator, GlobalAssignment, GlobalAssignmentGpu>::template type<KeyType, T>;

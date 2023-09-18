@@ -99,7 +99,9 @@ void randomGaussianAssignment(int rank, int numRanks)
     std::vector<unsigned> sfcScratchCpu;
     SfcSorter<LocalIndex, std::vector<unsigned>> cpuGather(sfcScratchCpu);
 
-    LocalIndex numAssignedCpu = assignment.assign(bufDesc, cpuGather, keys.data(), x.data(), y.data(), z.data());
+    std::vector<T> s0, s1;
+    LocalIndex exchangeSizeCpu =
+        assignment.assign(bufDesc, cpuGather, s0, s1, keys.data(), x.data(), y.data(), z.data());
 
     thrust::device_vector<KeyType> d_keys;
     reallocateDevice(d_keys, numParticles, 1.0);
@@ -112,20 +114,19 @@ void randomGaussianAssignment(int rank, int numRanks)
     thrust::device_vector<unsigned> sfcScratch;
     GpuSfcSorter<LocalIndex, thrust::device_vector<unsigned>> deviceSort(sfcScratch);
 
-    LocalIndex numAssignedGpu =
-        assignmentGpu.assign(bufDesc, deviceSort, rawPtr(d_keys), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z));
+    thrust::device_vector<T> d_s0, d_s1;
+    bufDesc.size =
+        assignmentGpu.assign(bufDesc, deviceSort, d_s0, d_s1, rawPtr(d_keys), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z));
 
-    ASSERT_EQ(numAssignedCpu, numAssignedGpu);
+    ASSERT_EQ(exchangeSizeCpu, bufDesc.size);
     EXPECT_EQ(assignment.treeLeaves().size(), assignmentGpu.treeLeaves().size());
 
-    size_t exchangeSize = std::max(x.size(), size_t(numAssignedCpu));
+    reallocate(exchangeSizeCpu, keys, x, y, z);
 
-    reallocate(exchangeSize, keys, x, y, z);
-
-    reallocateDevice(d_keys, exchangeSize, 1.01);
-    reallocateDevice(d_x, exchangeSize, 1.01);
-    reallocateDevice(d_y, exchangeSize, 1.01);
-    reallocateDevice(d_z, exchangeSize, 1.01);
+    reallocateDevice(d_keys, bufDesc.size, 1.01);
+    reallocateDevice(d_x, bufDesc.size, 1.01);
+    reallocateDevice(d_y, bufDesc.size, 1.01);
+    reallocateDevice(d_z, bufDesc.size, 1.01);
 
     std::vector<double> dummy;
     auto [exchangeStartCpu, cpuKeyView] =

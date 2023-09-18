@@ -47,11 +47,10 @@ using cstone::TravConfig;
 using cstone::TreeNodeIndex;
 
 template<typename Tc, class Tm, class T, class KeyType>
-__global__ void veDefGradhGpu(T sincIndex, T K, unsigned ngmax, const cstone::Box<Tc> box,
-                              const cstone::LocalIndex* groups, cstone::LocalIndex numGroups,
-                              const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x, const Tc* y, const Tc* z,
-                              const T* h, const Tm* m, const T* wh, const T* whd, const T* xm, T* kx, T* gradh,
-                              cstone::LocalIndex* nidx, TreeNodeIndex* globalPool)
+__global__ void veDefGradhGpu(Tc K, unsigned ngmax, const cstone::Box<Tc> box, const cstone::LocalIndex* groups,
+                              cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x,
+                              const Tc* y, const Tc* z, const T* h, const Tm* m, const T* wh, const T* whd, const T* xm,
+                              T* kx, T* gradh, cstone::LocalIndex* nidx, TreeNodeIndex* globalPool)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
     unsigned targetIdx   = 0;
@@ -76,8 +75,8 @@ __global__ void veDefGradhGpu(T sincIndex, T K, unsigned ngmax, const cstone::Bo
         if (i >= bodyEnd) continue;
 
         unsigned ncCapped          = stl::min(ncTrue[0], ngmax);
-        util::tie(kx[i], gradh[i]) = veDefGradhJLoop<TravConfig::targetSize>(
-            i, sincIndex, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, h, m, wh, whd, xm);
+        util::tie(kx[i], gradh[i]) = veDefGradhJLoop<TravConfig::targetSize>(i, K, box, neighborsWarp + laneIdx,
+                                                                             ncCapped, x, y, z, h, m, wh, whd, xm);
     }
 }
 
@@ -93,10 +92,10 @@ void computeVeDefGradh(size_t startIndex, size_t endIndex, Dataset& d,
 
     unsigned numGroups = d.devData.targetGroups.size() - 1;
     veDefGradhGpu<<<numBlocks, TravConfig::numThreads>>>(
-        d.sincIndex, d.K, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(),
-        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m),
-        rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx),
-        rawPtr(d.devData.gradh), nidxPool, traversalPool);
+        d.K, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(), rawPtr(d.devData.x),
+        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh),
+        rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx), rawPtr(d.devData.gradh), nidxPool,
+        traversalPool);
 
     checkGpuErrors(cudaDeviceSynchronize());
 }
