@@ -116,7 +116,7 @@ int main(int argc, char** argv)
 
     auto& d = simData.hydro;
     transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
-    d.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
+    simData.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
 
     if (parser.exists("--G")) { d.g = parser.get<double>("--G"); }
     bool  haveGrav = (d.g != 0.0);

@@ -82,6 +82,29 @@ public:
         }
     }
 
+    //! @brief particle fields selected for file output
+    std::vector<int>         outputFieldIndices;
+    std::vector<std::string> outputFieldNames;
+
+    void setOutputFields(std::vector<std::string>& outFields)
+    {
+        auto hasField = [](const std::string& field)
+        { return cstone::getFieldIndex(field, fieldNames) < fieldNames.size(); };
+
+        std::copy_if(outFields.begin(), outFields.end(), std::back_inserter(outputFieldNames), hasField);
+        outputFieldIndices = cstone::fieldStringsToInt(outputFieldNames, fieldNames);
+        std::for_each(outputFieldNames.begin(), outputFieldNames.end(), [](auto& f) { f = prefix + f; });
+
+        outFields.erase(std::remove_if(outFields.begin(), outFields.end(), hasField), outFields.end());
+    }
+
+    template<class Archive>
+    void loadOrStoreAttributes(Archive* /*ar*/)
+    {
+    }
+
+    static const inline std::string prefix{"chem::"};
+
 private:
     template<size_t... Is>
     auto dataTuple_helper(std::index_sequence<Is...>)
