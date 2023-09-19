@@ -97,6 +97,8 @@ public:
         lastIndex_  = lastIndex;
         pathStep_   = path;
 
+        MPI_Barrier(MPI_COMM_WORLD);
+        fileInitTime_ = -MPI_Wtime();
         if (std::filesystem::exists(path))
         {
             h5z_ = fileutils::openHDF5File(path, comm_);
@@ -111,6 +113,10 @@ public:
 
         addHDF5Step(h5z_, pathStep_);
         
+        MPI_Barrier(MPI_COMM_WORLD);
+        fileInitTime_ += MPI_Wtime();
+        
+        
         return;
     }
 
@@ -124,16 +130,20 @@ public:
 
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
+        MPI_Barrier(MPI_COMM_WORLD);
+        writeTime_ = -MPI_Wtime();
         std::visit([this, &key](auto arg) { 
             fileutils::writeHDF5Field(h5z_, key, arg + firstIndex_, firstIndex_, lastIndex_, totalNumParticles_);
             }, field);
+        MPI_Barrier(MPI_COMM_WORLD);
+        writeTime_ += MPI_Wtime();
     }
 
-    void    setNumParticles(uint64_t numParticles) override {
+    void setNumParticles(uint64_t numParticles) override {
         totalNumParticles_ = numParticles;
     }
 
-    void    setCompression(const std::string & compressionMethod, int compressionParam) override {
+    void setCompression(const std::string & compressionMethod, int compressionParam) override {
         if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
         if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
         if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
@@ -141,12 +151,18 @@ public:
     }
 
     void closeStep() override { 
+        int rank;
+        MPI_Comm_rank(comm_, &rank);
+        if (rank == 0) {
+            std::cout << "File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
+        }
         fileutils::closeHDF5File(h5z_);
     }
 
 private:
     MPI_Comm comm_;
     size_t  totalNumParticles_;
+    double fileInitTime_, writeTime_;
 
     size_t      firstIndex_, lastIndex_;
     std::string pathStep_;
