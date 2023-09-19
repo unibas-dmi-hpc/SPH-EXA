@@ -190,32 +190,34 @@ public:
     {
         auto output = [&](auto& d)
         {
-            auto             fieldPointers = d.data();
-            std::vector<int> outputFields  = d.outputFieldIndices;
+            auto fieldPointers = d.data();
+            auto indicesDone   = d.outputFieldIndices;
+            auto namesDone     = d.outputFieldNames;
 
-            for (int i = int(outputFields.size()) - 1; i >= 0; --i)
+            for (int i = int(indicesDone.size()) - 1; i >= 0; --i)
             {
-                int fidx = outputFields[i];
+                int fidx = indicesDone[i];
                 if (d.isAllocated(fidx))
                 {
                     int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
-                    std::visit([writer, c = column, key = d.outputFieldNames[i]](auto field)
+                    std::visit([writer, c = column, key = namesDone[i]](auto field)
                                { writer->writeField(key, field->data(), c); },
                                fieldPointers[fidx]);
-                    outputFields.erase(outputFields.begin() + i);
+                    indicesDone.erase(indicesDone.begin() + i);
+                    namesDone.erase(namesDone.begin() + i);
                 }
             }
 
-            if (!outputFields.empty() && Base::rank_ == 0)
+            if (!indicesDone.empty() && Base::rank_ == 0)
             {
                 std::cout << "WARNING: the following fields are not in use and therefore not output: ";
-                for (int fidx = 0; fidx < outputFields.size() - 1; ++fidx)
+                for (int fidx = 0; fidx < indicesDone.size() - 1; ++fidx)
                 {
                     std::cout << d.fieldNames[fidx] << ",";
                 }
-                std::cout << d.fieldNames[outputFields.back()] << std::endl;
+                std::cout << d.fieldNames[indicesDone.back()] << std::endl;
             }
         };
 

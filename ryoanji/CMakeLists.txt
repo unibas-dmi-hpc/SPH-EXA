@@ -1,8 +1,21 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.22)
 
 project(ryoanji CXX)
 
 set(CMAKE_CXX_STANDARD 20)
+
+option(BUILD_TESTING "build unit and integration tests" ON)
+option(GPU_DIRECT "Enable CUDA-aware MPI communication" OFF)
+
+find_package(MPI)
+find_package(OpenMP)
+
+set(default_build_type "Release")
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+    set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
 
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
@@ -13,15 +26,12 @@ else()
     message(STATUS "No CUDA support")
 endif()
 
-set(default_build_type "Release")
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
-  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+check_language(HIP)
+if(CMAKE_HIP_COMPILER AND NOT CMAKE_CUDA_COMPILER)
+    enable_language(HIP)
+    find_package(hip)
+    set(CMAKE_HIP_STANDARD 17)
 endif()
-
-set(CSTONE_DIR ${CMAKE_SOURCE_DIR}/domain/include)
-set(CSTONE_TEST_DIR ${CMAKE_SOURCE_DIR}/domain/test)
 
 add_subdirectory(src)
 if (BUILD_TESTING)
