@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.22)
 
 project(cornerstone-octree CXX)
 set(CMAKE_CXX_STANDARD 20)
@@ -19,7 +19,6 @@ endif()
 include(CTest)
 include(CheckLanguage)
 
-
 set(default_build_type "Release")
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
@@ -32,6 +31,13 @@ if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     find_package(CUDAToolkit)
     set(CMAKE_CUDA_STANDARD 17)
+endif()
+
+check_language(HIP)
+if(CMAKE_HIP_COMPILER AND NOT CMAKE_CUDA_COMPILER)
+    enable_language(HIP)
+    find_package(hip)
+    set(CMAKE_HIP_STANDARD 17)
 endif()
 
 add_subdirectory(include)
