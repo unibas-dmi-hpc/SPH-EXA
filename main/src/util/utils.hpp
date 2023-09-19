@@ -11,7 +11,9 @@ auto initMpi()
 {
     int rank     = 0;
     int numRanks = 0;
-    MPI_Init(NULL, NULL);
+    // MPI_Init(NULL, NULL);
+    int         mpi_thread_lvl_provided = -1;
+    MPI_Init_thread(NULL, NULL, MPI_THREAD_MULTIPLE, &mpi_thread_lvl_provided);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
     if (rank == 0)

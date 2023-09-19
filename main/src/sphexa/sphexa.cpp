@@ -91,6 +91,7 @@ int main(int argc, char** argv)
     const bool               avClean           = parser.exists("--avclean");
     const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
     const std::string        compressionMethod = parser.get("--compression", std::string(""));
+    const int                compressionParam  = parser.get("--compression-param", 0);
     const bool               writeEnabled      = writeFrequencyStr != "0" || !writeExtra.empty();
     std::string              outFile           = parser.get("-o", "./dump_" + initCond);
 
@@ -101,7 +102,7 @@ int main(int argc, char** argv)
     //! @brief evaluate user choice for different kind of actions
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank);
-    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD, compressionMethod);
+    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD, compressionMethod, compressionParam);
     auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
     Dataset simData;
@@ -126,6 +127,8 @@ int main(int argc, char** argv)
     if (!parser.exists("-o")) { outFile += fileWriter->suffix(); }
     if (rank == 0 && writeEnabled) { fileWriter->constants(simInit->constants(), outFile); }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
+
+    fileWriter->setNumParticles(d.numParticlesGlobal);
 
     uint64_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
@@ -157,6 +160,7 @@ int main(int argc, char** argv)
             fileWriter->addStep(domain.startIndex(), domain.endIndex(), outFile);
 
             simData.hydro.loadOrStoreAttributes(fileWriter.get());
+            fileWriter->setCompression(compressionMethod, compressionParam);
             box.loadOrStore(fileWriter.get());
 
             propagator->saveFields(fileWriter.get(), domain.startIndex(), domain.endIndex(), simData, box);

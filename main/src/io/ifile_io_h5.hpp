@@ -52,13 +52,14 @@ public:
     using Base      = IFileWriter;
     using FieldType = typename Base::FieldType;
 
-    explicit HDF5Writer(MPI_Comm comm, const std::string & compressionMethod)
+    explicit HDF5Writer(MPI_Comm comm, const std::string & compressionMethod, const int & compressionParam = 0)
         : comm_(comm)
         , h5File_(nullptr)
     {
         if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
         if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
         if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
+        h5z_.compressionParam = compressionParam;
     }
 
     /*! @brief write simulation parameters to file
@@ -124,8 +125,19 @@ public:
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
         std::visit([this, &key](auto arg) { 
-            fileutils::writeHDF5Field(h5z_, key, arg + firstIndex_); 
+            fileutils::writeHDF5Field(h5z_, key, arg + firstIndex_, firstIndex_, lastIndex_, totalNumParticles_);
             }, field);
+    }
+
+    void    setNumParticles(uint64_t numParticles) override {
+        totalNumParticles_ = numParticles;
+    }
+
+    void    setCompression(const std::string & compressionMethod, int compressionParam) override {
+        if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
+        if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
+        if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
+        h5z_.compressionParam = compressionParam;
     }
 
     void closeStep() override { 
@@ -134,6 +146,7 @@ public:
 
 private:
     MPI_Comm comm_;
+    size_t  totalNumParticles_;
 
     size_t      firstIndex_, lastIndex_;
     std::string pathStep_;

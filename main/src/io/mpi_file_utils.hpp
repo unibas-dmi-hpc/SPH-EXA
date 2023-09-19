@@ -58,6 +58,7 @@ enum class CompressionMethod
 
 struct H5ZType {
     CompressionMethod compression;
+    int compressionParam;
     hid_t file_id;
     hid_t group_id;
     hid_t dset_id;
@@ -114,15 +115,21 @@ static H5ZType createHDF5File(std::string fileName, MPI_Comm comm)
 {
     H5ZType h5z;
     herr_t status;
-    hid_t  access_plist;
+    hid_t  fapl, fcpl;
     herr_t ret;
 
     // Enable the file to be accessible from multiple ranks
-    access_plist = H5Pcreate(H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(access_plist, comm, MPI_INFO_NULL);
+    fcpl = H5Pcreate(H5P_FILE_CREATE);
+    fapl = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(fapl, comm, MPI_INFO_NULL);
+    H5Pset_all_coll_metadata_ops(fapl, 1);
+    H5Pset_coll_metadata_write(fapl, 1);
+    // H5Pset_alignment(fapl,
+    //                     1, //alignment_increment
+    //                     0); //alignment_threshold
 
-    h5z.file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, access_plist);
-    ret = H5Pclose(access_plist);
+    h5z.file_id = H5Fcreate(fileName.c_str(), H5F_ACC_TRUNC, fcpl, fapl);
+    ret = H5Pclose(fapl);
     return h5z;
 }
 
@@ -131,16 +138,22 @@ static H5ZType openHDF5File(std::string fileName, MPI_Comm comm)
 {
     H5ZType h5z;
     herr_t status;
-    hid_t access_plist;
+    hid_t  fapl, fcpl;
     hid_t file_id;
     herr_t ret;
 
     // Enable the file to be accessible from multiple ranks
-    access_plist = H5Pcreate(H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(access_plist, comm, MPI_INFO_NULL);
+    fcpl = H5Pcreate(H5P_FILE_CREATE);
+    fapl = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(fapl, comm, MPI_INFO_NULL);
+    H5Pset_all_coll_metadata_ops(fapl, 1);
+    H5Pset_coll_metadata_write(fapl, 1);
+    // H5Pset_alignment(fapl,
+    //                     1, //alignment_increment
+    //                     0); //alignment_threshold
 
-    h5z.file_id = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, access_plist);
-    ret = H5Pclose(access_plist);
+    h5z.file_id = H5Fopen(fileName.c_str(), H5F_ACC_RDWR, fapl);
+    ret = H5Pclose(fapl);
     return h5z;
 }
 
@@ -151,10 +164,10 @@ static void closeHDF5File(H5ZType& h5z) {
 
 static void addHDF5Filter(H5ZType& h5z) {
     herr_t          status;
-    hsize_t chunk_dims[2] ={1000, 1};
+    hsize_t chunk_dims[2] ={2000, 1};
     h5z.cpid = H5Pcreate(H5P_DATASET_CREATE);
     status = H5Pset_chunk(h5z.cpid, 2, chunk_dims);
-
+    
     if (h5z.compression == CompressionMethod::zfp) {
         int zfpmode = H5Z_ZFP_MODE_RATE;
         double rate = 4;
@@ -167,14 +180,14 @@ static void addHDF5Filter(H5ZType& h5z) {
         setupZFP(h5z, zfpmode, rate, acc, prec, minbits, maxbits, maxprec, minexp);
     }
     if (h5z.compression == CompressionMethod::gzip) {
-        status = H5Pset_deflate(h5z.cpid, 9);
+        status = H5Pset_deflate(h5z.cpid, h5z.compressionParam);
     }
     if (h5z.compression == CompressionMethod::szip) {
         unsigned szip_options_mask;
         unsigned szip_pixels_per_block;
 
         szip_options_mask = H5_SZIP_NN_OPTION_MASK;
-        szip_pixels_per_block = 16;
+        szip_pixels_per_block = h5z.compressionParam;
         status = H5Pset_szip(h5z.cpid, szip_options_mask, szip_pixels_per_block);
     }
 }
@@ -183,86 +196,82 @@ static void addHDF5Step(H5ZType& h5z, std::string fieldName) {
     h5z.group_id = H5Gcreate2(h5z.file_id, fieldName.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 }
 
-static void writeHDF5Field_(H5ZType& h5z, const std::string& fieldName, const void* field, hid_t dataType, size_t nCol = 1) {
+static void writeHDF5Field_(H5ZType& h5z, const std::string& fieldName, const void* field, hid_t dataType, uint64_t firstIndex=0, uint64_t lastIndex=0, uint64_t numParticles = 0, size_t nCol = 1) {
     // Following previous conventions, each field is written into a separate dataset.
-    // Also, maxdim is set to exactly the data size...for now
-    hsize_t dims[2] = {h5z.numParticles, nCol};
+    // Also, maxdim is set to exactly the data size + 1...for now
+    hsize_t dims[2] = {numParticles + 1, nCol};
     // hsize_t maxdims[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
     h5z.dspace_id = H5Screate_simple(2, dims, NULL);
     addHDF5Filter(h5z);
-
+ 
     // Create dataset
-    h5z.dset_id = H5Dcreate2(h5z.group_id, fieldName.c_str(), H5T_NATIVE_DOUBLE, h5z.dspace_id, H5P_DEFAULT, h5z.cpid, H5P_DEFAULT);
+    hid_t lcpl = H5Pcreate(H5P_LINK_CREATE);
+    h5z.dset_id = H5Dcreate(h5z.group_id, fieldName.c_str(), dataType, h5z.dspace_id, lcpl, h5z.cpid, H5P_DEFAULT);
 
-    h5z.status = H5Dwrite(h5z.dset_id, dataType, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
+    // ======================
+    // When writing, each process has an independent hyperslab
+    /* set up dimensions of the slab this process accesses */
+    // Dim0: numParticles, Dim1: numAttributes (unknown)
+    // Count: dim0: numCurrParticles, dim1: numAttributes (unknown)
+    // stride: 1, 1
+    // block: 1, 1
+    // Selection should be within dimension
+    hid_t dataSpace = H5Dget_space(h5z.dset_id);
+    hsize_t offset[2] = {firstIndex, 0};
+    hsize_t count[2] = {lastIndex - firstIndex + 1, nCol};
+    hsize_t stride[2] = {1, 1};
+    h5z.status = H5Sselect_hyperslab(dataSpace, H5S_SELECT_SET, offset, stride, count, NULL);
+
+    /* create a memory dataspace independently */
+    hid_t memorySpace = H5Screate_simple(1, count, NULL);
+
+    // Write into dataspace independently
+    hid_t dxpl = H5Pcreate(H5P_DATASET_XFER);
+    H5Pset_dxpl_mpio (dxpl, H5FD_MPIO_COLLECTIVE);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    h5z.status = H5Dwrite(h5z.dset_id, dataType, memorySpace, dataSpace, dxpl, field);
+    // ======================
 
     if (h5z.compression == CompressionMethod::zfp) {
         H5Z_zfp_finalize();
     }
+
+    h5z.status = H5Pclose(lcpl);
+    h5z.status = H5Pclose(dxpl);
     h5z.status = H5Pclose(h5z.cpid);
+    h5z.status = H5Sclose(memorySpace);
     h5z.status = H5Sclose(h5z.dspace_id);
     h5z.status = H5Dclose(h5z.dset_id);
 }
 
-static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const float* field) {
-    // When writing, each process has an independent hyperslab
-    // /* set up dimensions of the slab this process accesses */
-    // start[0]  = curr_rank_num * SPACE1_DIM1 / total_rank_num;
-    // start[1]  = 0;
-    // count[0]  = SPACE1_DIM1 / total_rank_num;
-    // count[1]  = SPACE1_DIM2;
-    // stride[0] = 1;
-    // stride[1] = 1;
-    // printf("start[]=(%lu,%lu), count[]=(%lu,%lu), total datapoints=%lu\n", (unsigned long)start[0],
-    //        (unsigned long)start[1], (unsigned long)count[0], (unsigned long)count[1],
-    //        (unsigned long)(count[0] * count[1]));
-
-    // /* put some trivial data in the data_array */
-    // dataset_fill(start, count, stride, &data_array1[0][0]);
-    // MESG("data_array initialized");
-
-    // /* create a file dataspace independently */
-    // file_dataspace = H5Dget_space(dataset1);
-    // assert(file_dataspace != FAIL);
-    // MESG("H5Dget_space succeed");
-    // ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, start, stride, count, NULL);
-    // assert(ret != FAIL);
-    // MESG("H5Sset_hyperslab succeed");
-
-    // /* create a memory dataspace independently */
-    // mem_dataspace = H5Screate_simple(SPACE1_RANK, count, NULL);
-    // assert(mem_dataspace != FAIL);
-
-    // /* write data independently */
-    // ret = H5Dwrite(dataset1, H5T_NATIVE_INT, mem_dataspace, file_dataspace, H5P_DEFAULT, data_array1);
-    // assert(ret != FAIL);
-    // MESG("H5Dwrite succeed");
-
-    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_FLOAT);
+static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const float* field, uint64_t firstIndex, uint64_t lastIndex, uint64_t numParticles) {
+    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_FLOAT, firstIndex, lastIndex, numParticles);
 }
 
-static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const double* field) {
-    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_DOUBLE);
+static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const double* field, uint64_t firstIndex, uint64_t lastIndex, uint64_t numParticles) {
+    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_DOUBLE, firstIndex, lastIndex, numParticles);
 }
 
-static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const char* field) {
-    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_CHAR);
+static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const char* field, uint64_t firstIndex, uint64_t lastIndex, uint64_t numParticles) {
+    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_CHAR, firstIndex, lastIndex, numParticles);
 }
 
-static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const int* field) {
-    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_INT32);
+static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const int* field, uint64_t firstIndex, uint64_t lastIndex, uint64_t numParticles) {
+    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_INT32, firstIndex, lastIndex, numParticles);
 }
 
-static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const unsigned int* field) {
-    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_UINT32);
+static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const unsigned int* field, uint64_t firstIndex, uint64_t lastIndex, uint64_t numParticles) {
+    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_UINT32, firstIndex, lastIndex, numParticles);
 }
 
-static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const long int* field) {
-    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_LONG);
+static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const long int* field, uint64_t firstIndex, uint64_t lastIndex, uint64_t numParticles) {
+    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_LONG, firstIndex, lastIndex, numParticles);
 }
 
-static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const long unsigned int* field) {
-    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_ULONG);
+static void writeHDF5Field(H5ZType& h5z, const std::string& fieldName, const long unsigned int* field, uint64_t firstIndex, uint64_t lastIndex, uint64_t numParticles) {
+    writeHDF5Field_(h5z, fieldName, (const void*)field, H5T_NATIVE_ULONG, firstIndex, lastIndex, numParticles);
 }
 
 static void writeHDF5Attrib_(H5ZType& h5z, const std::string& fieldName, const void* field, size_t numElements, hid_t dataType) {

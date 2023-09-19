@@ -67,6 +67,8 @@ public:
     virtual int64_t stepAttributeSize(const std::string& /*key*/) { return 0; }
     virtual void    stepAttribute(const std::string& key, FieldType val, int64_t size) = 0;
     virtual void    writeField(const std::string& key, FieldType field, int col)       = 0;
+    virtual void    setNumParticles(uint64_t numParticles)                             = 0;
+    virtual void    setCompression(const std::string & compressionMethod, int compressionParam)                          = 0;
     virtual void    closeStep()                                                        = 0;
 };
 
