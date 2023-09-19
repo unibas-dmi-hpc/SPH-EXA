@@ -24,6 +24,10 @@ if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
 
     target_link_libraries(${testname} PRIVATE cstone_gpu ryoanji)
 
+    if (GPU_DIRECT)
+        target_compile_definitions(${exename} PRIVATE USE_GPU_DIRECT)
+    endif ()
+
     if (CMAKE_HIP_COMPILER)
         target_link_libraries(${testname} PRIVATE hip::host)
         target_compile_definitions(${testname} PRIVATE THRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_HIP)
