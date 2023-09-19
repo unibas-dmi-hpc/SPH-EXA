@@ -108,6 +108,12 @@ public:
                                                              octree_.childOffsets, centers_, rawPtr(multipoles_));
             }
         }
+
+        if (IsSpherical<MType>{})
+        {
+            normalize<<<cstone::iceil(octree_.numNodes, numThreads), numThreads>>>(octree_.numNodes,
+                                                                                   rawPtr(multipoles_));
+        }
     }
 
     void createGroups(LocalIndex first, LocalIndex last, const Tc* x, const Tc* y, const Tc* z, const Th* h,
