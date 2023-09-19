@@ -86,6 +86,7 @@ if (CMAKE_CUDA_COMPILER)
     target_link_libraries(${exename}-cuda PRIVATE cstone_gpu ryoanji sph_gpu observables_gpu OpenMP::OpenMP_CXX
             ${MPI_CXX_LIBRARIES} CUDA::cudart)
     enableH5Part(${exename}-cuda)
+    enableH5ZZFP(${exename}-cuda)
     enableInSituViz(${exename}-cuda)
     enableGpuDirect(${exename}-cuda)
     enableGrackle(${exename}-cuda)
