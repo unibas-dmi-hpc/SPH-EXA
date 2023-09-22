@@ -125,6 +125,7 @@ configuration file has an HDF5 attribute with a non-zero value for the gravitati
 
 Arguments:  
 * ```--init CASE/FILE```: use the case name as seen below or provide an HDF5 file with initial conditions
+* `--glass FILE`: template glass block for IC generation avaiable from [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8369645.svg)](https://doi.org/10.5281/zenodo.8369645)
 * ```-n NUM``` : Run the simulation with NUM^3 (NUM to the cube) number of particles (for named test cases). [NOTE: This might vary with the test case]
 * ```-s NUM``` : Run the simulation with NUM of iterations (time-steps) if NUM is integer. Run until the specified physical time if NUM is real. 
 * ```-w NUM``` : Dump particle data every NUM iterations (time-steps) if NUM is integer. Dump data at the specified physical time if NUM is real.
@@ -134,9 +135,12 @@ Arguments:
 Implemented cases:
 * ```--sedov```: spherical blast wave
 * ```--noh```: spherical implosion
-* ```--evrard```: gravitational collapse of a isothermal cloud
+* ```--evrard```: gravitational collapse of an isothermal cloud
 * ```--turbulence```: subsonic turbulence in a box
-* ```--kelvin-helmholtz```: devlopment of the subsonic Kelvin-Helmholtz instability in a thin slice
+* ```--kelvin-helmholtz```: development of the subsonic Kelvin-Helmholtz instability in a thin slice
+
+Only the Sedov test case supports running without providing a glass block (`--glass`), but for accurate simulation
+results, a glass block is nevertheless strongly recommended.
 
 Common output fields:
 * ```x, y, z```: position
@@ -155,16 +159,16 @@ Example usage:
 * ```OMP_NUM_THREADS=4 ./sphexa --init sedov -n 100 -s 1000 -w 10 -f x,y,z,rho,p```
   Runs Sedov with 100^3 particles for 1000 iterations (time-steps) with 4 OpenMP
   threads and dumps particle xyz-coordinates, density and pressure data every 10 iterations
-* ```OMP_NUM_THREADS=4 ./sphexa-cuda --init -n 100 -s 1000 -w 10 -f x,y,z,rho,p```
+* ```OMP_NUM_THREADS=4 ./sphexa-cuda --init sedov -n 100 -s 1000 -w 10 -f x,y,z,rho,p```
   Runs Sedov with 100^3 particles for 1000 iterations (time-steps) with 4 OpenMP
   threads. Uses the GPU for most of the compute work.
 * ```OMP_NUM_THREADS=4 mpiexec -np 2 ./sphexa --init noh -n 100 -s 1000 -w 10```
   Runs Noh with 100^3 particles for 1000 iterations (time-steps) with 2 MPI ranks of 4 OpenMP
   threads each. Works when using MPICH. For OpenMPI, use ```mpirun```  instead.
-* ```OMP_NUM_THREADS=12 srun -Cgpu -A<your account> -n<nnodes> -c12 ./sphexa-cuda --init sedov -n 100 -s 1000 -w 10```
+* ```OMP_NUM_THREADS=12 srun -Cgpu -A<your account> -n<nnodes> -c12 --hint=nomultithread ./sphexa-cuda --init sedov -n 100 -s 1000 -w 10```
   Optimal runtime configuration on Piz Daint for `nnodes` GPU compute nodes. Launches 1 MPI rank with
   12 OpenMP threads per node.
-* ```./sphexa-cuda --init evrard.h5 -s 2000 -w 100 -f x,y,z,rho,p,vx,vy,vz```
+* ```./sphexa-cuda --init evrard --glass 50c.h5 -s 2000 -w 100 -f x,y,z,rho,p,vx,vy,vz```
   Run SPH-EXA, initializing particle data from an input file (e.g. for the Evrard collapse). Includes
   gravitational forces between particles. The angle dependent accuracy parameter theta can be specificed
   with ```--theta <value>```, the default is `0.5`.
@@ -181,44 +185,21 @@ these fields, it is necessary to add the ```_m1```. We provide an example script
 ./scripts/add_m1.py <hdf5-output-file>
 ```
 
-#### Running the unit, integration and regression tests
+#### Unit, integration and regression tests
 
-Cornerstone octree and domain unit tests:
+Cornerstone octree comes with an extensive suite of unit, integration and regression tests, see [README](domain/README.md).
 
-```shell
-./domain/test/unit/component_units
-```
-
-GPU-enabled unit tests:
-```shell
-./domain/test/unit_cuda/component_units_cuda
-```
-
-MPI-enabled integration and regression tests:
+SPH kernel unit tests:
 
 ```shell
-mpiexec -np 2 ./domain/test/integration_mpi/domain_2ranks
-mpiexec -np 2 ./domain/test/integration_mpi/exchange_focus
-mpiexec -np 2 ./domain/test/integration_mpi/exchange_halos
-mpiexec -np 2 ./domain/test/integration_mpi/globaloctree
-
-mpiexec -np 5 ./domain/test/integration_mpi/domain_nranks
-mpiexec -np 5 ./domain/test/integration_mpi/exchange_domain
-mpiexec -np 5 ./domain/test/integration_mpi/exchange_keys
-mpiexec -np 5 ./domain/test/integration_mpi/focus_tree
-mpiexec -np 5 ./domain/test/integration_mpi/treedomain
+./sph/test/hydro_ve
+./sph/test/hydro_std
 ```
 
-SPH-kernel unit tests:
-
-```shell
-./include/sph/test/kernel/kernel_tests
-```
 ## Input data
 
-Some tests require input data. 
-For example, the Evrard test case will check that a Test3DEvrardRel.bin file exists and can be read at the beginning of the job.
- This file can be downloaded from [zenodo.org](https://zenodo.org/record/4904876/files/Test3DEvrardRel.dat.gz?download=1).
+Some tests require template blocks with glass-like (Voronoi tesselated) particle distributions, these can be obtained here:
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8369645.svg)](https://doi.org/10.5281/zenodo.8369645)
 
 ## Ryoanji GPU N-body solver
 
@@ -227,35 +208,27 @@ for tree construction, [EXAFMM](https://github.com/exafmm/exafmm) multipole kern
 and a warp-aware tree-traversal inspired by the
 [Bonsai](https://github.com/treecode/Bonsai) GPU tree-code.
 
-#### Running the demonstrator app
-```shell
-./test/ryoanji <log2(numParticles)> <computeDirectReference:yes=1,no=0>
-```
-
-#### Running the unit tests
-```shell
-./test/ryoanji_unit_tests
-```
-
 ## Authors (in alphabetical order)
 
-* Ruben Cabezon
+* Ruben Cabezon (PI)
 * Aurelien Cavelan
-* Florina Ciorba
+* Florina Ciorba (PI)
+* Jonathan Coles
+* Jose Escartin
 * Jean M. Favre
-* Michal Grabarczyk
-* Danilo Guerrera
-* David Imbert
-* Sebastian Keller
-* Lucio Mayer
-* Ali Mohammed
+* Sebastian Keller (lead dev)
+* Noah Kubli
+* Lucio Mayer (PI)
 * Jg Piccinali
 * Tom Quinn
 * Darren Reed
+* Lukas Schmid
 * Osman Seckin Simsek
+* Yiqing Zhu
 
 ## Paper references
-[Cavelan, A., Cabezon, R. M., Grabarczyk, M., Ciorba, F. M. (2020). A Smoothed Particle Hydrodynamics Mini-App for Exascale. Proceedings of the Platform for Advanced Scientific Computing Conference (PASC '20). Association for Computing Machinery. DOI: 10.1145/3394277.3401855](https://dl.acm.org/doi/10.1145/3394277.3401855)
+* [Keller, S., Cavelan, A., Cabezon, R. M., Mayer L., Ciorba, F. M. (2023) Cornerstone: Octree Construction Algorithms for Scalable Particle Simulations. (PASC '23)](https://dl.acm.org/doi/abs/10.1145/3592979.3593417)
+* [Cavelan, A., Cabezon, R. M., Grabarczyk, M., Ciorba, F. M. (2020). A Smoothed Particle Hydrodynamics Mini-App for Exascale. (PASC '20)](https://dl.acm.org/doi/10.1145/3394277.3401855)
 
 ## License
 

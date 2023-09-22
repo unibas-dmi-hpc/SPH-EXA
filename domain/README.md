@@ -1,15 +1,12 @@
 
 
-# Cornerstone octree - a distributed domain and octree for N-body simulations
+# Cornerstone octree - a distributed domain and octree for N-body simulations on GPUs
 
-Cornerstone octree is a collection of header only routines for
-* **3D Morton codes:** encoding/decoding in 32 and 64 bits
-* **Octrees:** local and distributed octree builds from x,y,z coordinates, using
-  a lean format that stores only the leaf nodes with one Morton code per leaf
-  in a contiguous array.
-* **Halo discovery:** identify halo nodes in a global octree, using a 3D collision detection
-  algorithm that builds and traverses a binary radix tree.
-* **Neighbor searching:** Find particle neighbors within a radius using sorted particle Morton codes
+Cornerstone octree is a C++/CUDA library for
+* **3D Morton and Hilbert keys:** encoding/decoding in 32 and 64 bits
+* **Octrees:** local and distributed octree builds from x,y,z coordinates, linear buffer storage format
+* **Halo discovery:** identify halo nodes in a global octree, using a 3D collision detection algorithm.
+* **Neighbor searching:** find particle neighbors within a given radius.
 * **Particle exchange:** exchange elements of local coordinate arrays to whip them into shape
    as defined by a global octree, including halo particles.
 
@@ -17,9 +14,9 @@ All of these components are combined into a **global domain** to manage distribu
 unified under a global octree. But of course, each component can also be used on its own to
 build domains with different behaviors.
 
-Cornerstone octree is a C++17 headers-only library with no external software dependencies,
-except for the Google test framework, used to compile the unit tests and automatically downloaded by CMake.
-Building client  applications using the libraries does not require any dependencies.
+Cornerstone octree is written in C++20 and CUDA with no external software dependencies,
+except for the GTest framework, used to compile the unit tests and automatically downloaded by CMake.
+It can run entirely on GPUs (AMD and NVIDIA), though a CPU version is provided as well.
 
 #### Folder structure
 
@@ -33,19 +30,36 @@ cornerstone-octree
     └───unit/             - (non-MPI) unit tests
     └───unit_cuda/        - CUDA unit tests
 ```
-#### Compile
 
-Tests have to be built with CMake, as they depend on the Google test framework
-which is automatically downloaded by CMake.
+#### Compilation
 
-Client applications can be build with any build system, with and without MPI functionality.
+Host `.cpp` translation units require a C++20 compiler
+(GCC 11 and later, Clang 14 and later), while `.cu` translation units are compiled in the C++17 standard.
+CUDA version: 11.6 or later, HIP version 5.2 or later.
+
+Example CMake invocation:
+```shell
+CC=mpicc CXX=mpicxx cmake -DCMAKE_CUDA_ARCHITECTURES=60,80,90 -DGPU_DIRECT=<ON/OFF> -DCMAKE_CUDA_FLAGS=-ccbin=mpicxx <GIT_SOURCE_DIR>
+```
+
+GPU-direct (RDMA) MPI communication can be turned on or off by supplying `-D GPU_DIRECT=ON`. Default is `OFF`.
+
+In order to build the code for AMD GPUs, the source code (`.cuh` and `.cu` only) must be hipified.
+CMake files are already prepared to work with HIP and should not need to be modified.
+
+```bash
+cd <GIT_SOURCE_DIR>
+hipify-perl -inplace `find -name *.cuh -o -name *.cu` && find -name *.prehip -delete
+CC=mpicc CXX=mpicxx cmake -DCMAKE_HIP_ARCHITECTURES=gfx90a -DGPU_DIRECT=<ON/OFF> <GIT_SOURCE_DIR>
+```
+
 
 #### Run
 
 A minimal sketch of what a client program employing the full domain might look like is listed below.
 
 ```c++
-#include "domain.hpp"
+#include "cstone/domain/domain.hpp"
 
 using Real    = double;
 using KeyType = unsigned;
@@ -60,7 +74,7 @@ int main()
     std::vector<Real> x{/*...*/}, y{/*...*/}, z{/*...*/}, h{/*...*/};
     
     int bucketSize = 10;
-    Domain<KeyType, Real> domain(rank, numRanks, bucketSize) ;
+    cstone::Domain<KeyType, Real> domain(rank, numRanks, bucketSize) ;
     
     int nIterations = 10;
     for (int iter = 0; iter < nIterations; ++iter)
@@ -86,6 +100,12 @@ int main()
 }
 ```
 
+Cornerstone contains unit, integration and regression tests
+
+The following integration tests represent fully functional versions of the program sketch above:
+* `test/integration_mpi/domain_nranks` (CPU version)
+* `test/integration_mpi/domain_gpu` (GPU version)
+
 ## Authors
 
 * **Sebastian Keller**
@@ -93,6 +113,11 @@ int main()
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+
+## Paper references
+
+* [Keller, S., Cavelan, A., Cabezon, R. M., Mayer L., Ciorba, F. M. (2023) Cornerstone: Octree Construction Algorithms for Scalable Particle Simulations. (PASC '23)](https://dl.acm.org/doi/abs/10.1145/3592979.3593417)
+
 
 ## Thanks / see also
 
