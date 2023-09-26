@@ -1,7 +1,8 @@
 ==================
 Welcome to SPH-EXA
 ==================
-SPH-EXA is a C++20 simulation code for hydrodynamics simulations (with gravity and other physics), parallelized with MPI, OpenMP, CUDA, and HIP.
+SPH-EXA is a C++20 simulation code for hydrodynamics simulations (with gravity
+and other physics), parallelized with MPI, OpenMP, CUDA, and HIP.
 
 SPH-EXA is built with high performance, scalability, portability, and resilience in mind. Its SPH implementation is based on SPHYNX, ChaNGa, and SPH-flow, three SPH codes selected in the PASC SPH-EXA project to act as parent and reference codes to SPH-EXA.
 
