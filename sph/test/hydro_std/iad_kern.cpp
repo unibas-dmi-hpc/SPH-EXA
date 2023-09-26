@@ -45,8 +45,8 @@ TEST(IAD, JLoop)
     T sincIndex = 6.0;
     T K         = compute_3d_k(sincIndex);
 
-    std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
+    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
 
     cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
 

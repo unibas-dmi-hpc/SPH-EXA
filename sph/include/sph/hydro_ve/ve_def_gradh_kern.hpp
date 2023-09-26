@@ -42,7 +42,7 @@ namespace sph
 {
 
 template<size_t stride = 1, class Tc, class Tm, class T>
-HOST_DEVICE_FUN inline util::tuple<T, T> veDefGradhJLoop(cstone::LocalIndex i, T K, const cstone::Box<T>& box,
+HOST_DEVICE_FUN inline util::tuple<T, T> veDefGradhJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box,
                                                          const cstone::LocalIndex* neighbors, unsigned neighborsCount,
                                                          const Tc* x, const Tc* y, const Tc* z, const T* h, const Tm* m,
                                                          const T* wh, const T* whd, const T* xm)

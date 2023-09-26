@@ -80,11 +80,11 @@ auto computeCenterAndSize(const util::array<Vec4<T>, N>& target)
  *
  * Note: acceleration output is added to destination
  */
-template<class MType, class T1, class T2, class Tm, size_t N>
+template<class MType, class T1, class Th, class Tm, size_t N>
 void computeGravityGroup(const util::array<Vec4<T1>, N>& target, const TreeNodeIndex* childOffsets,
                          const TreeNodeIndex* internalToLeaf, const cstone::SourceCenterType<T1>* centers,
                          MType* multipoles, const LocalIndex* layout, const T1* x, const T1* y, const T1* z,
-                         const T2* h, const Tm* m, Vec4<T1>* acc)
+                         const Th* h, const Tm* m, Vec4<T1>* acc)
 {
     Vec3<T1> targetCenter, targetSize;
     std::tie(targetCenter, targetSize) = computeCenterAndSize(target);
@@ -136,7 +136,7 @@ void computeGravityGroup(const util::array<Vec4<T1>, N>& target, const TreeNodeI
             // loop over sources in cell
             for (LocalIndex s = firstSource; s < lastSource; ++s)
             {
-                acc[k] = P2P(acc[k], makeVec3(target[k]), Vec3<T1>{x[s], y[s], z[s]}, m[s], target[k][3], h[s]);
+                acc[k] = P2P(acc[k], makeVec3(target[k]), Vec3<T1>{x[s], y[s], z[s]}, m[s], Th(target[k][3]), h[s]);
             }
         }
     };
@@ -175,7 +175,7 @@ template<class MType, class T1, class T2, class Tm>
 void computeGravity(const TreeNodeIndex* childOffsets, const TreeNodeIndex* internalToLeaf,
                     const cstone::SourceCenterType<T1>* macSpheres, const MType* multipoles, const LocalIndex* layout,
                     TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex, const T1* x, const T1* y, const T1* z,
-                    const T2* h, const Tm* m, const cstone::Box<T1>& box, float G, T1* ax, T1* ay, T1* az, T1* egravTot,
+                    const T2* h, const Tm* m, const cstone::Box<T1>& box, float G, T2* ax, T2* ay, T2* az, T1* egravTot,
                     int numShells = 0)
 {
     constexpr LocalIndex groupSize   = 16;

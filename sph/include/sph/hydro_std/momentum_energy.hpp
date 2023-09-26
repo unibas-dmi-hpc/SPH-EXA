@@ -38,9 +38,11 @@
 namespace sph
 {
 
-template<class T, class Dataset>
-void computeMomentumEnergyStdImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
+template<class Tc, class Dataset>
+void computeMomentumEnergyStdImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box)
 {
+    using T = typename Dataset::HydroType;
+
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
 

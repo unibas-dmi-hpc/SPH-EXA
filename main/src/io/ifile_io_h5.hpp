@@ -97,6 +97,9 @@ public:
         lastIndex_  = lastIndex;
         pathStep_   = path;
 
+        MPI_Comm_rank(comm_, &rank_);
+        MPI_Comm_size(comm_, &totalRanks_);
+
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ = -MPI_Wtime();
         if (std::filesystem::exists(path))
@@ -130,10 +133,27 @@ public:
 
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
+
+        long long int currIndex[totalRanks_ + 1];
+        currIndex[0] = 0;
+        // int ttt;
+        // MPI_Comm_rank(comm_, &ttt);
+        // std::cout << "Actual rank:" << ttt << ", theory rank: " << rank_ << std::endl;
+        int ret = MPI_Allgather (
+            (void*)&h5z_.numParticles, 1, MPI_LONG_LONG,
+            (void*)&currIndex[1], 1, MPI_LONG_LONG,
+            MPI_COMM_WORLD );
+        if ( ret != MPI_SUCCESS)  {
+            std::cout << "error! "  << std::endl;
+        };
+        for(int i=1; i<totalRanks_+1; i++) {
+            currIndex[i] += currIndex[i-1];
+        }
+
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ = -MPI_Wtime();
-        std::visit([this, &key](auto arg) { 
-            fileutils::writeHDF5Field(h5z_, key, arg + firstIndex_, firstIndex_, lastIndex_, totalNumParticles_);
+        std::visit([this, &key, &currIndex](auto arg) { 
+            fileutils::writeHDF5Field(h5z_, key, arg + firstIndex_, currIndex[rank_], currIndex[rank_+1], totalNumParticles_);
             }, field);
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
@@ -152,7 +172,7 @@ public:
 
     void closeStep() override { 
         int rank;
-        MPI_Comm_rank(comm_, &rank);
+
         if (rank == 0) {
             std::cout << "File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
         }
@@ -161,6 +181,8 @@ public:
 
 private:
     MPI_Comm comm_;
+    int rank_;
+    int totalRanks_;
     size_t  totalNumParticles_;
     double fileInitTime_, writeTime_;
 

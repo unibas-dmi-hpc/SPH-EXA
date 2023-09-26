@@ -11,7 +11,7 @@ namespace sph
 {
 
 template<size_t stride = 1, class Tc, class Tm, class T>
-HOST_DEVICE_FUN inline void IADJLoopSTD(cstone::LocalIndex i, T K, const cstone::Box<T>& box,
+HOST_DEVICE_FUN inline void IADJLoopSTD(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box,
                                         const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
                                         const Tc* y, const Tc* z, const T* h, const Tm* m, const T* rho, const T* wh,
                                         const T* /*whd*/, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)

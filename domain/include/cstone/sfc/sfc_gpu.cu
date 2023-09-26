@@ -29,8 +29,8 @@
  */
 
 #include "cstone/cuda/errorcheck.cuh"
+#include "cstone/primitives/math.hpp"
 #include "cstone/sfc/sfc_gpu.h"
-#include "cstone/util/util.hpp"
 
 namespace cstone
 {

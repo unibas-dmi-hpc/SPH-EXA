@@ -80,9 +80,15 @@ public:
      *
      * This function does not modify / communicate any particle data.
      */
-    template<class Reorderer>
-    LocalIndex assign(
-        BufferDescription bufDesc, Reorderer& reorderFunctor, KeyType* particleKeys, const T* x, const T* y, const T* z)
+    template<class Reorderer, class Vector>
+    LocalIndex assign(BufferDescription bufDesc,
+                      Reorderer& reorderFunctor,
+                      Vector& /*sratch0*/,
+                      Vector& /*scratch1*/,
+                      KeyType* particleKeys,
+                      const T* x,
+                      const T* y,
+                      const T* z)
     {
         // number of locally assigned particles to consider for global tree building
         LocalIndex numParticles = bufDesc.end - bufDesc.start;
@@ -192,6 +198,7 @@ public:
     //! @brief return the space filling curve rank assignment of the last call to @a assign()
     const SpaceCurveAssignment& assignment() const { return assignment_; }
 
+    //! @brief number of local particles to be sent to lower ranks
     LocalIndex numSendDown() const { return exchanges_[myRank_]; }
     LocalIndex numPresent() const { return exchanges_.count(myRank_); }
     LocalIndex numAssigned() const { return assignment_.totalCount(myRank_); }

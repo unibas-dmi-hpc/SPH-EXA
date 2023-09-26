@@ -31,6 +31,7 @@
 #pragma once
 
 #include "cstone/cuda/gpu_config.cuh"
+#include "cstone/primitives/math.hpp"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/primitives/warpscan.cuh"
 #include "cstone/sfc/sfc.hpp"
@@ -184,17 +185,17 @@ __global__ void makeSplitsKernel(const util::array<GpuConfig::ThreadMask, N>* sp
  * @param[out] splitMasks      split mask for each of the ceil((last-first)/groupSize) fixed-size groups
  * @param[out] numSplitsPerGroup 1 + number-of-1-bits in @p splitMasks for each fixed-size group
  */
-template<unsigned groupSize, class T, class KeyType>
+template<unsigned groupSize, class Tc, class T, class KeyType>
 __global__ void groupSplitsKernel(LocalIndex first,
                                   LocalIndex last,
-                                  const T* x,
-                                  const T* y,
-                                  const T* z,
+                                  const Tc* x,
+                                  const Tc* y,
+                                  const Tc* z,
                                   const T* h,
                                   const KeyType* leaves,
                                   TreeNodeIndex numLeaves,
                                   const LocalIndex* layout,
-                                  const Box<T> box,
+                                  const Box<Tc> box,
                                   float tolFactor,
                                   util::array<GpuConfig::ThreadMask, groupSize / GpuConfig::warpSize>* splitMasks,
                                   LocalIndex* numSplitsPerGroup,
@@ -230,14 +231,14 @@ __global__ void groupSplitsKernel(LocalIndex first,
         nodeVolume = min(vol, nodeVolume);
     }
     nodeVolume = warpMin(nodeVolume);
-    T distCrit = std::cbrt(nodeVolume) * tolFactor;
+    Tc distCrit = std::cbrt(nodeVolume) * tolFactor;
 
     // load target coordinates
-    util::array<Vec4<T>, nwt> pos_i;
+    util::array<Vec4<Tc>, nwt> pos_i;
     for (int k = 0; k < nwt; k++)
     {
         pos_i[k] = {x[bodyIdx[k]] * box.ilx(), y[bodyIdx[k]] * box.ily(), z[bodyIdx[k]] * box.ilz(),
-                    h ? T(2) * h[bodyIdx[k]] : T(0)};
+                    h ? Tc(2) * h[bodyIdx[k]] : Tc(0)};
     }
 
     auto splitMask = findSplits(pos_i, distCrit * distCrit);
@@ -255,18 +256,18 @@ __global__ void groupSplitsKernel(LocalIndex first,
 }
 
 //! @brief convenience wrapper for groupSplitsKernel
-template<unsigned groupSize, class T, class KeyType>
+template<unsigned groupSize, class Tc, class T, class KeyType>
 void computeGroupSplits(
     LocalIndex first,
     LocalIndex last,
-    const T* x,
-    const T* y,
-    const T* z,
+    const Tc* x,
+    const Tc* y,
+    const Tc* z,
     const T* h,
     const KeyType* leaves,
     TreeNodeIndex numLeaves,
     const LocalIndex* layout,
-    const Box<T> box,
+    const Box<Tc> box,
     float tolFactor,
     thrust::device_vector<util::array<GpuConfig::ThreadMask, groupSize / GpuConfig::warpSize>>& splitMasks,
     thrust::device_vector<LocalIndex>& numSplitsPerGroup,
@@ -282,7 +283,7 @@ void computeGroupSplits(
     numSplitsPerGroup.reserve(numFixedGroups * 1.1);
     numSplitsPerGroup.resize(numFixedGroups);
 
-    groupSplitsKernel<groupSize, T><<<iceil(gridSize, numThreads), numThreads>>>(
+    groupSplitsKernel<groupSize><<<iceil(gridSize, numThreads), numThreads>>>(
         first, last, x, y, z, h, leaves, numLeaves, layout, box, tolFactor, rawPtr(splitMasks),
         rawPtr(numSplitsPerGroup), numFixedGroups);
 

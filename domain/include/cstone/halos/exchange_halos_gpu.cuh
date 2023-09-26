@@ -40,7 +40,7 @@
 #include "cstone/primitives/mpi_cuda.cuh"
 #include "cstone/domain/buffer_description.hpp"
 #include "cstone/util/reallocate.hpp"
-#include "cstone/util/util.hpp"
+#include "cstone/util/tuple_util.hpp"
 
 #include "gather_halos_gpu.h"
 
@@ -55,7 +55,7 @@ void haloExchangeGpu(int epoch,
                      DevVec2& receiveScratchBuffer,
                      Arrays... arrays)
 {
-    constexpr int alignment = 1;
+    constexpr int alignment = 8;
     using IndexType         = SendManifest::IndexType;
 
     int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;

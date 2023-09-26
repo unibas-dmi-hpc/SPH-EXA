@@ -37,7 +37,7 @@
 #include <thrust/scan.h>
 
 #include "cstone/cuda/errorcheck.cuh"
-#include "cstone/util/util.hpp"
+#include "cstone/primitives/math.hpp"
 #include "csarray.hpp"
 
 #include "csarray_gpu.h"

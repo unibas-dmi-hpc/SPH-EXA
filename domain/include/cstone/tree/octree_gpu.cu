@@ -34,6 +34,7 @@
 #include <thrust/sort.h>
 #include <thrust/fill.h>
 
+#include "cstone/primitives/math.hpp"
 #include "cstone/sfc/common.hpp"
 #include "cstone/tree/octree_gpu.h"
 

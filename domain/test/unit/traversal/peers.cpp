@@ -83,7 +83,7 @@ static void findMacPeers64grid(int rank, float theta, BoundaryType pbc, int /*re
     SpaceCurveAssignment assignment(octree.numLeafNodes());
     for (int i = 0; i < octree.numLeafNodes(); ++i)
     {
-        assignment.addRange(Rank(i), i, i + 1, 1);
+        assignment.addRange(i, i, i + 1, 1);
     }
 
     std::vector<int> peers     = findPeersMac(rank, assignment, octree, box, invThetaVecMac(theta));

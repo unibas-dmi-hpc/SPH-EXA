@@ -40,7 +40,7 @@
 #include <vector>
 #include <iostream>
 
-#include "cstone/util/traits.hpp"
+#include "cstone/util/type_list.hpp"
 #include "cstone/util/value_list.hpp"
 
 namespace cooling

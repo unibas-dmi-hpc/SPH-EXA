@@ -50,8 +50,8 @@ HOST_DEVICE_FUN bool fbcCheck(Tc coord, Th h, Tc top, Tc bottom, bool fbc)
 }
 
 //! @brief update the energy according to Adams-Bashforth (2nd order)
-template<class T>
-HOST_DEVICE_FUN double energyUpdate(double u_old, double dt, double dt_m1, T du, T du_m1)
+template<class T1, class T2>
+HOST_DEVICE_FUN double energyUpdate(double u_old, double dt, double dt_m1, T1 du, T2 du_m1)
 {
     double deltaA = 0.5 * dt * dt / dt_m1;
     double deltaB = dt + deltaA;

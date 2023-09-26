@@ -29,6 +29,8 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <cub/cub.cuh>
+
 #include <thrust/binary_search.h>
 #include <thrust/count.h>
 #include <thrust/execution_policy.h>
@@ -38,7 +40,8 @@
 #include <thrust/sort.h>
 
 #include "cstone/cuda/errorcheck.cuh"
-#include "cstone/util/util.hpp"
+#include "cstone/primitives/math.hpp"
+#include "cstone/util/array.hpp"
 #include "primitives_gpu.h"
 
 namespace cstone
@@ -232,6 +235,46 @@ void sequenceGpu(IndexType* input, size_t numElements, IndexType init)
 template void sequenceGpu(int*, size_t, int);
 template void sequenceGpu(unsigned*, size_t, unsigned);
 template void sequenceGpu(uint64_t*, uint64_t, uint64_t);
+
+template<class KeyType, class ValueType>
+void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values, KeyType* keyBuf, ValueType* valueBuf)
+{
+    size_t numElements = last - first;
+
+    cub::DoubleBuffer<KeyType> d_keys(first, keyBuf);
+    cub::DoubleBuffer<ValueType> d_values(values, valueBuf);
+
+    // Determine temporary device storage requirements
+    void* d_tempStorage     = nullptr;
+    size_t tempStorageBytes = 0;
+    cub::DeviceRadixSort::SortPairs(d_tempStorage, tempStorageBytes, d_keys, d_values, numElements);
+
+    // Allocate temporary storage
+    checkGpuErrors(cudaMalloc(&d_tempStorage, tempStorageBytes));
+
+    // Run sorting operation
+    checkGpuErrors(cub::DeviceRadixSort::SortPairs(d_tempStorage, tempStorageBytes, d_keys, d_values, numElements));
+
+    auto* curKeys = d_keys.Current();
+    if (curKeys != first)
+    {
+        checkGpuErrors(cudaMemcpy(first, curKeys, numElements * sizeof(KeyType), cudaMemcpyDeviceToDevice));
+    }
+
+    auto* curValues = d_values.Current();
+    if (curValues != values)
+    {
+        checkGpuErrors(cudaMemcpy(values, curValues, numElements * sizeof(ValueType), cudaMemcpyDeviceToDevice));
+    }
+
+    checkGpuErrors(cudaFree(d_tempStorage));
+}
+
+template void sortByKeyGpu(unsigned*, unsigned*, unsigned*, unsigned*, unsigned*);
+template void sortByKeyGpu(unsigned*, unsigned*, int*, unsigned*, int*);
+template void sortByKeyGpu(uint64_t*, uint64_t*, unsigned*, uint64_t*, unsigned*);
+template void sortByKeyGpu(uint64_t*, uint64_t*, int*, uint64_t*, int*);
+template void sortByKeyGpu(uint64_t*, uint64_t*, uint64_t*, uint64_t*, uint64_t*);
 
 template<class KeyType, class ValueType>
 void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values)

@@ -84,6 +84,9 @@ template<class IndexType>
 extern void sequenceGpu(IndexType* input, size_t numElements, IndexType init);
 
 template<class KeyType, class ValueType>
+extern void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values, KeyType* keyBuf, ValueType* valueBuf);
+
+template<class KeyType, class ValueType>
 extern void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values);
 
 template<class IndexType, class SumType>

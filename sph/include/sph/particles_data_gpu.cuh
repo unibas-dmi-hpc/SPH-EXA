@@ -53,8 +53,9 @@ class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData<T, Ke
     template<class FType>
     using DevVector = thrust::device_vector<FType>;
 
-    using Tmass   = float;
-    using XM1Type = float;
+    using HydroType = float;
+    using XM1Type   = float;
+    using Tmass     = float;
 
 public:
     // number of CUDA streams to use
@@ -72,34 +73,35 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    DevVector<T>        x, y, z;                            // Positions
-    DevVector<XM1Type>  x_m1, y_m1, z_m1;                   // Difference to previous positions
-    DevVector<T>        vx, vy, vz;                         // Velocities
-    DevVector<T>        rho;                                // Density
-    DevVector<T>        temp;                               // Temperature
-    DevVector<T>        u;                                  // Internal Energy
-    DevVector<T>        p;                                  // Pressure
-    DevVector<T>        prho;                               // p / (kx * m^2 * gradh)
-    DevVector<T>        h;                                  // Smoothing Length
-    DevVector<Tmass>    m;                                  // Mass
-    DevVector<T>        c;                                  // Speed of sound
-    DevVector<T>        cv;                                 // Specific heat
-    DevVector<T>        mue, mui;                           // mean molecular weight (electrons, ions)
-    DevVector<T>        divv, curlv;                        // Div(velocity), Curl(velocity)
-    DevVector<T>        ax, ay, az;                         // acceleration
-    DevVector<XM1Type>  du, du_m1;                          // energy rate of change (du/dt)
-    DevVector<T>        c11, c12, c13, c22, c23, c33;       // IAD components
-    DevVector<T>        alpha;                              // AV coeficient
-    DevVector<T>        xm;                                 // Volume element definition
-    DevVector<T>        kx;                                 // Volume element normalization
-    DevVector<T>        gradh;                              // grad(h) term
-    DevVector<KeyType>  keys;                               // Particle space-filling-curve keys
-    DevVector<unsigned> nc;                                 // number of neighbors of each particle
-    DevVector<T>        dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
+    DevVector<T>         x, y, z;                            // Positions
+    DevVector<XM1Type>   x_m1, y_m1, z_m1;                   // Difference to previous positions
+    DevVector<HydroType> vx, vy, vz;                         // Velocities
+    DevVector<HydroType> rho;                                // Density
+    DevVector<T>         temp;                               // Temperature
+    DevVector<T>         u;                                  // Internal Energy
+    DevVector<HydroType> p;                                  // Pressure
+    DevVector<HydroType> prho;                               // p / (kx * m^2 * gradh)
+    DevVector<HydroType> h;                                  // Smoothing Length
+    DevVector<Tmass>     m;                                  // Mass
+    DevVector<HydroType> c;                                  // Speed of sound
+    DevVector<HydroType> cv;                                 // Specific heat
+    DevVector<HydroType> mue, mui;                           // mean molecular weight (electrons, ions)
+    DevVector<HydroType> divv, curlv;                        // Div(velocity), Curl(velocity)
+    DevVector<HydroType> ax, ay, az;                         // acceleration
+    DevVector<T>         du;                                 // energy rate of change (du/dt)
+    DevVector<XM1Type>   du_m1;                              // previous energy rate of change (du/dt)
+    DevVector<HydroType> c11, c12, c13, c22, c23, c33;       // IAD components
+    DevVector<HydroType> alpha;                              // AV coeficient
+    DevVector<HydroType> xm;                                 // Volume element definition
+    DevVector<HydroType> kx;                                 // Volume element normalization
+    DevVector<HydroType> gradh;                              // grad(h) term
+    DevVector<KeyType>   keys;                               // Particle space-filling-curve keys
+    DevVector<unsigned>  nc;                                 // number of neighbors of each particle
+    DevVector<HydroType> dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
 
     //! @brief SPH interpolation kernel lookup tables
-    DevVector<T> wh;
-    DevVector<T> whd;
+    DevVector<HydroType> wh;
+    DevVector<HydroType> whd;
 
     DevVector<cstone::LocalIndex> traversalStack;
     DevVector<cstone::LocalIndex> targetGroups;
@@ -177,10 +179,11 @@ public:
         }
     }
 
-    void uploadTables(const std::array<T, ::sph::lt::size>& whTable, const std::array<T, ::sph::lt::size>& whdTable)
+    void uploadTables(const std::array<HydroType, ::sph::lt::size>& whTable,
+                      const std::array<HydroType, ::sph::lt::size>& whdTable)
     {
-        wh  = DevVector<T>(whTable.begin(), whTable.end());
-        whd = DevVector<T>(whdTable.begin(), whdTable.end());
+        wh  = DevVector<HydroType>(whTable.begin(), whTable.end());
+        whd = DevVector<HydroType>(whdTable.begin(), whdTable.end());
     }
 
     ~DeviceParticlesData()
