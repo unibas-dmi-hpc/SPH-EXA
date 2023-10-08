@@ -183,6 +183,7 @@ public:
     FieldVector<KeyType>   keys;                               // Particle space-filling-curve keys
     FieldVector<unsigned>  nc;                                 // number of neighbors of each particle
     FieldVector<HydroType> dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
+    FieldVector<HydroType> markRamp; //  switch between crossed and uncrossed versions of the SPH equations
 
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
     std::vector<cstone::LocalIndex>             neighbors;
@@ -200,7 +201,7 @@ public:
         "x",     "y",    "z",   "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",    "rho",  "u",     "p",
         "prho",  "h",    "m",   "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",   "c13",
         "c22",   "c23",  "c33", "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv", "alpha",
-        "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
+        "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33", "markRamp"};
 
     //! @brief dataset prefix to be prepended to fieldNames for structured output
     static const inline std::string prefix{};
@@ -217,7 +218,7 @@ public:
     {
         auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11,
                             c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc,
-                            dV11, dV12, dV13, dV22, dV23, dV33);
+                            dV11, dV12, dV13, dV22, dV23, dV33, markRamp);
 
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
         return ret;
