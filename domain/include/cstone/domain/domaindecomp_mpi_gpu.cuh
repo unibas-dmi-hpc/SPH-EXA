@@ -58,6 +58,8 @@ char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
 /*! @brief exchange array elements with other ranks according to the specified ranges
  *
  * @tparam Arrays                  pointers to particles buffers
+ * @param[in] epoch                MPI tag offset to avoid mix-ups of message from consecutive function calls
+ * @param[in] receiveLog           List of received messages in previous calls to replicate resulting buffer layout
  * @param[in] sendList             List of index ranges to be sent to each rank, indices
  *                                 are valid w.r.t to arrays present on @p thisRank relative to @p particleStart.
  * @param[in] thisRank             Rank of the executing process
@@ -81,14 +83,15 @@ char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
  *           already present on @p thisRank.
  */
 template<class DeviceVector, class... Arrays>
-void exchangeParticlesGpu(const SendRanges& sends,
+void exchangeParticlesGpu(int epoch,
+                          ExchangeLog& receiveLog,
+                          const SendRanges& sends,
                           int thisRank,
                           BufferDescription bufDesc,
                           LocalIndex numParticlesAssigned,
                           DeviceVector& sendScratchBuffer,
                           DeviceVector& receiveScratchBuffer,
                           const LocalIndex* ordering,
-                          std::vector<std::tuple<int, LocalIndex>>& receiveLog,
                           Arrays... arrays)
 {
     using TransferType        = uint64_t;
@@ -96,7 +99,7 @@ void exchangeParticlesGpu(const SendRanges& sends,
     constexpr int headerBytes = round_up(sizeof(uint64_t), alignment);
     static_assert(alignment % sizeof(TransferType) == 0);
     bool record  = receiveLog.empty();
-    int domExTag = static_cast<int>(P2pTags::domainExchange) + (record ? 0 : 1);
+    int domExTag = static_cast<int>(P2pTags::domainExchange) + epoch;
 
     size_t totalSendBytes    = computeTotalSendBytes<alignment>(sends, thisRank, headerBytes, arrays...);
     const size_t oldSendSize = reallocateBytes(sendScratchBuffer, totalSendBytes);
@@ -145,8 +148,8 @@ void exchangeParticlesGpu(const SendRanges& sends,
         assert(receiveStart + receiveCount <= receiveEnd);
 
         LocalIndex receiveLocation = receiveStart;
-        if (record) { receiveLog.emplace_back(receiveRank, receiveStart); }
-        else { receiveLocation = domain_exchange::findInLog(receiveLog.begin(), receiveLog.end(), receiveRank); }
+        if (record) { receiveLog.addExchange(receiveRank, receiveStart); }
+        else { receiveLocation = receiveLog.lookup(receiveRank); }
 
         auto packTuple     = packBufferPtrs<alignment>(receiveBuffer, receiveCount, (arrays + receiveLocation)...);
         auto scatterRanges = [receiveCount](auto arrayPair)
