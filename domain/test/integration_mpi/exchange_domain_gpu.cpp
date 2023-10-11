@@ -109,9 +109,9 @@ void exchangeAllToAll(int thisRank, int numRanks)
     reallocateDevice(d_x, bufDesc.size, 1.0);
     reallocateDevice(d_y, bufDesc.size, 1.0);
 
-    std::vector<std::tuple<int, LocalIndex>> log;
-    exchangeParticlesGpu(sends, thisRank, bufDesc, numParticlesThisRank, sendScratch, receiveScratch,
-                         rawPtr(d_ordering), log, rawPtr(d_x), rawPtr(d_y));
+    ExchangeLog log;
+    exchangeParticlesGpu(0, log, sends, thisRank, bufDesc, numParticlesThisRank, sendScratch, receiveScratch,
+                         rawPtr(d_ordering), rawPtr(d_x), rawPtr(d_y));
 
     reallocate(bufDesc.size, x, y);
     thrust::copy(d_x.begin(), d_x.end(), x.begin());
@@ -192,8 +192,8 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     reallocateDevice(d_y, bufDesc.size, 1.0);
     reallocateDevice(d_testArray, bufDesc.size, 1.0);
 
-    std::vector<std::tuple<int, LocalIndex>> log;
-    exchangeParticlesGpu(sends, thisRank, bufDesc, gridSize, sendScratch, receiveScratch, rawPtr(d_ordering), log,
+    ExchangeLog log;
+    exchangeParticlesGpu(0, log, sends, thisRank, bufDesc, gridSize, sendScratch, receiveScratch, rawPtr(d_ordering),
                          rawPtr(d_x), rawPtr(d_y), rawPtr(d_testArray));
 
     reallocate(bufDesc.size, x, y, testArray);

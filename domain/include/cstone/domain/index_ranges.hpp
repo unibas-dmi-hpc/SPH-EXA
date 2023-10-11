@@ -195,4 +195,31 @@ public:
     }
 };
 
+//! @brief used to record or replicate a given exchange pattern or order
+class ExchangeLog
+{
+public:
+    ExchangeLog() = default;
+
+    [[nodiscard]] bool empty() const { return log_.empty(); }
+
+    void clear() { log_.clear(); }
+
+    /*! @brief add a P2P message to the log
+     * @param rank        destination or source rank
+     * @param location    start of message in local arrays
+     */
+    void addExchange(int rank, LocalIndex location) { log_.emplace_back(rank, location); }
+
+    [[nodiscard]] LocalIndex lookup(int rank) const
+    {
+        auto it = std::find_if(log_.begin(), log_.end(), [rank](auto e) { return std::get<0>(e) == rank; });
+        assert(it != log_.end());
+        return std::get<1>(*it);
+    }
+
+private:
+    std::vector<std::tuple<int, LocalIndex>> log_;
+};
+
 } // namespace cstone
