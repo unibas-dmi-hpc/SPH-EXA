@@ -96,7 +96,7 @@ public:
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t /*n*/, Dataset& simData) const override
     {
         std::unique_ptr<IFileReader> reader;
-        reader = std::make_unique<H5PartReader>(simData.comm);
+        reader = std::make_unique<HDF5Reader>(simData.comm);
         reader->setStep(h5_fname, initStep);
 
         auto box = restoreData(reader.get(), rank, simData);

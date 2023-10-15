@@ -119,7 +119,6 @@ public:
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ += MPI_Wtime();
         
-        
         return;
     }
 
@@ -133,12 +132,8 @@ public:
 
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
-
         long long int currIndex[totalRanks_ + 1];
         currIndex[0] = 0;
-        // int ttt;
-        // MPI_Comm_rank(comm_, &ttt);
-        // std::cout << "Actual rank:" << ttt << ", theory rank: " << rank_ << std::endl;
         int ret = MPI_Allgather (
             (void*)&h5z_.numParticles, 1, MPI_LONG_LONG,
             (void*)&currIndex[1], 1, MPI_LONG_LONG,
@@ -171,9 +166,7 @@ public:
     }
 
     void closeStep() override { 
-        int rank;
-
-        if (rank == 0) {
+        if (rank_ == 0) {
             std::cout << "File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
         }
         fileutils::closeHDF5File(h5z_);
@@ -192,16 +185,15 @@ private:
 
     H5PartFile* h5File_;
     fileutils::H5ZType h5z_;
-
 };
 
-class H5Reader : public IFileReader
+class HDF5Reader : public IFileReader
 {
 public:
     using Base      = IFileReader;
     using FieldType = typename Base::FieldType;
 
-    explicit H5Reader(MPI_Comm comm)
+    explicit HDF5Reader(MPI_Comm comm)
         : comm_(comm)
         , h5File_{nullptr}
     {
@@ -215,6 +207,7 @@ public:
 
         // set step to last step in file if negative
         if (step < 0) { step = H5PartGetNumSteps(h5File_) - 1; }
+        
         H5PartSetStep(h5File_, step);
 
         globalCount_ = H5PartGetNumParticles(h5File_);
@@ -226,6 +219,9 @@ public:
 
         std::tie(firstIndex_, lastIndex_) = partitionRange(globalCount_, rank, numRanks);
         localCount_                       = lastIndex_ - firstIndex_;
+
+        h5z_ = fileutils::openHDF5File(path, comm_);
+        h5z_.step = step;
 
         H5PartSetView(h5File_, firstIndex_, lastIndex_ - 1);
     }
@@ -312,7 +308,9 @@ public:
 
     void readField(const std::string& key, FieldType field) override
     {
-        auto err = std::visit([this, &key](auto arg) { return fileutils::readH5PartField(h5File_, key, arg); }, field);
+        auto err = std::visit([this, &key](auto arg) {
+            return fileutils::readHDF5Field(h5z_, key, arg); }, field
+        );
         if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
     }
 
@@ -320,7 +318,14 @@ public:
 
     uint64_t globalNumParticles() override { return globalCount_; }
 
-    void closeStep() override { H5PartCloseFile(h5File_); }
+    void closeStep() override {
+        int rank;
+
+        if (rank == 0) {
+            std::cout << "File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
+        }
+        fileutils::closeHDF5File(h5z_, true);
+    }
 
 private:
     h5part_int64_t stepAttributeType(const std::string& key)
@@ -339,8 +344,10 @@ private:
     uint64_t    localCount_;
     uint64_t    globalCount_;
     std::string pathStep_;
+    double fileInitTime_, writeTime_;
 
     H5PartFile* h5File_;
+    fileutils::H5ZType h5z_;
 };
 
 } // namespace sphexa

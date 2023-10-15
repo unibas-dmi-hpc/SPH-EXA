@@ -68,6 +68,7 @@ struct H5ZType {
     hid_t cpid;
     hid_t status;
     size_t numParticles;
+    size_t step;
 };
 
 static void setupZFP(H5ZType& h5z, int zfpmode,
@@ -159,8 +160,11 @@ static H5ZType openHDF5File(std::string fileName, MPI_Comm comm)
     return h5z;
 }
 
-static void closeHDF5File(H5ZType& h5z) {
-    h5z.status = H5Gclose(h5z.group_id);
+// When reading from an existing file, there's no need to close group.
+static void closeHDF5File(H5ZType& h5z, bool reading = false) {
+    if (!reading) {
+        h5z.status = H5Gclose(h5z.group_id);
+    }
     h5z.status = H5Fclose(h5z.file_id);
 }
 
@@ -202,7 +206,7 @@ static void addHDF5Step(H5ZType& h5z, std::string fieldName) {
 static void writeHDF5Field_(H5ZType& h5z, const std::string& fieldName, const void* field, hid_t dataType, uint64_t firstIndex=0, uint64_t lastIndex=0, uint64_t numParticles = 0, size_t nCol = 1) {
     // Following previous conventions, each field is written into a separate dataset.
     // Also, maxdim is set to exactly the data size + 1...for now
-    hsize_t dims[2] = {numParticles + 1, nCol};
+    hsize_t dims[2] = {numParticles, nCol};
     // hsize_t maxdims[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
     h5z.dspace_id = H5Screate_simple(2, dims, NULL);
     addHDF5Filter(h5z);
@@ -221,7 +225,7 @@ static void writeHDF5Field_(H5ZType& h5z, const std::string& fieldName, const vo
     // Selection should be within dimension
     hid_t dataSpace = H5Dget_space(h5z.dset_id);
     hsize_t offset[2] = {firstIndex, 0};
-    hsize_t count[2] = {lastIndex - firstIndex + 1, nCol};
+    hsize_t count[2] = {lastIndex - firstIndex, nCol};
     hsize_t stride[2] = {1, 1};
     h5z.status = H5Sselect_hyperslab(dataSpace, H5S_SELECT_SET, offset, stride, count, NULL);
 
@@ -444,6 +448,73 @@ auto sphexaWriteFileAttrib(H5PartFile* h5_file, const std::string& name, const T
 
 /* read fields */
 
+//! @brief numParticles: total number of global particles
+static unsigned readHDF5Field_(H5ZType& h5z, const std::string& fieldName, void* field, hid_t dataType) {
+    size_t nelmts      = 0;
+    unsigned filter_info;
+    unsigned flags;
+
+    std::string datasetPath = "/Step#" + std::to_string(h5z.step) + "/" + fieldName;
+    h5z.dset_id = H5Dopen2(h5z.file_id, datasetPath.c_str(), H5P_DEFAULT);
+
+    /* Retrieve filter information. */
+    hid_t plist_id = H5Dget_create_plist(h5z.dset_id);
+
+    uint16_t numfilt = H5Pget_nfilters(plist_id);
+    // printf("Number of filters associated with dataset: %i\n", numfilt);
+
+    // for (uint16_t i = 0; i < numfilt; i++) {
+    //     H5Z_filter_t filter_type = H5Pget_filter2(plist_id, i, &flags, &nelmts, NULL, 0, NULL, &filter_info);
+    //     printf("Filter Type: ");
+    //     switch (filter_type) {
+    //         case H5Z_FILTER_DEFLATE:
+    //             printf("H5Z_FILTER_DEFLATE\n");
+    //             break;
+    //         case H5Z_FILTER_SZIP:
+    //             printf("H5Z_FILTER_SZIP\n");
+    //             break;
+    //         default:
+    //             printf("Other filter type included.\n");
+    //     }
+    // }
+
+    h5z.status = H5Dread(h5z.dset_id, dataType, H5S_ALL, H5S_ALL, H5P_DEFAULT, field);
+    h5z.status = H5Dclose(h5z.dset_id);
+    h5z.status = H5Pclose(plist_id);
+    // h5z.status = H5Fclose(h5z.file_id);
+
+    return 0;
+}
+
+inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, double* field)
+{
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE);
+}
+
+inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, float* field)
+{
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE);
+}
+inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, char* field)
+{
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE);
+}
+inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, int* field)
+{
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE);
+}
+inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, int64_t* field)
+{
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE);
+}
+inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, unsigned* field)
+{
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE);
+}
+inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, uint64_t* field)
+{
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE);
+}
 inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, double* field)
 {
     static_assert(std::is_same_v<double, h5part_float64_t>);
@@ -548,6 +619,7 @@ template<class Vector>
 void readTemplateBlock(std::string block, Vector& x, Vector& y, Vector& z)
 {
     H5PartFile* h5_file = nullptr;
+
     h5_file             = H5PartOpenFile(block.c_str(), H5PART_READ);
     H5PartSetStep(h5_file, 0);
     size_t blockSize = H5PartGetNumParticles(h5_file);
