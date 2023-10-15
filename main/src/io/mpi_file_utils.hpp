@@ -202,7 +202,7 @@ static void addHDF5Step(H5ZType& h5z, std::string fieldName) {
 static void writeHDF5Field_(H5ZType& h5z, const std::string& fieldName, const void* field, hid_t dataType, uint64_t firstIndex=0, uint64_t lastIndex=0, uint64_t numParticles = 0, size_t nCol = 1) {
     // Following previous conventions, each field is written into a separate dataset.
     // Also, maxdim is set to exactly the data size + 1...for now
-    hsize_t dims[2] = {numParticles, nCol};
+    hsize_t dims[2] = {numParticles + 1, nCol};
     // hsize_t maxdims[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
     h5z.dspace_id = H5Screate_simple(2, dims, NULL);
     addHDF5Filter(h5z);

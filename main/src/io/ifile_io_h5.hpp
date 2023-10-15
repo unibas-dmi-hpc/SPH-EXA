@@ -112,7 +112,7 @@ public:
         
         h5z_.numParticles = lastIndex - firstIndex;
         currStep_ = currStep_ + 1;
-        pathStep_ = "step_" + std::to_string(currStep_);
+        pathStep_ = "Step#" + std::to_string(currStep_-1);
 
         addHDF5Step(h5z_, pathStep_);
         
