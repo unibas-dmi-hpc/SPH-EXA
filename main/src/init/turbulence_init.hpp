@@ -109,7 +109,8 @@ public:
         cstone::Vec3<int> multiplicity       = {multi1D, multi1D, multi1D};
         size_t            numParticlesGlobal = multi1D * multi1D * multi1D * blockSize;
 
-        cstone::Box<T> globalBox(-0.5, 0.5, cstone::BoundaryType::periodic);
+        auto lBox = settings_.at("Lbox");
+        cstone::Box<T> globalBox(-lBox / 2, lBox / 2, cstone::BoundaryType::periodic);
 
         auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
         assembleCuboid<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);

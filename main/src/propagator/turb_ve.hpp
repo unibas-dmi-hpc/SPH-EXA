@@ -102,7 +102,7 @@ public:
 
         turbulenceData.loadOrStore(reader.get());
 
-        if (rank_ == 0) { std::cout << "Restored phases and RNG state from file" << std::endl; }
+        if (rank_ == 0) { std::cout << "Restored turbulence state from file" << std::endl; }
         reader->closeStep();
     }
 };

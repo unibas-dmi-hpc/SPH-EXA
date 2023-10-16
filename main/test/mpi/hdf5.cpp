@@ -270,8 +270,15 @@ TEST(HDF5IO, turbulenceData)
         reader.setStep(testfile, 0);
         probe.loadOrStore(&reader);
 
-        EXPECT_EQ(probe.gen, data.gen);
+        EXPECT_EQ(probe.variance, data.variance);
+        EXPECT_EQ(probe.decayTime, data.decayTime);
+        EXPECT_EQ(probe.solWeight, data.solWeight);
+        EXPECT_EQ(probe.solWeightNorm, data.solWeightNorm);
+        EXPECT_EQ(probe.numModes, data.numModes);
+        EXPECT_EQ(probe.modes, data.modes);
+        EXPECT_EQ(probe.amplitudes, data.amplitudes);
         EXPECT_EQ(probe.phases, data.phases);
+        EXPECT_EQ(probe.gen, data.gen);
 
         reader.closeStep();
     }
