@@ -213,15 +213,17 @@ public:
         globalCount_ = H5PartGetNumParticles(h5File_);
         if (globalCount_ < 1) { throw std::runtime_error("no particles in input file found\n"); }
 
-        int rank, numRanks;
-        MPI_Comm_rank(comm_, &rank);
-        MPI_Comm_size(comm_, &numRanks);
+        MPI_Comm_rank(comm_, &rank_);
+        MPI_Comm_size(comm_, &numRanks_);
 
-        std::tie(firstIndex_, lastIndex_) = partitionRange(globalCount_, rank, numRanks);
+        std::tie(firstIndex_, lastIndex_) = partitionRange(globalCount_, rank_, numRanks_);
         localCount_                       = lastIndex_ - firstIndex_;
+        std::cout << "Rank: "<<rank_<<", lastIndex_: " << lastIndex_ <<", firstIndex_: " << firstIndex_ << std::endl;
 
         h5z_ = fileutils::openHDF5File(path, comm_);
         h5z_.step = step;
+        h5z_.start = firstIndex_;
+        h5z_.numParticles = localCount_;
 
         H5PartSetView(h5File_, firstIndex_, lastIndex_ - 1);
     }
@@ -309,7 +311,7 @@ public:
     void readField(const std::string& key, FieldType field) override
     {
         auto err = std::visit([this, &key](auto arg) {
-            return fileutils::readHDF5Field(h5z_, key, arg); }, field
+            return fileutils::readHDF5Field(h5z_, key, arg, globalCount_); }, field
         );
         if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
     }
@@ -319,9 +321,7 @@ public:
     uint64_t globalNumParticles() override { return globalCount_; }
 
     void closeStep() override {
-        int rank;
-
-        if (rank == 0) {
+        if (rank_ == 0) {
             std::cout << "File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
         }
         fileutils::closeHDF5File(h5z_, true);
@@ -343,6 +343,7 @@ private:
     uint64_t    firstIndex_, lastIndex_;
     uint64_t    localCount_;
     uint64_t    globalCount_;
+    int    rank_, numRanks_;
     std::string pathStep_;
     double fileInitTime_, writeTime_;
 

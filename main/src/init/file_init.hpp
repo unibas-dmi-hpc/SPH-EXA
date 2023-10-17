@@ -100,6 +100,9 @@ public:
         reader->setStep(h5_fname, initStep);
 
         auto box = restoreData(reader.get(), rank, simData);
+        for(int i=0; i<100; i++) {
+            std::cout<<simData.hydro.y[i] << std::endl;
+        }
 
         // Read file attributes and put them in constants_ such that they propagate to the new output after a restart
         auto fileAttributes = reader->fileAttributes();
@@ -183,6 +186,7 @@ public:
             std::vector<T> x0(numParticlesInFile), y0(numParticlesInFile), z0(numParticlesInFile),
                 h0(numParticlesInFile);
             reader->readField("x", x0.data());
+            std::cout << x0[0] << std::endl;
             reader->readField("y", y0.data());
             reader->readField("z", z0.data());
             reader->readField("h", h0.data());
