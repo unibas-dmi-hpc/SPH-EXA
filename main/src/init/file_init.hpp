@@ -31,9 +31,6 @@
 
 #pragma once
 
-#include <map>
-#include <random>
-
 #include "cstone/sfc/box.hpp"
 
 #include "io/arg_parser.hpp"
@@ -44,7 +41,7 @@ namespace sphexa
 {
 
 template<class Dataset>
-void restoreDataset(IFileReader* reader, int rank, Dataset& d)
+void restoreDataset(IFileReader* reader, Dataset& d)
 {
     d.loadOrStoreAttributes(reader);
     d.resize(reader->localNumParticles());
@@ -54,7 +51,7 @@ void restoreDataset(IFileReader* reader, int rank, Dataset& d)
     {
         if (d.isConserved(i))
         {
-            if (rank == 0) { std::cout << "restoring " << d.fieldNames[i] << std::endl; }
+            if (reader->rank() == 0) { std::cout << "restoring " << d.fieldNames[i] << std::endl; }
             std::visit([reader, key = d.fieldNames[i]](auto field)
                        { reader->readField(Dataset::prefix + key, field->data()); },
                        fieldPointers[i]);
@@ -63,15 +60,15 @@ void restoreDataset(IFileReader* reader, int rank, Dataset& d)
 }
 
 template<class SimulationData>
-auto restoreData(IFileReader* reader, int rank, SimulationData& simData)
+auto restoreData(IFileReader* reader, SimulationData& simData)
 {
     using T = typename SimulationData::RealType;
 
     cstone::Box<T> box(0, 1);
     box.loadOrStore(reader);
 
-    restoreDataset(reader, rank, simData.hydro);
-    restoreDataset(reader, rank, simData.chem);
+    restoreDataset(reader, simData.hydro);
+    restoreDataset(reader, simData.chem);
 
     simData.hydro.iteration++;
 
@@ -81,56 +78,40 @@ auto restoreData(IFileReader* reader, int rank, SimulationData& simData)
 template<class Dataset>
 class FileInit : public ISimInitializer<Dataset>
 {
-    mutable std::map<std::string, double> constants_;
-    std::string                           h5_fname;
-
-    int initStep = -1;
+    InitSettings settings_;
+    std::string  h5_fname;
+    int          initStep = -1;
 
 public:
-    FileInit(const std::string& fname)
+    explicit FileInit(const std::string& fname, IFileReader* reader)
         : h5_fname(strBeforeSign(fname, ":"))
         , initStep(numberAfterSign(fname, ":"))
     {
+        // Read file attributes and put them in settings_ such that they propagate to the new output after a restart
+        readFileAttributes(settings_, h5_fname, reader, false);
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t /*n*/, Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int /*rank*/, int numRanks, size_t /*n*/, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
-        std::unique_ptr<IFileReader> reader;
-        reader = std::make_unique<H5PartReader>(simData.comm);
-        reader->setStep(h5_fname, initStep);
-
-        auto box = restoreData(reader.get(), rank, simData);
-
-        // Read file attributes and put them in constants_ such that they propagate to the new output after a restart
-        auto fileAttributes = reader->fileAttributes();
-        for (const auto& attr : fileAttributes)
-        {
-            int64_t sz = reader->fileAttributeSize(attr);
-            if (sz == 1)
-            {
-                constants_[attr] = 0;
-                reader->fileAttribute(attr, &constants_[attr], sz);
-            }
-        }
-
+        reader->setStep(h5_fname, initStep, FileMode::collective);
+        auto box = restoreData(reader, simData);
         reader->closeStep();
-
         return box;
     }
 
-    [[nodiscard]] const std::map<std::string, double>& constants() const override { return constants_; }
+    [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
 
 template<class Dataset>
 class FileSplitInit : public ISimInitializer<Dataset>
 {
-    mutable std::map<std::string, double> constants_;
-    std::string                           h5_fname;
-
-    int numSplits;
+    InitSettings settings_;
+    std::string  h5_fname;
+    int          numSplits;
 
 public:
-    FileSplitInit(const std::string& fname)
+    explicit FileSplitInit(const std::string& fname, IFileReader* reader)
         : h5_fname(strBeforeSign(fname, ","))
         , numSplits(numberAfterSign(fname, ","))
     {
@@ -139,25 +120,14 @@ public:
             throw std::runtime_error("Number of particle splits must be a positive integer. Provided value: " +
                                      std::to_string(numSplits));
         }
+        // Read file attributes and put them in constants_ such that they propagate to the new output after a restart
+        readFileAttributes(settings_, h5_fname, reader, false);
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int /*nrank*/, size_t /*n*/, Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int, size_t, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
-        std::unique_ptr<IFileReader> reader;
-        reader = std::make_unique<H5PartReader>(simData.comm);
-        reader->setStep(h5_fname, -1);
-
-        // Read file attributes and put them in constants_ such that they propagate to the new output after a restart
-        auto fileAttributes = reader->fileAttributes();
-        for (const auto& attr : fileAttributes)
-        {
-            int64_t sz = reader->fileAttributeSize(attr);
-            if (sz == 1)
-            {
-                constants_[attr] = 0;
-                reader->fileAttribute(attr, &constants_[attr], sz);
-            }
-        }
+        reader->setStep(h5_fname, -1, FileMode::collective);
 
         size_t numParticlesInFile = reader->localNumParticles();
         size_t numParticlesSplit  = numParticlesInFile * numSplits;
@@ -165,10 +135,10 @@ public:
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
         cstone::Box<T> box(0, 1);
-        box.loadOrStore(reader.get());
+        box.loadOrStore(reader);
 
         auto& d = simData.hydro;
-        d.loadOrStoreAttributes(reader.get());
+        d.loadOrStoreAttributes(reader);
 
         d.numParticlesGlobal = reader->globalNumParticles() * numSplits;
         d.iteration          = 1;
@@ -245,12 +215,12 @@ public:
         };
 
         d.resize(numParticlesSplit);
-        replicateField(reader.get(), "m", d.m, T(1) / numSplits);
-        replicateField(reader.get(), "h", d.h, T(1) / std::cbrt(numSplits));
-        replicateField(reader.get(), "vx", d.vx, T(1));
-        replicateField(reader.get(), "vy", d.vy, T(1));
-        replicateField(reader.get(), "vz", d.vz, T(1));
-        replicateField(reader.get(), "temp", d.temp, T(1));
+        replicateField(reader, "m", d.m, T(1) / numSplits);
+        replicateField(reader, "h", d.h, T(1) / std::cbrt(numSplits));
+        replicateField(reader, "vx", d.vx, T(1));
+        replicateField(reader, "vy", d.vy, T(1));
+        replicateField(reader, "vz", d.vz, T(1));
+        replicateField(reader, "temp", d.temp, T(1));
 
         std::fill(d.du_m1.begin(), d.du_m1.end(), 0);
         std::transform(d.vx.begin(), d.vx.end(), d.x_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt; });
@@ -261,7 +231,7 @@ public:
         {
             try
             {
-                replicateField(reader.get(), "alpha", d.alpha, T(1));
+                replicateField(reader, "alpha", d.alpha, T(1));
             }
             catch (std::runtime_error&)
             {
@@ -274,7 +244,7 @@ public:
         return box;
     }
 
-    [[nodiscard]] const std::map<std::string, double>& constants() const override { return constants_; }
+    [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

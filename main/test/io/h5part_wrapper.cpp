@@ -24,65 +24,148 @@
  */
 
 /*! @file
- * @brief Unit tests for I/O related functionality
+ * @brief Unit tests for H5Part C++ wrappers
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include <iostream>
+#include <filesystem>
 
 #include "gtest/gtest.h"
 
-#include "io/arg_parser.hpp"
+#include "io/h5part_wrapper.hpp"
 
-using namespace sphexa;
+using namespace sphexa::fileutils;
 
-TEST(IO, strIsIntegral)
+TEST(H5PartCpp, typesafeStepAttrRead)
 {
-    EXPECT_TRUE(strIsIntegral("42"));
-    EXPECT_TRUE(strIsIntegral("-42"));
+    std::string testfile = "variant_read.h5";
+    if (std::filesystem::exists(testfile)) { std::filesystem::remove(testfile); }
 
-    EXPECT_FALSE(strIsIntegral("3.1"));
-    EXPECT_FALSE(strIsIntegral("3a"));
+    {
+        H5PartFile* h5File = H5PartOpenFile(testfile.c_str(), H5PART_WRITE);
+        H5PartSetStep(h5File, 0);
+
+        double float64Attr = 0.5;
+        writeH5PartStepAttrib(h5File, "float64Attr", &float64Attr, 1);
+        int64_t int64Attr = 42;
+        writeH5PartStepAttrib(h5File, "int64Attr", &int64Attr, 1);
+        uint64_t uint64Attr = uint64_t(2) << 40;
+        writeH5PartStepAttrib(h5File, "uint64Attr", &uint64Attr, 1);
+        char int8Attr = 1;
+        writeH5PartStepAttrib(h5File, "int8Attr", &int8Attr, 1);
+
+        H5PartCloseFile(h5File);
+    }
+    {
+        H5PartFile* h5File = H5PartOpenFile(testfile.c_str(), H5PART_READ);
+        H5PartSetStep(h5File, 0);
+
+        {
+            std::vector<double> a(1);
+            readH5PartStepAttribute(a.data(), a.size(), 0, h5File);
+            EXPECT_EQ(a[0], 0.5);
+        }
+        {
+            std::vector<float> a(1);
+            readH5PartStepAttribute(a.data(), a.size(), 0, h5File);
+            EXPECT_EQ(a[0], 0.5);
+        }
+        {
+            std::vector<int> a(1);
+            EXPECT_THROW(readH5PartStepAttribute(a.data(), a.size(), 0, h5File), std::runtime_error);
+        }
+        {
+            std::vector<int64_t> a(1);
+            readH5PartStepAttribute(a.data(), a.size(), 1, h5File);
+            EXPECT_EQ(a[0], 42);
+        }
+        {
+            std::vector<double> a(1);
+            readH5PartStepAttribute(a.data(), a.size(), 1, h5File);
+            EXPECT_EQ(a[0], 42);
+        }
+        {
+            std::vector<int> a(1);
+            EXPECT_THROW(readH5PartStepAttribute(a.data(), a.size(), 1, h5File), std::runtime_error);
+        }
+        {
+            std::vector<uint64_t> a(1);
+            readH5PartStepAttribute(a.data(), a.size(), 2, h5File);
+            EXPECT_EQ(a[0], uint64_t(2) << 40);
+        }
+        {
+            std::vector<char> a(1);
+            readH5PartStepAttribute(a.data(), a.size(), 3, h5File);
+            EXPECT_EQ(a[0], 1);
+        }
+
+        H5PartCloseFile(h5File);
+    }
 }
 
-TEST(IO, isExtraOutputStep)
+TEST(H5PartCpp, typesafeFileAttrRead)
 {
-    std::vector<std::string> writeExtra{"1", "4.2", "5", "0.77"};
+    std::string testfile = "variant_read.h5";
+    if (std::filesystem::exists(testfile)) { std::filesystem::remove(testfile); }
 
-    EXPECT_TRUE(isExtraOutputStep(1, 0, 0, writeExtra));
-    EXPECT_TRUE(isExtraOutputStep(0, 4.19, 4.21, writeExtra));
-    EXPECT_TRUE(isExtraOutputStep(0, 4.2, 4.21, writeExtra));
-    EXPECT_TRUE(isExtraOutputStep(5, 0, 0, writeExtra));
-    EXPECT_TRUE(isExtraOutputStep(5, 0.76, 0.78, writeExtra));
+    {
+        H5PartFile* h5File = H5PartOpenFile(testfile.c_str(), H5PART_WRITE);
 
-    EXPECT_FALSE(isExtraOutputStep(4, 0, 0, writeExtra));
-    EXPECT_FALSE(isExtraOutputStep(0, 4.19, 4.2, writeExtra));
-    EXPECT_FALSE(isExtraOutputStep(6, 5.19, 6.0, writeExtra));
-}
+        double float64Attr = 0.5;
+        writeH5PartFileAttrib(h5File, "float64Attr", &float64Attr, 1);
+        int64_t int64Attr = 42;
+        writeH5PartFileAttrib(h5File, "int64Attr", &int64Attr, 1);
+        uint64_t uint64Attr = uint64_t(2) << 40;
+        writeH5PartFileAttrib(h5File, "uint64Attr", &uint64Attr, 1);
+        char int8Attr = 1;
+        writeH5PartFileAttrib(h5File, "int8Attr", &int8Attr, 1);
 
-TEST(IO, isPeriodicOutputTime)
-{
-    EXPECT_FALSE(isPeriodicOutputTime(9.9, 10.1, "2"));
-    EXPECT_TRUE(isPeriodicOutputTime(9.9, 10.1, "2.0"));
-    EXPECT_FALSE(isPeriodicOutputTime(10.01, 10.1, "2.0"));
-}
+        H5PartCloseFile(h5File);
+    }
+    {
+        H5PartFile* h5File = H5PartOpenFile(testfile.c_str(), H5PART_READ);
 
-TEST(IO, isPeriodicOutputStep)
-{
-    EXPECT_FALSE(isPeriodicOutputStep(42, "-1"));
-    EXPECT_FALSE(isPeriodicOutputStep(42, "0"));
-    EXPECT_TRUE(isPeriodicOutputStep(42, "42"));
-    EXPECT_TRUE(isPeriodicOutputStep(84, "42"));
-    EXPECT_FALSE(isPeriodicOutputStep(42, "42.0"));
-}
+        {
+            std::vector<double> a(1);
+            readH5PartFileAttribute(a.data(), a.size(), 0, h5File);
+            EXPECT_EQ(a[0], 0.5);
+        }
+        {
+            std::vector<float> a(1);
+            readH5PartFileAttribute(a.data(), a.size(), 0, h5File);
+            EXPECT_EQ(a[0], 0.5);
+        }
+        {
+            std::vector<int> a(1);
+            EXPECT_THROW(readH5PartFileAttribute(a.data(), a.size(), 0, h5File), std::runtime_error);
+        }
+        {
+            std::vector<int64_t> a(1);
+            readH5PartFileAttribute(a.data(), a.size(), 1, h5File);
+            EXPECT_EQ(a[0], 42);
+        }
+        {
+            std::vector<double> a(1);
+            readH5PartFileAttribute(a.data(), a.size(), 1, h5File);
+            EXPECT_EQ(a[0], 42);
+        }
+        {
+            std::vector<int> a(1);
+            EXPECT_THROW(readH5PartFileAttribute(a.data(), a.size(), 1, h5File), std::runtime_error);
+        }
+        {
+            std::vector<uint64_t> a(1);
+            readH5PartFileAttribute(a.data(), a.size(), 2, h5File);
+            EXPECT_EQ(a[0], uint64_t(2) << 40);
+        }
+        {
+            std::vector<char> a(1);
+            readH5PartFileAttribute(a.data(), a.size(), 3, h5File);
+            EXPECT_EQ(a[0], 1);
+        }
 
-TEST(IO, numberAfterSign)
-{
-    EXPECT_EQ(numberAfterSign("chkp.h5", ","), -1);
-    EXPECT_EQ(numberAfterSign("chkp.h5,1", ","), 1);
-    EXPECT_EQ(numberAfterSign("chkp.h5,42", ","), 42);
-    EXPECT_EQ(numberAfterSign("chkp.h5,42,42", ","), -1);
-
-    EXPECT_EQ(numberAfterSign("chkp.h5-O_O-42", "-O_O-"), 42);
+        H5PartCloseFile(h5File);
+    }
 }

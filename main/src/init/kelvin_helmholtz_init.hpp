@@ -34,14 +34,22 @@
 #include "cstone/sfc/box.hpp"
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/primitives/gather.hpp"
-#include "io/mpi_file_utils.hpp"
-#include "isim_init.hpp"
-#include "utils.hpp"
 
+#include "isim_init.hpp"
 #include "grid.hpp"
+#include "utils.hpp"
 
 namespace sphexa
 {
+
+InitSettings KelvinHelmholtzConstants()
+{
+    return {{"rhoInt", 2.},        {"rhoExt", 1.},           {"vxExt", 0.5},
+            {"vxInt", -0.5},       {"gamma", 5. / 3.},       {"p", 2.5},
+            {"omega0", 0.01},      {"Kcour", 0.4},           {"ng0", 100},
+            {"ngmax", 150},        {"minDt", 1e-7},          {"minDt_m1", 1e-7},
+            {"gravConstant", 0.0}, {"kelvin-helmholtz", 1.0}};
+}
 
 template<class T, class Dataset>
 void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& constants, T massPart)
@@ -108,31 +116,22 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
     }
 }
 
-std::map<std::string, double> KelvinHelmholtzConstants()
-{
-    return {{"rhoInt", 2.},        {"rhoExt", 1.},           {"vxExt", 0.5},
-            {"vxInt", -0.5},       {"gamma", 5. / 3.},       {"p", 2.5},
-            {"omega0", 0.01},      {"Kcour", 0.4},           {"ng0", 100},
-            {"ngmax", 150},        {"minDt", 1e-7},          {"minDt_m1", 1e-7},
-            {"gravConstant", 0.0}, {"kelvin-helmholtz", 1.0}};
-}
-
 template<class Dataset>
 class KelvinHelmholtzGlass : public ISimInitializer<Dataset>
 {
-    std::string glassBlock;
-    using Base = ISimInitializer<Dataset>;
-    using Base::settings_;
+    std::string          glassBlock;
+    mutable InitSettings settings_;
 
 public:
-    KelvinHelmholtzGlass(std::string initBlock)
+    KelvinHelmholtzGlass(std::string initBlock, std::string settingsFile, IFileReader* reader)
         : glassBlock(initBlock)
     {
-        Base::updateSettings(KelvinHelmholtzConstants());
+        Dataset d;
+        settings_ = buildSettings(d, KelvinHelmholtzConstants(), settingsFile, reader);
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
@@ -140,7 +139,7 @@ public:
         auto  pbc     = cstone::BoundaryType::periodic;
 
         std::vector<T> xBlock, yBlock, zBlock;
-        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
         sortBySfcKey<KeyType>(xBlock, yBlock, zBlock);
 
         cstone::Box<T> globalBox(0, 1, 0, 1, 0, 0.0625, pbc, pbc, pbc);
@@ -157,7 +156,7 @@ public:
         std::vector<T> x, y, z;
         assembleCuboid<T>(keyStart, keyEnd, layer1, outerMulti, xBlock, yBlock, zBlock, x, y, z);
 
-        T stretch = std::cbrt(2.0);
+        T stretch = std::cbrt(settings_.at("rhoInt") / settings_.at("rhoExt"));
         T topEdge = layer3.ymax();
 
         auto inLayer1 = [b = layer1](T u, T v, T w)
@@ -203,7 +202,7 @@ public:
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return settings_; }
+    [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

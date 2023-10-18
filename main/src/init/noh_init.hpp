@@ -36,12 +36,9 @@
 #include "cstone/sfc/box.hpp"
 #include "sph/eos.hpp"
 
-#include "io/file_utils.hpp"
-#ifdef SPH_EXA_HAVE_H5PART
-#include "io/mpi_file_utils.hpp"
-#endif
 #include "isim_init.hpp"
 #include "grid.hpp"
+#include "utils.hpp"
 
 namespace sphexa
 {
@@ -105,26 +102,26 @@ void initNohFields(Dataset& d, const std::map<std::string, double>& constants)
 template<class Dataset>
 class NohGlassSphere : public ISimInitializer<Dataset>
 {
-    std::string glassBlock;
-    using Base = ISimInitializer<Dataset>;
-    using Base::settings_;
+    std::string          glassBlock;
+    mutable InitSettings settings_;
 
 public:
-    NohGlassSphere(std::string initBlock)
-        : glassBlock(initBlock)
+    NohGlassSphere(std::string initBlock, std::string settingsFile, IFileReader* reader)
+        : glassBlock(std::move(initBlock))
     {
-        Base::updateSettings(nohConstants());
+        Dataset d;
+        settings_ = buildSettings(d, nohConstants(), settingsFile, reader);
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
         auto& d       = simData.hydro;
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
         std::vector<T> xBlock, yBlock, zBlock;
-        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
         int               multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
@@ -151,7 +148,7 @@ public:
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return settings_; }
+    [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

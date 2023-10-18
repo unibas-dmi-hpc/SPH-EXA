@@ -83,7 +83,7 @@ public:
     {
     }
 
-    void load(const std::string& initCond, MPI_Comm comm) override
+    void load(const std::string& initCond, IFileReader* reader) override
     {
         if (initCond == "evrard-cooling")
         {
@@ -92,17 +92,17 @@ public:
         }
         else
         {
-            std::string path = strBeforeSign(initCond, ":");
+            std::string path = removeModifiers(initCond);
             if (std::filesystem::exists(path))
             {
-                std::unique_ptr<IFileReader> reader;
-                reader = std::make_unique<H5PartReader>(comm);
-                reader->setStep(path, -1);
-                cooling_data.loadOrStoreAttributes(reader.get());
+                int snapshotIndex = numberAfterSign(initCond, ":");
+                reader->setStep(path, snapshotIndex, FileMode::independent);
+                cooling_data.loadOrStoreAttributes(reader);
                 reader->closeStep();
             }
             else
-                throw std::runtime_error("");
+                throw std::runtime_error("Cooling propagator has to be used with the evrard-cooling builtin test-case "
+                                         "or a suitable init file");
         }
         cooling_data.init(0);
     }
