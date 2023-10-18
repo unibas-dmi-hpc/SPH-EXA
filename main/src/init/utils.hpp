@@ -26,14 +26,18 @@
 /*!@file
  * @brief utilities for initial condition generation
  *
- * @author Lukas Schmidt
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#pragma once
+
 #include <numeric>
+#include <string>
 #include <vector>
 
 #include "cstone/primitives/gather.hpp"
 #include "cstone/sfc/sfc.hpp"
+#include "io/ifile_io.hpp"
 
 namespace sphexa
 {
@@ -63,31 +67,21 @@ void sortBySfcKey(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z)
     std::swap(z, buffer);
 }
 
-/*!@brief remove every n-th element of a sequence
- * @param   n  factor to reduce density
- * @param   x  a vector
- * @return     vector with 1/n-th the elements of @p v
- */
-template<class T>
-auto skipElements(size_t n, const std::vector<T>& x)
+//! @brief read x,y,z coordinates from an H5Part file (at step 0)
+template<class Vector>
+void readTemplateBlock(const std::string& block, IFileReader* reader, Vector& x, Vector& y, Vector& z)
 {
-    size_t newSize = x.size() / n;
+    reader->setStep(block, -1, FileMode::independent);
+    size_t blockSize = reader->numParticles();
+    x.resize(blockSize);
+    y.resize(blockSize);
+    z.resize(blockSize);
 
-    std::vector<T> xSmall(newSize);
-    for (size_t i = 0; i < newSize; i++)
-    {
-        xSmall[i] = x[2 * i];
-    }
+    reader->readField("x", x.data());
+    reader->readField("y", y.data());
+    reader->readField("z", z.data());
 
-    return xSmall;
-}
-
-//! @brief reduce density of @a SFC sorted template glass block (x,y,z) coordinates by factor of @p n
-template<class T>
-auto makeLessDenseTemplate(size_t n, const std::vector<T>& x, const std::vector<T>& y, const std::vector<T>& z)
-{
-    assert(x.size() == y.size() == z.size());
-    return std::make_tuple(skipElements(n, x), skipElements(n, y), skipElements(n, z));
+    reader->closeStep();
 }
 
 } // namespace sphexa

@@ -38,10 +38,6 @@
 #include "cstone/sfc/box.hpp"
 #include "io/ifile_io.hpp"
 
-#ifdef SPH_EXA_HAVE_H5PART
-#include "io/ifile_io_hdf5.hpp"
-#endif
-
 #include "iobservables.hpp"
 #include "time_energy_growth.hpp"
 #include "time_energies.hpp"
@@ -52,60 +48,29 @@
 namespace sphexa
 {
 
-static bool haveAttribute(IFileReader* reader, const std::string& attributeToRead)
-{
-    if (reader)
-    {
-        auto attributes = reader->fileAttributes();
-        return std::count(attributes.begin(), attributes.end(), attributeToRead);
-    }
-
-    return false;
-}
-
 template<class Dataset>
-std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& testCase, std::ofstream& constantsFile)
+std::unique_ptr<IObservables<Dataset>> observablesFactory(const InitSettings& settings, std::ofstream& constantsFile)
 {
-    std::unique_ptr<IFileReader> reader;
-    std::string                  testCaseStripped = strBeforeSign(testCase, ",");
-
-#ifdef SPH_EXA_HAVE_H5PART
-    if (std::filesystem::exists(testCaseStripped))
+    if (settings.count("observeGravWaves"))
     {
-        reader = std::make_unique<H5PartReader>(MPI_COMM_WORLD);
-        reader->setStep(testCaseStripped, -1);
+        if (not settings.count("gravWaveTheta") || not settings.count("graveWavePhi"))
+        {
+            throw std::runtime_error("need gravWaveTheta ant gravWavePhi input attributes for grav waves observable\n");
+        }
+        return std::make_unique<GravWaves<Dataset>>(constantsFile, settings.at("gravWaveTheta"),
+                                                    settings.at("gravWavePhi"));
     }
-#endif
-
-    std::string gravWaves = "observeGravWaves";
-    if (haveAttribute(reader.get(), gravWaves))
+    if (settings.count("wind-shock"))
     {
-        double gravWaveThetaPhi[2] = {0.0, 0.0};
-        reader->fileAttribute(gravWaves, gravWaveThetaPhi, 2);
-        return std::make_unique<GravWaves<Dataset>>(constantsFile, gravWaveThetaPhi[0], gravWaveThetaPhi[1]);
-    }
-
-#ifdef SPH_EXA_HAVE_H5PART
-    if (testCase == "wind-shock" || haveAttribute(reader.get(), "wind-shock"))
-    {
-        double rhoInt       = WindShockConstants().at("rhoInt");
-        double uExt         = WindShockConstants().at("uExt");
-        double bubbleVolume = std::pow(WindShockConstants().at("rSphere"), 3) * 4.0 / 3.0 * M_PI;
+        double rhoInt       = settings.at("rhoInt");
+        double uExt         = settings.at("uExt");
+        double bubbleVolume = std::pow(settings.at("rSphere"), 3) * 4.0 / 3.0 * M_PI;
         double bubbleMass   = bubbleVolume * rhoInt;
         return std::make_unique<WindBubble<Dataset>>(constantsFile, rhoInt, uExt, bubbleMass);
     }
-#endif
+    if (settings.count("turbulence")) { return std::make_unique<TurbulenceMachRMS<Dataset>>(constantsFile); }
+    if (settings.count("kelvin-helmholtz")) { return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile); }
 
-    if (testCase == "turbulence" || haveAttribute(reader.get(), "turbulence"))
-    {
-        return std::make_unique<TurbulenceMachRMS<Dataset>>(constantsFile);
-    }
-    if (testCase == "kelvin-helmholtz" || haveAttribute(reader.get(), "kelvin-helmholtz"))
-    {
-        return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
-    }
-
-    if (reader) { reader->closeStep(); }
     return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
 }
 
