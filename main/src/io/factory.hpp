@@ -42,15 +42,16 @@
 namespace sphexa
 {
 
-std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const std::string & compressionMethod, const int & compressionParam = 0)
+std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const std::string& compressionMethod,
+                                               const int& compressionParam = 0)
 {
     if (ascii) { return std::make_unique<AsciiWriterNew>(comm); }
 #ifdef SPH_EXA_HAVE_HDF5
     else { return std::make_unique<HDF5Writer>(comm, compressionMethod, compressionParam); }
 #endif
-// #ifdef SPH_EXA_HAVE_H5PART
-//     else { return std::make_unique<H5PartWriter>(comm); }
-// #endif
+    // #ifdef SPH_EXA_HAVE_H5PART
+    //     else { return std::make_unique<H5PartWriter>(comm); }
+    // #endif
     throw std::runtime_error("unsupported file i/o choice\n");
 }
 

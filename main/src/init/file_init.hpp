@@ -100,8 +100,9 @@ public:
         reader->setStep(h5_fname, initStep);
 
         auto box = restoreData(reader.get(), rank, simData);
-        for(int i=0; i<100; i++) {
-            std::cout<<simData.hydro.y[i] << std::endl;
+        for (int i = 0; i < 100; i++)
+        {
+            std::cout << simData.hydro.y[i] << std::endl;
         }
 
         // Read file attributes and put them in constants_ such that they propagate to the new output after a restart
