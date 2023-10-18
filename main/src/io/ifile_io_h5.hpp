@@ -52,7 +52,7 @@ public:
     using Base      = IFileWriter;
     using FieldType = typename Base::FieldType;
 
-    explicit HDF5Writer(MPI_Comm comm, const std::string & compressionMethod, const int & compressionParam = 0)
+    explicit HDF5Writer(MPI_Comm comm, const std::string& compressionMethod, const int& compressionParam = 0)
         : comm_(comm)
         , h5File_(nullptr)
     {
@@ -85,7 +85,7 @@ public:
         {
             fileutils::sphexaWriteFileAttrib(h5_file, it->first.c_str(), &(it->second), 1);
         }
-        
+
         H5PartCloseFile(h5_file);
     }
 
@@ -102,71 +102,65 @@ public:
 
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ = -MPI_Wtime();
-        if (std::filesystem::exists(path))
-        {
-            h5z_ = fileutils::openHDF5File(path, comm_);
-        }
-        else {
-            h5z_ = fileutils::createHDF5File(path, comm_);
-        }
-        
+        if (std::filesystem::exists(path)) { h5z_ = fileutils::openHDF5File(path, comm_); }
+        else { h5z_ = fileutils::createHDF5File(path, comm_); }
+
         h5z_.numParticles = lastIndex - firstIndex;
-        currStep_ = currStep_ + 1;
-        pathStep_ = "Step#" + std::to_string(currStep_-1);
+        currStep_         = currStep_ + 1;
+        pathStep_         = "Step#" + std::to_string(currStep_ - 1);
 
         addHDF5Step(h5z_, pathStep_);
-        
+
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ += MPI_Wtime();
-        
+
         return;
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit([this, &key, size](auto arg) { 
-            fileutils::writeHDF5Attrib(h5z_, key.c_str(), arg, size); 
-            },
-                   val);
+        std::visit([this, &key, size](auto arg) { fileutils::writeHDF5Attrib(h5z_, key.c_str(), arg, size); }, val);
     }
 
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
         long long int currIndex[totalRanks_ + 1];
         currIndex[0] = 0;
-        int ret = MPI_Allgather (
-            (void*)&h5z_.numParticles, 1, MPI_LONG_LONG,
-            (void*)&currIndex[1], 1, MPI_LONG_LONG,
-            MPI_COMM_WORLD );
-        if ( ret != MPI_SUCCESS)  {
-            std::cout << "error! "  << std::endl;
-        };
-        for(int i=1; i<totalRanks_+1; i++) {
-            currIndex[i] += currIndex[i-1];
+        int ret = MPI_Allgather((void*)&h5z_.numParticles, 1, MPI_LONG_LONG, (void*)&currIndex[1], 1, MPI_LONG_LONG,
+                                MPI_COMM_WORLD);
+        if (ret != MPI_SUCCESS) { std::cout << "error! " << std::endl; };
+        for (int i = 1; i < totalRanks_ + 1; i++)
+        {
+            currIndex[i] += currIndex[i - 1];
         }
 
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ = -MPI_Wtime();
-        std::visit([this, &key, &currIndex](auto arg) { 
-            fileutils::writeHDF5Field(h5z_, key, arg + firstIndex_, currIndex[rank_], currIndex[rank_+1], totalNumParticles_);
-            }, field);
+        std::visit(
+            [this, &key, &currIndex](auto arg)
+            {
+                fileutils::writeHDF5Field(h5z_, key, arg + firstIndex_, currIndex[rank_], currIndex[rank_ + 1],
+                                          totalNumParticles_);
+            },
+            field);
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
     }
 
-    void setNumParticles(uint64_t numParticles) override {
-        totalNumParticles_ = numParticles;
-    }
+    void setNumParticles(uint64_t numParticles) override { totalNumParticles_ = numParticles; }
 
-    void setCompression(const std::string & compressionMethod, int compressionParam) override {
+    void setCompression(const std::string& compressionMethod, int compressionParam) override
+    {
         if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
         if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
         if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
         h5z_.compressionParam = compressionParam;
     }
 
-    void closeStep() override { 
-        if (rank_ == 0) {
+    void closeStep() override
+    {
+        if (rank_ == 0)
+        {
             std::cout << "File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
         }
         fileutils::closeHDF5File(h5z_);
@@ -174,16 +168,16 @@ public:
 
 private:
     MPI_Comm comm_;
-    int rank_;
-    int totalRanks_;
-    size_t  totalNumParticles_;
-    double fileInitTime_, writeTime_;
+    int      rank_;
+    int      totalRanks_;
+    size_t   totalNumParticles_;
+    double   fileInitTime_, writeTime_;
 
     size_t      firstIndex_, lastIndex_;
     std::string pathStep_;
-    size_t currStep_ = 0;
+    size_t      currStep_ = 0;
 
-    H5PartFile* h5File_;
+    H5PartFile*        h5File_;
     fileutils::H5ZType h5z_;
 };
 
@@ -207,7 +201,7 @@ public:
 
         // set step to last step in file if negative
         if (step < 0) { step = H5PartGetNumSteps(h5File_) - 1; }
-        
+
         H5PartSetStep(h5File_, step);
 
         globalCount_ = H5PartGetNumParticles(h5File_);
@@ -218,11 +212,12 @@ public:
 
         std::tie(firstIndex_, lastIndex_) = partitionRange(globalCount_, rank_, numRanks_);
         localCount_                       = lastIndex_ - firstIndex_;
-        std::cout << "Rank: "<<rank_<<", lastIndex_: " << lastIndex_ <<", firstIndex_: " << firstIndex_ << std::endl;
+        std::cout << "Rank: " << rank_ << ", lastIndex_: " << lastIndex_ << ", firstIndex_: " << firstIndex_
+                  << std::endl;
 
-        h5z_ = fileutils::openHDF5File(path, comm_);
-        h5z_.step = step;
-        h5z_.start = firstIndex_;
+        h5z_              = fileutils::openHDF5File(path, comm_);
+        h5z_.step         = step;
+        h5z_.start        = firstIndex_;
         h5z_.numParticles = localCount_;
 
         H5PartSetView(h5File_, firstIndex_, lastIndex_ - 1);
@@ -310,9 +305,8 @@ public:
 
     void readField(const std::string& key, FieldType field) override
     {
-        auto err = std::visit([this, &key](auto arg) {
-            return fileutils::readHDF5Field(h5z_, key, arg, globalCount_); }, field
-        );
+        auto err = std::visit([this, &key](auto arg) { return fileutils::readHDF5Field(h5z_, key, arg, globalCount_); },
+                              field);
         if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
     }
 
@@ -320,8 +314,10 @@ public:
 
     uint64_t globalNumParticles() override { return globalCount_; }
 
-    void closeStep() override {
-        if (rank_ == 0) {
+    void closeStep() override
+    {
+        if (rank_ == 0)
+        {
             std::cout << "File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
         }
         fileutils::closeHDF5File(h5z_, true);
@@ -343,11 +339,11 @@ private:
     uint64_t    firstIndex_, lastIndex_;
     uint64_t    localCount_;
     uint64_t    globalCount_;
-    int    rank_, numRanks_;
+    int         rank_, numRanks_;
     std::string pathStep_;
-    double fileInitTime_, writeTime_;
+    double      fileInitTime_, writeTime_;
 
-    H5PartFile* h5File_;
+    H5PartFile*        h5File_;
     fileutils::H5ZType h5z_;
 };
 
