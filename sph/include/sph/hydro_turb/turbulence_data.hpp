@@ -70,7 +70,7 @@ public:
     //! Normalized solenoidal weight
     T solWeightNorm;
 
-    size_t         numModes;
+    uint64_t       numModes;
     std::vector<T> modes;
     std::vector<T> amplitudes;
     std::vector<T> phases;

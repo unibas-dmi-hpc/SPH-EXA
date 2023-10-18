@@ -43,18 +43,19 @@
 namespace sphexa
 {
 
-class AsciiWriterNew : public IFileWriter
+class AsciiWriter : public IFileWriter
 {
 public:
     using Base      = IFileWriter;
     using FieldType = typename Base::FieldType;
 
-    AsciiWriterNew(MPI_Comm comm)
+    AsciiWriter(MPI_Comm comm)
         : comm_(comm)
     {
+        MPI_Comm_rank(comm, &rank_);
     }
 
-    void constants(const std::map<std::string, double>& c, std::string path) const override {}
+    [[nodiscard]] int rank() const override { return rank_; }
 
     std::string suffix() const override { return ""; }
 
@@ -69,6 +70,8 @@ public:
     {
         if (key == "iteration") { iterationStep_ = *std::get<const uint64_t*>(val); }
     }
+
+    void fileAttribute(const std::string& key, FieldType val, int64_t /*size*/) override {}
 
     void writeField(const std::string& /*key*/, FieldType field, int col) override
     {
@@ -85,6 +88,8 @@ public:
 
     void closeStep() override
     {
+        if (lastIndexStep_ == firstIndexStep_) { return; }
+
         const char separator = ' ';
         pathStep_ += "." + std::to_string(iterationStep_) + ".txt";
 
@@ -124,8 +129,9 @@ public:
     }
 
 private:
+    int                            rank_{0};
     MPI_Comm                       comm_;
-    int64_t                        firstIndexStep_, lastIndexStep_;
+    int64_t                        firstIndexStep_{0}, lastIndexStep_{0};
     std::string                    pathStep_;
     std::vector<int>               columns_;
     std::vector<Base::FieldVector> stepBuffer_;

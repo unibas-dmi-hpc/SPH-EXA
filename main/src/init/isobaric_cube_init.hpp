@@ -38,14 +38,14 @@
 #include "cstone/sfc/box.hpp"
 #include "sph/eos.hpp"
 
-#include "io/file_utils.hpp"
 #include "isim_init.hpp"
 #include "grid.hpp"
+#include "utils.hpp"
 
 namespace sphexa
 {
 
-std::map<std::string, double> IsobaricCubeConstants()
+InitSettings IsobaricCubeConstants()
 {
     return {{"r", .25},
             {"rDelta", .25},
@@ -229,19 +229,19 @@ void compressCenterCube(gsl::span<T> x, gsl::span<T> y, gsl::span<T> z, T rInt, 
 template<class Dataset>
 class IsobaricCubeGlass : public ISimInitializer<Dataset>
 {
-    std::string glassBlock;
-    using Base = ISimInitializer<Dataset>;
-    using Base::settings_;
+    std::string          glassBlock;
+    mutable InitSettings settings_;
 
 public:
-    explicit IsobaricCubeGlass(std::string initBlock)
+    explicit IsobaricCubeGlass(std::string initBlock, std::string settingsFile, IFileReader* reader)
         : glassBlock(std::move(initBlock))
     {
-        Base::updateSettings(IsobaricCubeConstants());
+        Dataset d;
+        settings_ = buildSettings(d, IsobaricCubeConstants(), settingsFile, reader);
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
         auto& d       = simData.hydro;
         using KeyType = typename Dataset::KeyType;
@@ -253,7 +253,7 @@ public:
         T epsilon = settings_.at("pairInstability");
 
         std::vector<T> xBlock, yBlock, zBlock;
-        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
         int               multi1D            = std::rint(cbrtNumPart / std::cbrt(blockSize));

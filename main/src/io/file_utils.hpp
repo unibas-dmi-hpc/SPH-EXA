@@ -84,8 +84,5 @@ void readAscii(const std::string& path, size_t numLines, const std::vector<T*>& 
     else { throw std::runtime_error("Can't open file at path: " + path); }
 }
 
-template<class Vector>
-void readTemplateBlock(std::string /*block*/, Vector& /*x*/, Vector& /*y*/, Vector& /*z*/);
-
 } // namespace fileutils
 } // namespace sphexa
