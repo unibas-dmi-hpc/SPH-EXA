@@ -96,7 +96,7 @@ renderView1.Background = [0.8705882352941177, 0.8666666666666667, 0.854901960784
 # create a new 'Extract Time Steps'
 extractTimeSteps1 = ExtractTimeSteps(registrationName='ExtractTimeSteps1', Input=demo_turbulence_150h5)
 extractTimeSteps1.TimeStepIndices = [0]
-extractTimeSteps1.TimeStepRange = [0, 1]
+extractTimeSteps1.TimeStepRange = [0, 0]
 
 # update animation scene based on data timesteps
 animationScene1.UpdateAnimationUsingDataTimeSteps()
@@ -482,5 +482,5 @@ pNG1.Writer.Format = 'PNG'
 if __name__ == '__main__':
     # generate extracts
     SaveExtracts(ExtractsOutputDirectory='/scratch/snx3000/yzhu/vis/extracts')
-    SaveAnimation('/scratch/snx3000/yzhu/vis/test.avi', renderView1, ImageResolution=[1848, 841],
-    FrameWindow=[0, 30], FrameRate=30)
+    # SaveAnimation('/scratch/snx3000/yzhu/vis/test.avi', renderView1, ImageResolution=[1848, 841],
+    # FrameWindow=[0, 30], FrameRate=30)

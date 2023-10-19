@@ -35,7 +35,7 @@
 
 #include "sph/hydro_turb/turbulence_data.hpp"
 #include "sph/particles_data.hpp"
-#include "io/ifile_io_hdf5.hpp"
+#include "io/ifile_io_h5part.hpp"
 
 using namespace sphexa;
 
