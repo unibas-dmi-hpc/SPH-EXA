@@ -1,19 +1,8 @@
 import numpy as np
-from PIL import Image
+# from PIL import Image
 import sys
 import h5py
 
-
-# image_path = '/Users/zhu0002-adm/output_0059.png'
-
-# # Open the image using Pillow
-# image = Image.open(image_path)
-
-# # Convert the image to a NumPy array
-# image_array = np.array(image)
-
-# # Display the shape of the array (height, width, and channels for color images)
-# print("Image shape:", image_array.shape)
 
 container = np.fromfile("/Users/zhu0002-adm/nparray_03", dtype="f4")
 
@@ -51,9 +40,9 @@ def get_grids(x, y, z):
     return (ind_x, ind_y, ind_z)
 
 def normalize(x, y, z, coords):
-    grid_x = coords[0]*alpha - domain_min
-    grid_y = coords[1]*alpha - domain_min
-    grid_z = coords[2]*alpha - domain_min
+    grid_x = coords[0]*alpha + domain_min
+    grid_y = coords[1]*alpha + domain_min
+    grid_z = coords[2]*alpha + domain_min
     return [x-grid_x, y-grid_y, z-grid_z]
 
 # container = container.reshape(1500, 1500, 1500)
@@ -64,10 +53,8 @@ for i in range(num_total_rows):
     z = group['z'][i]
     vx = group['vx'][i]
     coords = get_grids(x, y, z)
-    normalized_pos = normalize(x, y, z, coords)
-    weights = get_weights(x, y, z)
-
-    
+    normalized_x, normalized_y, normalized_z = normalize(x, y, z, coords)
+    weights = get_weights(normalized_x, normalized_y, normalized_z)
 
 
 sys.exit(0)
