@@ -1,13 +1,9 @@
 import numpy as np
-# from PIL import Image
 import sys
 import h5py
+import time
 
-container = np.fromfile("/Users/zhu0002-adm/nparray_03", dtype="f4")
-container = container.reshape(1500, 1500, 1500)
-original_dataset = h5py.File("/Users/zhu0002-adm/slice00003.h5", 'r')
-group = original_dataset["Step#0"]
-num_total_particles = len(original_dataset["Step#0"]["x"])
+
 
 grid = np.linspace(-0.5, 0.5, 1500)
 alpha = 1.0/(1500-1)
@@ -38,7 +34,7 @@ def get_grids(x, y, z):
     ind_z = np.floor((z - domain_min) / alpha)
     return [ind_x, ind_y, ind_z]
 
-# 
+# Convert (x, y, z) into unit coord
 def normalize(x, y, z, coords):
     grid_x = coords[0]*alpha + domain_min
     grid_y = coords[1]*alpha + domain_min
@@ -56,7 +52,16 @@ def assign(container, base_grid_coords, weight_arr, value):
 if __name__ == "__main__":
     # Would be faster if it's read in chunks
     # container = container.reshape()
+    container = np.zeros((1500, 1500, 1500), dtype="f4")
+    # container = container.reshape(1500, 1500, 1500)
+    original_dataset = h5py.File("/home/appcell/slice00019.h5", 'r')
+    group = original_dataset["Step#0"]
+    num_total_particles = len(original_dataset["Step#0"]["x"])
+    start = time.time()
     for i in range(num_total_particles):
+        if i% 1000000 == 0:
+            end = time.time()
+            print(f"Finished: {i}/{num_total_particles} in {end - start} seconds.")
         x = group['x'][i]
         y = group['y'][i]
         z = group['z'][i]
@@ -66,6 +71,9 @@ if __name__ == "__main__":
         normalized_x, normalized_y, normalized_z = normalize(x, y, z, coords)
         weights = get_weights(normalized_x, normalized_y, normalized_z)
         assign(container, coords, weights, vx)
+    end = time.time()
+    print(f"Finished! in {end - start} seconds.")
+    container.astype('f4').tofile("container")
 
 sys.exit(0)
 
