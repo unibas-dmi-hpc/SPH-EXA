@@ -79,15 +79,18 @@ public:
             throw std::runtime_error("Cannot write constants: file " + path + " already exists\n");
         }
 
-        // H5PartFile* h5_file = nullptr;
-        // h5_file             = H5PartOpenFile(h5_fname, H5PART_WRITE);
+        // Here use a temporary file handle because we're in a const func...but why const?
+        fileutils::H5ZType curr_h5;
+
+        if (std::filesystem::exists(path)) { curr_h5 = fileutils::openHDF5File(path, comm_); }
+        else { curr_h5 = fileutils::createHDF5File(path, comm_); }
 
         for (auto it = c.begin(); it != c.end(); ++it)
         {
-            fileutils::writeHDF5Attribute(h5z_, it->first.c_str(), &(it->second), 1);
+            fileutils::writeHDF5Attribute(curr_h5, it->first.c_str(), &(it->second), H5T_NATIVE_DOUBLE, 1);
         }
 
-        // H5PartCloseFile(h5_file);
+        fileutils::closeHDF5File(curr_h5);
     }
 
     std::string suffix() const override { return ".h5"; }

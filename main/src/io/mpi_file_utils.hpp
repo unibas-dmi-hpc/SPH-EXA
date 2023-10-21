@@ -199,7 +199,7 @@ static void addHDF5Step(H5ZType& h5z, std::string fieldName)
     h5z.group_id = H5Gcreate2(h5z.file_id, fieldName.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 }
 
-static void writeHDF5Attribute(const H5ZType& h5z, std::string fieldName, const void* value, hid_t dataType, size_t numElements)
+static void writeHDF5Attribute(H5ZType& h5z, std::string fieldName, const void* value, hid_t dataType, size_t numElements)
 {
     hid_t space_id = H5Screate_simple ( 1, &numElements, NULL );
     hid_t attrib_id = H5Acreate(

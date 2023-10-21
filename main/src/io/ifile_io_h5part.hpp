@@ -88,6 +88,12 @@ public:
 
     std::string suffix() const override { return ".h5"; }
 
+    void setNumParticles(uint64_t numParticles) override { }
+
+    void setCompression(const std::string& compressionMethod, int compressionParam) override
+    {
+    }
+
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndex_ = firstIndex;
