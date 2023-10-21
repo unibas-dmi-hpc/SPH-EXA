@@ -48,38 +48,38 @@ def plotSlice(fname, step):
     # For position
     num_columns = 1
     chunk_size = math.floor(131072*2/num_columns) # An optimal chunk size is ~1MB, i.e. 131072 64bit float.
-    x_dset = grp.create_dataset('x', (num_total_rows, num_columns), chunks=(chunk_size, num_columns), maxshape=(num_total_rows, num_columns), dtype='f4')
-    y_dset = grp.create_dataset('y', (num_total_rows, num_columns), chunks=(chunk_size, num_columns), maxshape=(num_total_rows, num_columns), dtype='f4')
-    z_dset = grp.create_dataset('z', (num_total_rows, num_columns), chunks=(chunk_size, num_columns), maxshape=(num_total_rows, num_columns), dtype='f4')
-    vx_dset = grp.create_dataset('vx', (num_total_rows, num_columns), chunks=(chunk_size, num_columns), maxshape=(num_total_rows, num_columns), dtype='f4')
+    x_dset = grp.create_dataset('x', (num_total_rows, ), chunks=(chunk_size, ), maxshape=(num_total_rows, ), dtype='f4')
+    y_dset = grp.create_dataset('y', (num_total_rows, ), chunks=(chunk_size, ), maxshape=(num_total_rows, ), dtype='f4')
+    z_dset = grp.create_dataset('z', (num_total_rows, ), chunks=(chunk_size, ), maxshape=(num_total_rows, ), dtype='f4')
+    vx_dset = grp.create_dataset('vx', (num_total_rows, ), chunks=(chunk_size, ), maxshape=(num_total_rows, ), dtype='f4')
     if rank == 0:
         for chunk in x_dset.iter_chunks():
             start = chunk[0].start
             stop = chunk[0].stop
             print(f"Current progress: {stop}/27 billion")
             # x_dset.resize(stop, axis=0)
-            x_dset[chunk] = np.array([h5step["x"][start:stop]]).transpose()
+            x_dset[chunk] = np.array([h5step["x"][start:stop]])
 
     if rank == 1:
         for chunk in y_dset.iter_chunks():
             start = chunk[0].start
             stop = chunk[0].stop
             # y_dset.resize(stop, axis=0)
-            y_dset[chunk] = np.array([h5step["y"][start:stop]]).transpose()
+            y_dset[chunk] = np.array([h5step["y"][start:stop]])
 
     if rank == 2:
         for chunk in z_dset.iter_chunks():
             start = chunk[0].start
             stop = chunk[0].stop
             # z_dset.resize(stop, axis=0)
-            z_dset[chunk] = np.array([h5step["z"][start:stop]]).transpose()
+            z_dset[chunk] = np.array([h5step["z"][start:stop]])
 
     if rank == 3:
         for chunk in vx_dset.iter_chunks():
             start = chunk[0].start
             stop = chunk[0].stop
             # vx_dset.resize(stop, axis=0)
-            vx_dset[chunk] = np.array([h5step["vx"][start:stop]]).transpose()
+            vx_dset[chunk] = np.array([h5step["vx"][start:stop]])
     
     outFile.flush()
     outFile.close()
