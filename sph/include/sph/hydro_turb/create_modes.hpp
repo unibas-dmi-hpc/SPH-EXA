@@ -59,6 +59,10 @@ template<class Dataset, class T>
 void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T stirMax, T stirMin, size_t ndim,
                          size_t spectForm, T powerLawExp, T anglesExp, bool verbose)
 {
+    // TODO: this should not take the whole Dataset, only modes and amplitudes are needed
+    // TODO: st_maxmodes should not be an input parameter. the caller will have determineNumModes
+    // TODO: and it's up to the call-site to decide if they want to create as many as it takes (or skip the check)
+
     const T twopi = 2.0 * M_PI;
 
     // characteristic k for scaling the amplitude below
@@ -73,6 +77,7 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T sti
     size_t ikymax = (ndim > 1) ? 256 : 0;
     size_t ikzmax = (ndim > 2) ? 256 : 0;
 
+    // TODO: this should be a separate function "determineNumModes".
     // determine the number of required modes (in case of full sampling)
     d.numModes = 0;
     for (size_t ikx = ikxmin; ikx <= ikxmax; ikx++)
@@ -98,6 +103,7 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T sti
 
     d.numModes = -1;
 
+    // TODO: should be a separate function
     if (spectForm != 2)
     {
         if (verbose) std::cout << "Generating " << st_tot_nmodes << " driving modes..." << std::endl;
@@ -176,6 +182,7 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T sti
         }             // ikx
     }
 
+    // TODO: should be a separate function
     if (spectForm == 2)
     {
         std::uniform_real_distribution<T> uniDist(0, 1);
