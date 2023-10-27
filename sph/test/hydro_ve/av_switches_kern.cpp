@@ -35,7 +35,8 @@
 #include "gtest/gtest.h"
 
 #include "sph/hydro_ve/av_switches_kern.hpp"
-#include "sph/tables.hpp"
+#include "sph/table_creation.hpp"
+#include "sph/table_lookup.hpp"
 #include "../../../main/src/io/file_utils.hpp"
 
 using namespace sph;
@@ -45,7 +46,7 @@ TEST(AVswitches, JLoop)
     using T = double;
 
     T sincIndex      = 6.0;
-    T K              = compute_3d_k(sincIndex);
+    T K              = sphynx_3D_k(sincIndex);
     T alphamin       = 0.05;
     T alphamax       = 1.0;
     T decay_constant = 0.2;
@@ -53,8 +54,8 @@ TEST(AVswitches, JLoop)
     T mpart = 3.781038064465603e26;
     T dt    = 0.3;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
+    auto wh  = sph::createWharmonicTable<double, lt::kernelTableSize>(sincIndex);
+    auto whd = sph::createWharmonicDerivativeTable<double, lt::kernelTableSize>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 

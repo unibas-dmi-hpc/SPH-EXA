@@ -35,7 +35,8 @@
 #include "gtest/gtest.h"
 
 #include "sph/hydro_ve/momentum_energy_kern.hpp"
-#include "sph/tables.hpp"
+#include "sph/table_creation.hpp"
+#include "sph/table_lookup.hpp"
 #include "../../../main/src/io/file_utils.hpp"
 
 using namespace sph;
@@ -59,14 +60,14 @@ TEST(MomentumEnergy, JLoop)
     using T = double;
 
     T sincIndex = 6.0;
-    T K         = compute_3d_k(sincIndex);
+    T K         = sphynx_3D_k(sincIndex);
     T Atmin     = 0.1;
     T Atmax     = 0.2;
     T ramp      = 1.0 / (Atmax - Atmin);
     T mpart     = 3.781038064465603e26;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
+    auto wh  = sph::createWharmonicTable<double, lt::kernelTableSize>(sincIndex);
+    auto whd = sph::createWharmonicDerivativeTable<double, lt::kernelTableSize>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 

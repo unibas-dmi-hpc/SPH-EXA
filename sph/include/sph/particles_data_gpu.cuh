@@ -42,7 +42,7 @@
 #include "cstone/tree/definitions.h"
 #include "cstone/util/reallocate.hpp"
 
-#include "tables.hpp"
+#include "table_lookup.hpp"
 
 namespace sphexa
 {
@@ -179,8 +179,8 @@ public:
         }
     }
 
-    void uploadTables(const std::array<HydroType, ::sph::lt::size>& whTable,
-                      const std::array<HydroType, ::sph::lt::size>& whdTable)
+    void uploadTables(const std::array<HydroType, ::sph::lt::kernelTableSize>& whTable,
+                      const std::array<HydroType, ::sph::lt::kernelTableSize>& whdTable)
     {
         wh  = DevVector<HydroType>(whTable.begin(), whTable.end());
         whd = DevVector<HydroType>(whdTable.begin(), whdTable.end());
