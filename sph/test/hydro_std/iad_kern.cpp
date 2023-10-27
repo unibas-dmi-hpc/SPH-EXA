@@ -34,7 +34,8 @@
 #include "gtest/gtest.h"
 
 #include "sph/hydro_std/iad_kern.hpp"
-#include "sph/tables.hpp"
+#include "sph/table_creation.hpp"
+#include "sph/table_lookup.hpp"
 
 using namespace sph;
 
@@ -43,10 +44,10 @@ TEST(IAD, JLoop)
     using T = double;
 
     T sincIndex = 6.0;
-    T K         = compute_3d_k(sincIndex);
+    T K         = sphynx_3D_k(sincIndex);
 
-    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
+    auto wh  = sph::createWharmonicTable<double, lt::kernelTableSize>(sincIndex);
+    auto whd = sph::createWharmonicDerivativeTable<double, lt::kernelTableSize>(sincIndex);
 
     cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
 

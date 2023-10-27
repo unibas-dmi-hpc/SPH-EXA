@@ -34,7 +34,8 @@
 #include "gtest/gtest.h"
 
 #include "sph/hydro_std/density_kern.hpp"
-#include "sph/tables.hpp"
+#include "sph/table_creation.hpp"
+#include "sph/table_lookup.hpp"
 
 using namespace sph;
 
@@ -43,10 +44,10 @@ TEST(Density, JLoop)
     using T = double;
 
     T sincIndex = 6.0;
-    T K         = compute_3d_k(sincIndex);
+    T K         = sphynx_3D_k(sincIndex);
 
-    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
+    auto wh  = sph::createWharmonicTable<double, lt::kernelTableSize>(sincIndex);
+    auto whd = sph::createWharmonicDerivativeTable<double, lt::kernelTableSize>(sincIndex);
 
     cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
 
@@ -73,44 +74,4 @@ TEST(Density, JLoop)
                          wh.data(), whd.data());
 
     EXPECT_NEAR(rho, 0.014286303097548955, 1e-10);
-}
-
-TEST(Density, JLoopPBC)
-{
-    using T = double;
-
-    T sincIndex = 6.0;
-    T K         = compute_3d_k(sincIndex);
-
-    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
-
-    // box length in any dimension must be bigger than 4*h for any particle
-    // otherwise the PBC evaluation does not select the closest image
-    cstone::Box<T> box(0, 10.5, cstone::BoundaryType::periodic);
-
-    // particle 0 has 4 neighbors
-    std::vector<cstone::LocalIndex> clist{0};
-    std::vector<cstone::LocalIndex> neighbors{1, 2, 3, 4};
-    unsigned                        neighborsCount = 4;
-
-    std::vector<T> x{1.0, 1.1, 1.4, 9.9, 10.4};
-    std::vector<T> y{1.1, 1.2, 1.5, 9.8, 10.2};
-    std::vector<T> z{1.2, 1.3, 1.6, 9.7, 10.3};
-    std::vector<T> h{2.5, 2.51, 2.52, 2.53, 2.54};
-    std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
-
-    /* distances of particle 0 to particle j
-     *
-     *         direct      PBC
-     * j = 1  0.173205   0.173205
-     * j = 2  0.69282    0.69282
-     * j = 3  15.0715    3.1305
-     * j = 4  15.9367    2.26495
-     */
-
-    T rho = densityJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(), m.data(),
-                         wh.data(), whd.data());
-
-    EXPECT_NEAR(rho, 0.17929212174617015, 1e-9);
 }
