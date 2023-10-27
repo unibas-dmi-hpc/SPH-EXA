@@ -1,23 +1,10 @@
 #pragma once
 
 #include "cstone/cuda/annotation.hpp"
-#include "math.hpp"
+#include "cstone/util/array.hpp"
 
 namespace sph
 {
-
-template<typename T>
-HOST_DEVICE_FUN inline T compute_3d_k(T n)
-{
-    // b0, b1, b2 and b3 are defined in "SPHYNX: an accurate density-based SPH method for astrophysical applications",
-    // DOI: 10.1051/0004-6361/201630208
-    T b0 = 2.7012593e-2;
-    T b1 = 2.0410827e-2;
-    T b2 = 3.7451957e-3;
-    T b3 = 4.7013839e-2;
-
-    return b0 + b1 * std::sqrt(n) + b2 * n + b3 * std::sqrt(n * n * n);
-}
 
 //! @brief compute time-step based on the signal velocity
 template<class T1, class T2, class T3>
@@ -130,6 +117,17 @@ HOST_DEVICE_FUN inline T artificial_viscosity(T alpha_i, T alpha_j, T c_i, T c_j
     }
 
     return viscosity_ij;
+}
+
+//! @brief symmetric 3x3 matrix-vector product
+template<class Tv, class Tm>
+HOST_DEVICE_FUN HOST_DEVICE_INLINE util::array<Tv, 3> symv(const util::array<Tm, 6>& mat, const util::array<Tv, 3>& vec)
+{
+    util::array<Tv, 3> ret;
+    ret[0] = mat[0] * vec[0] + mat[1] * vec[1] + mat[2] * vec[2];
+    ret[1] = mat[3] * vec[1] + mat[4] * vec[2];
+    ret[2] = mat[5] * vec[2];
+    return ret;
 }
 
 } // namespace sph

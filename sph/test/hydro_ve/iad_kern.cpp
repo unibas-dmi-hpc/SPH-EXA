@@ -35,7 +35,8 @@
 #include "gtest/gtest.h"
 
 #include "sph/hydro_ve/iad_kern.hpp"
-#include "sph/tables.hpp"
+#include "sph/table_creation.hpp"
+#include "sph/table_lookup.hpp"
 #include "../../../main/src/io/file_utils.hpp"
 
 using namespace sph;
@@ -45,11 +46,11 @@ TEST(IAD, JLoop)
     using T = double;
 
     T sincIndex = 6.0;
-    T K         = compute_3d_k(sincIndex);
+    T K         = sphynx_3D_k(sincIndex);
     T mpart     = 3.781038064465603e26;
 
-    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
+    auto wh  = createWharmonicTable<double, lt::kernelTableSize>(sincIndex);
+    auto whd = createWharmonicDerivativeTable<double, lt::kernelTableSize>(sincIndex);
 
     cstone::Box<T> box(-1.e9, 1.e9, cstone::BoundaryType::open);
 
@@ -135,10 +136,10 @@ TEST(IAD, JLoopPBC)
     using T = double;
 
     T sincIndex = 6.0;
-    T K         = compute_3d_k(sincIndex);
+    T K         = sphynx_3D_k(sincIndex);
 
-    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
+    auto wh  = sph::createWharmonicTable<double, lt::kernelTableSize>(sincIndex);
+    auto whd = sph::createWharmonicDerivativeTable<double, lt::kernelTableSize>(sincIndex);
 
     // box length in any dimension must be bigger than 4*h for any particle
     // otherwise the PBC evaluation does not select the closest image
