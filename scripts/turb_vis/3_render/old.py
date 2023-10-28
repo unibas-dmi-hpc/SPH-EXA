@@ -39,7 +39,7 @@ def getMinMax(input_path):
     return min_val, max_val
 
 def getColor(val):
-    # val = np.float_power(val, 0.55)
+    val = np.float_power(val, 0.55)
     if val >= 1.0:
         return all_colors[254]
     return all_colors[int(val*255)]
@@ -74,7 +74,7 @@ def save(data, i, output_initial):
 def render(input_path, output_initial, start_img, end_img):
     min_value, max_value = getMinMax(input_path)
     input_file = open(input_path, 'rb')
-    image_size = total_slices*total_slices*4
+    image_size = total_slices*total_slices_z*4
     start = time.time()
     print(min_value, max_value)
     for image_ind in range(start_img, end_img):
@@ -83,12 +83,12 @@ def render(input_path, output_initial, start_img, end_img):
         curr_frame = np.frombuffer(mem_arr, dtype="f4")
         print(np.amin(curr_frame), np.amax(curr_frame))
         curr_frame = (curr_frame - min_value) / (max_value - min_value)
-        curr_frame = curr_frame.reshape((total_slices, total_slices))
-        final_image = np.zeros((total_slices, total_slices, 3), dtype="f4")
+        curr_frame = curr_frame.reshape((total_slices, total_slices_z))
+        final_image = np.zeros((total_slices, total_slices_z, 3), dtype="f4")
         # Normalize by picture
-        for x in range(total_slices):
-            for y in range(total_slices):
-                final_image[x, y, :] = getColor(curr_frame[x][y])
+        for y in range(total_slices):
+            for z in range(total_slices_z):
+                final_image[y, z, :] = getColor(curr_frame[y][z])
         
         final_image = filter((final_image * 255).astype(np.uint8))
         image = Image.fromarray(final_image)
@@ -109,17 +109,17 @@ def renderParallel(input_path, output_initial):
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
     total_ranks = MPI.COMM_WORLD.Get_size()
-    ranges = np.linspace(0, total_slices_z, total_ranks+1, dtype=int)
+    ranges = np.linspace(0, total_slices, total_ranks+1, dtype=int)
     render(input_path, output_initial, ranges[rank], ranges[rank+1])
     
 
 if __name__ == "__main__":
-    mode = sys.argv[1]
-    input_path = sys.argv[2]
-    output_initial = sys.argv[3]
-    # mode = "parallel"
-    # input_path = "/home/appcell/unibas/test_temp_res/merged/merged_3000_"
-    # output_initial = "/home/appcell/unibas/test_temp_res/rendered/res"
+    # mode = sys.argv[1]
+    # input_path = sys.argv[2]
+    # output_initial = sys.argv[3]
+    mode = "parallel"
+    input_path = "/home/appcell/unibas/test_temp_res/merged/merged_3000_"
+    output_initial = "/home/appcell/unibas/test_temp_res/rendered/res"
 
     if mode == "serial":
         renderSerial(input_path, output_initial)

@@ -15,7 +15,8 @@
 
 
 # Normally you don't need to be parallel to merge the files
-# Numpy data reading takes 6-10s for one file.
+# But remember to specify data dimensions in the .py script!!
+# For a 3000x3000x1000 datafile, it takes ~1.5h to merge.
 module load daint-gpu
 
 srun --cpu_bind=sockets python merge.py /scratch/snx3000/yzhu/interpolate/res/interpolated_ /scratch/snx3000/yzhu/merge/res/merged_ 90

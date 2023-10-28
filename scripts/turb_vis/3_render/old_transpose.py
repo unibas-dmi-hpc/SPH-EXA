@@ -39,7 +39,7 @@ def getMinMax(input_path):
     return min_val, max_val
 
 def getColor(val):
-    # val = np.float_power(val, 0.55)
+    val = np.float_power(val, 0.55)
     if val >= 1.0:
         return all_colors[254]
     return all_colors[int(val*255)]
@@ -66,65 +66,46 @@ def filter(image):
     # res = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
     return res
 
-def save(data, i, output_initial):
-    scaled_data = (data * 255).astype(np.uint8)
-    image = Image.fromarray(scaled_data)
-    image.save(output_initial + "%04d.png" % i)
 
-def render(input_path, output_initial, start_img, end_img):
-    min_value, max_value = getMinMax(input_path)
-    input_file = open(input_path, 'rb')
-    image_size = total_slices*total_slices*4
-    start = time.time()
-    print(min_value, max_value)
-    for image_ind in range(start_img, end_img):
-        input_file.seek(image_size * image_ind)
-        mem_arr = input_file.read(image_size)
-        curr_frame = np.frombuffer(mem_arr, dtype="f4")
-        print(np.amin(curr_frame), np.amax(curr_frame))
-        curr_frame = (curr_frame - min_value) / (max_value - min_value)
-        curr_frame = curr_frame.reshape((total_slices, total_slices))
-        final_image = np.zeros((total_slices, total_slices, 3), dtype="f4")
-        # Normalize by picture
-        for x in range(total_slices):
-            for y in range(total_slices):
-                final_image[x, y, :] = getColor(curr_frame[x][y])
-        
-        final_image = filter((final_image * 255).astype(np.uint8))
-        image = Image.fromarray(final_image)
-        image.save(output_initial + "%04d.png" % image_ind)
-        end = time.time()
-        if image_ind % 100 == 0:
-            del(mem_arr)
-            del(curr_frame)
-            del(final_image)
-            del(image)
-            gc.collect()
-        print(f"{start - end} seconds with {image_ind - start_img} pics." )
+def generate(input_initial, output_initial, curr_ind_start, curr_ind_end):
+    curr_num_slices = curr_ind_end-curr_ind_start
+    final_image = np.zeros((curr_num_slices, total_slices, total_slices, 3), dtype="uint8")
+    start_time = time.time()
+    for image_ind in range(total_slices):
+        input_file = Image.open(input_initial + "%04d.png" % image_ind)
+        image_array = np.array(input_file)
+        final_image[:curr_num_slices, :,image_ind,:] = np.swapaxes(image_array[:, curr_ind_start:curr_ind_end, :], 0, 1)
+    for i in range(curr_num_slices):
+        image = Image.fromarray(final_image[i,:,:,:])
+        image.save(output_initial + "%04d.png" % (i+curr_ind_start))
+    print(f"Finished {curr_num_slices} images in {time.time() - start_time} seconds.")
 
-def renderSerial(input_path, output_initial):
-    render(input_path, output_initial, start_img=0, end_img=total_slices_z)
+def renderSerial(input_initial, output_initial):
+    ranges = np.linspace(20, total_slices_z, 9, dtype=int)
+    for i in range(8):
+        generate(input_initial, output_initial, ranges[i], ranges[i+1])
 
-def renderParallel(input_path, output_initial):
+def renderParallel(input_initial, output_initial):
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
     total_ranks = MPI.COMM_WORLD.Get_size()
-    ranges = np.linspace(0, total_slices_z, total_ranks+1, dtype=int)
-    render(input_path, output_initial, ranges[rank], ranges[rank+1])
+    ranges = np.linspace(0, total_slices, total_ranks+1, dtype=int)
+    generate(input_initial, output_initial, 0)
+    # render(input_path, output_initial, ranges[rank], ranges[rank+1])
     
 
 if __name__ == "__main__":
-    mode = sys.argv[1]
-    input_path = sys.argv[2]
-    output_initial = sys.argv[3]
-    # mode = "parallel"
-    # input_path = "/home/appcell/unibas/test_temp_res/merged/merged_3000_"
-    # output_initial = "/home/appcell/unibas/test_temp_res/rendered/res"
+    # mode = sys.argv[1]
+    # input_path = sys.argv[2]
+    # output_initial = sys.argv[3]
+    mode = "serial"
+    input_initial = "/home/appcell/unibas/test_temp_res/rendered/res"
+    output_initial = "/home/appcell/unibas/test_temp_res/transposed/transposed"
 
     if mode == "serial":
-        renderSerial(input_path, output_initial)
+        renderSerial(input_initial, output_initial)
     elif mode == "parallel":
-        renderParallel(input_path, output_initial)
+        renderParallel(input_initial, output_initial)
     else:
         print("please specify mode!")
     sys.exit(0)
