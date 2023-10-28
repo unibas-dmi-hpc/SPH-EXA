@@ -86,7 +86,7 @@ void initSodShock(Dataset& d, const std::map<std::string, double>& constants, T 
 
 std::map<std::string, double> SodShockConstants()
 {
-    return {{"P_l", 1.0},       {"P_r", 0.1},    {"rho_l", 1},      {"rho_r", 0.125},
+    return {{"P_l", 1.0},       {"P_r", 0.1},    {"rho_l", 1.0},    {"rho_r", 0.125},
             {"gamma", 5. / 3.}, {"minDt", 1e-6}, {"minDt_m1", 1e-6}};
 }
 
@@ -126,9 +126,14 @@ public:
         BuiltinWriter attributeSetter(settings_);
         d.loadOrStoreAttributes(&attributeSetter);
 
-        T massPart = 1. / d.x.size();
+        T rhoHigh = settings_.at("rho_l");
+        T rhoLow = settings_.at("rho_r");
 
-        initSodShock(d, settings_, massPart);
+        T highDensVolume = globalBox.lx() * globalBox.ly() * globalBox.lz() * 0.5;
+        T nPartHighDens = d.x.size() * rhoHigh / (rhoHigh+rhoLow); //estimate from template block
+        T      particleMass = highDensVolume * settings_.at("rho_l") / nPartHighDens;
+
+        initSodShock(d, settings_, particleMass);
 
         return globalBox;
     }
