@@ -7,13 +7,13 @@ namespace sph
 namespace lt
 {
 
-constexpr int kernelTableSize = 20000;
+constexpr int kTableSize = 20000;
 
 //! @brief lookup values of a tabulated function with linear interpolation
 template<typename T>
 HOST_DEVICE_FUN inline T lookup(const T* table, T v)
 {
-    constexpr int numIntervals = kernelTableSize - 1;
+    constexpr int numIntervals = kTableSize - 1;
     constexpr T   support      = 2.0;
     constexpr T   dx           = support / numIntervals;
     constexpr T   invDx        = T(1) / dx;

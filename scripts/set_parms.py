@@ -54,7 +54,7 @@ if __name__ == "__main__":
         except ValueError:
             f.attrs[key] = float(v)
 
-    print("{0} now containts the following settings:".format(args.settingsFile))
+    print("{0} now contains the following settings:".format(args.settingsFile))
     for k, v in f.attrs.items():
         print("  ", k, v)
 

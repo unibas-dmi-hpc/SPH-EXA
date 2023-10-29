@@ -160,9 +160,10 @@ TEST(HDF5IO, particleData)
 
     {
         Dataset data;
-        data.iteration = 42;
-        data.ttot      = 3.14159;
-        data.ngmax     = 1000;
+        data.iteration    = 42;
+        data.ttot         = 3.14159;
+        data.ngmax        = 1000;
+        data.kernelChoice = sph::SphKernelType::sinc_n1_sinc_n2;
         H5PartWriter writer(MPI_COMM_WORLD);
         writer.addStep(0, 1, testfile);
         data.loadOrStoreAttributes(&writer);
@@ -176,6 +177,7 @@ TEST(HDF5IO, particleData)
         EXPECT_EQ(data.iteration, 42);
         EXPECT_EQ(data.ttot, 3.14159);
         EXPECT_EQ(data.ngmax, 1000);
+        EXPECT_EQ(data.kernelChoice, sph::SphKernelType::sinc_n1_sinc_n2);
         reader.closeStep();
     }
 }
