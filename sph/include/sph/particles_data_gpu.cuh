@@ -100,8 +100,7 @@ public:
     DevVector<HydroType> dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
 
     //! @brief SPH interpolation kernel lookup tables
-    DevVector<HydroType> wh;
-    DevVector<HydroType> whd;
+    DevVector<HydroType> wh, whd;
 
     DevVector<cstone::LocalIndex> traversalStack;
     DevVector<cstone::LocalIndex> targetGroups;
@@ -179,8 +178,8 @@ public:
         }
     }
 
-    void uploadTables(const std::array<HydroType, ::sph::lt::kernelTableSize>& whTable,
-                      const std::array<HydroType, ::sph::lt::kernelTableSize>& whdTable)
+    void uploadTables(const std::array<HydroType, ::sph::lt::kTableSize>& whTable,
+                      const std::array<HydroType, ::sph::lt::kTableSize>& whdTable)
     {
         wh  = DevVector<HydroType>(whTable.begin(), whTable.end());
         whd = DevVector<HydroType>(whdTable.begin(), whdTable.end());

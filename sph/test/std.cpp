@@ -36,7 +36,7 @@
 #include "sph/hydro_std/density_kern.hpp"
 #include "sph/hydro_std/iad_kern.hpp"
 #include "sph/hydro_std/momentum_energy_kern.hpp"
-#include "sph/table_creation.hpp"
+#include "sph/sph_kernel_tables.hpp"
 #include "sph/table_lookup.hpp"
 
 using namespace sph;
@@ -48,17 +48,17 @@ protected:
 
     void SetUp() override
     {
-        wh  = sph::createWharmonicTable<T, lt::kernelTableSize>(sincIndex);
-        whd = sph::createWharmonicDerivativeTable<T, lt::kernelTableSize>(sincIndex);
+        wh  = tabulateFunction<T, lt::kTableSize>(getSphKernel(kernelType, sincIndex), 0.0, 2.0);
+        whd = tabulateFunction<T, lt::kTableSize>(getSphKernelDerivative(kernelType, sincIndex), 0.0, 2.0);
     }
 
     static auto box() { return cstone::Box<T>(0, 6, cstone::BoundaryType::open); }
 
-    std::array<T, lt::kernelTableSize> wh{0};
-    std::array<T, lt::kernelTableSize> whd{0};
+    std::array<T, lt::kTableSize> wh{0}, whd{0};
 
-    T sincIndex = 6.0;
-    T K         = sphynx_3D_k(sincIndex);
+    SphKernelType kernelType = SphKernelType::sinc_n;
+    T             sincIndex  = 6.0;
+    T             K          = sphynx_3D_k(sincIndex);
 
     std::vector<cstone::LocalIndex> neighbors{1, 2, 3, 4};
     unsigned                        neighborsCount = 4;

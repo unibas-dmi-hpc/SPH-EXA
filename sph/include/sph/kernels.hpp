@@ -57,42 +57,6 @@ HOST_DEVICE_FUN inline T wharmonic_derivative_std(T v)
     return sincv * piHalf * ((std::cos(Pv) / std::sin(Pv)) - T(1) / Pv);
 }
 
-template<typename T>
-HOST_DEVICE_FUN inline T wharmonic_derivative(T v, T powsincv)
-{
-    if (v == T(0)) return T(0);
-
-    constexpr T piHalf = M_PI_2;
-    const T     Pv     = piHalf * v;
-    return powsincv * piHalf * (T(1) / std::tan(Pv) - T(1) / Pv);
-}
-
-/*! @brief Old viscosity according to Monaghan & Gringold 1983
- *
- * We found that this leads to way too much noise in the radial velocity and radial pressure gradients
- * in the Evrard collapse test case in the wake of the shock wave.
- */
-template<typename T>
-HOST_DEVICE_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv, T r_square)
-{
-    constexpr T alpha   = 1.0;
-    constexpr T beta    = 2.0;
-    constexpr T epsilon = 0.01;
-
-    T ro_ij = (ro_i + ro_j) * T(0.5);
-    T c_ij  = (c_i + c_j) * T(0.5);
-    T h_ij  = (h_i + h_j) * T(0.5);
-
-    T viscosity_ij = 0.0;
-    if (rv < 0.0)
-    {
-        T mu_ij      = (h_ij * rv) / (r_square + epsilon * h_ij * h_ij);
-        viscosity_ij = (-alpha * c_ij * mu_ij + beta * mu_ij * mu_ij) / ro_ij;
-    }
-
-    return viscosity_ij;
-}
-
 /*! @brief calculate the artificial viscosity between a pair of two particles
  *
  * @tparam T      float or double
