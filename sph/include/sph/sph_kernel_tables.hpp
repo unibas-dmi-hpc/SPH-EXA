@@ -7,6 +7,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <numeric>
 #include <vector>
 
@@ -14,7 +15,6 @@
 
 namespace util
 {
-
 /*! @brief integrate a function according to simpson's rule
  *
  * @tparam F
@@ -54,13 +54,12 @@ double simpson(double a, double b, uint64_t n, F&& func)
            (func(a) + func(b) + 4.0 * std::accumulate(samplesOdd.begin(), samplesOdd.end(), 0.0) +
             2.0 * std::accumulate(samplesEven.begin(), samplesEven.end(), 0.0));
 }
-
 } // namespace util
 
 namespace sph
 {
 
-//! @brief reference normalization constant from interpolation constants
+//! @brief reference normalization constant from interpolation constants, now legacy functionality
 template<typename T>
 T sphynx_3D_k(T n)
 {
@@ -84,38 +83,81 @@ double kernel_3D_k(F&& sphKernel, double support)
     return 1.0 / util::simpson(0, support, numIntervals, kernelVol3D);
 }
 
-//! @brief create a lookup-table for sinc(x)^sincIndex
-template<typename T, std::size_t N>
-std::array<T, N> createWharmonicTable(double sincIndex)
+//! @brief tabulate and arbitrary function at N points between lower support and upperSupport
+template<typename T, std::size_t N, class F>
+std::array<T, N> tabulateFunction(F&& func, double lowerSupport, double upperSupport)
 {
     constexpr int    numIntervals = N - 1;
-    std::array<T, N> wh;
+    std::array<T, N> table;
 
-    constexpr T dx = 2.0 / numIntervals;
+    const T dx = (upperSupport - lowerSupport) / numIntervals;
     for (size_t i = 0; i < N; ++i)
     {
-        T normalizedVal = i * dx;
-        wh[i]           = std::pow(wharmonic_std(normalizedVal), sincIndex);
+        T normalizedVal = lowerSupport + i * dx;
+        table[i]        = func(normalizedVal);
     }
-    return wh;
+
+    return table;
 }
 
-//! @brief create a lookup-table for d(sinc(x)^sincIndex)/dx
-template<typename T, std::size_t N>
-std::array<T, N> createWharmonicDerivativeTable(double sincIndex)
+//! @brief derivative of sinc(Pi/2 * x)^sincIndex w.r.t. x
+template<class T>
+T powSincDerivative(T x, T sincIndex)
 {
-    constexpr int    numIntervals = N - 1;
-    std::array<T, N> whd;
+    return sincIndex * std::pow(wharmonic_std(x), sincIndex - 1) * wharmonic_derivative_std(x);
+}
 
-    const T dx = 2.0 / numIntervals;
-    for (size_t i = 0; i < N; ++i)
+//! @brief smoothing kernel as a linear combination of two sinc^n terms
+template<class T>
+struct SincN1SincN2
+{
+    T kernel(T x) const { return a * std::pow(wharmonic_std(x), n1) + (1 - a) * std::pow(wharmonic_std(x), n2); }
+    T derivative(T x) const { return a * powSincDerivative(x, n1) + (1 - a) * powSincDerivative(x, n2); }
+
+    T a  = 0.9;
+    T n1 = 4.0;
+    T n2 = 9.0;
+};
+
+enum SphKernelType : int
+{
+    sinc_n          = 0,
+    sinc_n1_sinc_n2 = 1,
+};
+
+/*! @brief return the SPH kernel as a function object
+ *
+ * If sinc_n is chosen, n will be set to @p sincIndex.
+ * For sinc_n1_plus_sinc_n2, the linear combination and exponents are fixed here
+ */
+template<class T>
+std::function<T(T)> getSphKernel(SphKernelType choice, T sincIndex)
+{
+    if (choice == SphKernelType::sinc_n)
     {
-        T normalizedVal = i * dx;
-        whd[i] =
-            sincIndex * std::pow(wharmonic_std(normalizedVal), sincIndex - 1) * wharmonic_derivative_std(normalizedVal);
+        return [sincIndex](T x) { return std::pow(wharmonic_std(x), sincIndex); };
     }
+    else if (choice == SphKernelType::sinc_n1_sinc_n2)
+    {
+        auto kfunc = SincN1SincN2<T>{};
+        return [f = kfunc](T x) { return f.kernel(x); };
+    }
+    return [](T x) { return x; };
+}
 
-    return whd;
+template<class T>
+std::function<T(T)> getSphKernelDerivative(SphKernelType choice, T sincIndex)
+{
+    if (choice == SphKernelType::sinc_n)
+    {
+        return [sincIndex](T x) { return powSincDerivative(x, sincIndex); };
+    }
+    else if (choice == SphKernelType::sinc_n1_sinc_n2)
+    {
+        auto kfunc = SincN1SincN2<T>{};
+        return [f = kfunc](T x) { return f.derivative(x); };
+    }
+    return [](T x) { return x; };
 }
 
 } // namespace sph

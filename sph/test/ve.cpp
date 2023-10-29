@@ -42,7 +42,7 @@
 #include "sph/hydro_ve/momentum_energy_kern.hpp"
 #include "sph/hydro_ve/ve_def_gradh_kern.hpp"
 #include "sph/hydro_ve/xmass_kern.hpp"
-#include "sph/table_creation.hpp"
+#include "sph/sph_kernel_tables.hpp"
 #include "sph/table_lookup.hpp"
 #include "../../main/src/io/file_utils.hpp"
 
@@ -59,8 +59,8 @@ protected:
         neighbors.resize(neighborsCount);
         std::iota(neighbors.begin(), neighbors.end(), 1);
 
-        wh  = sph::createWharmonicTable<T, lt::kernelTableSize>(sincIndex);
-        whd = sph::createWharmonicDerivativeTable<T, lt::kernelTableSize>(sincIndex);
+        wh  = tabulateFunction<T, lt::kTableSize>(getSphKernel(kernelType, sincIndex), 0.0, 2.0);
+        whd = tabulateFunction<T, lt::kTableSize>(getSphKernelDerivative(kernelType, sincIndex), 0.0, 2.0);
 
         auto fieldVectors =
             std::tie(x, y, z, h, m, gradh, rho0, sumwhrho0, vx, vy, vz, c, p, u, divv, alpha, c11, c12, c13, c22, c23,
@@ -87,7 +87,10 @@ protected:
 
     static auto box() { return cstone::Box<T>(-1.e9, 1.e9, cstone::BoundaryType::open); }
 
-    T sincIndex      = 6.0;
+    T                             sincIndex  = 6.0;
+    SphKernelType                 kernelType = SphKernelType::sinc_n;
+    std::array<T, lt::kTableSize> wh{0}, whd{0};
+
     T K              = sphynx_3D_k(sincIndex);
     T alphamin       = 0.05;
     T alphamax       = 1.0;
@@ -98,12 +101,8 @@ protected:
     T Atmax          = 0.2;
     T ramp           = 1.0 / (Atmax - Atmin);
 
-    std::array<T, lt::kernelTableSize> wh{0};
-    std::array<T, lt::kernelTableSize> whd{0};
-
-    uint64_t npart          = 99;
-    unsigned neighborsCount = npart - 1;
-
+    uint64_t                        npart          = 99;
+    unsigned                        neighborsCount = npart - 1;
     std::vector<cstone::LocalIndex> neighbors;
 
     std::vector<T> x, y, z, h, m, gradh, rho0, sumwhrho0, vx, vy, vz, c, p, u, divv, alpha, c11, c12, c13, c22, c23,

@@ -46,7 +46,7 @@
 #include "sph/table_lookup.hpp"
 
 #include "particles_data_stubs.hpp"
-#include "table_creation.hpp"
+#include "sph_kernel_tables.hpp"
 
 #if defined(USE_CUDA)
 #include "sph/util/pinned_allocator.cuh"
@@ -133,6 +133,8 @@ public:
 
     //! @brief exponent n of sinc-kernel S_n
     T sincIndex{6.0};
+    //! @brief choice of smoothing kernel type
+    sph::SphKernelType kernelChoice{sph::SphKernelType::sinc_n};
 
     //! @brief Unified interface to attribute initialization, reading and writing
     template<class Archive>
@@ -143,7 +145,16 @@ public:
         {
             try
             {
-                ar->stepAttribute(attribute, location, attrSize);
+                if constexpr (std::is_enum_v<std::decay_t<decltype(*location)>>)
+                {
+                    // handle pointers to enum by casting to the underlying type
+                    using EType = std::decay_t<decltype(*location)>;
+                    using UType = std::underlying_type_t<EType>;
+                    auto tmp    = static_cast<UType>(*location);
+                    ar->stepAttribute(attribute, &tmp, attrSize);
+                    *location = static_cast<EType>(tmp);
+                }
+                else { ar->stepAttribute(attribute, location, attrSize); }
             }
             catch (std::out_of_range&)
             {
@@ -175,6 +186,7 @@ public:
         optionalIO("decay_constant", &decay_constant, 1);
 
         optionalIO("sincIndex", &sincIndex, 1);
+        optionalIO("kernelChoice", &kernelChoice, 1);
 
         createTables();
     }
@@ -223,7 +235,7 @@ public:
     DeviceData_t<AccType, T, KeyType> devData;
 
     //! @brief lookup tables for the SPH-kernel and its derivative
-    std::array<HydroType, lt::kernelTableSize> wh{0}, whd{0};
+    std::array<HydroType, lt::kTableSize> wh{0}, whd{0};
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
@@ -308,9 +320,10 @@ public:
 private:
     void createTables()
     {
-        K   = ::sph::sphynx_3D_k(sincIndex);
-        wh  = sph::createWharmonicTable<HydroType, lt::kernelTableSize>(sincIndex);
-        whd = sph::createWharmonicDerivativeTable<HydroType, lt::kernelTableSize>(sincIndex);
+        using H = HydroType;
+        K       = sph::kernel_3D_k(getSphKernel(kernelChoice, sincIndex), 2.0);
+        wh      = sph::tabulateFunction<H, lt::kTableSize>(sph::getSphKernel(kernelChoice, sincIndex), 0, 2);
+        whd     = sph::tabulateFunction<H, lt::kTableSize>(sph::getSphKernelDerivative(kernelChoice, sincIndex), 0, 2);
         devData.uploadTables(wh, whd);
     }
 };
