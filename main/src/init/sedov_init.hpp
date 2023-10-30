@@ -36,14 +36,11 @@
 #include "cstone/sfc/box.hpp"
 #include "sph/eos.hpp"
 
-#include "io/file_utils.hpp"
-#ifdef SPH_EXA_HAVE_H5PART
-#include "io/mpi_file_utils.hpp"
-#endif
 #include "isim_init.hpp"
 #include "sedov_constants.hpp"
 #include "early_sync.hpp"
 #include "grid.hpp"
+#include "utils.hpp"
 
 namespace sphexa
 {
@@ -97,14 +94,17 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
 template<class Dataset>
 class SedovGrid : public ISimInitializer<Dataset>
 {
-    using Base = ISimInitializer<Dataset>;
-    using Base::settings_;
+    mutable InitSettings settings_;
 
 public:
-    SedovGrid() { Base::updateSettings(sedovConstants()); }
+    SedovGrid()
+    {
+        Dataset d;
+        settings_ = buildSettings(d, sedovConstants(), {}, nullptr);
+    }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide,
-                                                 Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide, Dataset& simData,
+                                                 IFileReader*) const override
     {
         auto& d                   = simData.hydro;
         using KeyType             = typename Dataset::KeyType;
@@ -129,21 +129,21 @@ public:
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return settings_; }
+    [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
 
 template<class Dataset>
 class SedovGlass : public ISimInitializer<Dataset>
 {
-    std::string glassBlock;
-    using Base = ISimInitializer<Dataset>;
-    using Base::settings_;
+    std::string          glassBlock;
+    mutable InitSettings settings_;
 
 public:
-    SedovGlass(std::string initBlock)
-        : glassBlock(initBlock)
+    SedovGlass(std::string initBlock, std::string settingsFile, IFileReader* reader)
+        : glassBlock(std::move(initBlock))
     {
-        Base::updateSettings(sedovConstants());
+        Dataset d;
+        settings_ = buildSettings(d, sedovConstants(), settingsFile, reader);
     }
 
     /*! @brief initialize particle data with a constant density cube
@@ -154,15 +154,15 @@ public:
      * @param[inout] d                particle dataset
      * @return                        the global coordinate bounding box
      */
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
         auto& d       = simData.hydro;
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
         std::vector<T> xBlock, yBlock, zBlock;
-        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
         int               multi1D            = std::rint(cbrtNumPart / std::cbrt(blockSize));
@@ -186,7 +186,7 @@ public:
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return settings_; }
+    const InitSettings& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

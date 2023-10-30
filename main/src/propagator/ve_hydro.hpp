@@ -222,24 +222,26 @@ public:
     void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
                     const cstone::Box<T>& box) override
     {
-        auto&            d             = simData.hydro;
-        auto             fieldPointers = d.data();
-        std::vector<int> outputFields  = d.outputFieldIndices;
+        auto& d             = simData.hydro;
+        auto  fieldPointers = d.data();
+        auto  indicesDone   = d.outputFieldIndices;
+        auto  namesDone     = d.outputFieldNames;
 
         auto output = [&]()
         {
-            for (int i = int(outputFields.size()) - 1; i >= 0; --i)
+            for (int i = int(indicesDone.size()) - 1; i >= 0; --i)
             {
-                int fidx = outputFields[i];
+                int fidx = indicesDone[i];
                 if (d.isAllocated(fidx))
                 {
                     int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
-                    std::visit([writer, c = column, key = d.outputFieldNames[i]](auto field)
+                    std::visit([writer, c = column, key = namesDone[i]](auto field)
                                { writer->writeField(key, field->data(), c); },
                                fieldPointers[fidx]);
-                    outputFields.erase(outputFields.begin() + i);
+                    indicesDone.erase(indicesDone.begin() + i);
+                    namesDone.erase(namesDone.begin() + i);
                 }
             }
         };
@@ -261,7 +263,7 @@ public:
         // third output pass: curlv and divv
         d.acquire("divv", "curlv");
         d.devData.acquire("divv", "curlv");
-        if (!outputFields.empty()) { computeIadDivvCurlv(first, last, d, box); }
+        if (!indicesDone.empty()) { computeIadDivvCurlv(first, last, d, box); }
         output();
         d.release("divv", "curlv");
         d.devData.release("divv", "curlv");
@@ -269,14 +271,14 @@ public:
         d.acquire("ax", "ay", "az");
         d.devData.acquire("ax", "ay", "az");
 
-        if (!outputFields.empty() && Base::rank_ == 0)
+        if (!indicesDone.empty() && Base::rank_ == 0)
         {
             std::cout << "WARNING: the following fields are not in use and therefore not output: ";
-            for (int fidx = 0; fidx < outputFields.size() - 1; ++fidx)
+            for (int fidx = 0; fidx < indicesDone.size() - 1; ++fidx)
             {
                 std::cout << d.fieldNames[fidx] << ",";
             }
-            std::cout << d.fieldNames[outputFields.back()] << std::endl;
+            std::cout << d.fieldNames[indicesDone.back()] << std::endl;
         }
     }
 };

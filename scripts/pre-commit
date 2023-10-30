@@ -16,8 +16,10 @@ yellow=$(tput setaf 3)
 blue=$(tput setaf 4)
 normal=$(tput sgr0)
 
+since_commit=$1
+
 cxxfiles=()
-for file in `git diff --cached --name-only --diff-filter=ACMRT | grep -E "\.(cpp|hpp|h)$"`; do
+for file in `git diff --cached --name-only --diff-filter=ACMRT ${since_commit} | grep -E "\.(cpp|hpp|h)$"`; do
     if ! cmp -s <(git show :${file}) <(git show :${file}|clang-format -style=file); then
         cxxfiles+=("${file}")
     fi

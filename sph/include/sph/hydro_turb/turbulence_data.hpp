@@ -55,54 +55,61 @@ public:
 
     TurbulenceData(const std::map<std::string, double>& constants, bool verbose)
         : solWeight(constants.at("solWeight"))
+        , gen(size_t(constants.at("rngSeed")))
     {
         initModes(constants, verbose);
     }
 
     //! Number of dimensions
-    const size_t numDim{3};
+    size_t numDim{3};
     //! Variance of Ornstein-Uhlenbeck process
     T variance;
     T decayTime;
     //! Solenoidal weight
-    const T solWeight;
+    T solWeight;
     //! Normalized solenoidal weight
     T solWeightNorm;
 
-    std::mt19937 gen; // random engine
+    uint64_t       numModes;
+    std::vector<T> modes;
+    std::vector<T> amplitudes;
+    std::vector<T> phases;
+    std::mt19937   gen;
 
-    size_t         numModes;   // Number of computed nodes
-    std::vector<T> modes;      // Stirring Modes
-    std::vector<T> phases;     // O-U Phases
-    std::vector<T> amplitudes; // Amplitude of the modes
-
-    std::vector<T> phasesReal; // created from phases on each step
-    std::vector<T> phasesImag; // created from phases on each step
+    //! these are regenerated each step from phases above
+    std::vector<T> phasesReal;
+    std::vector<T> phasesImag;
 
     DeviceVector d_modes;
     DeviceVector d_amplitudes;
     DeviceVector d_phasesReal;
     DeviceVector d_phasesImag;
 
-    /*! @brief load or store turbulence data with file-based IO
-     *
-     * @tparam Archive
-     * @param ar
-     *
-     * Note: Only the @a gen and @a phases members are stored and restored, the modes and amplitudes
-     *       are set in the constructor and considered immutable afterwards.
-     */
+    //! @brief load or store all stateful turbulence data with file-based IO
     template<class Archive>
     void loadOrStore(Archive* ar)
     {
-        ar->stepAttribute("turbulencePhases", phases.data(), phases.size());
+        std::string prefix = "turbulence::";
+        ar->stepAttribute(prefix + "variance", &variance, 1);
+        ar->stepAttribute(prefix + "decayTime", &decayTime, 1);
+        ar->stepAttribute(prefix + "solWeight", &solWeight, 1);
+        ar->stepAttribute(prefix + "solWeightNorm", &solWeightNorm, 1);
+        ar->stepAttribute(prefix + "numModes", &numModes, 1);
+
+        resize(numModes);
+
+        ar->stepAttribute(prefix + "modes", modes.data(), modes.size());
+        ar->stepAttribute(prefix + "amplitudes", amplitudes.data(), amplitudes.size());
+        ar->stepAttribute(prefix + "phases", phases.data(), phases.size());
+
+        uploadModes();
 
         std::stringstream s;
         s << gen;
         std::string engineState = s.str();
 
         int64_t rngStateSize = ar->stepAttributeSize("rngEngineState");
-        rngStateSize         = (rngStateSize) ? rngStateSize : engineState.size();
+        rngStateSize         = (rngStateSize) ? rngStateSize : int64_t(engineState.size());
 
         engineState.resize(rngStateSize);
         ar->stepAttribute("rngEngineState", engineState.data(), rngStateSize);
@@ -133,6 +140,13 @@ private:
         }
     }
 
+    /*! @brief initialize parameters, modes and amplitudes which stay constant during the simulation
+     *
+     * @param constants  settings as key-value pairs
+     * @param verbose    whether to print some diagnostics
+     *
+     * Also fills the phases with a random gaussian distribution, which  will be overwritten when loading from file.
+     */
     void initModes(const std::map<std::string, double>& constants, bool verbose)
     {
         double eps         = constants.at("epsilon");
@@ -149,13 +163,16 @@ private:
         double stirMax = (3.0 + eps) * twopi / Lbox;
 
         decayTime = Lbox / (2.0 * velocity);
-        gen.seed(size_t(constants.at("rngSeed")));
+        variance  = std::sqrt(energy / decayTime);
+        // this makes the rms force const irrespective of the solenoidal weight
+        solWeightNorm = std::sqrt(3.0) * std::sqrt(3.0 / T(numDim)) /
+                        std::sqrt(1.0 - 2.0 * solWeight + T(numDim) * solWeight * solWeight);
 
         amplitudes.resize(stMaxModes);
         modes.resize(stMaxModes * numDim);
 
-        createStirringModes(*this, Lbox, Lbox, Lbox, stMaxModes, energy, stirMax, stirMin, numDim, stSpectForm,
-                            powerLawExp, anglesExp, verbose);
+        createStirringModes(*this, Lbox, Lbox, Lbox, stMaxModes, stirMax, stirMin, numDim, stSpectForm, powerLawExp,
+                            anglesExp, verbose);
 
         resize(numModes);
         uploadModes();

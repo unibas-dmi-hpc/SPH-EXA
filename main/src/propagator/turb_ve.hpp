@@ -90,19 +90,17 @@ public:
 
     void save(IFileWriter* writer) override { turbulenceData.loadOrStore(writer); }
 
-    void load(const std::string& initCond, MPI_Comm comm) override
+    void load(const std::string& initCond, IFileReader* reader) override
     {
-        std::string path = strBeforeSign(initCond, ",");
+        int         step = numberAfterSign(initCond, ":");
+        std::string path = removeModifiers(initCond);
         // The file does not exist, we're starting from scratch. Nothing to do.
         if (!std::filesystem::exists(path)) { return; }
 
-        std::unique_ptr<IFileReader> reader;
-        reader = std::make_unique<H5PartReader>(comm);
-        reader->setStep(path, -1);
+        reader->setStep(path, step, FileMode::independent);
+        turbulenceData.loadOrStore(reader);
 
-        turbulenceData.loadOrStore(reader.get());
-
-        if (rank_ == 0) { std::cout << "Restored phases and RNG state from file" << std::endl; }
+        if (rank_ == 0) { std::cout << "Restored turbulence state from " << path << ":" << step << std::endl; }
         reader->closeStep();
     }
 };

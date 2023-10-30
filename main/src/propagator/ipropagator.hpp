@@ -72,7 +72,7 @@ public:
     virtual void save(IFileWriter*){};
 
     //! @brief load internal state from file
-    virtual void load(const std::string& path, MPI_Comm comm){};
+    virtual void load(const std::string& path, IFileReader*){};
 
     //! @brief print timing info and calculated metrics
     void printProfilingInfo() { timer.printProfilingInfo(); };

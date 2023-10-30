@@ -34,19 +34,16 @@
 #include <filesystem>
 #include <map>
 
-#include "cstone/sfc/box.hpp"
-
+#include "io/arg_parser.hpp"
 #include "isim_init.hpp"
-#include "noh_init.hpp"
 #include "sedov_init.hpp"
-#ifdef SPH_EXA_HAVE_H5PART
-#include "file_init.hpp"
 #include "evrard_init.hpp"
+#include "file_init.hpp"
 #include "isobaric_cube_init.hpp"
-#include "wind_shock_init.hpp"
-#include "turbulence_init.hpp"
 #include "kelvin_helmholtz_init.hpp"
-#endif
+#include "noh_init.hpp"
+#include "turbulence_init.hpp"
+#include "wind_shock_init.hpp"
 #ifdef SPH_EXA_HAVE_GRACKLE
 #include "evrard_cooling_init.hpp"
 #endif
@@ -55,70 +52,69 @@ namespace sphexa
 {
 
 template<class Dataset>
-std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCase, std::string glassBlock)
+std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCase, std::string glassBlock,
+                                                             IFileReader* reader)
 {
-    if (testCase == "sedov")
+    std::string testNamedBase = strBeforeSign(testCase, ":");
+    std::string settingsFile  = strAfterSign(testCase, ":");
+
+    if (testNamedBase == "sedov")
     {
         if (glassBlock.empty()) { return std::make_unique<SedovGrid<Dataset>>(); }
-#ifdef SPH_EXA_HAVE_H5PART
-        else { return std::make_unique<SedovGlass<Dataset>>(glassBlock); }
-#endif
+        else { return std::make_unique<SedovGlass<Dataset>>(glassBlock, settingsFile, reader); }
     }
-
-    std::string hdf5_missing = "without HDF5 support";
-
-#ifdef SPH_EXA_HAVE_H5PART
-    hdf5_missing = "";
-
-    if (testCase == "noh")
+    if (testNamedBase == "noh")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for Noh implosion\n"); }
-        return std::make_unique<NohGlassSphere<Dataset>>(glassBlock);
+        return std::make_unique<NohGlassSphere<Dataset>>(glassBlock, settingsFile, reader);
     }
-    if (testCase == "isobaric-cube")
+    if (testNamedBase == "isobaric-cube")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for isobaric cube\n"); }
-        return std::make_unique<IsobaricCubeGlass<Dataset>>(glassBlock);
+        return std::make_unique<IsobaricCubeGlass<Dataset>>(glassBlock, settingsFile, reader);
     }
-    if (testCase == "wind-shock")
+    if (testNamedBase == "wind-shock")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for Wind shock\n"); }
-        return std::make_unique<WindShockGlass<Dataset>>(glassBlock);
+        return std::make_unique<WindShockGlass<Dataset>>(glassBlock, settingsFile, reader);
     }
-    if (testCase == "evrard")
+    if (testNamedBase == "evrard")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for evrard\n"); }
-        return std::make_unique<EvrardGlassSphere<Dataset>>(glassBlock);
+        return std::make_unique<EvrardGlassSphere<Dataset>>(glassBlock, settingsFile, reader);
     }
-    if (testCase == "turbulence")
+    if (testNamedBase == "turbulence")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for turbulence test\n"); }
-        else { return std::make_unique<TurbulenceGlass<Dataset>>(glassBlock); }
+        else { return std::make_unique<TurbulenceGlass<Dataset>>(glassBlock, settingsFile, reader); }
     }
-    if (testCase == "kelvin-helmholtz")
+    if (testNamedBase == "kelvin-helmholtz")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for Kelvin-Helmholtz test\n"); }
-        else { return std::make_unique<KelvinHelmholtzGlass<Dataset>>(glassBlock); }
+        else { return std::make_unique<KelvinHelmholtzGlass<Dataset>>(glassBlock, settingsFile, reader); }
     }
 #ifdef SPH_EXA_HAVE_GRACKLE
     if (testCase == "evrard-cooling")
     {
-        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for evrard\n"); }
-        return std::make_unique<EvrardGlassSphereCooling<Dataset>>(glassBlock);
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for evrard-cooling\n"); }
+        return std::make_unique<EvrardGlassSphereCooling<Dataset>>(glassBlock, settingsFile, reader);
     }
 #endif
-    if (std::filesystem::exists(strBeforeSign(testCase, ":"))) { return std::make_unique<FileInit<Dataset>>(testCase); }
-
+    if (std::filesystem::exists(strBeforeSign(testCase, ":")))
+    {
+        return std::make_unique<FileInit<Dataset>>(testCase, reader);
+    }
     if (std::filesystem::exists(strBeforeSign(testCase, ",")))
     {
-        return std::make_unique<FileSplitInit<Dataset>>(testCase);
+        return std::make_unique<FileSplitInit<Dataset>>(testCase, reader);
     }
 
-#endif
+    auto msg = "supplied value of --init " + (testCase.empty() ? "[empty string]" : "(\"" + testCase + "\")") +
+               " is not a usable file or supported test case\n";
+    if (reader->rank() == 0) { std::cout << msg; }
+    MPI_Abort(MPI_COMM_WORLD, 1);
 
-    throw std::runtime_error("supplied value of --init " +
-                             (testCase.empty() ? "[empty string]" : "(\"" + testCase + "\")") +
-                             " is not a usable file or supported test case " + hdf5_missing + "\n");
+    return std::unique_ptr<ISimInitializer<Dataset>>{};
 }
 
 } // namespace sphexa

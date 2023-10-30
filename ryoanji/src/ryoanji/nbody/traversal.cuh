@@ -516,7 +516,7 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
             const int bodyIdx = bodyIdxLane + i * GpuConfig::warpSize;
             if (bodyIdx < bodyEnd)
             {
-                if (p) { p[bodyIdx] += m[bodyIdx] * acc_i[i][0]; }
+                if (p) { p[bodyIdx] += G * m[bodyIdx] * acc_i[i][0]; }
                 ax[bodyIdx] += G * acc_i[i][1];
                 ay[bodyIdx] += G * acc_i[i][2];
                 az[bodyIdx] += G * acc_i[i][3];

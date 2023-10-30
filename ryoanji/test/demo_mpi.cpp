@@ -139,7 +139,7 @@ int main(int argc, char** argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
-    size_t numParticles = argc > 1 ? std::stoi(argv[1]) : 1000000;
+    size_t numParticles = argc > 1 ? std::stoll(argv[1]) : 1000000ll;
 
     ryoanjiTest<float, uint64_t>(rank, numRanks, numParticles);
 

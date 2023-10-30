@@ -34,7 +34,6 @@
 #include <string>
 #include <variant>
 
-#include "cstone/sfc/box.hpp"
 #include "cstone/util/type_list.hpp"
 
 namespace sphexa
@@ -57,8 +56,7 @@ public:
     using FieldType   = util::Reduce<std::variant, util::Map<IO::ConstPtr, IO::Types>>;
     using FieldVector = util::Reduce<std::variant, util::Map<ToVec, IO::Types>>;
 
-    virtual void constants(const std::map<std::string, double>& c, std::string path) const = 0;
-
+    virtual int         rank() const   = 0;
     virtual std::string suffix() const = 0;
 
     virtual ~IFileWriter() = default;
@@ -66,8 +64,15 @@ public:
     virtual void    addStep(size_t firstIndex, size_t lastIndex, std::string path) = 0;
     virtual int64_t stepAttributeSize(const std::string& /*key*/) { return 0; }
     virtual void    stepAttribute(const std::string& key, FieldType val, int64_t size) = 0;
+    virtual void    fileAttribute(const std::string& key, FieldType val, int64_t size) = 0;
     virtual void    writeField(const std::string& key, FieldType field, int col)       = 0;
     virtual void    closeStep()                                                        = 0;
+};
+
+enum class FileMode
+{
+    collective  = 0,
+    independent = 1,
 };
 
 class IFileReader
@@ -77,7 +82,9 @@ public:
 
     virtual ~IFileReader() = default;
 
-    virtual void                     setStep(std::string path, int step)                                = 0;
+    virtual int                      rank() const                                                       = 0;
+    virtual int64_t                  numParticles() const                                               = 0;
+    virtual void                     setStep(std::string path, int step, FileMode mode)                 = 0;
     virtual std::vector<std::string> fileAttributes()                                                   = 0;
     virtual std::vector<std::string> stepAttributes()                                                   = 0;
     virtual int64_t                  fileAttributeSize(const std::string& key)                          = 0;
@@ -90,51 +97,49 @@ public:
     virtual void                     closeStep()                                                        = 0;
 };
 
-//! @brief Used to initialize particle dataset attributes from builtin named test-cases
-class BuiltinWriter
+class UnimplementedReader : public IFileReader
 {
-    // value_type should be generalized to std::variant
-    using AttributeMap = std::map<std::string, double>;
-
 public:
-    using FieldType = util::Reduce<std::variant, util::Map<std::add_pointer_t, IO::Types>>;
-
-    explicit BuiltinWriter(AttributeMap attrs)
-        : attributes_(std::move(attrs))
+    int                      rank() const override { return 0; };
+    int64_t                  numParticles() const override { return 0; };
+    void                     setStep(std::string, int, FileMode) override { throwError(); }
+    std::vector<std::string> fileAttributes() override
     {
+        throwError();
+        return {};
     }
-
-    void stepAttribute(const std::string& key, FieldType val, int64_t /*size*/)
+    std::vector<std::string> stepAttributes() override
     {
-        std::visit([this, &key](auto arg) { *arg = attributes_.at(key); }, val);
-    };
+        throwError();
+        return {};
+    }
+    int64_t fileAttributeSize(const std::string&) override
+    {
+        throwError();
+        return {};
+    }
+    int64_t stepAttributeSize(const std::string&) override
+    {
+        throwError();
+        return {};
+    }
+    void     fileAttribute(const std::string&, FieldType, int64_t) override { throwError(); }
+    void     stepAttribute(const std::string&, FieldType, int64_t) override { throwError(); }
+    void     readField(const std::string&, FieldType) override { throwError(); }
+    uint64_t localNumParticles() override
+    {
+        throwError();
+        return {};
+    }
+    uint64_t globalNumParticles() override
+    {
+        throwError();
+        return {};
+    }
+    void closeStep() override { throwError(); }
 
 private:
-    AttributeMap attributes_;
-};
-
-//! @brief Used to read the default values of dataset attributes
-class BuiltinReader
-{
-    // value_type should be generalized to std::variant
-    using AttributeMap = std::map<std::string, double>;
-
-public:
-    using FieldType = util::Reduce<std::variant, util::Map<std::add_pointer_t, IO::Types>>;
-
-    explicit BuiltinReader(AttributeMap& attrs)
-        : attributes_(attrs)
-    {
-    }
-
-    void stepAttribute(const std::string& key, FieldType val, int64_t /*size*/)
-    {
-        std::visit([this, &key](auto arg) { attributes_[key] = *arg; }, val);
-    };
-
-private:
-    //! @brief reference to attributes
-    AttributeMap& attributes_;
+    static void throwError() { throw std::runtime_error("File reader not implemented\n"); }
 };
 
 } // namespace sphexa
