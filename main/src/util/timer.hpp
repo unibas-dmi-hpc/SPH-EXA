@@ -131,12 +131,6 @@ public:
 
     void printProfilingInfo(size_t timesteps) { profiler.printProfilingInfoHDF5(timesteps); }
 
-    void gatherProfilingInfo()
-    {
-        profiler.gatherTimings();
-        profiler.gatherEnergies();
-    }
-
 private:
     int      rank;
     bool     isProfilingEnabled;

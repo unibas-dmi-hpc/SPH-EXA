@@ -74,11 +74,8 @@ public:
     //! @brief load internal state from file
     virtual void load(const std::string& path, IFileReader*){};
 
-    //! @brief print timing info and calculated metrics
+    //! @brief print timing info
     void printProfilingInfo(size_t timesteps) { timer.printProfilingInfo(timesteps); };
-
-    //! @brief gather timing info in rank 0 for writing to file
-    void gatherProfilingInfo() { timer.gatherProfilingInfo(); };
 
     virtual ~Propagator() = default;
 

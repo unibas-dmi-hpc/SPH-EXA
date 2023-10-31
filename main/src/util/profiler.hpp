@@ -105,30 +105,6 @@ public:
         funcEnergies.push_back(energy);
     }
 
-    void gatherEnergies(int numRanks)
-    {
-        std::cout << "Gathering energy data." << std::endl;
-        std::vector<float> durs;
-        durs.resize(numRanks * funcEnergies.size());
-
-        float* durations = durs.data();
-        MPI_Gather(funcEnergies.data(), funcEnergies.size(), MPI_FLOAT, &durations[_rank * funcEnergies.size()],
-                   funcEnergies.size(), MPI_FLOAT, 0, MPI_COMM_WORLD);
-
-        if (_rank == 0)
-        {
-            for (int i = 0; i < funcEnergies.size(); i++)
-            {
-                float* funcDurations = new float[numRanks];
-                for (int r = 0; r < numRanks; r++)
-                {
-                    funcDurations[r] = durations[r * funcEnergies.size() + i];
-                }
-                energies.push_back(funcDurations);
-            }
-        }
-    }
-
     void printEnergyMeasurementsHDF5(H5PartFile* _energyFile, int numRanks, size_t timesteps)
     {
         H5PartSetNumParticles(_energyFile, funcEnergies.size());
@@ -137,44 +113,6 @@ public:
         fileutils::writeH5PartStepAttrib(_energyFile, "NUM_FUNCS", &numFuncs, 1);
         std::string fieldName = "RANK" + std::to_string(_rank);
         fileutils::writeH5PartField(_energyFile, fieldName, funcEnergies.data());
-    }
-
-    void printEnergyMeasurements(int numRanks)
-    {
-        if (_rank == 0)
-        {
-            std::ofstream energyFile;
-            std::string   efilename;
-
-            switch (devType)
-            {
-                case GPU: efilename = "energy-GPU" + std::to_string(numRanks) + "Ranks.txt"; break;
-                case CPU: efilename = "energy-CPU" + std::to_string(numRanks) + "Ranks.txt"; break;
-                case MEM: efilename = "energy-MEM" + std::to_string(numRanks) + "Ranks.txt"; break;
-                case CN: efilename = "energy-CN" + std::to_string(numRanks) + "Ranks.txt"; break;
-                default: efilename = "error-energy-file.txt"; break;
-            }
-            energyFile.open(efilename);
-
-            for (int i = 0; i < numRanks; i++)
-            {
-                energyFile << "RANK" << i << ",";
-            }
-            energyFile << std::endl;
-            for (auto& element : energies)
-            {
-                for (int i = 0; i < numRanks; i++)
-                {
-                    energyFile << element[i] << ",";
-                }
-
-                energyFile << std::endl;
-                delete[] element;
-            }
-
-            std::cout << "Energy data written." << std::endl;
-            energyFile.close();
-        }
     }
 };
 
@@ -204,6 +142,7 @@ public:
         _profilingFile = fileutils::openH5Part(profilingFilename, H5PART_WRITE | H5PART_VFD_MPIIO_IND, MPI_COMM_WORLD);
         _energyFile    = fileutils::openH5Part(energyFilename, H5PART_WRITE | H5PART_VFD_MPIIO_IND, MPI_COMM_WORLD);
 
+        // Create Cray energy readers
         CrayPmtReader gpuReader(GPU, rank);
         CrayPmtReader cpuReader(CPU, rank);
         CrayPmtReader memReader(MEM, rank);
@@ -214,38 +153,6 @@ public:
         vecEnergyReaders.push_back(std::move(cnReader));
     }
     ~Profiler() {}
-
-    void printProfilingInfo()
-    {
-        for (int i = 0; i < vecEnergyReaders.size(); i++)
-            vecEnergyReaders.data()[i].printEnergyMeasurements(_numRanks);
-
-        if (_rank == 0)
-        {
-            std::ofstream profilingFile;
-            std::string   filename = "profiling-" + std::to_string(_numRanks) + "Ranks.txt";
-            profilingFile.open(filename);
-
-            for (int i = 0; i < _numRanks; i++)
-            {
-                profilingFile << "RANK" << i << ",";
-            }
-            profilingFile << std::endl;
-            for (auto& element : timeSteps)
-            {
-                for (int i = 0; i < _numRanks; i++)
-                {
-                    profilingFile << element[i] << ",";
-                }
-
-                profilingFile << std::endl;
-                delete[] element;
-            }
-
-            std::cout << "Profiling data written." << std::endl;
-            profilingFile.close();
-        }
-    }
 
     void printProfilingInfoHDF5(size_t timesteps)
     {
@@ -281,36 +188,6 @@ public:
 
     // save the total timestep timing
     void saveTimestep(float duration) { funcTimes.push_back(duration); }
-
-    void gatherEnergies()
-    {
-        for (int i = 0; i < vecEnergyReaders.size(); i++)
-            vecEnergyReaders.data()[i].gatherEnergies(_numRanks);
-    }
-
-    void gatherTimings()
-    {
-        std::cout << "Gathering profiling data." << std::endl;
-        std::vector<float> durs;
-        durs.resize(_numRanks * funcTimes.size());
-
-        float* durations = durs.data();
-        MPI_Gather(funcTimes.data(), funcTimes.size(), MPI_FLOAT, &durations[_rank * funcTimes.size()],
-                   funcTimes.size(), MPI_FLOAT, 0, MPI_COMM_WORLD);
-
-        if (_rank == 0)
-        {
-            for (int i = 0; i < funcTimes.size(); i++)
-            {
-                float* funcDurations = new float[_numRanks];
-                for (int r = 0; r < _numRanks; r++)
-                {
-                    funcDurations[r] = durations[r * funcTimes.size() + i];
-                }
-                timeSteps.push_back(funcDurations);
-            }
-        }
-    }
 };
 
 } // namespace sphexa

@@ -174,7 +174,6 @@ int main(int argc, char** argv)
         }
     }
 
-    if (profilingEnabled) propagator->gatherProfilingInfo();
     if (rank == 0)
     {
         totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
