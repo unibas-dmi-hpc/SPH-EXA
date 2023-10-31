@@ -35,6 +35,7 @@
 
 #include "sph/hydro_turb/turbulence_data.hpp"
 #include "sph/particles_data.hpp"
+#include "init/isim_init.hpp"
 #include "io/ifile_io_hdf5.hpp"
 
 using namespace sphexa;
@@ -68,7 +69,7 @@ TEST(HDF5IO, stepAttribute)
         int64_t      int64Attr;
         uint64_t     uint64Attr;
         char         int8Attr;
-        reader.setStep(testfile, 0);
+        reader.setStep(testfile, 0, FileMode::collective);
         reader.stepAttribute("float64Attr", &float64Attr, 1);
         reader.stepAttribute("int64Attr", &int64Attr, 1);
         reader.stepAttribute("uint64Attr", &uint64Attr, 1);
@@ -123,7 +124,7 @@ TEST(HDF5IO, fields)
     }
     {
         H5PartReader reader(MPI_COMM_WORLD);
-        reader.setStep(testfile, 0);
+        reader.setStep(testfile, 0, FileMode::collective);
 
         EXPECT_EQ(reader.localNumParticles(), 10);
         EXPECT_EQ(reader.globalNumParticles(), 10 * numRanks);
@@ -170,7 +171,7 @@ TEST(HDF5IO, particleData)
     {
         Dataset      data;
         H5PartReader reader(MPI_COMM_WORLD);
-        reader.setStep(testfile, 0);
+        reader.setStep(testfile, 0, FileMode::collective);
         data.loadOrStoreAttributes(&reader);
         EXPECT_EQ(data.iteration, 42);
         EXPECT_EQ(data.ttot, 3.14159);
@@ -203,7 +204,7 @@ TEST(HDF5IO, box)
     {
         Box          box(0, 1, 0, 1, 0, 1, open, pbc, open);
         H5PartReader reader(MPI_COMM_WORLD);
-        reader.setStep(testfile, 0);
+        reader.setStep(testfile, 0, FileMode::collective);
         box.loadOrStore(&reader);
         EXPECT_EQ(box.xmin(), 0.0);
         EXPECT_EQ(box.xmax(), 1.0);
@@ -240,11 +241,9 @@ TEST(HDF5IO, turbulenceData)
 
     using Data = sph::TurbulenceData<double, cstone::CpuTag>;
 
-    std::map<std::string, double> constants{
-        {"solWeight", 0.5},      {"stMaxModes", 100000}, {"Lbox", 1.0},       {"stMachVelocity", 0.3e0},
-        {"firstTimeStep", 1e-4}, {"epsilon", 1e-15},     {"rngSeed", 251299}, {"stSpectForm", 1},
-        {"mTotal", 1.0},         {"powerLawExp", 5 / 3}, {"anglesExp", 2.0},  {"gamma", 1.001},
-        {"mui", 0.62},           {"u0", 1000.},          {"Kcour", 0.4}};
+    InitSettings constants{{"solWeight", 0.5},        {"stMaxModes", 100000}, {"Lbox", 1.0},
+                           {"stMachVelocity", 0.3e0}, {"epsilon", 1e-15},     {"rngSeed", 251299},
+                           {"stSpectForm", 1},        {"powerLawExp", 1.6},   {"anglesExp", 2.0}};
 
     Data data(constants, false);
     std::iota(data.phases.begin(), data.phases.end(), 0.0);
@@ -267,11 +266,18 @@ TEST(HDF5IO, turbulenceData)
         EXPECT_NE(probe.gen, data.gen);
 
         H5PartReader reader(MPI_COMM_WORLD);
-        reader.setStep(testfile, 0);
+        reader.setStep(testfile, 0, FileMode::collective);
         probe.loadOrStore(&reader);
 
-        EXPECT_EQ(probe.gen, data.gen);
+        EXPECT_EQ(probe.variance, data.variance);
+        EXPECT_EQ(probe.decayTime, data.decayTime);
+        EXPECT_EQ(probe.solWeight, data.solWeight);
+        EXPECT_EQ(probe.solWeightNorm, data.solWeightNorm);
+        EXPECT_EQ(probe.numModes, data.numModes);
+        EXPECT_EQ(probe.modes, data.modes);
+        EXPECT_EQ(probe.amplitudes, data.amplitudes);
         EXPECT_EQ(probe.phases, data.phases);
+        EXPECT_EQ(probe.gen, data.gen);
 
         reader.closeStep();
     }

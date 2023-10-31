@@ -23,7 +23,7 @@
  */
 
 /*! @file
- * @brief file I/O interface
+ * @brief File I/O interface implementation with H5Part
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -33,7 +33,6 @@
 #include <mpi.h>
 
 #include <filesystem>
-#include <map>
 #include <string>
 #include <variant>
 #include <vector>
@@ -41,13 +40,13 @@
 #include "init/grid.hpp"
 
 #include "file_utils.hpp"
-#include "mpi_file_utils.hpp"
+#include "h5part_wrapper.hpp"
 #include "ifile_io.hpp"
 
 namespace sphexa
 {
 
-class H5PartWriter : public IFileWriter
+class H5PartWriter final : public IFileWriter
 {
 public:
     using Base      = IFileWriter;
@@ -55,63 +54,49 @@ public:
 
     explicit H5PartWriter(MPI_Comm comm)
         : comm_(comm)
-        , h5File_(nullptr)
     {
+        MPI_Comm_rank(comm, &rank_);
     }
 
-    /*! @brief write simulation parameters to file
-     *
-     * @param c        (name, value) pairs of constants
-     * @param path     path to HDF5 file
-     *
-     * Note: file is being opened serially, must be called on one rank only.
-     */
-    void constants(const std::map<std::string, double>& c, std::string path) const override
-    {
-        const char* h5_fname = path.c_str();
+    ~H5PartWriter() override { closeStep(); }
 
-        if (std::filesystem::exists(h5_fname))
-        {
-            throw std::runtime_error("Cannot write constants: file " + path + " already exists\n");
-        }
-
-        H5PartFile* h5_file = nullptr;
-        h5_file             = H5PartOpenFile(h5_fname, H5PART_WRITE);
-
-        for (auto it = c.begin(); it != c.end(); ++it)
-        {
-            fileutils::sphexaWriteFileAttrib(h5_file, it->first.c_str(), &(it->second), 1);
-        }
-
-        H5PartCloseFile(h5_file);
-    }
+    [[nodiscard]] int rank() const override { return rank_; }
 
     std::string suffix() const override { return ".h5"; }
 
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndex_ = firstIndex;
-        lastIndex_  = lastIndex;
-        pathStep_   = path;
 
-        if (std::filesystem::exists(path))
+        if (!h5File_ || path != pathStep_)
         {
-            h5File_ = fileutils::openH5Part(path, H5PART_APPEND | H5PART_VFD_MPIIO_IND, comm_);
+            closeStep();
+            int64_t mode = (std::filesystem::exists(path) ? H5PART_APPEND : H5PART_WRITE) | H5PART_VFD_MPIIO_IND;
+            h5File_      = fileutils::openH5Part(path, mode, comm_);
         }
-        else { h5File_ = fileutils::openH5Part(path, H5PART_WRITE | H5PART_VFD_MPIIO_IND, comm_); }
 
-        // create the next step
-        h5part_int64_t numSteps = H5PartGetNumSteps(h5File_);
-        H5PartSetStep(h5File_, numSteps);
+        if (lastIndex > firstIndex)
+        {
+            // create the next step
+            h5part_int64_t numSteps = H5PartGetNumSteps(h5File_);
+            H5PartSetStep(h5File_, numSteps);
 
-        uint64_t numParticles = lastIndex - firstIndex;
-        // set number of particles that each rank will write
-        H5PartSetNumParticles(h5File_, numParticles);
+            uint64_t numParticles = lastIndex - firstIndex;
+            // set number of particles that each rank will write
+            H5PartSetNumParticles(h5File_, numParticles);
+        }
+        pathStep_ = path;
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit([this, &key, size](auto arg) { fileutils::sphexaWriteStepAttrib(h5File_, key.c_str(), arg, size); },
+        std::visit([this, &key, size](auto arg) { fileutils::writeH5PartStepAttrib(h5File_, key.c_str(), arg, size); },
+                   val);
+    }
+
+    void fileAttribute(const std::string& key, FieldType val, int64_t size) override
+    {
+        std::visit([this, &key, size](auto arg) { fileutils::writeH5PartFileAttrib(h5File_, key.c_str(), arg, size); },
                    val);
     }
 
@@ -120,18 +105,26 @@ public:
         std::visit([this, &key](auto arg) { fileutils::writeH5PartField(h5File_, key, arg + firstIndex_); }, field);
     }
 
-    void closeStep() override { H5PartCloseFile(h5File_); }
+    void closeStep() override
+    {
+        if (h5File_)
+        {
+            H5PartCloseFile(h5File_);
+            h5File_ = nullptr;
+        }
+    }
 
 private:
+    int      rank_{0};
     MPI_Comm comm_;
 
-    size_t      firstIndex_, lastIndex_;
+    size_t      firstIndex_{0};
     std::string pathStep_;
 
-    H5PartFile* h5File_;
+    H5PartFile* h5File_{nullptr};
 };
 
-class H5PartReader : public IFileReader
+class H5PartReader final : public IFileReader
 {
 public:
     using Base      = IFileReader;
@@ -141,29 +134,51 @@ public:
         : comm_(comm)
         , h5File_{nullptr}
     {
+        MPI_Comm_rank(comm, &rank_);
     }
 
-    void setStep(std::string path, int step) override
+    ~H5PartReader() override { closeStep(); }
+
+    [[nodiscard]] int     rank() const override { return rank_; }
+    [[nodiscard]] int64_t numParticles() const override
     {
-        if (h5File_) { closeStep(); }
+        if (!h5File_) { throw std::runtime_error("Cannot get number of particles: file not open\n"); }
+        return H5PartGetNumParticles(h5File_);
+    }
+
+    /*! @brief open a file at a given step
+     *
+     * @param path  filesystem path
+     * @param step  snapshot index to load from
+     * @param mode  collective mode causes MPI ranks to distribute particles amongst themselves,
+     *              independent mode causes all MPI ranks to load all particles
+     */
+    void setStep(std::string path, int step, FileMode mode) override
+    {
+        closeStep();
         pathStep_ = path;
         h5File_   = fileutils::openH5Part(path, H5PART_READ | H5PART_VFD_MPIIO_IND, comm_);
+
+        if (H5PartGetNumSteps(h5File_) == 0) { return; }
 
         // set step to last step in file if negative
         if (step < 0) { step = H5PartGetNumSteps(h5File_) - 1; }
         H5PartSetStep(h5File_, step);
 
         globalCount_ = H5PartGetNumParticles(h5File_);
-        if (globalCount_ < 1) { throw std::runtime_error("no particles in input file found\n"); }
+        if (globalCount_ < 1) { return; }
 
         int rank, numRanks;
         MPI_Comm_rank(comm_, &rank);
         MPI_Comm_size(comm_, &numRanks);
 
-        std::tie(firstIndex_, lastIndex_) = partitionRange(globalCount_, rank, numRanks);
-        localCount_                       = lastIndex_ - firstIndex_;
-
-        H5PartSetView(h5File_, firstIndex_, lastIndex_ - 1);
+        if (mode == FileMode::collective)
+        {
+            std::tie(firstIndex_, lastIndex_) = partitionRange(globalCount_, rank, numRanks);
+            localCount_                       = lastIndex_ - firstIndex_;
+            H5PartSetView(h5File_, firstIndex_, lastIndex_ - 1);
+        }
+        else { std::tie(firstIndex_, lastIndex_, localCount_) = std::make_tuple(0, globalCount_, globalCount_); }
     }
 
     std::vector<std::string> fileAttributes() override
@@ -180,70 +195,42 @@ public:
 
     int64_t fileAttributeSize(const std::string& key) override
     {
-        auto           attributes = fileutils::fileAttributeNames(h5File_);
-        size_t         attrIndex  = std::find(attributes.begin(), attributes.end(), key) - attributes.begin();
-        h5part_int64_t typeId, attrSize;
-        char           dummy[256];
+        int64_t attrIndex = fileAttributeIndex(key);
+        int64_t typeId, attrSize;
+        char    dummy[256];
         H5PartGetFileAttribInfo(h5File_, attrIndex, dummy, 256, &typeId, &attrSize);
         return attrSize;
     }
 
     int64_t stepAttributeSize(const std::string& key) override
     {
-        auto   attributes = fileutils::stepAttributeNames(h5File_);
-        size_t attrIndex  = std::find(attributes.begin(), attributes.end(), key) - attributes.begin();
-        if (attrIndex == attributes.size()) { throw std::out_of_range("Attribute " + key + " does not exist\n"); }
-
-        h5part_int64_t typeId, attrSize;
-        char           dummy[256];
+        int64_t attrIndex = stepAttributeIndex(key);
+        int64_t typeId, attrSize;
+        char    dummy[256];
         H5PartGetStepAttribInfo(h5File_, attrIndex, dummy, 256, &typeId, &attrSize);
         return attrSize;
     }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        if (size != fileAttributeSize(key)) { throw std::runtime_error("File attribute size is inconsistent: " + key); }
-        auto err = std::visit([this, &key](auto arg) { return H5PartReadFileAttrib(h5File_, key.c_str(), arg); }, val);
-        if (err != H5PART_SUCCESS) { throw std::out_of_range("Could not read file attribute: " + key); }
+        std::visit(
+            [this, size, &key](auto arg)
+            {
+                auto index = fileAttributeIndex(key);
+                fileutils::readH5PartFileAttribute(arg, size, index, h5File_);
+            },
+            val);
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        if (size != stepAttributeSize(key)) { throw std::runtime_error("step attribute size is inconsistent: " + key); }
-        auto err = std::visit(
+        std::visit(
             [this, size, &key](auto arg)
             {
-                int64_t memTypeId  = fileutils::H5PartType<std::decay_t<decltype(*arg)>>{};
-                int64_t fileTypeId = stepAttributeType(key);
-                if (memTypeId != fileTypeId)
-                {
-                    if (memTypeId == fileutils::H5PartType<float>{} && fileTypeId == fileutils::H5PartType<double>{})
-                    {
-                        double tmp[size];
-                        auto   err = H5PartReadStepAttrib(h5File_, key.c_str(), tmp);
-                        std::copy_n(tmp, size, arg);
-                        return err;
-                    }
-                    else if (memTypeId == fileutils::H5PartType<double>{} &&
-                             fileTypeId == fileutils::H5PartType<float>{})
-                    {
-                        float tmp[size];
-                        auto  err = H5PartReadStepAttrib(h5File_, key.c_str(), tmp);
-                        std::copy_n(tmp, size, arg);
-                        return err;
-                    }
-                    else
-                    {
-                        throw std::runtime_error("attribute type of " + key + " in file is " +
-                                                 fileutils::H5PartTypeToString(fileTypeId) + ", but should be " +
-                                                 fileutils::H5PartTypeToString(memTypeId) + "\n");
-                    }
-                }
-
-                return H5PartReadStepAttrib(h5File_, key.c_str(), arg);
+                auto index = stepAttributeIndex(key);
+                fileutils::readH5PartStepAttribute(arg, size, index, h5File_);
             },
             val);
-        if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read step attribute: " + key); }
     }
 
     void readField(const std::string& key, FieldType field) override
@@ -256,19 +243,33 @@ public:
 
     uint64_t globalNumParticles() override { return globalCount_; }
 
-    void closeStep() override { H5PartCloseFile(h5File_); }
-
-private:
-    h5part_int64_t stepAttributeType(const std::string& key)
+    void closeStep() override
     {
-        auto           attributes = fileutils::stepAttributeNames(h5File_);
-        size_t         attrIndex  = std::find(attributes.begin(), attributes.end(), key) - attributes.begin();
-        h5part_int64_t typeId, attrSize;
-        char           dummy[256];
-        H5PartGetStepAttribInfo(h5File_, attrIndex, dummy, 256, &typeId, &attrSize);
-        return typeId;
+        if (h5File_)
+        {
+            H5PartCloseFile(h5File_);
+            h5File_ = nullptr;
+        }
     }
 
+private:
+    int64_t stepAttributeIndex(const std::string& key)
+    {
+        auto    attributes = fileutils::stepAttributeNames(h5File_);
+        int64_t attrIndex  = std::find(attributes.begin(), attributes.end(), key) - attributes.begin();
+        if (attrIndex == attributes.size()) { throw std::out_of_range("Attribute " + key + " does not exist\n"); }
+        return attrIndex;
+    }
+
+    int64_t fileAttributeIndex(const std::string& key)
+    {
+        auto    attributes = fileutils::fileAttributeNames(h5File_);
+        int64_t attrIndex  = std::find(attributes.begin(), attributes.end(), key) - attributes.begin();
+        if (attrIndex == attributes.size()) { throw std::out_of_range("Attribute " + key + " does not exist\n"); }
+        return attrIndex;
+    }
+
+    int      rank_{0};
     MPI_Comm comm_;
 
     uint64_t    firstIndex_, lastIndex_;

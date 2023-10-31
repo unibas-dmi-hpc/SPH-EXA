@@ -129,8 +129,11 @@ public:
             }
             catch (std::out_of_range&)
             {
-                std::cout << "Attribute " << attribute << " not set in file, setting to default value " << *location
-                          << std::endl;
+                if (ar->rank() == 0)
+                {
+                    std::cout << "Attribute " << attribute << " not set in file, setting to default value " << *location
+                              << std::endl;
+                }
             }
         };
 

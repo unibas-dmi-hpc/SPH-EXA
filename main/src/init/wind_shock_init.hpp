@@ -41,14 +41,14 @@
 #include "cstone/sfc/box.hpp"
 #include "sph/eos.hpp"
 
-#include "io/file_utils.hpp"
 #include "isim_init.hpp"
 #include "grid.hpp"
+#include "utils.hpp"
 
 namespace sphexa
 {
 
-std::map<std::string, double> WindShockConstants()
+InitSettings WindShockConstants()
 {
     return {{"r", .125},           {"rSphere", .025},   {"rhoInt", 10.}, {"rhoExt", 1.},     {"uExt", 3. / 2.},
             {"vxExt", 2.7},        {"vyExt", .0},       {"vzExt", .0},   {"dim", 3},         {"gamma", 5. / 3.},
@@ -130,19 +130,19 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
 template<class Dataset>
 class WindShockGlass : public ISimInitializer<Dataset>
 {
-    std::string glassBlock;
-    using Base = ISimInitializer<Dataset>;
-    using Base::settings_;
+    std::string          glassBlock;
+    mutable InitSettings settings_;
 
 public:
-    WindShockGlass(std::string initBlock)
-        : glassBlock(initBlock)
+    WindShockGlass(std::string initBlock, std::string settingsFile, IFileReader* reader)
+        : glassBlock(std::move(initBlock))
     {
-        Base::updateSettings(WindShockConstants());
+        Dataset d;
+        settings_ = buildSettings(d, WindShockConstants(), settingsFile, reader);
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
         auto& d       = simData.hydro;
         using KeyType = typename Dataset::KeyType;
@@ -158,7 +158,7 @@ public:
         T blobMultiplier = std::cbrt(cubeVolume / densityRatio) / (2. * rSphere);
 
         std::vector<T> xBlock, yBlock, zBlock;
-        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
         int               multi1D          = std::rint(cbrtNumPart / std::cbrt(blockSize));
@@ -223,7 +223,7 @@ public:
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return settings_; }
+    [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

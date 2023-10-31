@@ -174,9 +174,9 @@ public:
                     T* z,
                     Arrays... particleProperties) const
     {
-        receiveLog_.clear();
-        exchangeParticlesGpu(exchanges_, myRank_, bufDesc, numAssigned(), sendScratch, receiveScratch,
-                             sfcSorter.getMap(), receiveLog_, x, y, z, particleProperties...);
+        recvLog_.clear();
+        exchangeParticlesGpu(0, recvLog_, exchanges_, myRank_, bufDesc, numAssigned(), sendScratch, receiveScratch,
+                             sfcSorter.getMap(), x, y, z, particleProperties...);
 
         auto [newStart, newEnd]    = domain_exchange::assignedEnvelope(bufDesc, numPresent(), numAssigned());
         LocalIndex envelopeSize    = newEnd - newStart;
@@ -197,7 +197,7 @@ public:
                       SVec& /*s2*/,
                       Arrays... particleProperties) const
     {
-        exchangeParticles(exchanges_, myRank_, bufDesc, numAssigned(), ordering, receiveLog_, particleProperties...);
+        exchangeParticles(1, recvLog_, exchanges_, myRank_, bufDesc, numAssigned(), ordering, particleProperties...);
     }
 
     //! @brief read only visibility of the global octree leaves to the outside
@@ -226,7 +226,7 @@ private:
 
     SpaceCurveAssignment assignment_;
     SendRanges exchanges_;
-    mutable std::vector<std::tuple<int, LocalIndex>> receiveLog_;
+    mutable ExchangeLog recvLog_;
 
     //! @brief For locating global domain boundaries in local particle key arrays
     thrust::device_vector<KeyType> d_boundaryKeys_;

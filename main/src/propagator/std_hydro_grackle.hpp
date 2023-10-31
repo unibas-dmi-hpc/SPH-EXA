@@ -83,7 +83,7 @@ public:
     {
     }
 
-    void load(const std::string& initCond, MPI_Comm comm) override
+    void load(const std::string& initCond, IFileReader* reader) override
     {
         if (initCond == "evrard-cooling")
         {
@@ -92,17 +92,17 @@ public:
         }
         else
         {
-            std::string path = strBeforeSign(initCond, ":");
+            std::string path = removeModifiers(initCond);
             if (std::filesystem::exists(path))
             {
-                std::unique_ptr<IFileReader> reader;
-                reader = std::make_unique<H5PartReader>(comm);
-                reader->setStep(path, -1);
-                cooling_data.loadOrStoreAttributes(reader.get());
+                int snapshotIndex = numberAfterSign(initCond, ":");
+                reader->setStep(path, snapshotIndex, FileMode::independent);
+                cooling_data.loadOrStoreAttributes(reader);
                 reader->closeStep();
             }
             else
-                throw std::runtime_error("");
+                throw std::runtime_error("Cooling propagator has to be used with the evrard-cooling builtin test-case "
+                                         "or a suitable init file");
         }
         cooling_data.init(0);
     }
@@ -113,7 +113,6 @@ public:
     {
         std::vector<std::string> ret{"x", "y", "z", "h", "m"};
         for_each_tuple([&ret](auto f) { ret.push_back(f.value); }, make_tuple(ConservedFields{}));
-        for_each_tuple([&ret](auto f) { ret.push_back(f.value); }, make_tuple(CoolingFields{}));
         return ret;
     }
 
@@ -136,22 +135,22 @@ public:
 
     void sync(DomainType& domain, DataType& simData) override
     {
+        using ChemRealType = typename DataType::ChemData::RealType;
+
         auto& d = simData.hydro;
         if (d.g != 0.0)
         {
-            std::cout << "sizes: " << get<"x">(d).size() << "\t" << get<"HI_fraction">(simData.chem).size()
-                      << std::endl;
             domain.syncGrav(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d), get<"m">(d),
-                            std::tuple_cat(get<ConservedFields>(d), get<CoolingFields>(simData.chem)),
-                            get<DependentFields>(d));
+                            get<ConservedFields>(d), get<DependentFields>(d));
         }
         else
         {
-            domain.sync(
-                get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
-                std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d), get<CoolingFields>(simData.chem)),
-                get<DependentFields>(d));
+            domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
+                        std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d));
         }
+
+        std::vector<ChemRealType> scratch1, scratch2;
+        domain.reapplySync(get<CoolingFields>(simData.chem), scratch1, scratch2, get<"nc">(d));
         d.treeView = domain.octreeProperties();
     }
 
@@ -167,7 +166,10 @@ public:
 
         computeDensity(first, last, d, domain.box());
         timer.step("Density");
+
+        transferToHost(d, first, last, {"rho", "u"});
         eos_cooling(first, last, d, simData.chem, cooling_data);
+        transferToDevice(d, first, last, {"p", "c"});
         timer.step("EquationOfState");
 
         domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
@@ -212,6 +214,7 @@ public:
         computeTimestep(first, last, d, minDtCooling);
         timer.step("Timestep");
 
+        transferToHost(d, first, last, {"du"});
 #pragma omp parallel for schedule(static)
         for (size_t i = first; i < last; i++)
         {
@@ -223,6 +226,7 @@ public:
             const T du = (u_cool - u_old) / d.minDt;
             d.du[i] += du;
         }
+        transferToDevice(d, first, last, {"du"});
         timer.step("GRACKLE chemistry and cooling");
 
         computePositions(first, last, d, domain.box());
