@@ -72,11 +72,10 @@ private:
 class ProfilingTimer : public Timer
 {
 public:
-    ProfilingTimer(std::ostream& out, int rank, bool isProfilingEnabled)
+    ProfilingTimer(std::ostream& out, int rank)
         : Timer(out)
         , rank(rank)
         , profiler(rank)
-        , isProfilingEnabled(isProfilingEnabled)
     {
     }
 
@@ -88,34 +87,23 @@ public:
 
     void step(const std::string& name)
     {
-        if (isProfilingEnabled)
-        {
-            profiler.saveFunctionTimings(stepDuration());
-            if (rank == 0)
-                Timer::step(name);
-            else
-                Timer::step();
-        }
-        else if (rank == 0)
+        profiler.saveFunctionTimings(stepDuration());
+        if (rank == 0)
             Timer::step(name);
+        else
+            Timer::step();
     }
 
     void stop()
     {
-        if (isProfilingEnabled)
-        {
-            Timer::stop();
-            profiler.saveTimestep(duration());
-        }
-        else
-            Timer::stop();
+        Timer::stop();
+        profiler.saveTimestep(duration());
     }
 
     void printProfilingInfo(size_t timesteps) { profiler.printProfilingInfoHDF5(timesteps); }
 
 private:
     int      rank;
-    bool     isProfilingEnabled;
     Profiler profiler;
 };
 

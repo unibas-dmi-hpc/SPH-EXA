@@ -83,8 +83,8 @@ protected:
         std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{}), decltype(DependentFields_{})>;
 
 public:
-    HydroVeProp(std::ostream& output, size_t rank, bool isProfilingEnabled)
-        : Base(output, rank, isProfilingEnabled)
+    HydroVeProp(std::ostream& output, size_t rank)
+        : Base(output, rank)
     {
         if (avClean && rank == 0) { std::cout << "AV cleaning is activated" << std::endl; }
     }

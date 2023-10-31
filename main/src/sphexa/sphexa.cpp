@@ -102,7 +102,7 @@ int main(int argc, char** argv)
     auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD);
     auto fileReader  = fileReaderFactory(ascii, MPI_COMM_WORLD);
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get());
-    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank, profilingEnabled);
+    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank);
     auto observables = observablesFactory<Dataset>(simInit->constants(), constantsFile);
 
     Dataset simData;
