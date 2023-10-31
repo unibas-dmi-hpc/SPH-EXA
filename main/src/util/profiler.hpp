@@ -63,14 +63,6 @@ class CrayPmtReader
 #endif
 
 public:
-    CrayPmtReader()
-    {
-        devType = CPU;
-#ifdef USE_PMT
-        sensor = pmt::cray::Cray::Create(devType);
-#endif
-    }
-
     CrayPmtReader(deviceType dt, int rank)
         : _rank(rank)
         , devType(dt)
