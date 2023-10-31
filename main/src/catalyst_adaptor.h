@@ -59,9 +59,9 @@ void Execute(DataType& d, long startIndex, long endIndex)
     // start with coordsets (of course, the sequence is not important, just make
     // it easier to think in this order).
     mesh["coordsets/coords/type"].set("explicit");
-    mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], endIndex - startIndex);
-    mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], endIndex - startIndex);
-    mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], endIndex - startIndex);
+    mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], endIndex - startIndex, 0, sizeof(double));
+    mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], endIndex - startIndex, 0, sizeof(double));
+    mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], endIndex - startIndex, 0, sizeof(double));
 
     // Next, add topology
     mesh["topologies/mesh/type"].set("unstructured");
@@ -78,7 +78,7 @@ void Execute(DataType& d, long startIndex, long endIndex)
     fields["Density/association"].set("vertex");
     fields["Density/topology"].set("mesh");
     fields["Density/volume_dependent"].set("false");
-    fields["Density/values"].set_external(&d.rho[startIndex], endIndex - startIndex); // zero-copy
+    fields["Density/values"].set_external(&d.rho[startIndex], endIndex - startIndex, 0, sizeof(double)); // zero-copy
     // vx is vertex-data.
     fields["vx/association"].set("vertex");
     fields["vx/topology"].set("mesh");
@@ -94,11 +94,18 @@ void Execute(DataType& d, long startIndex, long endIndex)
     fields["vz/topology"].set("mesh");
     fields["vz/volume_dependent"].set("false");
     fields["vz/values"].set_external(&d.vz[startIndex], endIndex - startIndex); // zero-copy
+    // rank is vertex-data.
+    fields["rank/association"].set("vertex");
+    fields["rank/topology"].set("mesh");
+    fields["rank/volume_dependent"].set("false");
+    fields["rank/values"].set_external(&d.vz[startIndex], endIndex - startIndex); // zero-copy
     // u is vertex-data.
-    fields["Internal Energy/association"].set("vertex");
-    fields["Internal Energy/topology"].set("mesh");
-    fields["Internal Energy/volume_dependent"].set("false");
-    fields["Internal Energy/values"].set_external(&d.u[startIndex], endIndex - startIndex); // zero-copy
+    // u is not initialized properly and cannot be transferred to Catalyst yet.
+    // TODO: look for the initial condition that can initialize u.
+    // fields["Internal Energy/association"].set("vertex");
+    // fields["Internal Energy/topology"].set("mesh");
+    // fields["Internal Energy/volume_dependent"].set("false");
+    // fields["Internal Energy/values"].set_external(&d.u[startIndex], endIndex - startIndex); // zero-copy
     // p is vertex-data.
     fields["Pressure/association"].set("vertex");
     fields["Pressure/topology"].set("mesh");

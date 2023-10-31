@@ -75,8 +75,8 @@ class NbodyProp final : public Propagator<DomainType, DataType>
     using DependentFields = FieldList<"ax", "ay", "du", "du_m1", "az">;
 
 public:
-    NbodyProp(std::ostream& output, size_t rank)
-        : Base(output, rank)
+    NbodyProp(std::ostream& output, size_t rank, size_t numRanks)
+        : Base(output, rank, numRanks)
     {
     }
 

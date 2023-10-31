@@ -78,8 +78,8 @@ class HydroGrackleProp final : public HydroProp<DomainType, DataType>
     using CoolingFields = typename util::MakeFieldList<ChemData>::Fields;
 
 public:
-    HydroGrackleProp(std::ostream& output, size_t rank)
-        : Base(output, rank)
+    HydroGrackleProp(std::ostream& output, size_t rank, size_t numRanks)
+        : Base(output, rank, numRanks)
     {
     }
 

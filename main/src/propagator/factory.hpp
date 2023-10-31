@@ -50,26 +50,27 @@ namespace sphexa
 
 template<class DomainType, class ParticleDataType>
 std::unique_ptr<Propagator<DomainType, ParticleDataType>> propagatorFactory(const std::string& choice, bool avClean,
-                                                                            std::ostream& output, size_t rank)
+                                                                            std::ostream& output, size_t rank,
+                                                                            size_t numRanks)
 {
     if (choice == "ve")
     {
-        if (avClean) { return std::make_unique<HydroVeProp<true, DomainType, ParticleDataType>>(output, rank); }
-        else { return std::make_unique<HydroVeProp<false, DomainType, ParticleDataType>>(output, rank); }
+        if (avClean) { return std::make_unique<HydroVeProp<true, DomainType, ParticleDataType>>(output, rank, numRanks); }
+        else { return std::make_unique<HydroVeProp<false, DomainType, ParticleDataType>>(output, rank, numRanks); }
     }
-    if (choice == "std") { return std::make_unique<HydroProp<DomainType, ParticleDataType>>(output, rank); }
+    if (choice == "std") { return std::make_unique<HydroProp<DomainType, ParticleDataType>>(output, rank, numRanks); }
 #ifdef SPH_EXA_HAVE_GRACKLE
     if (choice == "std-cooling")
     {
-        return std::make_unique<HydroGrackleProp<DomainType, ParticleDataType>>(output, rank);
+        return std::make_unique<HydroGrackleProp<DomainType, ParticleDataType>>(output, rank, numRanks);
     }
 #endif
-    if (choice == "nbody") { return std::make_unique<NbodyProp<DomainType, ParticleDataType>>(output, rank); }
+    if (choice == "nbody") { return std::make_unique<NbodyProp<DomainType, ParticleDataType>>(output, rank, numRanks); }
     if (choice == "turbulence")
     {
 #ifdef SPH_EXA_HAVE_H5PART
-        if (avClean) { return std::make_unique<TurbVeProp<true, DomainType, ParticleDataType>>(output, rank); }
-        else { return std::make_unique<TurbVeProp<false, DomainType, ParticleDataType>>(output, rank); }
+        if (avClean) { return std::make_unique<TurbVeProp<true, DomainType, ParticleDataType>>(output, rank, numRanks); }
+        else { return std::make_unique<TurbVeProp<false, DomainType, ParticleDataType>>(output, rank, numRanks); }
 #else
         throw std::runtime_error("turbulence propagator only available with HDF5 support enabled");
 #endif

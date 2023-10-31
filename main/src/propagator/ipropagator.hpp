@@ -46,10 +46,11 @@ class Propagator
     using T = typename ParticleDataType::RealType;
 
 public:
-    Propagator(std::ostream& output, size_t rank)
+    Propagator(std::ostream& output, size_t rank, size_t numRanks)
         : timer(output, rank)
         , out(output)
         , rank_(rank)
+        , numRanks_(numRanks)
     {
     }
 
@@ -97,11 +98,15 @@ public:
             printTotalIterationTime(d.iteration, timer.duration());
         }
     }
+    float getTotalIterationTime() { return timer.duration(); }
+    size_t getNumRanks() {return numRanks_; }
 
 protected:
     MasterProcessTimer timer;
     std::ostream&      out;
     size_t             rank_;
+    size_t             numRanks_;
+    std::vector<float> times_;
 
     void printTotalIterationTime(size_t iteration, float duration)
     {

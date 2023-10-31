@@ -101,7 +101,7 @@ int main(int argc, char** argv)
     auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD);
     auto fileReader  = fileReaderFactory(ascii, MPI_COMM_WORLD);
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get());
-    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank);
+    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank, numRanks);
     auto observables = observablesFactory<Dataset>(simInit->constants(), constantsFile);
 
     Dataset simData;
@@ -165,7 +165,7 @@ int main(int argc, char** argv)
             fileWriter->closeStep();
         }
 
-        viz::execute(d, domain.startIndex(), domain.endIndex());
+        viz::execute(d, propagator, domain.startIndex(), domain.endIndex(), rank);
         if (isWallClockReached)
         {
             d.iteration++;

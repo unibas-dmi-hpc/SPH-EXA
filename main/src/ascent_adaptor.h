@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sph/particles_data.hpp"
+#include "propagator/ipropagator.hpp"
 
 #include <ascent/ascent.hpp>
 #include "conduit_blueprint.hpp"
@@ -103,41 +104,80 @@ void addField(conduit::Node& mesh, const std::string& name, FieldType* field, si
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
 
-template<class DataType>
-void Execute(DataType& d, long startIndex, long endIndex)
+/*! @brief Add a volume-independent vertex field to a mesh
+ *
+ * @tparam       FieldType  and elementary type like float, double, int, ...
+ * @param[inout] mesh       the mesh to add the field to
+ * @param[in]    name       the name of the field to use within the mesh
+ * @param[in]    field      An rvalue to publish to the mesh. NOT zero-copy!
+ */
+template<class FieldType>
+void addRankBenchmarkField(conduit::Node& mesh, const std::string& name, FieldType field)
+{
+    mesh["fields/" + name + "/association"] = "vertex";
+    mesh["fields/" + name + "/topology"]    = "ranks";
+    mesh["fields/" + name + "/values"] = field;
+    mesh["fields/" + name + "/volume_dependent"].set("false");
+}
+
+template<class DataType, class DomainType, class ParticleDataType>
+void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, ParticleDataType>>& p, long startIndex,
+             long endIndex, size_t rank)
 {
     conduit::Node mesh;
     mesh["state/cycle"].set_external(&d.iteration);
     mesh["state/time"].set_external(&d.ttot);
+    mesh["state/domain_id"] = rank;
 
     mesh["coordsets/coords/type"] = "explicit";
     mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], endIndex - startIndex);
     mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], endIndex - startIndex);
     mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], endIndex - startIndex);
 
-    mesh["topologies/mesh/type"]     = "unstructured";
-    mesh["topologies/mesh/coordset"] = "coords";
+    mesh["topologies/mesh/type"]           = "unstructured";
+    mesh["topologies/mesh/coordset"]       = "coords";
+    mesh["topologies/mesh/elements/shape"] = "point";
+    std::vector<conduit_int32> conn(endIndex - startIndex);
+    std::iota(std::begin(conn), std::end(conn), 0);
+    mesh["topologies/mesh/elements/connectivity"].set_external(conn);
+    std::vector<conduit_int64> ranks(endIndex - startIndex, rank);
+    addField(mesh, "ranks", ranks.data(), 0, endIndex - startIndex);
 
     addField(mesh, "x", d.x.data(), startIndex, endIndex);
-    addField(mesh, "y", d.y.data(), startIndex, endIndex);
-    addField(mesh, "z", d.z.data(), startIndex, endIndex);
+    // addField(mesh, "z", d.z.data(), startIndex, endIndex);
     addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
-    addField(mesh, "vy", d.vy.data(), startIndex, endIndex);
-    addField(mesh, "vz", d.vz.data(), startIndex, endIndex);
-    addField(mesh, "Mass", d.m.data(), startIndex, endIndex);
-    addField(mesh, "Smoothing Length", d.h.data(), startIndex, endIndex);
-    addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
-    addField(mesh, "Internal Energy", d.u.data(), startIndex, endIndex);
-    addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
-    addField(mesh, "Speed of Sound", d.c.data(), startIndex, endIndex);
-    addField(mesh, "ax", d.ax.data(), startIndex, endIndex);
-    addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
-    addField(mesh, "ax", d.az.data(), startIndex, endIndex);
+    // addField(mesh, "vy", d.vy.data(), startIndex, endIndex);
+    // addField(mesh, "vz", d.vz.data(), startIndex, endIndex);
+    // addField(mesh, "Mass", d.m.data(), startIndex, endIndex);
+    // addField(mesh, "Smoothing Length", d.h.data(), startIndex, endIndex);
+    // addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
+    // for (int i=startIndex; i<endIndex; i++) {
+    //     std::cout<<d.rho[i]<<",";
+    // }
+    // std::cout<<std::endl;
+    // addField(mesh, "Internal Energy", d.u.data(), startIndex, endIndex);
+    // addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
+    // addField(mesh, "Speed of Sound", d.c.data(), startIndex, endIndex);
+    // addField(mesh, "ax", d.ax.data(), startIndex, endIndex);
+    // addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
+    // addField(mesh, "ax", d.az.data(), startIndex, endIndex);
 
-    std::vector<conduit_int64> conn(endIndex - startIndex);
-    std::iota(conn.begin(), conn.end(), 0);
-    mesh["topologies/mesh/elements/connectivity"].set_external(conn);
-    mesh["topologies/mesh/elements/shape"] = "point";
+    // Set up another sub-mesh for rank-specific data export
+    // Since usually the benchmark value is unique for each rank
+    // there's only one coordinate possible
+    size_t numRanks = p->getNumRanks();
+    mesh["coordsets/rank_coords/type"] = "explicit";
+    mesh["coordsets/rank_coords/values/x"].set_external(&d.x[0], 1);
+    mesh["coordsets/rank_coords/values/y"].set_external(&d.y[0], 1);
+
+    // Set up topology
+    mesh["topologies/ranks/type"]           = "unstructured";
+    mesh["topologies/ranks/coordset"]       = "rank_coords";
+    mesh["topologies/ranks/elements/shape"] = "point";
+    mesh["topologies/ranks/elements/connectivity"].set_external(&rank, 1);
+
+    // Execution time for 1 iteration in current rank. Differs upon ranks
+    addRankBenchmarkField(mesh, "rank_time", p->getTotalIterationTime());
 
     conduit::Node verify_info;
     if (!conduit::blueprint::mesh::verify(mesh, verify_info))
