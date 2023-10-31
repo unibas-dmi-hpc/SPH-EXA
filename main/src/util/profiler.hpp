@@ -68,7 +68,7 @@ public:
     {
         devType = CPU;
 #ifdef USE_PMT
-        sensor = pmt::cray::Cray::create(devType);
+        sensor = pmt::cray::Cray::Create(devType);
 #endif
     }
 
@@ -80,17 +80,17 @@ public:
         if (devType == GPU)
         {
             int gpu_id = _rank % NUM_GPUS_PER_NODE;
-            sensor     = pmt::cray::Cray::create(gpu_id); // Change for reading
+            sensor     = pmt::cray::Cray::Create(gpu_id); // Change for reading
         }
         else
-            sensor = pmt::cray::Cray::create(devType);
+            sensor = pmt::cray::Cray::Create(devType);
 #endif
     }
 
     void startReader()
     {
 #ifdef USE_PMT
-        pmt_start = pmt_end = sensor->read();
+        pmt_start = pmt_end = sensor->Read();
 #endif
     }
 
@@ -98,9 +98,9 @@ public:
     {
         float energy = 0.0;
 #ifdef USE_PMT
-        pmt_end   = sensor->read();
+        pmt_end   = sensor->Read();
         energy    = sensor->joules(pmt_start, pmt_end);
-        pmt_start = sensor->read();
+        pmt_start = sensor->Read();
 #endif
         funcEnergies.push_back(energy);
     }
