@@ -75,7 +75,7 @@ public:
     virtual void load(const std::string& path, IFileReader*){};
 
     //! @brief print timing info and calculated metrics
-    void printProfilingInfo() { timer.printProfilingInfo(); };
+    void printProfilingInfo(size_t timesteps) { timer.printProfilingInfo(timesteps); };
 
     //! @brief gather timing info in rank 0 for writing to file
     void gatherProfilingInfo() { timer.gatherProfilingInfo(); };

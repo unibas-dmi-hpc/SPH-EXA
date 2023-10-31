@@ -89,6 +89,7 @@ int main(int argc, char** argv)
     const bool               ascii             = parser.exists("--ascii");
     const bool               quiet             = parser.exists("--quiet");
     const bool               avClean           = parser.exists("--avclean");
+    const bool               profilingEnabled  = parser.exists("--profiling");
     const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
     const bool               writeEnabled      = writeFrequencyStr != "0" || !writeExtra.empty();
     std::string              outFile           = parser.get("-o", "dump_" + removeModifiers(initCond));
@@ -101,7 +102,7 @@ int main(int argc, char** argv)
     auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD);
     auto fileReader  = fileReaderFactory(ascii, MPI_COMM_WORLD);
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get());
-    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank);
+    auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank, profilingEnabled);
     auto observables = observablesFactory<Dataset>(simInit->constants(), constantsFile);
 
     Dataset simData;
@@ -178,7 +179,7 @@ int main(int argc, char** argv)
     {
         totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
                         initCond + " up to t = " + std::to_string(d.ttot));
-        if (profilingEnabled) propagator->printProfilingInfo();
+        if (profilingEnabled) propagator->printProfilingInfo(d.iteration - startIteration);
     }
 
     constantsFile.close();

@@ -129,7 +129,7 @@ public:
             Timer::stop();
     }
 
-    void printProfilingInfo() { profiler.printProfilingInfo(); }
+    void printProfilingInfo(size_t timesteps) { profiler.printProfilingInfoHDF5(timesteps); }
 
     void gatherProfilingInfo()
     {
