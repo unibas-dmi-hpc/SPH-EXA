@@ -69,24 +69,6 @@ private:
     TimePoint     tstart, tstop, tlast;
 };
 
-class MasterProcessTimer : public Timer
-{
-public:
-    MasterProcessTimer(std::ostream& out, int rank)
-        : Timer(out)
-        , rank(rank)
-    {
-    }
-
-    void step(const std::string& name)
-    {
-        if (rank == 0) Timer::step(name);
-    }
-
-private:
-    int rank;
-};
-
 class ProfilingTimer : public Timer
 {
 public:

@@ -173,12 +173,13 @@ int main(int argc, char** argv)
             break;
         }
     }
+    // Print per function time and energy measurements
+    if (profilingEnabled) propagator->printProfilingInfo(d.iteration - startIteration);
 
     if (rank == 0)
     {
         totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
                         initCond + " up to t = " + std::to_string(d.ttot));
-        if (profilingEnabled) propagator->printProfilingInfo(d.iteration - startIteration);
     }
 
     constantsFile.close();
