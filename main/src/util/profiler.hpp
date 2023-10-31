@@ -54,10 +54,9 @@ enum deviceType
 
 class CrayPmtReader
 {
-    deviceType          devType;
-    int                 _rank;
-    std::vector<float>  funcEnergies; // energy measurements for each rank
-    std::vector<float*> energies;     // vector of energy measurements for each rank
+    deviceType         devType;
+    int                _rank;
+    std::vector<float> funcEnergies; // energy measurements for each rank
 #ifdef USE_PMT
     std::unique_ptr<pmt::PMT> sensor;
     pmt::State                pmt_start, pmt_end;
@@ -119,7 +118,6 @@ public:
 class Profiler
 {
 private:
-    std::vector<float*>        timeSteps; // vector of timesteps for all ranks
     std::vector<float>         funcTimes; // vector of timesteps for each rank
     int                        _numRanks;
     int                        _rank;
