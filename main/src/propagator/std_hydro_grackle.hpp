@@ -233,8 +233,6 @@ public:
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");
-
-        timer.stop();
     }
 };
 

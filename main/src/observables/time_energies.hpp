@@ -40,16 +40,16 @@ namespace sphexa
 template<class Dataset>
 class TimeAndEnergy : public IObservables<Dataset>
 {
-    std::ofstream& constantsFile;
+    std::ostream& constantsFile;
     using T = typename Dataset::RealType;
 
 public:
-    explicit TimeAndEnergy(std::ofstream& constPath)
+    explicit TimeAndEnergy(std::ostream& constPath)
         : constantsFile(constPath)
     {
     }
 
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& /*box*/) override
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& /*box*/) override
     {
         int rank;
         MPI_Comm_rank(simData.comm, &rank);

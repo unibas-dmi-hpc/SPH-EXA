@@ -21,7 +21,7 @@ bool strIsIntegral(const std::string& str)
 class ArgParser
 {
 public:
-    ArgParser(int argc, char** argv)
+    ArgParser(int argc, const char** argv)
         : begin(argv)
         , end(argv + argc)
     {
@@ -31,8 +31,8 @@ public:
     template<class T = std::string>
     T get(const std::string& option, T def = T{}) const
     {
-        char** itr = std::find(begin, end, option);
-        if (itr != end && ++itr != end)
+        auto itr = std::find(begin, end, option);
+        if (itr != end && ++itr != end && **itr != '-')
         {
             if constexpr (std::is_arithmetic_v<T>)
             {
@@ -64,7 +64,8 @@ public:
     bool exists(const std::string& option) const { return std::find(begin, end, option) != end; }
 
 private:
-    char **begin, **end;
+    const char** begin;
+    const char** end;
 };
 
 /*! @brief Evaluate whether the current step and simulation time should be output (to file)
@@ -95,7 +96,7 @@ bool isExtraOutputStep(size_t step, double t1, double t2, const std::vector<std:
  * @param frequencyStr  frequency time to output the simulation as string
  * @return              true if the interval [t1, t2] contains an integer multiple of the output frequency
  */
-bool isPeriodicOutputTime(double t1, double t2, const std::string& frequencyStr)
+bool isOutputTime(double t1, double t2, const std::string& frequencyStr)
 {
     double frequency = std::stod(frequencyStr);
     if (strIsIntegral(frequencyStr) || frequency == 0.0) { return false; }
@@ -110,7 +111,7 @@ bool isPeriodicOutputTime(double t1, double t2, const std::string& frequencyStr)
  * @param frequencyStr  iteration frequency to output the simulation as string
  * @return              true if the step is an integral multiple of the output frequency
  */
-bool isPeriodicOutputStep(size_t step, const std::string& frequencyStr)
+bool isOutputStep(size_t step, const std::string& frequencyStr)
 {
     int frequency = std::stoi(frequencyStr);
     return strIsIntegral(frequencyStr) && frequency != 0 && (step % frequency == 0);
