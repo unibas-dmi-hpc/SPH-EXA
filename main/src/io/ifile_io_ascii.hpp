@@ -53,9 +53,11 @@ public:
         : comm_(comm)
     {
         MPI_Comm_rank(comm, &rank_);
+        MPI_Comm_size(comm, &numRanks_);
     }
 
     [[nodiscard]] int rank() const override { return rank_; }
+    [[nodiscard]] int numRanks() const override { return numRanks_; }
 
     std::string suffix() const override { return ""; }
 
@@ -129,13 +131,13 @@ public:
     }
 
 private:
-    int                            rank_{0};
+    int                            rank_{0}, numRanks_{0};
     MPI_Comm                       comm_;
     int64_t                        firstIndexStep_{0}, lastIndexStep_{0};
     std::string                    pathStep_;
     std::vector<int>               columns_;
     std::vector<Base::FieldVector> stepBuffer_;
-    uint64_t                       iterationStep_;
+    uint64_t                       iterationStep_{0};
 };
 
 } // namespace sphexa

@@ -41,7 +41,7 @@ class IObservables
 {
 public:
     virtual void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex,
-                                 cstone::Box<typename Dataset::RealType>& box){/* no-op */};
+                                 const cstone::Box<typename Dataset::RealType>& box){/* no-op */};
 
     virtual ~IObservables() = default;
 };

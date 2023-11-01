@@ -30,12 +30,19 @@
  */
 
 #include <iostream>
-
 #include "gtest/gtest.h"
-
 #include "io/arg_parser.hpp"
 
 using namespace sphexa;
+
+TEST(IO, parseCommaListEmpy)
+{
+    constexpr int            argc       = 3;
+    const char*              argv[argc] = {"-f", "-w", "1"};
+    ArgParser                parser(argc, argv);
+    std::vector<std::string> ref;
+    EXPECT_EQ(parser.getCommaList("-f"), ref);
+}
 
 TEST(IO, strIsIntegral)
 {
@@ -61,20 +68,20 @@ TEST(IO, isExtraOutputStep)
     EXPECT_FALSE(isExtraOutputStep(6, 5.19, 6.0, writeExtra));
 }
 
-TEST(IO, isPeriodicOutputTime)
+TEST(IO, isOutputTime)
 {
-    EXPECT_FALSE(isPeriodicOutputTime(9.9, 10.1, "2"));
-    EXPECT_TRUE(isPeriodicOutputTime(9.9, 10.1, "2.0"));
-    EXPECT_FALSE(isPeriodicOutputTime(10.01, 10.1, "2.0"));
+    EXPECT_FALSE(isOutputTime(9.9, 10.1, "2"));
+    EXPECT_TRUE(isOutputTime(9.9, 10.1, "2.0"));
+    EXPECT_FALSE(isOutputTime(10.01, 10.1, "2.0"));
 }
 
-TEST(IO, isPeriodicOutputStep)
+TEST(IO, isOutputStep)
 {
-    EXPECT_FALSE(isPeriodicOutputStep(42, "-1"));
-    EXPECT_FALSE(isPeriodicOutputStep(42, "0"));
-    EXPECT_TRUE(isPeriodicOutputStep(42, "42"));
-    EXPECT_TRUE(isPeriodicOutputStep(84, "42"));
-    EXPECT_FALSE(isPeriodicOutputStep(42, "42.0"));
+    EXPECT_FALSE(isOutputStep(42, "-1"));
+    EXPECT_FALSE(isOutputStep(42, "0"));
+    EXPECT_TRUE(isOutputStep(42, "42"));
+    EXPECT_TRUE(isOutputStep(84, "42"));
+    EXPECT_FALSE(isOutputStep(42, "42.0"));
 }
 
 TEST(IO, numberAfterSign)

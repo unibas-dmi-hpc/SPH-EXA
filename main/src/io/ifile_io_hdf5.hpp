@@ -56,11 +56,13 @@ public:
         : comm_(comm)
     {
         MPI_Comm_rank(comm, &rank_);
+        MPI_Comm_size(comm, &numRanks_);
     }
 
     ~H5PartWriter() override { closeStep(); }
 
     [[nodiscard]] int rank() const override { return rank_; }
+    [[nodiscard]] int numRanks() const override { return numRanks_; }
 
     std::string suffix() const override { return ".h5"; }
 
@@ -115,7 +117,7 @@ public:
     }
 
 private:
-    int      rank_{0};
+    int      rank_{0}, numRanks_{0};
     MPI_Comm comm_;
 
     size_t      firstIndex_{0};
