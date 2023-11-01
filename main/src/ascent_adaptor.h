@@ -134,6 +134,10 @@ void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, Particl
     mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], endIndex - startIndex);
     mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], endIndex - startIndex);
 
+    /* ===================================================== */
+    // Create a grid mesh for contour calculation
+    /* ===================================================== */
+
     mesh["topologies/mesh/type"]           = "unstructured";
     mesh["topologies/mesh/coordset"]       = "coords";
     mesh["topologies/mesh/elements/shape"] = "point";
@@ -144,17 +148,14 @@ void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, Particl
     addField(mesh, "ranks", ranks.data(), 0, endIndex - startIndex);
 
     addField(mesh, "x", d.x.data(), startIndex, endIndex);
+    addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
     // addField(mesh, "z", d.z.data(), startIndex, endIndex);
-    addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
+    // addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
     // addField(mesh, "vy", d.vy.data(), startIndex, endIndex);
     // addField(mesh, "vz", d.vz.data(), startIndex, endIndex);
     // addField(mesh, "Mass", d.m.data(), startIndex, endIndex);
     // addField(mesh, "Smoothing Length", d.h.data(), startIndex, endIndex);
-    // addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
-    // for (int i=startIndex; i<endIndex; i++) {
-    //     std::cout<<d.rho[i]<<",";
-    // }
-    // std::cout<<std::endl;
+
     // addField(mesh, "Internal Energy", d.u.data(), startIndex, endIndex);
     // addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
     // addField(mesh, "Speed of Sound", d.c.data(), startIndex, endIndex);
@@ -162,6 +163,7 @@ void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, Particl
     // addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
     // addField(mesh, "ax", d.az.data(), startIndex, endIndex);
 
+    /* ===================================================== */
     // Set up another sub-mesh for rank-specific data export
     // Since usually the benchmark value is unique for each rank
     // there's only one coordinate possible
@@ -175,6 +177,7 @@ void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, Particl
     mesh["topologies/ranks/coordset"]       = "rank_coords";
     mesh["topologies/ranks/elements/shape"] = "point";
     mesh["topologies/ranks/elements/connectivity"].set_external(&rank, 1);
+    /* ===================================================== */
 
     // Execution time for 1 iteration in current rank. Differs upon ranks
     addRankBenchmarkField(mesh, "rank_time", p->getTotalIterationTime());

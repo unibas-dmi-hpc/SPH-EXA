@@ -1,0 +1,43 @@
+
+last_known_time: 0.00175311670611
+cycle() % 1 == 0: 
+  1: 
+    value: 1
+    type: "bool"
+    time: 0.00011
+  2: 
+    value: 1
+    type: "bool"
+    time: 0.000231
+  3: 
+    value: 1
+    type: "bool"
+    time: 0.0003641
+  4: 
+    value: 1
+    type: "bool"
+    time: 0.00051051
+  5: 
+    value: 1
+    type: "bool"
+    time: 0.000671561
+  6: 
+    value: 1
+    type: "bool"
+    time: 0.0008487171
+  7: 
+    value: 1
+    type: "bool"
+    time: 0.00104358881
+  8: 
+    value: 1
+    type: "bool"
+    time: 0.001257947691
+  9: 
+    value: 1
+    type: "bool"
+    time: 0.0014937424601
+  10: 
+    value: 1
+    type: "bool"
+    time: 0.00175311670611
