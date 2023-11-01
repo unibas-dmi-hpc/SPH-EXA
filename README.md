@@ -63,10 +63,9 @@ SPH-EXA
 ```
 #### Toolchain requirements
 
-The C++ (.cpp) part of the code requires a **C++20 compiler**, at least GCC 10, clang 12 or cray-clang 14.
+The C++ (.cpp) part of the code requires a **C++20 compiler**, at least GCC 11, clang 12 or cray-clang 14.
 For CUDA (.cu), the minimum supported CUDA version is **CUDA 11.2** with a C++17 host compiler, e.g. GCC 9.3.0.
 
-Note that GCC 10.3.0 does not work as CUDA host compiler due to known compiler bugs.
 For ease of use, the recommended minimum version of CUDA is 11.4.1 which supports GCC 11, providing both the required
 C++20 support and bug-free CUDA host compilation. [**NOTE:** CUDA/11.3.1 seems to have solved the compatibility issues with GCC 10.3.0]
 
@@ -80,9 +79,9 @@ cmake <GIT_SOURCE_DIR>
 ```
 Compilation at sciCORE (UniBas):
 ```shell
-ml HDF5/1.10.7-gompi-2021a
-ml CMake/3.23.1-GCCcore-10.3.0
-ml CUDA/11.3.1
+ml HDF5/1.14.2-gompi-2022a-zen2
+ml CMake/3.23.1-GCCcore-11.3.0
+ml CUDA/11.8.0
 
 mkdir build
 cd build
