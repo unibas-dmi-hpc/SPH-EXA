@@ -41,16 +41,14 @@
 #ifdef SPH_EXA_HAVE_GRACKLE
 #include "std_hydro_grackle.hpp"
 #endif
-#ifdef SPH_EXA_HAVE_H5PART
 #include "turb_ve.hpp"
-#endif
 
 namespace sphexa
 {
 
 template<class DomainType, class ParticleDataType>
-std::unique_ptr<Propagator<DomainType, ParticleDataType>> propagatorFactory(const std::string& choice, bool avClean,
-                                                                            std::ostream& output, size_t rank)
+std::unique_ptr<Propagator<DomainType, ParticleDataType>>
+propagatorFactory(const std::string& choice, bool avClean, std::ostream& output, size_t rank, const InitSettings& s)
 {
     if (choice == "ve")
     {
@@ -67,12 +65,8 @@ std::unique_ptr<Propagator<DomainType, ParticleDataType>> propagatorFactory(cons
     if (choice == "nbody") { return std::make_unique<NbodyProp<DomainType, ParticleDataType>>(output, rank); }
     if (choice == "turbulence")
     {
-#ifdef SPH_EXA_HAVE_H5PART
-        if (avClean) { return std::make_unique<TurbVeProp<true, DomainType, ParticleDataType>>(output, rank); }
-        else { return std::make_unique<TurbVeProp<false, DomainType, ParticleDataType>>(output, rank); }
-#else
-        throw std::runtime_error("turbulence propagator only available with HDF5 support enabled");
-#endif
+        if (avClean) { return std::make_unique<TurbVeProp<true, DomainType, ParticleDataType>>(output, rank, s); }
+        else { return std::make_unique<TurbVeProp<false, DomainType, ParticleDataType>>(output, rank, s); }
     }
 
     throw std::runtime_error("Unknown propagator choice: " + choice);

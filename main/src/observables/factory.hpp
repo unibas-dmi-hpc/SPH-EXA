@@ -49,7 +49,7 @@ namespace sphexa
 {
 
 template<class Dataset>
-std::unique_ptr<IObservables<Dataset>> observablesFactory(const InitSettings& settings, std::ofstream& constantsFile)
+std::unique_ptr<IObservables<Dataset>> observablesFactory(const InitSettings& settings, std::ostream& constantsFile)
 {
     if (settings.count("observeGravWaves"))
     {

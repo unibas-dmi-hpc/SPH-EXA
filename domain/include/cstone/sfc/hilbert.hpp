@@ -116,8 +116,7 @@ iHilbert(unsigned px, unsigned py, unsigned pz) noexcept
  */
 
 template<class KeyType>
-constexpr HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert2D(unsigned px,
-                                                                                                   unsigned py) noexcept
+HOST_DEVICE_FUN std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert2D(unsigned px, unsigned py) noexcept
 {
     assert(px < (1u << maxTreeLevel<KeyType>{}));
     assert(py < (1u << maxTreeLevel<KeyType>{}));

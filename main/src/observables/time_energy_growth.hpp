@@ -113,17 +113,17 @@ T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const csto
 template<class Dataset>
 class TimeEnergyGrowth : public IObservables<Dataset>
 {
-    std::ofstream& constantsFile;
+    std::ostream& constantsFile;
 
 public:
-    TimeEnergyGrowth(std::ofstream& constPath)
+    TimeEnergyGrowth(std::ostream& constPath)
         : constantsFile(constPath)
     {
     }
 
     using T = typename Dataset::RealType;
 
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& box)
     {
         auto& d = simData.hydro;
         computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);

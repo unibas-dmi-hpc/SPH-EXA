@@ -181,8 +181,6 @@ public:
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");
-
-        timer.stop();
     }
 
     void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
