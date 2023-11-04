@@ -116,7 +116,7 @@ public:
         std::vector<T> xBlock, yBlock, zBlock;
         fileutils::readTemplateBlock(glassBlock, d.x, d.y, d.z);
 
-        cstone::Box<T> globalBox(0, 1, 0, 0.2, 0, 0.25, fbc, pbc, pbc);
+        cstone::Box<T> globalBox(0, 1, 0, 0.125, 0, 0.125, fbc, pbc, pbc);
 
         d.numParticlesGlobal = d.x.size();
         syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
