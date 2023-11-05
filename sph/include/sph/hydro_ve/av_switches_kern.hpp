@@ -35,8 +35,7 @@
 #include "cstone/sfc/box.hpp"
 
 #include "sph/kernels.hpp"
-#include "sph/math.hpp"
-#include "sph/tables.hpp"
+#include "sph/table_lookup.hpp"
 
 namespace sph
 {

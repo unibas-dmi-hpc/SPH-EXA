@@ -106,9 +106,8 @@ sph:test:cuda:1:
     - /usr/local/sbin/coord_samples/coordinate_test
     - /usr/local/sbin/performance/scan_perf
     - /usr/local/sbin/coord_samples/coordinate_test
-    - /usr/local/sbin/hydro/kernel_tests_ve
+    - /usr/local/sbin/hydro/sph_tests
     - /usr/local/sbin/hydro/turbulence_tests  
-    - /usr/local/sbin/hydro/kernel_tests_std
     - /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests
     - /usr/local/sbin/unit/component_units
     - /usr/local/sbin/unit/component_units_omp

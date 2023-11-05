@@ -33,24 +33,33 @@
 
 #include "gtest/gtest.h"
 
+#include "sph/hydro_std/density_kern.hpp"
+#include "sph/hydro_std/iad_kern.hpp"
 #include "sph/hydro_std/momentum_energy_kern.hpp"
-#include "sph/tables.hpp"
+#include "sph/sph_kernel_tables.hpp"
+#include "sph/table_lookup.hpp"
 
 using namespace sph;
 
-TEST(MomentumEnergy, JLoop)
+class SphKernelTestsStd : public testing::Test
 {
+protected:
     using T = double;
 
-    T sincIndex = 6.0;
-    T K         = compute_3d_k(sincIndex);
+    void SetUp() override
+    {
+        wh  = tabulateFunction<T, lt::kTableSize>(getSphKernel(kernelType, sincIndex), 0.0, 2.0);
+        whd = tabulateFunction<T, lt::kTableSize>(getSphKernelDerivative(kernelType, sincIndex), 0.0, 2.0);
+    }
 
-    std::array<double, lt::size> wh  = lt::createWharmonicTable<double, lt::size>(sincIndex);
-    std::array<double, lt::size> whd = lt::createWharmonicDerivativeTable<double, lt::size>(sincIndex);
+    static auto box() { return cstone::Box<T>(0, 6, cstone::BoundaryType::open); }
 
-    cstone::Box<T> box(0, 6, cstone::BoundaryType::open);
+    std::array<T, lt::kTableSize> wh{0}, whd{0};
 
-    // particle 0 has 4 neighbors
+    SphKernelType kernelType = SphKernelType::sinc_n;
+    T             sincIndex  = 6.0;
+    T             K          = sphynx_3D_k(sincIndex);
+
     std::vector<cstone::LocalIndex> neighbors{1, 2, 3, 4};
     unsigned                        neighborsCount = 4;
 
@@ -58,7 +67,7 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
     std::vector<T> z{1.2, 2.3, 1.4, 1.5, 1.6};
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
-    std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
+    std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
     std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
 
     std::vector<T> vx{0.010, -0.020, 0.030, -0.040, 0.050};
@@ -75,6 +84,9 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> c23{-0.25, -0.33, -0.14, -0.41, -0.50};
     std::vector<T> c33{0.26, 0.34, 0.15, 0.40, 0.51};
 
+    std::vector<T> xm{m[0] / 0.014, m[1] / 0.015, m[2] / 0.016, m[3] / 0.017, m[4] / 0.018};
+    std::vector<T> kx{1.01, 1.02, 1.03, 0.99, 0.98};
+
     /* distances of particle zero to particle j
      *
      * j = 1   1.10905
@@ -82,23 +94,43 @@ TEST(MomentumEnergy, JLoop)
      * j = 3   3.32716
      * j = 4   4.63465
      */
+};
 
-    // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
-    T du         = -1;
-    T grad_Px    = -1;
-    T grad_Py    = -1;
-    T grad_Pz    = -1;
-    T maxvsignal = -1;
+TEST_F(SphKernelTestsStd, Density)
+{
+    T rho = densityJLoop(0, K, box(), neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(),
+                         m.data(), wh.data(), whd.data());
 
-    // compute gradient for for particle 0
-    momentumAndEnergyJLoop(0, K, box, neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(),
+    EXPECT_NEAR(rho, 0.022492200847107912, 1e-10);
+}
+
+TEST_F(SphKernelTestsStd, IAD)
+{
+    std::vector<T> iad(6, -1);
+
+    IADJLoopSTD(0, K, box(), neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), h.data(), m.data(),
+                rho.data(), wh.data(), whd.data(), &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
+
+    EXPECT_NEAR(iad[0], 0.68826690779384281, 1e-8);
+    EXPECT_NEAR(iad[1], -0.12963692768970825, 1e-8);
+    EXPECT_NEAR(iad[2], -0.20435302538490346, 1e-8);
+    EXPECT_NEAR(iad[3], 0.39616100688793993, 1e-8);
+    EXPECT_NEAR(iad[4], -0.16797800827029263, 1e-8);
+    EXPECT_NEAR(iad[5], 1.9055087813473524, 1e-8);
+}
+
+TEST_F(SphKernelTestsStd, MomentumEnergy)
+{
+    auto [du, grad_Px, grad_Py, grad_Pz, maxvsignal] = std::array<T, 5>{-1, -1, -1, -1, -1};
+
+    momentumAndEnergyJLoop(0, K, box(), neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(),
                            vy.data(), vz.data(), h.data(), m.data(), rho.data(), p.data(), c.data(), c11.data(),
                            c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), wh.data(), whd.data(), &grad_Px,
                            &grad_Py, &grad_Pz, &du, &maxvsignal);
 
-    EXPECT_NEAR(grad_Px, 10.483775058458949, 1.3e-7);
-    EXPECT_NEAR(grad_Py, 0.090944108814885433, 1.4e-7);
-    EXPECT_NEAR(grad_Pz, 10.561586200512671, 2.15e-7);
-    EXPECT_NEAR(du, -0.26313730792760737, 1e-8);
+    EXPECT_NEAR(grad_Px, 14.407211846688075, 1.3e-7);
+    EXPECT_NEAR(grad_Py, -1.2396802157028355, 1.4e-7);
+    EXPECT_NEAR(grad_Pz, 15.596554152643426, 2.15e-7);
+    EXPECT_NEAR(du, -0.40541191600274296, 1e-8);
     EXPECT_NEAR(maxvsignal, 1.4112466828564341, 1e-10);
 }
