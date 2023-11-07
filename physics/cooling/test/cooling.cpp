@@ -8,6 +8,9 @@
 
 #include "cstone/fields/field_get.hpp"
 #include "io/ifile_io.hpp"
+#include "init/isim_init.hpp"
+
+#include "cooling/chemistry_data.hpp"
 
 TEST(cooling_grackle, test1a)
 {
@@ -191,4 +194,109 @@ TEST(cooling_grackle2, test2)
         }
     }
     std::fclose(file);
+}
+
+template<typename CoolerType>
+void prepareCooler(CoolerType& cd)
+{
+
+    constexpr double GCGS = 6.674e-8;
+
+    std::map<std::string, double> grackleOptions;
+    grackleOptions["cooling::m_code_in_ms"]           = 1e16;
+    grackleOptions["cooling::l_code_in_kpc"]          = 46400;
+    grackleOptions["cooling::use_grackle"]            = 1;
+    grackleOptions["cooling::with_radiative_cooling"] = 1;
+    grackleOptions["cooling::primordial_chemistry"]   = 3;
+    grackleOptions["cooling::dust_chemistry"]         = 0;
+    grackleOptions["cooling::UVbackground"]           = 0;
+    grackleOptions["cooling::metal_cooling"]          = 0;
+
+    sphexa::BuiltinWriter attributeSetter(grackleOptions);
+    cd.loadOrStoreAttributes(&attributeSetter);
+    cd.init(0);
+}
+
+template<typename ChemistryData>
+void initChemistryUnionized(ChemistryData& chem, const double Hydrogen_Base, const double metal_fraction)
+{
+    get<"HI_fraction">(chem)[0]              = Hydrogen_Base * (1. - metal_fraction);
+    get<"HII_fraction">(chem)[0]             = 0.;
+    get<"HM_fraction">(chem)[0]              = 0.;
+    get<"HeI_fraction">(chem)[0]             = (1. - Hydrogen_Base) * (1. - metal_fraction);
+    get<"HeII_fraction">(chem)[0]            = 0.;
+    get<"HeIII_fraction">(chem)[0]           = 0.;
+    get<"H2I_fraction">(chem)[0]             = 0.;
+    get<"H2II_fraction">(chem)[0]            = 0.;
+    get<"DI_fraction">(chem)[0]              = 2.0 * 3.4e-5;
+    get<"DII_fraction">(chem)[0]             = 0.;
+    get<"HDI_fraction">(chem)[0]             = 0.;
+    get<"e_fraction">(chem)[0]               = 0.;
+    get<"metal_fraction">(chem)[0]           = metal_fraction;
+    get<"volumetric_heating_rate">(chem)[0]  = 0.;
+    get<"specific_heating_rate">(chem)[0]    = 0.;
+    get<"RT_heating_rate">(chem)[0]          = 0.;
+    get<"RT_HI_ionization_rate">(chem)[0]    = 0.;
+    get<"RT_HeI_ionization_rate">(chem)[0]   = 0.;
+    get<"RT_HeII_ionization_rate">(chem)[0]  = 0.;
+    get<"RT_H2_dissociation_rate">(chem)[0]  = 0.;
+    get<"H2_self_shielding_length">(chem)[0] = 0.;
+}
+
+TEST(cooling_grackle, check_fields)
+{
+    const double HI_start    = 0.76;
+    const double metal_start = 0.01295;
+
+    cooling::ChemistryData<double> chem;
+    using CoolingFields = typename util::MakeFieldList<cooling::ChemistryData<double>>::Fields;
+    std::apply([&chem](auto... f) { chem.setConserved(f.value...); }, make_tuple(CoolingFields{}));
+
+    chem.resize(1);
+    initChemistryUnionized(chem, HI_start, metal_start);
+    auto rho = std::vector<double>{1.0};
+    auto u   = std::vector<double>{1e-4};
+
+    std::cout << get<"HI_fraction">(chem)[0] << std::endl;
+    std::cout << get<"HeI_fraction">(chem)[0] << std::endl;
+    std::cout << get<"metal_fraction">(chem)[0] << std::endl;
+
+    cooling::Cooler<double> cd;
+    prepareCooler(cd);
+
+    cd.cool_particle(1e-1, rho[0], u[0], cstone::getPointers(get<CoolingFields>(chem), 0));
+
+    // Check if hydrogen nuclei conserved
+    double all_hydrogen = get<"HI_fraction">(chem)[0] + get<"HII_fraction">(chem)[0] + get<"HM_fraction">(chem)[0] +
+                          get<"H2I_fraction">(chem)[0] + get<"H2II_fraction">(chem)[0] +
+                          get<"HDI_fraction">(chem)[0] / 3.;
+
+    EXPECT_NEAR(all_hydrogen, HI_start * (1. - metal_start), 1e-6);
+
+    // Check if helium nuclei conserved
+    double all_helium = get<"HeI_fraction">(chem)[0] + get<"HeII_fraction">(chem)[0] + get<"HeIII_fraction">(chem)[0];
+    EXPECT_NEAR(all_helium, (1. - HI_start) * (1. - metal_start), 1e-6);
+
+    // Check specific values obtained from Grackle sample implementation
+    EXPECT_NEAR(get<"HI_fraction">(chem)[0], 0.750158, 1e-6);
+    EXPECT_NEAR(get<"HII_fraction">(chem)[0], 1.16407e-08, 1e-6);
+    EXPECT_NEAR(get<"HM_fraction">(chem)[0], 1.48611e-14, 1e-6);
+    EXPECT_NEAR(get<"HeI_fraction">(chem)[0], 0.236892, 1e-6);
+    EXPECT_NEAR(get<"HeII_fraction">(chem)[0], 1e-20, 1e-6);
+    EXPECT_NEAR(get<"HeIII_fraction">(chem)[0], 1e-20, 1e-6);
+    EXPECT_NEAR(get<"H2I_fraction">(chem)[0], 7.42337e-12, 1e-6);
+    EXPECT_NEAR(get<"H2II_fraction">(chem)[0], 7.72532e-15, 1e-6);
+    EXPECT_NEAR(get<"DI_fraction">(chem)[0], 5.10107e-05, 1e-6);
+    EXPECT_NEAR(get<"DII_fraction">(chem)[0], 7.71802e-13, 1e-6);
+    EXPECT_NEAR(get<"HDI_fraction">(chem)[0], 8.31005e-17, 1e-6);
+    EXPECT_NEAR(get<"e_fraction">(chem)[0], 1.16407e-08, 1e-6);
+    EXPECT_NEAR(get<"metal_fraction">(chem)[0], 0.01295, 1e-6);
+    EXPECT_NEAR(get<"volumetric_heating_rate">(chem)[0], 0., 1e-6);
+    EXPECT_NEAR(get<"specific_heating_rate">(chem)[0], 0., 1e-6);
+    EXPECT_NEAR(get<"RT_heating_rate">(chem)[0], 0., 1e-6);
+    EXPECT_NEAR(get<"RT_HI_ionization_rate">(chem)[0], 0., 1e-6);
+    EXPECT_NEAR(get<"RT_HeI_ionization_rate">(chem)[0], 0., 1e-6);
+    EXPECT_NEAR(get<"RT_HeII_ionization_rate">(chem)[0], 0., 1e-6);
+    EXPECT_NEAR(get<"RT_H2_dissociation_rate">(chem)[0], 0., 1e-6);
+    EXPECT_NEAR(get<"H2_self_shielding_length">(chem)[0], 0., 1e-6);
 }
