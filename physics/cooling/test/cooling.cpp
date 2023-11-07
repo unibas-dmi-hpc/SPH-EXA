@@ -9,7 +9,6 @@
 #include "cstone/fields/field_get.hpp"
 #include "io/ifile_io.hpp"
 #include "init/isim_init.hpp"
-
 #include "cooling/chemistry_data.hpp"
 
 TEST(cooling_grackle, test1a)
@@ -277,12 +276,7 @@ TEST(cooling_grackle, check_fields)
     double all_helium = get<"HeI_fraction">(chem)[0] + get<"HeII_fraction">(chem)[0] + get<"HeIII_fraction">(chem)[0];
     EXPECT_NEAR(all_helium, (1. - HI_start) * (1. - metal_start), 1e-6);
 
-
-    auto expect_near_relative = [](const double x1, const double x2, const double rel_error)
-    {
-        EXPECT_NEAR(x1, x2, std::max(std::abs(x1), std::abs(x2)) * 1e-2);
-    };
-#define EXPECT_NEAR_RELATIVE(a, b, tol) EXPECT_NEAR(a, b, tol * a);
+#define EXPECT_NEAR_RELATIVE(a, b, tol) EXPECT_NEAR(a, b, tol * std::max(std::abs(a), std::abs(b)));
     // Check specific values obtained from Grackle sample implementation
     EXPECT_NEAR_RELATIVE(get<"HI_fraction">(chem)[0], 0.750158, 1e-5);
     EXPECT_NEAR_RELATIVE(get<"HII_fraction">(chem)[0], 1.16407e-08, 1e-5);
