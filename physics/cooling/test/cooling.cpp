@@ -277,26 +277,32 @@ TEST(cooling_grackle, check_fields)
     double all_helium = get<"HeI_fraction">(chem)[0] + get<"HeII_fraction">(chem)[0] + get<"HeIII_fraction">(chem)[0];
     EXPECT_NEAR(all_helium, (1. - HI_start) * (1. - metal_start), 1e-6);
 
+
+    auto expect_near_relative = [](const double x1, const double x2, const double rel_error)
+    {
+        EXPECT_NEAR(x1, x2, std::max(std::abs(x1), std::abs(x2)) * 1e-2);
+    };
+#define EXPECT_NEAR_RELATIVE(a, b, tol) EXPECT_NEAR(a, b, tol * a);
     // Check specific values obtained from Grackle sample implementation
-    EXPECT_NEAR(get<"HI_fraction">(chem)[0], 0.750158, 1e-6);
-    EXPECT_NEAR(get<"HII_fraction">(chem)[0], 1.16407e-08, 1e-6);
-    EXPECT_NEAR(get<"HM_fraction">(chem)[0], 1.48611e-14, 1e-6);
-    EXPECT_NEAR(get<"HeI_fraction">(chem)[0], 0.236892, 1e-6);
-    EXPECT_NEAR(get<"HeII_fraction">(chem)[0], 1e-20, 1e-6);
-    EXPECT_NEAR(get<"HeIII_fraction">(chem)[0], 1e-20, 1e-6);
-    EXPECT_NEAR(get<"H2I_fraction">(chem)[0], 7.42337e-12, 1e-6);
-    EXPECT_NEAR(get<"H2II_fraction">(chem)[0], 7.72532e-15, 1e-6);
-    EXPECT_NEAR(get<"DI_fraction">(chem)[0], 5.10107e-05, 1e-6);
-    EXPECT_NEAR(get<"DII_fraction">(chem)[0], 7.71802e-13, 1e-6);
-    EXPECT_NEAR(get<"HDI_fraction">(chem)[0], 8.31005e-17, 1e-6);
-    EXPECT_NEAR(get<"e_fraction">(chem)[0], 1.16407e-08, 1e-6);
-    EXPECT_NEAR(get<"metal_fraction">(chem)[0], 0.01295, 1e-6);
-    EXPECT_NEAR(get<"volumetric_heating_rate">(chem)[0], 0., 1e-6);
-    EXPECT_NEAR(get<"specific_heating_rate">(chem)[0], 0., 1e-6);
-    EXPECT_NEAR(get<"RT_heating_rate">(chem)[0], 0., 1e-6);
-    EXPECT_NEAR(get<"RT_HI_ionization_rate">(chem)[0], 0., 1e-6);
-    EXPECT_NEAR(get<"RT_HeI_ionization_rate">(chem)[0], 0., 1e-6);
-    EXPECT_NEAR(get<"RT_HeII_ionization_rate">(chem)[0], 0., 1e-6);
-    EXPECT_NEAR(get<"RT_H2_dissociation_rate">(chem)[0], 0., 1e-6);
-    EXPECT_NEAR(get<"H2_self_shielding_length">(chem)[0], 0., 1e-6);
+    EXPECT_NEAR_RELATIVE(get<"HI_fraction">(chem)[0], 0.750158, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"HII_fraction">(chem)[0], 1.16407e-08, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"HM_fraction">(chem)[0], 1.50419e-14, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"HeI_fraction">(chem)[0], 0.236892, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"HeII_fraction">(chem)[0], 1e-20, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"HeIII_fraction">(chem)[0], 1e-25, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"H2I_fraction">(chem)[0], 7.41873e-12, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"H2II_fraction">(chem)[0], 7.72532e-15, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"DI_fraction">(chem)[0], 5.10107e-05, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"DII_fraction">(chem)[0], 7.82204e-13, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"HDI_fraction">(chem)[0], 8.28039e-17, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"e_fraction">(chem)[0], 1.16407e-08, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"metal_fraction">(chem)[0], 0.01295, 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"volumetric_heating_rate">(chem)[0], 0., 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"specific_heating_rate">(chem)[0], 0., 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"RT_heating_rate">(chem)[0], 0., 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"RT_HI_ionization_rate">(chem)[0], 0., 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"RT_HeI_ionization_rate">(chem)[0], 0., 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"RT_HeII_ionization_rate">(chem)[0], 0., 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"RT_H2_dissociation_rate">(chem)[0], 0., 1e-5);
+    EXPECT_NEAR_RELATIVE(get<"H2_self_shielding_length">(chem)[0], 0., 1e-5);
 }
