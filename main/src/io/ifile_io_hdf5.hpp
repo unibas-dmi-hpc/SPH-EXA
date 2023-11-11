@@ -84,7 +84,7 @@ public:
 
         if (std::filesystem::exists(path)) { curr_h5 = fileutils::openHDF5File(path, comm_); }
         else { curr_h5 = fileutils::createHDF5File(path, comm_); }
-
+        fileutils::addHDF5Step(curr_h5, "Constants");
         for (auto it = c.begin(); it != c.end(); ++it)
         {
             fileutils::writeHDF5Attribute(curr_h5, it->first.c_str(), &(it->second), H5T_NATIVE_DOUBLE, 1);
