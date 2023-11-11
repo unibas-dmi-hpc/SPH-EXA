@@ -46,7 +46,6 @@ namespace sph
  * @param[in]    Ly
  * @param[in]    Lz
  * @param[in]    st_maxmodes
- * @param[in]    energy
  * @param[in]    stirMax
  * @param[in]    stirMin
  * @param[in]    ndim
@@ -57,23 +56,14 @@ namespace sph
  * Function description missing
  */
 template<class Dataset, class T>
-void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T energy, T stirMax, T stirMin, size_t ndim,
+void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T stirMax, T stirMin, size_t ndim,
                          size_t spectForm, T powerLawExp, T anglesExp, bool verbose)
 {
     const T twopi = 2.0 * M_PI;
 
-    std::uniform_real_distribution<T> uniDist(0, 1);
-    auto                              uniRng = [&d, &uniDist] { return uniDist(d.gen); };
-
-    d.variance = std::sqrt(energy / d.decayTime);
-
     // characteristic k for scaling the amplitude below
     T kc = stirMin;
     if (spectForm == 1) { kc = 0.5 * (stirMin + stirMax); }
-
-    // this makes the rms force const irrespective of the solenoidal weight
-    d.solWeightNorm = std::sqrt(3.0) * std::sqrt(3.0 / T(ndim)) /
-                      std::sqrt(1.0 - 2.0 * d.solWeight + T(ndim) * d.solWeight * d.solWeight);
 
     size_t ikxmin = 0;
     size_t ikymin = 0;
@@ -188,6 +178,9 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T ene
 
     if (spectForm == 2)
     {
+        std::uniform_real_distribution<T> uniDist(0, 1);
+        auto                              uniRng = [&d, &uniDist] { return uniDist(d.gen); };
+
         // loop between smallest and largest k
         size_t ikmin = std::max(1, int(stirMin * Lx / twopi + 0.5));
         size_t ikmax = int(stirMax * Lx / twopi + 0.5);

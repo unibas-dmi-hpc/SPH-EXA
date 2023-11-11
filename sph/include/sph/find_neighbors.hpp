@@ -26,12 +26,12 @@ void findNeighborsSph(const Tc* x, const Tc* y, const Tc* z, T* h, LocalIndex fi
         unsigned   ncSph = 1 + findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
 
         int iteration = 0;
-        while (ngmin > ncSph || (ncSph - 1) > ngmax && iteration++ < maxIteration)
+        while ((ngmin > ncSph || (ncSph - 1) > ngmax) && iteration++ < maxIteration)
         {
             h[id] = updateH(ng0, ncSph, h[id]);
             ncSph = 1 + findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + i * ngmax);
         }
-        numFails += (iteration == maxIteration);
+        numFails += (iteration >= maxIteration);
 
         nc[i] = ncSph;
     }

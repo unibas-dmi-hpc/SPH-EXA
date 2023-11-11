@@ -42,7 +42,7 @@
 #include "cstone/tree/definitions.h"
 #include "cstone/util/reallocate.hpp"
 
-#include "tables.hpp"
+#include "table_lookup.hpp"
 
 namespace sphexa
 {
@@ -101,8 +101,7 @@ public:
     DevVector<HydroType> markRamp; //  switch between crossed and uncrossed versions of the SPH equations
 
     //! @brief SPH interpolation kernel lookup tables
-    DevVector<HydroType> wh;
-    DevVector<HydroType> whd;
+    DevVector<HydroType> wh, whd;
 
     DevVector<cstone::LocalIndex> traversalStack;
     DevVector<cstone::LocalIndex> targetGroups;
@@ -180,8 +179,8 @@ public:
         }
     }
 
-    void uploadTables(const std::array<HydroType, ::sph::lt::size>& whTable,
-                      const std::array<HydroType, ::sph::lt::size>& whdTable)
+    void uploadTables(const std::array<HydroType, ::sph::lt::kTableSize>& whTable,
+                      const std::array<HydroType, ::sph::lt::kTableSize>& whdTable)
     {
         wh  = DevVector<HydroType>(whTable.begin(), whTable.end());
         whd = DevVector<HydroType>(whdTable.begin(), whdTable.end());

@@ -40,6 +40,7 @@
 #include "isim_init.hpp"
 #include "early_sync.hpp"
 #include "grid.hpp"
+#include "utils.hpp"
 
 namespace sphexa
 {
@@ -132,26 +133,26 @@ std::tuple<KeyType, KeyType> estimateEvrardSfcPartition(size_t cbrtNumPart, cons
 template<class Dataset>
 class EvrardGlassSphere : public ISimInitializer<Dataset>
 {
-    std::string glassBlock;
-    using Base = ISimInitializer<Dataset>;
-    using Base::settings_;
+    std::string          glassBlock;
+    mutable InitSettings settings_;
 
 public:
-    explicit EvrardGlassSphere(std::string initBlock)
+    explicit EvrardGlassSphere(std::string initBlock, std::string settingsFile, IFileReader* reader)
         : glassBlock(std::move(initBlock))
     {
-        Base::updateSettings(evrardConstants());
+        Dataset d;
+        settings_ = buildSettings(d, evrardConstants(), settingsFile, reader);
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
         auto& d       = simData.hydro;
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
         std::vector<T> xBlock, yBlock, zBlock;
-        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
         int               multi1D      = std::rint(cbrtNumPart / std::cbrt(blockSize));
@@ -181,7 +182,9 @@ public:
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return settings_; }
+    void resetConstants(InitSettings newSettings) { settings_ = std::move(newSettings); }
+
+    [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

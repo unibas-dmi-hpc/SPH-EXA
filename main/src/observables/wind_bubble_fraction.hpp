@@ -34,7 +34,6 @@
 #include "conserved_quantities.hpp"
 #include "iobservables.hpp"
 #include "io/file_utils.hpp"
-#include "sph/math.hpp"
 #include "gpu_reductions.h"
 
 namespace sphexa

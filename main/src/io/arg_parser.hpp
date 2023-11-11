@@ -123,16 +123,21 @@ std::string strBeforeSign(const std::string& str, const std::string& sign)
 }
 
 //! @brief If the input string ends with @p sign followed by an integer, return the integer, otherwise return -1
-int numberAfterSign(const std::string& str, const std::string& sign)
+std::string strAfterSign(const std::string& str, const std::string& sign)
 {
     auto commaPos = str.find_first_of(sign);
-    if (commaPos == std::string::npos) { return -1; }
+    if (commaPos == std::string::npos) { return {}; }
 
-    std::string afterComma = str.substr(commaPos + sign.size());
-
-    int ret = -1;
-    if (strIsIntegral(afterComma)) { ret = std::stoi(afterComma); }
-    return ret;
+    return str.substr(commaPos + sign.size());
 }
+
+//! @brief If the input string ends with @p sign followed by an integer, return the integer, otherwise return -1
+int numberAfterSign(const std::string& str, const std::string& sign)
+{
+    std::string afterComma = strAfterSign(str, sign);
+    return strIsIntegral(afterComma) ? std::stoi(afterComma) : -1;
+}
+
+std::string removeModifiers(const std::string& initCond) { return strBeforeSign(strBeforeSign(initCond, ":"), ","); }
 
 } // namespace sphexa

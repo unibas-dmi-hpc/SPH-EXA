@@ -35,7 +35,10 @@
 
 #include "cooling/init_chemistry.h"
 
-std::map<std::string, double> evrardCoolingConstants()
+namespace sphexa
+{
+
+InitSettings evrardCoolingConstants()
 {
     return {{"gravConstant", 1.},
             {"r", 1.},
@@ -58,23 +61,30 @@ std::map<std::string, double> evrardCoolingConstants()
 }
 
 template<class Dataset>
-class EvrardGlassSphereCooling : public sphexa::EvrardGlassSphere<Dataset>
+class EvrardGlassSphereCooling : public EvrardGlassSphere<Dataset>
 {
-    using Base = sphexa::EvrardGlassSphere<Dataset>;
+    using Base = EvrardGlassSphere<Dataset>;
+    mutable InitSettings settings_;
 
 public:
-    EvrardGlassSphereCooling(std::string initBlock)
-        : sphexa::EvrardGlassSphere<Dataset>(initBlock)
+    EvrardGlassSphereCooling(std::string initBlock, std::string settingsFile, IFileReader* reader)
+        : EvrardGlassSphere<Dataset>(initBlock, settingsFile, reader)
     {
-        Base::updateSettings(evrardCoolingConstants());
+        Dataset d;
+        settings_ = buildSettings(d, evrardCoolingConstants(), settingsFile, reader);
+        Base::resetConstants(settings_);
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
-        auto box = sphexa::EvrardGlassSphere<Dataset>::init(rank, numRanks, cbrtNumPart, simData);
-        std::fill(simData.hydro.u.begin(), simData.hydro.u.end(), Base::constants().at("u0"));
+        auto box = Base::init(rank, numRanks, cbrtNumPart, simData, reader);
+        std::fill(simData.hydro.u.begin(), simData.hydro.u.end(), settings_.at("u0"));
         cooling::initChemistryData(simData.chem, simData.hydro.x.size());
         return box;
     }
+
+    [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
+
+} // namespace sphexa

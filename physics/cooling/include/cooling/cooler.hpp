@@ -116,8 +116,11 @@ struct Cooler
             }
             catch (std::out_of_range&)
             {
-                std::cout << "Attribute cooling::" << attribute
-                          << " not set in file or initializer, setting to default value " << *location << std::endl;
+                if (ar->rank() == 0)
+                {
+                    std::cout << "Attribute cooling::" << attribute
+                              << " not set in file or initializer, setting to default value " << *location << std::endl;
+                }
             }
         };
         for (size_t i = 0; i < parameterNames.size(); i++)
