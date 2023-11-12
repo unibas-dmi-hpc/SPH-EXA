@@ -171,9 +171,9 @@ static void closeHDF5File(H5ZType& h5z, bool reading = false)
 static void addHDF5Filter(H5ZType& h5z)
 {
     herr_t  status;
-    hsize_t chunk_dims[2] = {2000, 1};
+    hsize_t chunk_dims[1] = {2000};
     h5z.cpid              = H5Pcreate(H5P_DATASET_CREATE);
-    status                = H5Pset_chunk(h5z.cpid, 2, chunk_dims);
+    status                = H5Pset_chunk(h5z.cpid, 1, chunk_dims);
 
     if (h5z.compression == CompressionMethod::zfp)
     {
@@ -252,9 +252,9 @@ static void writeHDF5Field_(H5ZType& h5z, const std::string& fieldName, const vo
 {
     // Following previous conventions, each field is written into a separate dataset.
     // Also, maxdim is set to exactly the data size + 1...for now
-    hsize_t dims[2] = {numParticles, nCol};
+    hsize_t dims[1] = {numParticles};
     // hsize_t maxdims[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
-    h5z.dspace_id = H5Screate_simple(2, dims, NULL);
+    h5z.dspace_id = H5Screate_simple(1, dims, NULL);
     addHDF5Filter(h5z);
 
     // Create dataset enough for all global particles
@@ -270,9 +270,9 @@ static void writeHDF5Field_(H5ZType& h5z, const std::string& fieldName, const vo
     // block: 1, 1
     // Selection should be within dimension
     hid_t   dataSpace = H5Dget_space(h5z.dset_id);
-    hsize_t offset[2] = {firstIndex, 0};
-    hsize_t count[2]  = {lastIndex - firstIndex, nCol};
-    hsize_t stride[2] = {1, 1};
+    hsize_t offset[1] = {firstIndex};
+    hsize_t count[1]  = {lastIndex - firstIndex};
+    hsize_t stride[1] = {1};
     // Select a hyperslab for local particles (only with local size)
     h5z.status = H5Sselect_hyperslab(dataSpace, H5S_SELECT_SET, offset, stride, count, NULL);
 
@@ -400,8 +400,8 @@ static unsigned readHDF5Field_(H5ZType& h5z, const std::string& fieldName, void*
     unsigned flags;
 
     // Memory space
-    hsize_t dims[2] = {numParticles, 1};
-    h5z.dspace_id   = H5Screate_simple(2, dims, NULL);
+    hsize_t dims[1] = {numParticles};
+    h5z.dspace_id   = H5Screate_simple(1, dims, NULL);
 
     // Open the dataset
     std::string datasetPath = "/Step#" + std::to_string(h5z.step) + "/" + fieldName;
@@ -439,7 +439,7 @@ static unsigned readHDF5Field_(H5ZType& h5z, const std::string& fieldName, void*
     // hssize_t hh = H5Sget_simple_extent_npoints(fileSpace);
 
     // Select a hyperslab for local particles (only with local size)
-    hsize_t stride[2] = {1, 1};
+    hsize_t stride[1] = {1};
     h5z.status        = H5Sselect_hyperslab(fileSpace, H5S_SELECT_SET, &h5z.start, NULL, &h5z.numParticles, NULL);
 
     // Read into dataspace independently
