@@ -33,7 +33,6 @@
 #include "cstone/sfc/box.hpp"
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/primitives/gather.hpp"
-#include "io/mpi_file_utils.hpp"
 #include "isim_init.hpp"
 #include "sph/eos.hpp"
 
@@ -93,19 +92,19 @@ std::map<std::string, double> SodShockConstants()
 template<class Dataset>
 class SodShockInit : public ISimInitializer<Dataset>
 {
-    std::string glassBlock;
-    using Base = ISimInitializer<Dataset>;
-    using Base::settings_;
+    std::string          glassBlock;
+    mutable InitSettings settings_;
 
 public:
-    SodShockInit(std::string initBlock)
-        : glassBlock(initBlock)
+    SodShockInit(std::string initBlock, std::string settingsFile, IFileReader* reader)
+        : glassBlock(std::move(initBlock))
     {
-        Base::updateSettings(SodShockConstants());
+        Dataset d;
+        settings_ = buildSettings(d, SodShockConstants(), settingsFile, reader);
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData) const override
+                                                 Dataset& simData, IFileReader* reader) const override
     {
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
@@ -114,7 +113,7 @@ public:
         auto  fbc     = cstone::BoundaryType::fixed;
 
         std::vector<T> xBlock, yBlock, zBlock;
-        fileutils::readTemplateBlock(glassBlock, d.x, d.y, d.z);
+        readTemplateBlock(glassBlock, reader, d.x, d.y, d.z);
 
         cstone::Box<T> globalBox(0, 1, 0, 0.125, 0, 0.125, fbc, pbc, pbc);
 

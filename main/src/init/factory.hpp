@@ -95,10 +95,10 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         else { return std::make_unique<KelvinHelmholtzGlass<Dataset>>(glassBlock, settingsFile, reader); }
     }
 
-    if (testCase == "sod-shock")
+    if (testNamedBase == "sod-shock")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid relaxed IC block for Sod-Shock test\n"); }
-        else { return std::make_unique<SodShockInit<Dataset>>(glassBlock); }
+        else { return std::make_unique<SodShockInit<Dataset>>(glassBlock, settingsFile, reader); }
     }
 #ifdef SPH_EXA_HAVE_GRACKLE
     if (testCase == "evrard-cooling")
