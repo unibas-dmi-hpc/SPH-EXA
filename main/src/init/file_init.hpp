@@ -44,6 +44,7 @@ template<class Dataset>
 void restoreDataset(IFileReader* reader, Dataset& d)
 {
     d.loadOrStoreAttributes(reader);
+    std::cout << reader->localNumParticles() << std::endl;
     d.resize(reader->localNumParticles());
 
     auto fieldPointers = d.data();

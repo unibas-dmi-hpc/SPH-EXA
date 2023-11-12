@@ -10,4 +10,4 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_CXX_
 make -j16 sphexa
 
 # Images will be generated in $SPHEXA_ROOT/sphexa-vis/output. You can clear it before running.
-rm -f $SPHEXA_ROOT/sphexa-vis/output/compression/*
+# rm -f $SPHEXA_ROOT/sphexa-vis/output/compression/*

@@ -61,7 +61,9 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
 
 std::unique_ptr<IFileReader> fileReaderFactory(bool /*ascii*/, MPI_Comm comm)
 {
-#if defined(SPH_EXA_HAVE_H5PART)
+#if defined(SPH_EXA_HAVE_HDF5)
+    return std::make_unique<H5PartReader>(comm);
+#elif defined(SPH_EXA_HAVE_H5PART)
     return std::make_unique<H5PartReader>(comm);
 #else
     return std::make_unique<UnimplementedReader>();
