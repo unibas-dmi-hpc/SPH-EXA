@@ -410,33 +410,33 @@ static unsigned readHDF5Field_(H5ZType& h5z, const std::string& fieldName, void*
     // File space
     hid_t fileSpace = H5Dget_space(h5z.dset_id);
 
-    // // Retrieve filter information
-    // hid_t plist_id = H5Dget_create_plist(h5z.dset_id);
-    // uint16_t numfilt = H5Pget_nfilters(plist_id);
-    // nelmts = 0;
-    // H5Z_filter_t filter_type = H5Pget_filter (plist_id, 0, &flags, &nelmts, NULL, 0, NULL,
-    //             &filter_info);
-    // printf ("Filter type is: ");
-    // switch (filter_type) {
-    //     case H5Z_FILTER_DEFLATE:
-    //         printf ("H5Z_FILTER_DEFLATE\n");
-    //         break;
-    //     case H5Z_FILTER_SHUFFLE:
-    //         printf ("H5Z_FILTER_SHUFFLE\n");
-    //         break;
-    //     case H5Z_FILTER_FLETCHER32:
-    //         printf ("H5Z_FILTER_FLETCHER32\n");
-    //         break;
-    //     case H5Z_FILTER_SZIP:
-    //         printf ("H5Z_FILTER_SZIP\n");
-    //         break;
-    //     case H5Z_FILTER_NBIT:
-    //         printf ("H5Z_FILTER_NBIT\n");
-    //         break;
-    //     case H5Z_FILTER_SCALEOFFSET:
-    //         printf ("H5Z_FILTER_SCALEOFFSET\n");
-    // }
-    // hssize_t hh = H5Sget_simple_extent_npoints(fileSpace);
+    // Retrieve filter information
+    hid_t plist_id = H5Dget_create_plist(h5z.dset_id);
+    uint16_t numfilt = H5Pget_nfilters(plist_id);
+    nelmts = 0;
+    H5Z_filter_t filter_type = H5Pget_filter (plist_id, 0, &flags, &nelmts, NULL, 0, NULL,
+                &filter_info);
+    printf ("Filter type is: ");
+    switch (filter_type) {
+        case H5Z_FILTER_DEFLATE:
+            printf ("H5Z_FILTER_DEFLATE\n");
+            break;
+        case H5Z_FILTER_SHUFFLE:
+            printf ("H5Z_FILTER_SHUFFLE\n");
+            break;
+        case H5Z_FILTER_FLETCHER32:
+            printf ("H5Z_FILTER_FLETCHER32\n");
+            break;
+        case H5Z_FILTER_SZIP:
+            printf ("H5Z_FILTER_SZIP\n");
+            break;
+        case H5Z_FILTER_NBIT:
+            printf ("H5Z_FILTER_NBIT\n");
+            break;
+        case H5Z_FILTER_SCALEOFFSET:
+            printf ("H5Z_FILTER_SCALEOFFSET\n");
+    }
+    hssize_t hh = H5Sget_simple_extent_npoints(fileSpace);
 
     // Select a hyperslab for local particles (only with local size)
     hsize_t stride[1] = {1};

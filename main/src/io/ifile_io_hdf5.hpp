@@ -149,7 +149,7 @@ public:
     {
         if (rank_ == 0)
         {
-            std::cout << "File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
+            std::cout << "Writter!!!File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
         }
         fileutils::closeHDF5File(h5z_);
     }
@@ -286,7 +286,10 @@ public:
         // auto err = std::visit([this, &key](auto arg) { return fileutils::readH5PartField(h5File_, key, arg); }, field);
         // if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
 
-
+        if (rank_ == 0)
+        {
+            std::cout << "Start reading in rank " << rank_ <<  std::endl;
+        }
         auto err = std::visit([this, &key](auto arg) { return fileutils::readHDF5Field(h5z_, key, arg, globalCount_); },
                               field);
         if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
