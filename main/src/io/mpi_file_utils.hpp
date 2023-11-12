@@ -464,27 +464,27 @@ inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, double
 }
 inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, float* field, uint64_t numParticles)
 {
-    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE, numParticles);
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_FLOAT, numParticles);
 }
 inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, char* field, uint64_t numParticles)
 {
-    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE, numParticles);
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_CHAR, numParticles);
 }
 inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, int* field, uint64_t numParticles)
 {
-    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE, numParticles);
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_INT32, numParticles);
 }
 inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, int64_t* field, uint64_t numParticles)
 {
-    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE, numParticles);
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_INT64, numParticles);
 }
 inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, unsigned* field, uint64_t numParticles)
 {
-    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE, numParticles);
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_UINT32, numParticles);
 }
 inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, uint64_t* field, uint64_t numParticles)
 {
-    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_DOUBLE, numParticles);
+    return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_UINT64, numParticles);
 }
 
 } // namespace fileutils
