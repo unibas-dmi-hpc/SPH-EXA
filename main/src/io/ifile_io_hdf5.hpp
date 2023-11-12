@@ -220,6 +220,10 @@ public:
         {
             std::tie(firstIndex_, lastIndex_) = partitionRange(globalCount_, rank, numRanks);
             localCount_                       = lastIndex_ - firstIndex_;
+            h5z_              = fileutils::openHDF5File(path, comm_);
+            h5z_.step         = step;
+            h5z_.start        = firstIndex_;
+            h5z_.numParticles = localCount_;
             H5PartSetView(h5File_, firstIndex_, lastIndex_ - 1);
         }
         else { std::tie(firstIndex_, lastIndex_, localCount_) = std::make_tuple(0, globalCount_, globalCount_); }
@@ -279,7 +283,12 @@ public:
 
     void readField(const std::string& key, FieldType field) override
     {
-        auto err = std::visit([this, &key](auto arg) { return fileutils::readH5PartField(h5File_, key, arg); }, field);
+        // auto err = std::visit([this, &key](auto arg) { return fileutils::readH5PartField(h5File_, key, arg); }, field);
+        // if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
+
+
+        auto err = std::visit([this, &key](auto arg) { return fileutils::readHDF5Field(h5z_, key, arg, globalCount_); },
+                              field);
         if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
     }
 
@@ -289,11 +298,17 @@ public:
 
     void closeStep() override
     {
-        if (h5File_)
+        // if (h5File_)
+        // {
+        //     H5PartCloseFile(h5File_);
+        //     h5File_ = nullptr;
+        // }
+
+        if (rank_ == 0)
         {
-            H5PartCloseFile(h5File_);
-            h5File_ = nullptr;
+            std::cout << "File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
         }
+        fileutils::closeHDF5File(h5z_, true);
     }
 
 private:
@@ -322,6 +337,8 @@ private:
     std::string pathStep_;
 
     H5PartFile* h5File_;
+    fileutils::H5ZType h5z_;
+    double      fileInitTime_, writeTime_;
 };
 
 } // namespace sphexa
