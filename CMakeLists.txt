@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.22)
 
 project(sphexa CXX C)
 set(CMAKE_CXX_STANDARD 20)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 list(APPEND CMAKE_MODULE_PATH 
@@ -16,12 +16,15 @@ option(BUILD_ANALYTICAL "build analytical solution" ON)
 
 option(GPU_DIRECT "Enable CUDA-aware MPI communication" OFF)
 
+set(CSTONE_DIR ${PROJECT_SOURCE_DIR}/domain/include)
+set(CSTONE_TEST_DIR ${PROJECT_SOURCE_DIR}/domain/test)
+
 if (BUILD_TESTING)
     include(setup_GTest)
 endif()
 
 find_package(MPI)
-find_package(OpenMP REQUIRED)
+find_package(OpenMP)
 
 # if INTERFACE_LINK_OPTIONS for OpenMP_CXX is not set, we set
 # INTERFACE_LINK_OPTIONS = INTERFACE_COMPILE_OPTIONS
@@ -43,20 +46,18 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-
-check_language(HIP)
-if(CMAKE_HIP_COMPILER)
-    enable_language(HIP)
-    find_package(hip)
-    set(CMAKE_HIP_STANDARD 17)
-    set(CMAKE_HIP_FLAGS "-w")
-endif()
-
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     find_package(CUDAToolkit)
     set(CMAKE_CUDA_STANDARD 17)
+endif()
+
+check_language(HIP)
+if(CMAKE_HIP_COMPILER AND NOT CMAKE_CUDA_COMPILER)
+    enable_language(HIP)
+    find_package(hip)
+    set(CMAKE_HIP_STANDARD 17)
 endif()
 
 option(SPH_EXA_WITH_H5PART "Enable HDF5 IO using the H5Part library" ON)

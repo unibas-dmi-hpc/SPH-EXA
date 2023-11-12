@@ -43,7 +43,7 @@ namespace ryoanji
 {
 
 template<class T>
-using CartesianQuadrupole = util::array<T, 8>;
+using CartesianQuadrupole = util::array<T, 8>; // Use 8 here for memory alignment, even though we only use 7 elements.
 
 template<class MType>
 struct IsCartesian : public stl::integral_constant<size_t, MType{}.size() == CartesianQuadrupole<float>{}.size()>
@@ -60,13 +60,14 @@ struct Cqi
 {
     enum IndexNames
     {
-        mass = 0,
-        qxx  = 1,
-        qxy  = 2,
-        qxz  = 3,
-        qyy  = 4,
-        qyz  = 5,
-        qzz  = 6
+        mass  = 0,
+        qxx   = 1,
+        qxy   = 2,
+        qxz   = 3,
+        qyy   = 4,
+        qyz   = 5,
+        qzz   = 6,
+        trace = 7,
     };
 };
 
@@ -111,7 +112,9 @@ HOST_DEVICE_FUN void P2M(const T1* x, const T1* y, const T1* z, const T2* m, Loc
         gv[Cqi::qzz] += rz * rz * m_i;
     }
 
-    T1 traceQ = gv[Cqi::qxx] + gv[Cqi::qyy] + gv[Cqi::qzz];
+    T3 traceQ = gv[Cqi::qxx] + gv[Cqi::qyy] + gv[Cqi::qzz];
+
+    gv[Cqi::trace] = traceQ;
 
     // remove trace
     gv[Cqi::qxx] = 3 * gv[Cqi::qxx] - traceQ;
@@ -138,6 +141,8 @@ void moveExpansionCenter(Vec3<T> Xold, Vec3<T> Xnew, CartesianQuadrupole<T>& gv)
     gv[Cqi::qzz] = gv.qzz - rz * rz * gv[Cqi::mass];
 
     T traceQ = gv[Cqi::qxx] + gv[Cqi::qyy] + gv[Cqi::qzz];
+
+    gv[Cqi::trace] = traceQ;
 
     // remove trace
     gv[Cqi::qxx] = 3 * gv[Cqi::qxx] - traceQ;
@@ -216,6 +221,8 @@ HOST_DEVICE_FUN void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<Tc> d
 
     Tc ml = addend[Cqi::mass] * 3;
 
+    composite[Cqi::trace] = composite[Cqi::trace] + addend[Cqi::trace] + ml * r_2;
+
     composite[Cqi::mass] += addend[Cqi::mass];
     composite[Cqi::qxx] += addend[Cqi::qxx] + ml * (rx_2 - r_2);
     composite[Cqi::qxy] += addend[Cqi::qxy] + ml * rx * ry;
@@ -253,6 +260,16 @@ template<class MType, std::enable_if_t<IsCartesian<MType>{}, int> = 0>
 HOST_DEVICE_FUN MType normalize(const MType& multipole)
 {
     return multipole;
+}
+
+template<class T>
+std::ostream& operator<<(std::ostream& os, const CartesianQuadrupole<T>& M)
+{
+    os << "m:  " << M[Cqi::mass] << " tr: " << M[Cqi::trace] << std::endl
+       << "xx: " << M[Cqi::qxx] << " xy: " << M[Cqi::qxy] << " xz: " << M[Cqi::qxz] << std::endl
+       << "yy: " << M[Cqi::qyy] << " yz: " << M[Cqi::qyz] << " zz: " << M[Cqi::qzz] << std::endl;
+
+    return os;
 }
 
 } // namespace ryoanji

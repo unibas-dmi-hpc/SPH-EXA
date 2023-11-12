@@ -34,7 +34,6 @@
 #include <tuple>
 #include "cstone/sfc/box.hpp"
 #include "cstone/tree/definitions.h"
-#include "sph/math.hpp"
 
 namespace sphexa
 {

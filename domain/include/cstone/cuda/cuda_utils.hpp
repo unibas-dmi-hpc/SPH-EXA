@@ -25,7 +25,7 @@
 
 #pragma once
 
-#if defined(USE_CUDA) || defined(__CUDACC__)
+#if defined(USE_CUDA) || defined(__CUDACC__) || defined(__HIPCC__)
 #include "cuda_utils.cuh"
 #endif
 #include "cuda_stubs.h"

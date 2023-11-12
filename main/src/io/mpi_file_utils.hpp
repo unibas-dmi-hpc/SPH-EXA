@@ -55,17 +55,17 @@ enum class CompressionMethod
 
 struct H5ZType
 {
-    CompressionMethod compression;
-    int               compressionParam;
-    hid_t             file_id;
-    hid_t             group_id;
-    hid_t             dset_id;
-    hid_t             dspace_id;
-    hid_t             cpid;
-    hid_t             status;
-    hsize_t           numParticles; // reading: num of local particles
-    hsize_t           step;         // only used in reading
-    hsize_t           start;        // only used in reading
+    CompressionMethod compression = CompressionMethod::none;
+    int               compressionParam = 0;
+    hid_t             file_id = 0;
+    hid_t             group_id = 0;
+    hid_t             dset_id = 0;
+    hid_t             dspace_id = 0;
+    hid_t             cpid = 0;
+    hid_t             status = 0;
+    hsize_t           numParticles = 0; // reading: num of local particles
+    hsize_t           step = 0;         // only used in reading
+    hsize_t           start = 0;        // only used in reading
 };
 
 static void setupZFP(H5ZType& h5z, int zfpmode, double rate, double acc, unsigned int prec, unsigned int minbits,
@@ -121,8 +121,8 @@ static H5ZType createHDF5File(std::string fileName, MPI_Comm comm)
     fcpl = H5Pcreate(H5P_FILE_CREATE);
     fapl = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl, comm, MPI_INFO_NULL);
-    // H5Pset_all_coll_metadata_ops(fapl, 1);
-    // H5Pset_coll_metadata_write(fapl, 1);
+    H5Pset_all_coll_metadata_ops(fapl, 1);
+    H5Pset_coll_metadata_write(fapl, 1);
     // H5Pset_alignment(fapl,
     //                     1, //alignment_increment
     //                     0); //alignment_threshold
@@ -159,8 +159,13 @@ static H5ZType openHDF5File(std::string fileName, MPI_Comm comm)
 // When reading from an existing file, there's no need to close group.
 static void closeHDF5File(H5ZType& h5z, bool reading = false)
 {
-    if (!reading) { h5z.status = H5Gclose(h5z.group_id); }
-    h5z.status = H5Fclose(h5z.file_id);
+    if (!reading && (h5z.group_id)) { 
+        h5z.status = H5Gclose(h5z.group_id);
+    }
+    if (h5z.file_id) {
+        h5z.status = H5Fclose(h5z.file_id);
+    }
+    h5z = H5ZType();
 }
 
 static void addHDF5Filter(H5ZType& h5z)
@@ -218,6 +223,26 @@ static void writeHDF5Attribute(H5ZType& h5z, std::string fieldName, const void* 
     herr = H5Sclose ( space_id );
 }
 
+// Only difference between the following and writeHDF5Attribute:
+// writeHDF5FileAttribute writes to root path of file, while writeHDF5Attribute writes to a group
+static void writeHDF5FileAttribute(H5ZType& h5z, std::string fieldName, const void* value, hid_t dataType, const hsize_t numElements)
+{
+    hid_t space_id = H5Screate_simple ( 1, &numElements, NULL );
+    hid_t attrib_id = H5Acreate(
+        h5z.file_id,
+        fieldName.c_str(),
+        dataType,
+        space_id,
+        H5P_DEFAULT
+#ifndef H5_USE_16_API
+        , H5P_DEFAULT
+#endif
+    );
+
+    herr_t herr = H5Awrite ( attrib_id, dataType, value);
+    herr = H5Aclose ( attrib_id );
+    herr = H5Sclose ( space_id );
+}
 
 //! @brief numParticles: total number of global particles
 // firstIndex: start of local index

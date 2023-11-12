@@ -228,14 +228,6 @@ assignedEnvelope(BufferDescription bufDesc, LocalIndex numPresent, LocalIndex nu
     else { return {bufDesc.start, bufDesc.end + numIncoming}; }
 }
 
-template<class It>
-LocalIndex findInLog(It first, It last, int rank)
-{
-    auto it = std::find_if(first, last, [rank](auto e) { return std::get<0>(e) == rank; });
-    assert(it != last);
-    return std::get<1>(*it);
-}
-
 template<class Vector>
 void extractLocallyOwnedImpl(BufferDescription bufDesc,
                              LocalIndex numPresent,

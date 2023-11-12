@@ -43,9 +43,10 @@
 #include "cstone/util/reallocate.hpp"
 
 #include "sph/kernels.hpp"
-#include "sph/tables.hpp"
+#include "sph/table_lookup.hpp"
 
 #include "particles_data_stubs.hpp"
+#include "sph_kernel_tables.hpp"
 
 #if defined(USE_CUDA)
 #include "sph/util/pinned_allocator.cuh"
@@ -78,7 +79,7 @@ public:
     using FieldVariant =
         std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
 
-    ParticlesData() { devData.uploadTables(wh, whd); }
+    ParticlesData() { createTables(); }
     ParticlesData(const ParticlesData&) = delete;
 
     uint64_t iteration{1};
@@ -116,6 +117,25 @@ public:
     //! @brief mean molecular weight of ions for models that use one value for all particles
     Tmass muiConst{10.0};
 
+    // AV switches floor and ceiling
+    HydroType alphamin{0.05};
+    HydroType alphamax{1.0};
+    HydroType decay_constant{0.2};
+
+    // Min. Atwood number in ramp function in momentum equation (crossed/uncrossed selection)
+    // Complete uncrossed option (Atmin>=1.d50, Atmax it doesn't matter).
+    // Complete crossed (Atmin and Atmax negative)
+    constexpr static HydroType Atmin = 0.1;
+    constexpr static HydroType Atmax = 0.2;
+    constexpr static HydroType ramp  = 1.0 / (Atmax - Atmin);
+
+    constexpr static T maxDtIncrease = 1.1;
+
+    //! @brief exponent n of sinc-kernel S_n
+    T sincIndex{6.0};
+    //! @brief choice of smoothing kernel type
+    sph::SphKernelType kernelChoice{sph::SphKernelType::sinc_n};
+
     //! @brief Unified interface to attribute initialization, reading and writing
     template<class Archive>
     void loadOrStoreAttributes(Archive* ar)
@@ -125,12 +145,24 @@ public:
         {
             try
             {
-                ar->stepAttribute(attribute, location, attrSize);
+                if constexpr (std::is_enum_v<std::decay_t<decltype(*location)>>)
+                {
+                    // handle pointers to enum by casting to the underlying type
+                    using EType = std::decay_t<decltype(*location)>;
+                    using UType = std::underlying_type_t<EType>;
+                    auto tmp    = static_cast<UType>(*location);
+                    ar->stepAttribute(attribute, &tmp, attrSize);
+                    *location = static_cast<EType>(tmp);
+                }
+                else { ar->stepAttribute(attribute, location, attrSize); }
             }
             catch (std::out_of_range&)
             {
-                std::cout << "Attribute " << attribute << " not set in file, setting to default value " << *location
-                          << std::endl;
+                if (ar->rank() == 0)
+                {
+                    std::cout << "Attribute " << attribute << " not set in file, setting to default value " << *location
+                              << std::endl;
+                }
             }
         };
 
@@ -148,7 +180,19 @@ public:
         optionalIO("eps", &eps, 1);
         optionalIO("etaAcc", &etaAcc, 1);
         optionalIO("muiConst", &muiConst, 1);
+
+        optionalIO("alphamin", &alphamin, 1);
+        optionalIO("alphamax", &alphamax, 1);
+        optionalIO("decay_constant", &decay_constant, 1);
+
+        optionalIO("sincIndex", &sincIndex, 1);
+        optionalIO("kernelChoice", &kernelChoice, 1);
+
+        createTables();
     }
+
+    //! @brief Interpolation kernel normalization constant, will be recomputed on initialization
+    T K{0};
 
     //! @brief non-stateful variables for statistics
     uint64_t totalNeighbors{0};
@@ -190,8 +234,8 @@ public:
 
     DeviceData_t<AccType, T, KeyType> devData;
 
-    const std::array<HydroType, lt::size> wh  = lt::createWharmonicTable<HydroType, lt::size>(sincIndex);
-    const std::array<HydroType, lt::size> whd = lt::createWharmonicDerivativeTable<HydroType, lt::size>(sincIndex);
+    //! @brief lookup tables for the SPH-kernel and its derivative
+    std::array<HydroType, lt::kTableSize> wh{0}, whd{0};
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
@@ -273,27 +317,16 @@ public:
     std::vector<int>         outputFieldIndices;
     std::vector<std::string> outputFieldNames;
 
-    constexpr static T sincIndex     = 6.0;
-    constexpr static T maxDtIncrease = 1.1;
-
-    // Min. Atwood number in ramp function in momentum equation (crossed/uncrossed selection)
-    // Complete uncrossed option (Atmin>=1.d50, Atmax it doesn't matter).
-    // Complete crossed (Atmin and Atmax negative)
-    constexpr static HydroType Atmin = 0.1;
-    constexpr static HydroType Atmax = 0.2;
-    constexpr static HydroType ramp  = 1.0 / (Atmax - Atmin);
-
-    // AV switches floor and ceiling
-    constexpr static HydroType alphamin       = 0.05;
-    constexpr static HydroType alphamax       = 1.0;
-    constexpr static HydroType decay_constant = 0.2;
-
-    // Interpolation kernel normalization constant
-    const static T K;
+private:
+    void createTables()
+    {
+        using H = HydroType;
+        K       = sph::kernel_3D_k(getSphKernel(kernelChoice, sincIndex), 2.0);
+        wh      = sph::tabulateFunction<H, lt::kTableSize>(sph::getSphKernel(kernelChoice, sincIndex), 0, 2);
+        whd     = sph::tabulateFunction<H, lt::kTableSize>(sph::getSphKernelDerivative(kernelChoice, sincIndex), 0, 2);
+        devData.uploadTables(wh, whd);
+    }
 };
-
-template<typename T, typename I, class Acc>
-const T ParticlesData<T, I, Acc>::K = ::sph::compute_3d_k(sincIndex);
 
 //! @brief resizes the neighbors list, only used in the CPU version
 template<class Dataset>

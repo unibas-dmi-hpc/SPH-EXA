@@ -104,8 +104,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     BufferDescription bufDesc{0, numParticles, numParticles};
     bufDesc.size = domain_exchange::exchangeBufferSize(bufDesc, numPresent, numAssigned);
     reallocate(bufDesc.size, x, y, z);
-    std::vector<std::tuple<int, LocalIndex>> log;
-    exchangeParticles(sends, thisRank, bufDesc, numAssigned, ordering.data(), log, x.data(), y.data(), z.data());
+    ExchangeLog log;
+    exchangeParticles(0, log, sends, thisRank, bufDesc, numAssigned, ordering.data(), x.data(), y.data(), z.data());
 
     domain_exchange::extractLocallyOwned(bufDesc, numPresent, numAssigned, ordering.data() + sends[thisRank], x, y, z);
 

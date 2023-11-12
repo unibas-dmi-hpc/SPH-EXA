@@ -161,8 +161,8 @@ public:
                     T* z,
                     Arrays... particleProperties) const
     {
-        receiveLog_.clear();
-        exchangeParticles(exchanges_, myRank_, bufDesc, numAssigned(), reorderFunctor.getMap(), receiveLog_, x, y, z,
+        recvLog_.clear();
+        exchangeParticles(0, recvLog_, exchanges_, myRank_, bufDesc, numAssigned(), reorderFunctor.getMap(), x, y, z,
                           particleProperties...);
 
         auto [newStart, newEnd] = domain_exchange::assignedEnvelope(bufDesc, numPresent(), numAssigned());
@@ -184,7 +184,7 @@ public:
                       SVec& /*receiveScratch*/,
                       Arrays... particleProperties) const
     {
-        exchangeParticles(exchanges_, myRank_, bufDesc, numAssigned(), ordering, receiveLog_, particleProperties...);
+        exchangeParticles(1, recvLog_, exchanges_, myRank_, bufDesc, numAssigned(), ordering, particleProperties...);
     }
 
     //! @brief read only visibility of the global octree leaves to the outside
@@ -213,7 +213,7 @@ private:
 
     SpaceCurveAssignment assignment_;
     SendRanges exchanges_;
-    mutable std::vector<std::tuple<int, LocalIndex>> receiveLog_;
+    mutable ExchangeLog recvLog_;
 
     //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;

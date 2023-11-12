@@ -38,20 +38,20 @@
 #include "cstone/sfc/box.hpp"
 #include "sph/eos.hpp"
 
-#include "io/mpi_file_utils.hpp"
 #include "isim_init.hpp"
 #include "grid.hpp"
+#include "utils.hpp"
 
 namespace sphexa
 {
 
-std::map<std::string, double> TurbulenceConstants()
+InitSettings TurbulenceConstants()
 {
-    return {{"solWeight", 0.5},    {"stMaxModes", 100000}, {"Lbox", 1.0},          {"stMachVelocity", 0.3e0},
-            {"minDt", 1e-4},       {"minDt_m1", 1e-4},     {"epsilon", 1e-15},     {"rngSeed", 251299},
-            {"stSpectForm", 1},    {"mTotal", 1.0},        {"powerLawExp", 5 / 3}, {"anglesExp", 2.0},
-            {"gamma", 1.001},      {"mui", 0.62},          {"u0", 1000.},          {"Kcour", 0.4},
-            {"gravConstant", 0.0}, {"ng0", 100},           {"ngmax", 150},         {"turbulence", 1.0}};
+    return {{"solWeight", 0.5},    {"stMaxModes", 100000}, {"Lbox", 1.0},           {"stMachVelocity", 0.3e0},
+            {"minDt", 1e-4},       {"minDt_m1", 1e-4},     {"epsilon", 1e-15},      {"rngSeed", 251299},
+            {"stSpectForm", 1},    {"mTotal", 1.0},        {"powerLawExp", 5. / 3}, {"anglesExp", 2.0},
+            {"gamma", 1.001},      {"mui", 0.62},          {"u0", 1000.},           {"Kcour", 0.4},
+            {"gravConstant", 0.0}, {"ng0", 100},           {"ngmax", 150},          {"turbulence", 1.0}};
 }
 
 //! @brief init particle data fiels. Note: Dataset attributes must be initialized
@@ -83,33 +83,34 @@ void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& 
 template<class Dataset>
 class TurbulenceGlass : public ISimInitializer<Dataset>
 {
-    std::string glassBlock;
-    using Base = ISimInitializer<Dataset>;
-    using Base::settings_;
+    std::string          glassBlock;
+    mutable InitSettings settings_;
 
 public:
-    explicit TurbulenceGlass(std::string initBlock)
+    explicit TurbulenceGlass(std::string initBlock, std::string settingsFile, IFileReader* reader)
         : glassBlock(std::move(initBlock))
     {
-        Base::updateSettings(TurbulenceConstants());
+        Dataset d;
+        settings_ = buildSettings(d, TurbulenceConstants(), settingsFile, reader);
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
         auto& d       = simData.hydro;
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
         std::vector<T> xBlock, yBlock, zBlock;
-        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
         int               multi1D            = std::rint(cbrtNumPart / std::cbrt(blockSize));
         cstone::Vec3<int> multiplicity       = {multi1D, multi1D, multi1D};
         size_t            numParticlesGlobal = multi1D * multi1D * multi1D * blockSize;
 
-        cstone::Box<T> globalBox(-0.5, 0.5, cstone::BoundaryType::periodic);
+        auto           lBox = settings_.at("Lbox");
+        cstone::Box<T> globalBox(-lBox / 2, lBox / 2, cstone::BoundaryType::periodic);
 
         auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
         assembleCuboid<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
@@ -125,7 +126,7 @@ public:
         return globalBox;
     }
 
-    const std::map<std::string, double>& constants() const override { return settings_; }
+    [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
 
 } // namespace sphexa

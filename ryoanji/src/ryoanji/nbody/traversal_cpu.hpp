@@ -165,26 +165,27 @@ void computeGravityGroup(const util::array<Vec4<T1>, N>& target, const TreeNodeI
  * @param[in]    m               masses
  * @param[in]    box             global coordinate bounding box
  * @param[in]    G               gravitational constant
+ * @param[inout] ugrav           location to add gravitational potential to, per particle (ignored if NULL)
  * @param[inout] ax              location to add x-acceleration to, per particle
  * @param[inout] ay              location to add y-acceleration to, per particle
  * @param[inout] az              location to add z-acceleration to, per particle
- * @param[inout] egravTot        total gravitational potential, one element
+ * @param[inout] ugravTot        total gravitational potential, one element
  * @param[in]    numShells       number of periodic images to include per dimension
  */
 template<class MType, class T1, class T2, class Tm>
 void computeGravity(const TreeNodeIndex* childOffsets, const TreeNodeIndex* internalToLeaf,
                     const cstone::SourceCenterType<T1>* macSpheres, const MType* multipoles, const LocalIndex* layout,
                     TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex, const T1* x, const T1* y, const T1* z,
-                    const T2* h, const Tm* m, const cstone::Box<T1>& box, float G, T2* ax, T2* ay, T2* az, T1* egravTot,
-                    int numShells = 0)
+                    const T2* h, const Tm* m, const cstone::Box<T1>& box, float G, T1* ugrav, T2* ax, T2* ay, T2* az,
+                    T1* ugravTot, int numShells = 0)
 {
     constexpr LocalIndex groupSize   = 16;
     LocalIndex           firstTarget = layout[firstLeafIndex];
     LocalIndex           lastTarget  = layout[lastLeafIndex];
 
-    T1 egravLoc = 0.0;
+    T1 ugravLoc = 0.0;
 
-#pragma omp parallel for reduction(+ : egravLoc)
+#pragma omp parallel for reduction(+ : ugravLoc)
     for (LocalIndex i = firstTarget; i < lastTarget; i += groupSize)
     {
         util::array<Vec4<T1>, groupSize> targets, potAndAcc;
@@ -218,14 +219,16 @@ void computeGravity(const TreeNodeIndex* childOffsets, const TreeNodeIndex* inte
 
         for (LocalIndex k = 0; k < groupSizeValid; ++k)
         {
-            egravLoc += G * m[i + k] * potAndAcc[k][0];
+            auto u = G * m[i + k] * potAndAcc[k][0];
+            ugravLoc += u;
+            if (ugrav) { ugrav[i + k] += u; }
             ax[i + k] += G * potAndAcc[k][1];
             ay[i + k] += G * potAndAcc[k][2];
             az[i + k] += G * potAndAcc[k][3];
         }
     }
 
-    *egravTot += 0.5 * egravLoc;
+    *ugravTot += 0.5 * ugravLoc;
 }
 
 //! @brief compute direct gravity sum for all particles [0:numParticles]

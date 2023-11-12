@@ -30,6 +30,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "ifile_io.hpp"
 #include "ifile_io_ascii.hpp"
 #ifdef SPH_EXA_HAVE_HDF5
@@ -45,13 +47,25 @@ namespace sphexa
 std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const std::string& compressionMethod,
                                                const int& compressionParam = 0)
 {
-    if (ascii) { return std::make_unique<AsciiWriterNew>(comm); }
+    if (ascii) { return std::make_unique<AsciiWriter>(comm); }
     if (compressionMethod == "") {
         // If user didn't specify compression method at all, use H5Part
+#ifdef SPH_EXA_HAVE_H5PART
         return std::make_unique<H5PartWriter>(comm);
+#endif
+        throw std::runtime_error("unsupported file i/o choice\n");
     } else {
         return std::make_unique<HDF5Writer>(comm, compressionMethod, compressionParam);
     }
+}
+
+std::unique_ptr<IFileReader> fileReaderFactory(bool /*ascii*/, MPI_Comm comm)
+{
+#if defined(SPH_EXA_HAVE_H5PART)
+    return std::make_unique<H5PartReader>(comm);
+#else
+    return std::make_unique<UnimplementedReader>();
+#endif
 }
 
 } // namespace sphexa

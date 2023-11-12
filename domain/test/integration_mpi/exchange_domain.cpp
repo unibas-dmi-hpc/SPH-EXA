@@ -94,8 +94,8 @@ void exchangeAllToAll(int thisRank, int numRanks)
     bufDesc.size               = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
     reallocate(bufDesc.size, x, y);
 
-    std::vector<std::tuple<int, LocalIndex>> log;
-    exchangeParticles(sends, thisRank, bufDesc, numPartAssigned, ordering.data(), log, x.data(), y.data());
+    ExchangeLog log;
+    exchangeParticles(0, log, sends, thisRank, bufDesc, numPartAssigned, ordering.data(), x.data(), y.data());
 
     ex::extractLocallyOwned(bufDesc, numPartPresent, numPartAssigned, ordering.data() + sends[thisRank], x, y);
 
@@ -168,8 +168,9 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     bufDesc.size               = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
     reallocate(bufDesc.size, x, y, testArray);
 
-    std::vector<std::tuple<int, LocalIndex>> log;
-    exchangeParticles(sends, thisRank, bufDesc, gridSize, ordering.data(), log, x.data(), y.data(), testArray.data());
+    ExchangeLog log;
+    exchangeParticles(0, log, sends, thisRank, bufDesc, gridSize, ordering.data(), x.data(), y.data(),
+                      testArray.data());
 
     ex::extractLocallyOwned(bufDesc, numPartPresent, numPartAssigned, ordering.data() + sends[thisRank], x, y,
                             testArray);
