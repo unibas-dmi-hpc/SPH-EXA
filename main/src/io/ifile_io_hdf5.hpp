@@ -203,10 +203,13 @@ public:
         pathStep_ = path;
         h5File_   = fileutils::openH5Part(path, H5PART_READ | H5PART_VFD_MPIIO_IND, comm_);
 
-        if (H5PartGetNumSteps(h5File_) == 0) { return; }
+        size_t fileNumSteps = H5PartGetNumSteps(h5File_);
+
+        if (fileNumSteps == 0) { return; }
 
         // set step to last step in file if negative
-        if (step < 0) { step = H5PartGetNumSteps(h5File_) - 1; }
+        std::cout << "Current steps: " << step << ", file steps: " << fileNumSteps << std::endl;
+        if (step < 0) { step = fileNumSteps - 1; }
         H5PartSetStep(h5File_, step);
 
         globalCount_ = H5PartGetNumParticles(h5File_);
@@ -288,11 +291,13 @@ public:
 
         if (rank_ == 0)
         {
-            std::cout << "Start reading in rank " << rank_ <<  std::endl;
+            std::cout << "Start reading in rank " << rank_ << "global:" << globalCount_ << std::endl;
+            auto err = std::visit([this, &key](auto arg) { return fileutils::readHDF5Field(h5z_, key, arg, globalCount_); },
+                        field);
+            if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
         }
-        auto err = std::visit([this, &key](auto arg) { return fileutils::readHDF5Field(h5z_, key, arg, globalCount_); },
-                              field);
-        if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
+
+        
     }
 
     uint64_t localNumParticles() override { return localCount_; }

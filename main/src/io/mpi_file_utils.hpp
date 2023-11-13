@@ -405,10 +405,11 @@ static unsigned readHDF5Field_(H5ZType& h5z, const std::string& fieldName, void*
 
     // Open the dataset
     std::string datasetPath = "/Step#" + std::to_string(h5z.step) + "/" + fieldName;
+    std::cout << "Open:  " << datasetPath << std::endl;
     h5z.dset_id             = H5Dopen1(h5z.file_id, datasetPath.c_str());
 
     // File space
-    hid_t fileSpace = H5Dget_space(h5z.dset_id);
+    // hid_t fileSpace = H5Dget_space(h5z.dset_id);
 
     // Retrieve filter information
     hid_t plist_id = H5Dget_create_plist(h5z.dset_id);
@@ -417,6 +418,7 @@ static unsigned readHDF5Field_(H5ZType& h5z, const std::string& fieldName, void*
     H5Z_filter_t filter_type = H5Pget_filter (plist_id, 0, &flags, &nelmts, NULL, 0, NULL,
                 &filter_info);
     printf ("Filter type is: ");
+    std::cout << filter_type << std::endl;
     switch (filter_type) {
         case H5Z_FILTER_DEFLATE:
             printf ("H5Z_FILTER_DEFLATE\n");
@@ -436,25 +438,27 @@ static unsigned readHDF5Field_(H5ZType& h5z, const std::string& fieldName, void*
         case H5Z_FILTER_SCALEOFFSET:
             printf ("H5Z_FILTER_SCALEOFFSET\n");
     }
-    hssize_t hh = H5Sget_simple_extent_npoints(fileSpace);
+    // hssize_t hh = H5Sget_simple_extent_npoints(fileSpace);
 
-    // Select a hyperslab for local particles (only with local size)
-    hsize_t stride[1] = {1};
-    h5z.status        = H5Sselect_hyperslab(fileSpace, H5S_SELECT_SET, &h5z.start, NULL, &h5z.numParticles, NULL);
+    // // Select a hyperslab for local particles (only with local size)
+    // hsize_t stride[1] = {1};
+    // h5z.status        = H5Sselect_hyperslab(fileSpace, H5S_SELECT_SET, &h5z.start, NULL, &h5z.numParticles, NULL);
 
-    // Read into dataspace independently
+    // // Read into dataspace independently
     // hid_t dxpl = H5Pcreate(H5P_DATASET_XFER);
     // H5Pset_dxpl_mpio (dxpl, H5FD_MPIO_COLLECTIVE);
 
     // MPI_Barrier(MPI_COMM_WORLD);
 
-    // h5z.status = H5Dwrite(h5z.dset_id, dataType, memorySpace, dataSpace, dxpl, field);
-    h5z.status = H5Dread(h5z.dset_id, dataType, h5z.dspace_id, H5S_ALL, H5P_DEFAULT, field);
+    // // h5z.status = H5Dwrite(h5z.dset_id, dataType, memorySpace, dataSpace, dxpl, field);
+    // h5z.status = H5Dwrite(h5z.dset_id, dataType, h5z.dspace_id, H5S_ALL, dxpl, field);
+    // // h5z.status = H5Dread(h5z.dset_id, dataType, h5z.dspace_id, H5S_ALL, H5P_DEFAULT, field);
+    // std::cout << "\n=====================================\n" << std::endl;
 
     h5z.status = H5Dclose(h5z.dset_id);
     h5z.status = H5Sclose(h5z.dspace_id);
-    h5z.status = H5Sclose(fileSpace);
-    // h5z.status = H5Pclose(plist_id);
+    // h5z.status = H5Sclose(fileSpace);
+    h5z.status = H5Pclose(plist_id);
     return 0;
 }
 
