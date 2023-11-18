@@ -35,6 +35,7 @@
 #include "cstone/primitives/gather.hpp"
 #include "isim_init.hpp"
 #include "sph/eos.hpp"
+#include "utils.hpp"
 
 namespace sphexa
 {
@@ -114,13 +115,16 @@ public:
 
         std::vector<T> xBlock, yBlock, zBlock;
         readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
+        T   rhoHigh                = settings_.at("rho_l");
+        T   rhoLow                 = settings_.at("rho_r");
+        int leftMultiplier         = std::rint(std::cbrt(rhoHigh / rhoLow));
 
         int               multi1D    = std::lround(cbrtNumPart / std::cbrt(xBlock.size()));
-        cstone::Vec3<int> leftMulti  = {16 * multi1D, 2 * multi1D, 2 * multi1D};
         cstone::Vec3<int> rightMulti = {8 * multi1D, multi1D, multi1D};
+        cstone::Vec3<int> leftMulti  = leftMultiplier * rightMulti;
 
         cstone::Box<T> left(0, 0.5, 0, 0.125, 0, 0.125, pbc, pbc, pbc);
-        cstone::Box<T> right(0.5, 1, 0.125, 0.125, 0, 0.125, pbc, pbc, pbc);
+        cstone::Box<T> right(0.5, 1, 0, 0.125, 0, 0.125, pbc, pbc, pbc);
 
         cstone::Box<T> globalBox(0, 1, 0, 0.125, 0, 0.125, fbc, pbc, pbc);
         auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
@@ -128,16 +132,14 @@ public:
         assembleCuboid<T>(keyStart, keyEnd, left, leftMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
         assembleCuboid<T>(keyStart, keyEnd, right, rightMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
-        d.numParticlesGlobal = d.x.size();
-        syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
+        size_t numParticlesGlobal = d.x.size();
+        MPI_Allreduce(MPI_IN_PLACE, &numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
+        syncCoords<KeyType>(rank, numRanks, numParticlesGlobal, d.x, d.y, d.z, globalBox);
         d.resize(d.x.size());
 
-        settings_["numParticlesGlobal"] = double(d.numParticlesGlobal);
+        settings_["numParticlesGlobal"] = double(numParticlesGlobal);
         BuiltinWriter attributeSetter(settings_);
         d.loadOrStoreAttributes(&attributeSetter);
-
-        T rhoHigh = settings_.at("rho_l");
-        T rhoLow  = settings_.at("rho_r");
 
         T highDensVolume = globalBox.lx() * globalBox.ly() * globalBox.lz() * 0.5;
         T nPartHighDens  = d.x.size() * rhoHigh / (rhoHigh + rhoLow); // estimate from template block
