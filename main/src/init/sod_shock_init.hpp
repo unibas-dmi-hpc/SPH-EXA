@@ -103,8 +103,8 @@ public:
         settings_ = buildSettings(d, SodShockConstants(), settingsFile, reader);
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
-                                                 Dataset& simData, IFileReader* reader) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
+                                                 IFileReader* reader) const override
     {
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
@@ -113,9 +113,20 @@ public:
         auto  fbc     = cstone::BoundaryType::fixed;
 
         std::vector<T> xBlock, yBlock, zBlock;
-        readTemplateBlock(glassBlock, reader, d.x, d.y, d.z);
+        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
+
+        int               multi1D    = std::lround(cbrtNumPart / std::cbrt(xBlock.size()));
+        cstone::Vec3<int> leftMulti  = {16 * multi1D, 2 * multi1D, 2 * multi1D};
+        cstone::Vec3<int> rightMulti = {8 * multi1D, multi1D, multi1D};
+
+        cstone::Box<T> left(0, 0.5, 0, 0.125, 0, 0.125, pbc, pbc, pbc);
+        cstone::Box<T> right(0.5, 1, 0.125, 0.125, 0, 0.125, pbc, pbc, pbc);
 
         cstone::Box<T> globalBox(0, 1, 0, 0.125, 0, 0.125, fbc, pbc, pbc);
+        auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
+
+        assembleCuboid<T>(keyStart, keyEnd, left, leftMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        assembleCuboid<T>(keyStart, keyEnd, right, rightMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
         d.numParticlesGlobal = d.x.size();
         syncCoords<KeyType>(rank, numRanks, d.numParticlesGlobal, d.x, d.y, d.z, globalBox);
@@ -126,11 +137,11 @@ public:
         d.loadOrStoreAttributes(&attributeSetter);
 
         T rhoHigh = settings_.at("rho_l");
-        T rhoLow = settings_.at("rho_r");
+        T rhoLow  = settings_.at("rho_r");
 
         T highDensVolume = globalBox.lx() * globalBox.ly() * globalBox.lz() * 0.5;
-        T nPartHighDens = d.x.size() * rhoHigh / (rhoHigh+rhoLow); //estimate from template block
-        T      particleMass = highDensVolume * settings_.at("rho_l") / nPartHighDens;
+        T nPartHighDens  = d.x.size() * rhoHigh / (rhoHigh + rhoLow); // estimate from template block
+        T particleMass   = highDensVolume * settings_.at("rho_l") / nPartHighDens;
 
         initSodShock(d, settings_, particleMass);
 
