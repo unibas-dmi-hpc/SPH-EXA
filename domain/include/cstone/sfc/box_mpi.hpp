@@ -114,7 +114,8 @@ auto makeGlobalBox(const T* x, const T* y, const T* z, size_t numElements, const
                   extrema[5],
                   previousBox.boundaryX(),
                   previousBox.boundaryY(),
-                  previousBox.boundaryZ()};
+                  previousBox.boundaryZ(),
+                  previousBox.fbcThickness()};
 }
 
 } // namespace cstone
