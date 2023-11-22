@@ -81,6 +81,7 @@ public:
     DevVector<T>         u;                                  // Internal Energy
     DevVector<HydroType> p;                                  // Pressure
     DevVector<HydroType> prho;                               // p / (kx * m^2 * gradh)
+    DevVector<HydroType> tdpdTrho;                           // temp * dp/dT * prho
     DevVector<HydroType> h;                                  // Smoothing Length
     DevVector<Tmass>     m;                                  // Mass
     DevVector<HydroType> c;                                  // Speed of sound
@@ -112,10 +113,10 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",     "y",    "z",   "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",    "rho",  "u",     "p",
-        "prho",  "h",    "m",   "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",   "c13",
-        "c22",   "c23",  "c33", "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv", "alpha",
-        "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
+        "x",     "y",        "z",    "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",   "rho",   "u",    "p",
+        "prho",  "tdpdTrho", "h",    "m",    "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",
+        "c13",   "c22",      "c23",  "c33",  "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv",
+        "alpha", "gradh",    "keys", "nc",   "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
 
     /*! @brief return a tuple of field references
      *
@@ -123,9 +124,9 @@ public:
      */
     auto dataTuple()
     {
-        auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11,
-                            c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc,
-                            dV11, dV12, dV13, dV22, dV23, dV33);
+        auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, tdpdTrho, h, m, c, ax, ay, az, du,
+                            du_m1, c11, c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh,
+                            keys, nc, dV11, dV12, dV13, dV22, dV23, dV33);
 
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
         return ret;
