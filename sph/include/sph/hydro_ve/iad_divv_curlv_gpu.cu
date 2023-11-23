@@ -110,14 +110,8 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, Dataset& d,
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-#define IAD_DIVV_CURLV(real, key)                                                                                      \
-    template void computeIadDivvCurlv(size_t, size_t, sphexa::ParticlesData<real, key, cstone::GpuTag>& d,             \
-                                      const cstone::Box<real>&)
-
-IAD_DIVV_CURLV(double, uint32_t);
-IAD_DIVV_CURLV(double, uint64_t);
-IAD_DIVV_CURLV(float, uint32_t);
-IAD_DIVV_CURLV(float, uint64_t);
+template void computeIadDivvCurlv(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
+                                  const cstone::Box<SphTypes::CoordinateType>&);
 
 } // namespace cuda
 } // namespace sph

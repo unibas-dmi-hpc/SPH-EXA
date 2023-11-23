@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <filesystem>
+#include <functional>
 #include <vector>
 
 namespace sphexa

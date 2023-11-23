@@ -28,17 +28,16 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#pragma once
-
 #include <mpi.h>
 
 #include <filesystem>
-#include <map>
 #include <string>
 #include <vector>
 
+#include "cstone/primitives/gather.hpp"
+
 #include "file_utils.hpp"
-#include "ifile_io.hpp"
+#include "ifile_io_impl.h"
 
 namespace sphexa
 {
@@ -139,5 +138,7 @@ private:
     std::vector<Base::FieldVector> stepBuffer_;
     uint64_t                       iterationStep_{0};
 };
+
+std::unique_ptr<IFileWriter> makeAsciiWriter(MPI_Comm comm) { return std::make_unique<AsciiWriter>(comm); }
 
 } // namespace sphexa
