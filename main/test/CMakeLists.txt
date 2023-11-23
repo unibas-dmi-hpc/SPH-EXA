@@ -1,7 +1,6 @@
 
 set(UNIT_TESTS
         init/grid.cpp
-        init/isobaric_cube.cpp
         io/arg_parser.cpp
         io/h5part_wrapper.cpp
         observables/gravitational_waves.cpp

@@ -32,6 +32,7 @@
 #pragma once
 
 #include "cstone/sfc/box.hpp"
+#include "sphexa/simulation_data.hpp"
 
 namespace sphexa
 {
@@ -45,5 +46,20 @@ public:
 
     virtual ~IObservables() = default;
 };
+
+template<class Dataset>
+struct Observables
+{
+    using ObsPtr = std::unique_ptr<IObservables<Dataset>>;
+
+    static ObsPtr makeGravWaveObs(std::ostream& out, double theta, double phi);
+    static ObsPtr makeTimeEnergyObs(std::ostream& out);
+    static ObsPtr makeTimeEnergyGrowthObs(std::ostream& out);
+    static ObsPtr makeTurbMachObs(std::ostream& out);
+    static ObsPtr makeWindBubbleObs(std::ostream& out, double rhoI, double uE, double r);
+};
+
+extern template struct Observables<SimulationData<cstone::CpuTag>>;
+extern template struct Observables<SimulationData<cstone::GpuTag>>;
 
 } // namespace sphexa

@@ -33,6 +33,7 @@
 #include <map>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include "cstone/util/type_list.hpp"
 
