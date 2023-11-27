@@ -218,7 +218,7 @@ public:
         auto                u_copy = d.u;
         std::vector<double> rho_copy{d.rho.begin(), d.rho.end()};
         timer.step("Copy rho, u");
-        cooling_data.cool_particle_arr(T(d.minDt), rho_copy.data(), u_copy.data(),
+        cooling_data.cool_particle_arr(T(d.minDt), rho_copy.data() + first, u_copy.data() + first,
                                        cstone::getPointers(get<CoolingFields>(simData.chem), first), last - first);
         /*#pragma omp parallel for schedule(static)
                 for (size_t i = first; i < last; i++)

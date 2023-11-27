@@ -146,7 +146,7 @@ struct cooler_field_data_arr
     int                zero[3] = {0, 0, 0};
     int                one[3]  = {1, 1, 1};
     int end[3] = {0, 0, 0};
-    int endpl1[3]={0, 0, 0};
+    int endpl1[3]={0, 1, 1};
     double *xv1;
     double *yv1;
     double *zv1;
