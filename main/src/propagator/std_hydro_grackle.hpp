@@ -215,17 +215,22 @@ public:
         timer.step("Timestep");
 
         transferToHost(d, first, last, {"du"});
-#pragma omp parallel for schedule(static)
-        for (size_t i = first; i < last; i++)
-        {
-            T u_old  = d.u[i];
-            T u_cool = d.u[i];
-            T rhoi   = d.rho[i];
-            cooling_data.cool_particle(T(d.minDt), rhoi, u_cool,
-                                       cstone::getPointers(get<CoolingFields>(simData.chem), i));
-            const T du = (u_cool - u_old) / d.minDt;
-            d.du[i] += du;
-        }
+        auto                u_copy = d.u;
+        std::vector<double> rho_copy{d.rho.begin(), d.rho.end()};
+        timer.step("Copy rho, u");
+        cooling_data.cool_particle_arr(T(d.minDt), rho_copy.data(), u_copy.data(),
+                                       cstone::getPointers(get<CoolingFields>(simData.chem), first), last - first);
+        /*#pragma omp parallel for schedule(static)
+                for (size_t i = first; i < last; i++)
+                {
+                    T u_old  = d.u[i];
+                    T u_cool = d.u[i];
+                    T rhoi   = d.rho[i];
+                    cooling_data.cool_particle(T(d.minDt), rhoi, u_cool,
+                                               cstone::getPointers(get<CoolingFields>(simData.chem), i));
+                    const T du = (u_cool - u_old) / d.minDt;
+                    d.du[i] += du;
+                }*/
         transferToDevice(d, first, last, {"du"});
         timer.step("GRACKLE chemistry and cooling");
 

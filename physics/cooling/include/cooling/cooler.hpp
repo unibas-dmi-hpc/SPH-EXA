@@ -87,6 +87,7 @@ struct Cooler
     //! @brief Calls the GRACKLE library to integrate the cooling and chemistry fields
     void cool_particle(T dt, T& rho, T& u, const ParticleType& particle);
 
+    void cool_particle_arr(T dt, T *rho, T *u, const ParticleType &particle, const size_t len);
     //! @brief Calculate the temperature in K (physical units) from the internal energy (code units) and the chemistry
     //! composition
     T energy_to_temperature(T dt, T rho, T u, const ParticleType& particle);

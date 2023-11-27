@@ -137,3 +137,70 @@ struct cooler_field_data_content
         *std::get<20>(particle) /*H2_self_shielding_length*/ = H2_self_shielding_length_gr;
     }
 };
+
+
+template <typename T>
+struct cooler_field_data_arr
+{
+    grackle_field_data data;
+    int                zero[3] = {0, 0, 0};
+    int                one[3]  = {1, 1, 1};
+    int end[3] = {0, 0, 0};
+    int endpl1[3]={0, 0, 0};
+    double *xv1;
+    double *yv1;
+    double *zv1;
+
+    void makeGrackleFieldsFromData(T* rho, T* u, const typename cooling::Cooler<T>::ParticleType& particle, const size_t len)
+    {
+        assert(len > 0);
+        using ParticleType = typename cooling::Cooler<T>::ParticleType;
+        static_assert(std::is_same_v<T, gr_float>);
+        xv1 = new double[len];
+        yv1 = new double[len];
+        zv1 = new double[len];
+        std::fill_n(xv1, len, 0.);
+        std::fill_n(yv1, len, 0.);
+        std::fill_n(zv1, len, 0.);
+
+        end[0] = len - 1;
+        endpl1[0] = len;
+        data.grid_rank      = 3;
+        data.grid_dimension = endpl1;
+        data.grid_start     = zero;
+        data.grid_end       = end;
+        data.grid_dx        = 0.0;
+
+        data.density                  = rho;
+        data.internal_energy          = u;
+        data.x_velocity               = xv1;
+        data.y_velocity               = yv1;
+        data.z_velocity               = zv1;
+        data.HI_density               = std::get<0>(particle);
+        data.HII_density              = std::get<1>(particle);
+        data.HM_density               = std::get<2>(particle);
+        data.HeI_density              = std::get<3>(particle);
+        data.HeII_density             = std::get<4>(particle);
+        data.HeIII_density            = std::get<5>(particle);
+        data.H2I_density              = std::get<6>(particle);
+        data.H2II_density             = std::get<7>(particle);
+        data.DI_density               = std::get<8>(particle);
+        data.DII_density              = std::get<9>(particle);
+        data.HDI_density              = std::get<10>(particle);
+        data.e_density                = std::get<11>(particle);
+        data.metal_density            = std::get<12>(particle);
+        data.volumetric_heating_rate  = std::get<13>(particle);
+        data.specific_heating_rate    = std::get<14>(particle);
+        data.RT_heating_rate          = std::get<15>(particle);
+        data.RT_HI_ionization_rate    = std::get<16>(particle);
+        data.RT_HeI_ionization_rate   = std::get<17>(particle);
+        data.RT_HeII_ionization_rate  = std::get<18>(particle);
+        data.RT_H2_dissociation_rate  = std::get<19>(particle);
+        data.H2_self_shielding_length = std::get<20>(particle);
+    }
+    ~cooler_field_data_arr() {
+        delete []xv1;
+        delete []yv1;
+        delete []zv1;
+    }
+};

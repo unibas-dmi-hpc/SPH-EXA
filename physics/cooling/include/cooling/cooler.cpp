@@ -9,6 +9,7 @@ extern "C"
 
 #include "cooler.hpp"
 #include "cooler_field_data_content.h"
+#include "cstone/util/tuple_util.hpp"
 
 #include <array>
 #include <vector>
@@ -123,6 +124,7 @@ private:
     }
 
     void cool_particle(T dt, T& rho, T& u, const ParticleType& particle);
+    void cool_particle_arr(T dt, T *rho, T *u, const ParticleType &particle, const size_t len);
 
     T energy_to_temperature(T dt, T rho, T u, const ParticleType& particle);
 
@@ -168,6 +170,12 @@ void Cooler<T>::cool_particle(T dt, T& rho, T& u, const ParticleType& particle)
 }
 
 template<typename T>
+void Cooler<T>::cool_particle_arr(T dt, T *rho, T *u, const ParticleType &particle, const size_t len)
+{
+    impl_ptr->cool_particle_arr(dt, rho, u, particle, len);
+}
+
+template<typename T>
 T Cooler<T>::energy_to_temperature(T dt, T rho, T u, const ParticleType& particle)
 {
     return impl_ptr->energy_to_temperature(dt, rho, u, particle);
@@ -192,7 +200,7 @@ T Cooler<T>::cooling_time(T rho, T u, const ParticleType& particle)
 }
 
 template struct Cooler<double>;
-template struct Cooler<float>;
+//template struct Cooler<float>;
 
 // Implementation of Cooler::Impl
 template<typename T>
@@ -238,6 +246,51 @@ void Cooler<T>::Impl::init(const int comoving_coordinates, std::optional<T> tu)
         std::cout << global_values.data.with_radiative_cooling << std::endl;
         throw std::runtime_error("Grackle: Error in _initialize_chemistry_data");
     }
+}
+
+template <typename T1, typename ...T>
+void multiply_in_place(const T1 *factor, std::tuple<T*...> t, const size_t len)
+{
+    auto f = [&](auto *arg)
+    {
+        for (size_t i = 0; i < len; i++)
+            arg[i] *= factor[i];
+    };
+    util::for_each_tuple(f, t);
+}
+
+template <typename T1, typename ...T>
+void divide_in_place(const T1 *factor, std::tuple<T*...> t, const size_t len)
+{
+    auto f = [&](auto *arg)
+    {
+        for (size_t i = 0; i < len; i++)
+            arg[i] /= factor[i];
+    };
+    util::for_each_tuple(f, t);
+}
+
+template<typename T>
+void Cooler<T>::Impl::cool_particle_arr(T dt, T *rho, T *u, const ParticleType &particle, const size_t len)
+{
+    static_assert(std::is_same_v<T, gr_float>);
+    cooler_field_data_arr<T> grackle_fields;
+    auto getElements = [&]<size_t ...I>(const std::integer_sequence<size_t, I...> &)
+    {
+        return std::tuple(std::get<I>(particle)...);
+    };
+    printf("dens: %lf\tHI: %lf\n", rho[0], std::get<0>(particle)[0]);
+    multiply_in_place(rho, getElements(std::make_index_sequence<13>()), len);
+    printf("dens: %lf\tHI: %lf\n", rho[0], std::get<0>(particle)[0]);
+    grackle_fields.makeGrackleFieldsFromData(rho, u, particle, len);
+
+    auto ret_value = local_solve_chemistry(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data, dt);
+    if (ret_value == 0)
+    {
+        throw std::runtime_error("Grackle: Error in local_solve_chemistry");
+    }
+
+    divide_in_place(rho, getElements(std::make_index_sequence<13>()), len);
 }
 
 template<typename T>
