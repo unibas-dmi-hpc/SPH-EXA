@@ -222,7 +222,7 @@ public:
                                        cstone::getPointers(get<CoolingFields>(simData.chem), first), last - first);
         for (size_t i = first; i < last; i++)
         {
-            d.du[i] = (u_copy[i] - d.u[i]) / d.minDt;
+            d.du[i] += (u_copy[i] - d.u[i]) / d.minDt;
         }
         /*#pragma omp parallel for schedule(static)
                 for (size_t i = first; i < last; i++)
