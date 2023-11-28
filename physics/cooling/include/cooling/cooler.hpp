@@ -94,11 +94,14 @@ struct Cooler
 
     //! @brief Calculate pressure using the chemistry composition
     T pressure(T rho, T u, const ParticleType& particle);
+    void pressure_arr(T *rho, T *u, const ParticleType &particle, T* p, const size_t len);
 
     //! @brief Calculate adiabatic index from chemistry composition
     T adiabatic_index(T rho, T u, const ParticleType& particle);
+    void adiabatic_index_arr(T *rho, T *u, const ParticleType &particle, T* gamma, const size_t len);
 
     T cooling_time(T rho, T u, const ParticleType& particle);
+    void cooling_time_arr(T *rho, T *u, const ParticleType &particle, T* ct, const size_t len);
 
     // Parameter for cooling time criterion
     T ct_crit{0.1};
