@@ -274,7 +274,6 @@ void multiply_in_place(const T1 *factor, std::tuple<T*...> t, const size_t len)
 {
     auto f = [&](auto *arg)
     {
-#pragma omp parallel for schedule(static)
         for (size_t i = 0; i < len; i++)
             arg[i] *= factor[i];
     };
@@ -286,7 +285,6 @@ void divide_in_place(const T1 *factor, std::tuple<T*...> t, const size_t len)
 {
     auto f = [&](auto *arg)
     {
-#pragma omp parallel for schedule(static)
         for (size_t i = 0; i < len; i++)
             arg[i] /= factor[i];
     };
