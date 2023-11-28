@@ -234,7 +234,7 @@ TEST(cooling_grackle, testArr)
     constexpr Real mh          = 1.67262171e-24;
     constexpr Real kboltz      = 1.3806504e-16;
 
-    auto rho = std::vector<Real>{1.0, 1.1};
+    auto rho = std::vector<Real>{1.1, 1.0};
     /*Real temperature_units =
             mh *
             pow(cd.get_global_values().units.a_units * cd.get_global_values().units.length_units /
@@ -281,6 +281,6 @@ TEST(cooling_grackle, testArr)
     std::cout << HI_fraction[0] << std::endl;
     std::cout << HI_fraction[1] << std::endl;
 
-    EXPECT_NEAR(HI_fraction[0], 0.630705, 1e-6);
-    EXPECT_NEAR(u[0], 2.95159e+35, 1e30);
+    EXPECT_NEAR(HI_fraction[1], 0.630705, 1e-6);
+    EXPECT_NEAR(u[1], 2.95159e+35, 1e30);
 }

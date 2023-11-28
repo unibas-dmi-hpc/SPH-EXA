@@ -143,31 +143,45 @@ template <typename T>
 struct cooler_field_data_arr
 {
     grackle_field_data data;
-    int                zero[3] = {0, 0, 0};
-    int                one[3]  = {1, 1, 1};
-    int end[3] = {0, 0, 0};
-    int endpl1[3]={0, 1, 1};
+    //int                zero[3] = {0, 0, 0};
+    //int                one[3]  = {1, 1, 1};
+    //int end[3] = {0, 0, 0};
+    //int endpl1[3]={0, 1, 1};
+
+    int *start;
+    int *end;
+    int *dim;
     double *xv1;
     double *yv1;
     double *zv1;
 
     void makeGrackleFieldsFromData(T* rho, T* u, const typename cooling::Cooler<T>::ParticleType& particle, const size_t len)
     {
+        printf("%zu\n", len);
         assert(len > 0);
         using ParticleType = typename cooling::Cooler<T>::ParticleType;
         static_assert(std::is_same_v<T, gr_float>);
         xv1 = new double[len];
         yv1 = new double[len];
         zv1 = new double[len];
+        printf("%p\n", xv1);
+        printf("%p\n", yv1);
+        printf("%p\n", zv1);
+        printf("%p\n", end);
+
         std::fill_n(xv1, len, 0.);
         std::fill_n(yv1, len, 0.);
         std::fill_n(zv1, len, 0.);
 
-        end[0] = len - 1;
-        endpl1[0] = len;
-        data.grid_rank      = 3;
-        data.grid_dimension = endpl1;
-        data.grid_start     = zero;
+        start = new int[3]{0,0,0};
+        end = new int[3]{0,(int)len - 1,0};
+        dim = new int[3]{1,(int)len,1};
+
+
+
+        data.grid_rank      = 2;
+        data.grid_dimension = dim;
+        data.grid_start     = start;
         data.grid_end       = end;
         data.grid_dx        = 0.0;
 
@@ -202,5 +216,8 @@ struct cooler_field_data_arr
         delete []xv1;
         delete []yv1;
         delete []zv1;
+        delete []start;
+        delete []end;
+        delete []dim;
     }
 };
