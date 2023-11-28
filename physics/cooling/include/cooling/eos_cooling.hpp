@@ -16,8 +16,9 @@ auto coolingTimestep(size_t first, size_t last, Dataset& d, Cooler& cooler, Chem
 
     std::vector<T> cooling_times(last - first);
     std::vector<double> rho_copy{d.rho.begin(), d.rho.end()};
+    std::vector<double> u_copy{d.u.begin(), d.u.end()};
 
-    cooler.cooling_time_arr(rho_copy.data() + first, d.u.data() + first,
+    cooler.cooling_time_arr(rho_copy.data() + first, u_copy.data() + first,
                             cstone::getPointers(get<CoolingFields>(chem), first), cooling_times.data(), last - first);
     T minTc = *std::min_element(cooling_times.begin(), cooling_times.end());
     return minTc;
@@ -43,12 +44,14 @@ void eos_cooling(size_t startIndex, size_t endIndex, HydroData& d, ChemData& che
 
     std::vector<double> rho_copy{d.rho.begin(), d.rho.end()};
     std::vector<double> p_copy(endIndex - startIndex);
-    cooler.pressure_arr(rho_copy.data() + startIndex, d.u.data() + startIndex,
+    std::vector<double> u_copy{d.u.begin(), d.u.end()};
+
+    cooler.pressure_arr(rho_copy.data() + startIndex, u_copy.data() + startIndex,
                         cstone::getPointers(get<CoolingFields>(chem), startIndex), p_copy.data(), endIndex - startIndex);
     std::copy(p_copy.begin(), p_copy.end(), d.p.begin() + startIndex);
 
     std::vector<T> gammas(endIndex - startIndex);
-    cooler.adiabatic_index_arr(rho_copy.data() + startIndex, d.u.data() + startIndex,
+    cooler.adiabatic_index_arr(rho_copy.data() + startIndex, u_copy.data() + startIndex,
                         cstone::getPointers(get<CoolingFields>(chem), startIndex), gammas.data(), endIndex - startIndex);
 
 #pragma omp parallel for schedule(static)
