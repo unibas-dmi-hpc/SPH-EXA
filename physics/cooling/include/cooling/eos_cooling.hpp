@@ -68,7 +68,7 @@ void eos_cooling(size_t startIndex, size_t endIndex, HydroData& d, ChemData& che
                         endIndex - startIndex);
 
     std::vector<T> gammas(endIndex - startIndex);
-    cooler.adiabatic_index_arr(rho_copy.data() + startIndex, u_copy.data() + startIndex,
+    cooler.adiabatic_index_arr(rho_copy.data(), u_copy.data(),
                                cstone::getPointers(get<CoolingFields>(chem), startIndex), gammas.data(),
                                endIndex - startIndex);
 
