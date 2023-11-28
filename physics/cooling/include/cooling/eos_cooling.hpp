@@ -20,7 +20,7 @@ auto coolingTimestep(size_t first, size_t last, Dataset& d, Cooler& cooler, Chem
 
     cooler.cooling_time_arr(rho_copy.data() + first, u_copy.data() + first,
                             cstone::getPointers(get<CoolingFields>(chem), first), cooling_times.data(), last - first);
-    T minTc = *std::min_element(cooling_times.begin(), cooling_times.end());
+    T minTc = *std::min_element(cooling_times.begin(), cooling_times.end()) * cooler.ct_crit;
     return minTc;
     //    T minTc(INFINITY);
     // #pragma omp parallel for reduction(min : minTc)
