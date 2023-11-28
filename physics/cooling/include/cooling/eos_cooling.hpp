@@ -80,7 +80,7 @@ void eos_cooling(size_t startIndex, size_t endIndex, HydroData& d, ChemData& che
         T pressure    = p_copy[i - startIndex];
         T gamma       = gammas[i - startIndex];
         T sound_speed = std::sqrt(gamma * pressure / rho[i]);
-        //p[i]          = pressure;
+        p[i]          = pressure;
         c[i]          = sound_speed;
     }
 }
