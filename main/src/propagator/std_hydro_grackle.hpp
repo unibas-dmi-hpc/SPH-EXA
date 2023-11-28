@@ -210,7 +210,7 @@ public:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        auto minDtCooling = 0.;//= cooling::coolingTimestep(first, last, d, cooling_data, simData.chem);
+        auto minDtCooling = 100.;//= cooling::coolingTimestep(first, last, d, cooling_data, simData.chem);
         computeTimestep(first, last, d, minDtCooling);
         timer.step("Timestep");
 
