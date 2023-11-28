@@ -14,14 +14,16 @@ auto coolingTimestep(size_t first, size_t last, Dataset& d, Cooler& cooler, Chem
     using T             = typename Dataset::RealType;
     using CoolingFields = typename Cooler::CoolingFields;
 
-    std::vector<T>      cooling_times(last - first);
+    std::vector<double> cooling_times(last - first);
     std::vector<double> rho_copy{d.rho.begin(), d.rho.end()};
     std::vector<double> u_copy{d.u.begin(), d.u.end()};
 
     cooler.cooling_time_arr(rho_copy.data() + first, u_copy.data() + first,
                             cstone::getPointers(get<CoolingFields>(chem), first), cooling_times.data(), last - first);
-    T minTc = *std::min_element(cooling_times.begin(), cooling_times.end()) * cooler.ct_crit;
-    return minTc;
+    T minTc = *std::min_element(cooling_times.begin(), cooling_times.end(),
+                                [](const double& a, const double& b) { return std::abs(a) < std::abs(b); }) *
+              cooler.ct_crit;
+    return std::abs(minTc);
     //    T minTc(INFINITY);
     // #pragma omp parallel for reduction(min : minTc)
     //    for (size_t i = first; i < last; i++)

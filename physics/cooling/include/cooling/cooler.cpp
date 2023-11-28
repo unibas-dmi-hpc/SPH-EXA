@@ -454,7 +454,7 @@ void Cooler<T>::Impl::cooling_time_arr(T *rho, T *u, const ParticleType &particl
     auto ret_value = local_calculate_cooling_time(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data, ct);
     if (ret_value == 0)
     {
-        throw std::runtime_error("Grackle: local_calculate_gamma");
+        throw std::runtime_error("Grackle: local_calculate_cooling_time");
     }
 
     //Convert species densities back to fractions
