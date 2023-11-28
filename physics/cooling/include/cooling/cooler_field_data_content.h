@@ -143,10 +143,6 @@ template <typename T>
 struct cooler_field_data_arr
 {
     grackle_field_data data;
-    //int                zero[3] = {0, 0, 0};
-    //int                one[3]  = {1, 1, 1};
-    //int end[3] = {0, 0, 0};
-    //int endpl1[3]={0, 1, 1};
 
     int *start;
     int *end;
