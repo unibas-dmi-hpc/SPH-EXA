@@ -52,33 +52,33 @@ void eos_cooling(size_t startIndex, size_t endIndex, HydroData& d, ChemData& che
     auto* p = d.p.data();
     auto* c = d.c.data();
 
-    std::vector<double> rho_copy(endIndex - startIndex);
-    std::vector<double> p_copy(endIndex - startIndex);
-    std::vector<double> u_copy(endIndex - startIndex);
-
+//    std::vector<double> rho_copy(endIndex - startIndex);
+//    std::vector<double> p_copy(endIndex - startIndex);
+//    std::vector<double> u_copy(endIndex - startIndex);
+//
+//#pragma omp parallel for schedule(static)
+//    for (size_t i = startIndex; i < endIndex; ++i)
+//    {
+//            rho_copy[i - startIndex] = d.rho[i];
+//            u_copy[i - startIndex] = d.u[i];
+//    }
+//
+//    cooler.pressure_arr(rho_copy.data(), u_copy.data(),
+//                        cstone::getPointers(get<CoolingFields>(chem), startIndex), p_copy.data(),
+//                        endIndex - startIndex);
+//
+//    std::vector<T> gammas(endIndex - startIndex);
+//    cooler.adiabatic_index_arr(rho_copy.data(), u_copy.data(),
+//                               cstone::getPointers(get<CoolingFields>(chem), startIndex), gammas.data(),
+//                               endIndex - startIndex);
+//
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
-            rho_copy[i - startIndex] = d.rho[i];
-            u_copy[i - startIndex] = d.u[i];
-    }
-
-    cooler.pressure_arr(rho_copy.data(), u_copy.data(),
-                        cstone::getPointers(get<CoolingFields>(chem), startIndex), p_copy.data(),
-                        endIndex - startIndex);
-
-    std::vector<T> gammas(endIndex - startIndex);
-    cooler.adiabatic_index_arr(rho_copy.data(), u_copy.data(),
-                               cstone::getPointers(get<CoolingFields>(chem), startIndex), gammas.data(),
-                               endIndex - startIndex);
-
-#pragma omp parallel for schedule(static)
-    for (size_t i = startIndex; i < endIndex; ++i)
-    {
-        // T pressure    = cooler.pressure(rho[i], d.u[i], cstone::getPointers(get<CoolingFields>(chem), i));
-        // T gamma       = cooler.adiabatic_index(rho[i], d.u[i], cstone::getPointers(get<CoolingFields>(chem), i));
-        T pressure    = p_copy[i - startIndex];
-        T gamma       = gammas[i - startIndex];
+         T pressure    = cooler.pressure(rho[i], d.u[i], cstone::getPointers(get<CoolingFields>(chem), i));
+         T gamma       = cooler.adiabatic_index(rho[i], d.u[i], cstone::getPointers(get<CoolingFields>(chem), i));
+       // T pressure    = p_copy[i - startIndex];
+       // T gamma       = gammas[i - startIndex];
         T sound_speed = std::sqrt(gamma * pressure / rho[i]);
         p[i]          = pressure;
         c[i]          = sound_speed;

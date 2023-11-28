@@ -352,7 +352,9 @@ T Cooler<T>::Impl::pressure(T rho, T u, const ParticleType& particle)
     cooler_field_data_content<T> grackle_fields;
     grackle_fields.assign_field_data(rho, u, particle);
     gr_float pressure(0);
-    if (0 == local_calculate_pressure(&global_values.data, &global_values.rates, &global_values.units,
+    auto gr_values = global_values.data;
+    gr_values.omp_nthreads = 1;
+    if (0 == local_calculate_pressure(&gr_values, &global_values.rates, &global_values.units,
                                       &grackle_fields.data, &pressure))
     {
         throw std::runtime_error("Grackle: Error in local_calculate_pressure");
@@ -374,9 +376,7 @@ void Cooler<T>::Impl::pressure_arr(T *rho, T *u, const ParticleType &particle, T
     //Multiply the density with the fraction fields to get species density
     multiply_in_place(rho, getElements(std::make_index_sequence<13>()), len);
     grackle_fields.makeGrackleFieldsFromData(rho, u, particle, len);
-    auto gr_values = global_values.data;
-    gr_values.omp_nthreads = 1;
-    auto ret_value = local_calculate_pressure(&gr_values, &global_values.rates, &global_values.units, &grackle_fields.data, p);
+    auto ret_value = local_calculate_pressure(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data, p);
     if (ret_value == 0)
     {
         throw std::runtime_error("Grackle: local_calculate_pressure");
@@ -392,7 +392,9 @@ T Cooler<T>::Impl::adiabatic_index(T rho, T u, const ParticleType& particle)
     cooler_field_data_content<T> grackle_fields;
     grackle_fields.assign_field_data(rho, u, particle);
     gr_float gamma(0);
-    local_calculate_gamma(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data,
+    auto gr_values = global_values.data;
+    gr_values.omp_nthreads = 1;
+    local_calculate_gamma(&gr_values, &global_values.rates, &global_values.units, &grackle_fields.data,
                           &gamma);
     return gamma;
 }
@@ -412,9 +414,7 @@ void Cooler<T>::Impl::adiabatic_index_arr(T *rho, T *u, const ParticleType &part
     multiply_in_place(rho, getElements(std::make_index_sequence<13>()), len);
     grackle_fields.makeGrackleFieldsFromData(rho, u, particle, len);
 
-    auto gr_values = global_values.data;
-    gr_values.omp_nthreads = 1;
-    auto ret_value = local_calculate_gamma(&gr_values, &global_values.rates, &global_values.units, &grackle_fields.data, gamma);
+    auto ret_value = local_calculate_gamma(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data, gamma);
     if (ret_value == 0)
     {
         throw std::runtime_error("Grackle: local_calculate_gamma");
