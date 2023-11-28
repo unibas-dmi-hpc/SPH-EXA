@@ -273,25 +273,20 @@ void divide_in_place(const T1 *factor, std::tuple<T*...> t, const size_t len)
 template<typename T>
 void Cooler<T>::Impl::cool_particle_arr(T dt, T *rho, T *u, const ParticleType &particle, const size_t len)
 {
-    printf("%zu\n", len);
     static_assert(std::is_same_v<T, gr_float>);
     cooler_field_data_arr<T> grackle_fields;
     auto getElements = [&]<size_t ...I>(const std::integer_sequence<size_t, I...> &)
     {
         return std::tuple(std::get<I>(particle)...);
     };
-    printf("dens: %lf\tHI: %lf\n", rho[0], std::get<0>(particle)[0]);
     multiply_in_place(rho, getElements(std::make_index_sequence<13>()), len);
-    printf("dens: %lf\tHI: %lf\n", rho[0], std::get<0>(particle)[0]);
     grackle_fields.makeGrackleFieldsFromData(rho, u, particle, len);
-    printf("assigned fields\n");
 
     auto ret_value = local_solve_chemistry(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data, dt);
     if (ret_value == 0)
     {
         throw std::runtime_error("Grackle: Error in local_solve_chemistry");
     }
-    printf("solved chemistry\n");
 
     divide_in_place(rho, getElements(std::make_index_sequence<13>()), len);
 }

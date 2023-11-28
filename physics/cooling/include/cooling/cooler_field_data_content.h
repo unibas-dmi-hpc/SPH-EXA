@@ -157,17 +157,12 @@ struct cooler_field_data_arr
 
     void makeGrackleFieldsFromData(T* rho, T* u, const typename cooling::Cooler<T>::ParticleType& particle, const size_t len)
     {
-        printf("%zu\n", len);
         assert(len > 0);
         using ParticleType = typename cooling::Cooler<T>::ParticleType;
         static_assert(std::is_same_v<T, gr_float>);
         xv1 = new double[len];
         yv1 = new double[len];
         zv1 = new double[len];
-        printf("%p\n", xv1);
-        printf("%p\n", yv1);
-        printf("%p\n", zv1);
-        printf("%p\n", end);
 
         std::fill_n(xv1, len, 0.);
         std::fill_n(yv1, len, 0.);
