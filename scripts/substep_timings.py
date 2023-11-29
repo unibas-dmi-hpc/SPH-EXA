@@ -6,7 +6,9 @@ This script takes an output file of an SPH-EXA simulation and plots
 one bar for each time step. Each bar consists of stacked bars for the
 substeps of time step, such as domain::sync, halo exchange, SPH, gravity, ...
 
-Parameters to tweak: range for rolling averages and maximum step number to plot
+Parameters to tweak:
+    - range for rolling averages (numSmooth)
+    - maximum step number to plot (maxPlotStep)
 
 Author: Sebastian Keller, <sebastian.f.keller@gmail.com>
 """
@@ -37,6 +39,7 @@ clrs = ['darkred',      # domain-sync,
 
 
 def extractValue(linestring, qname):
+    # linestring looks like this: # MomentumAndEnergy: 0.071481s
     i1 = linestring.find(qname)
     if i1 > -1:
         i2 = linestring.find(" ", i1 + len(qname))
@@ -47,8 +50,8 @@ def extractValue(linestring, qname):
 
 def extractQuantity(lines, qname):
     return np.array(
-        [extractValue(ll, qname) for ll in lines if extractValue(ll, qname)
-         is not None]
+        [extractValue(ll, qname) for ll in lines
+         if extractValue(ll, qname) is not None]
     )
 
 
@@ -71,7 +74,10 @@ def extractFromFile(fname, quantities):
 
 def rollingAverage(dataset, numAvg):
     kernel = np.ones(numAvg) / numAvg
-    return np.convolve(dataset, kernel, mode="valid")
+    if dataset.size == 0:
+        return np.array([0])
+    else:
+        return np.convolve(dataset, kernel, mode="valid")
 
 
 def plot(data, quantities):
@@ -88,32 +94,14 @@ def plot(data, quantities):
 
 
 if __name__ == "__main__":
-    """
-    # domain::sync: 0.07931s
-    # FindNeighbors: 0.205667s
-    # XMass: 0.02382s
-    # mpi::synchronizeHalos: 0.000878s
-    # Normalization & Gradh: 0.037563s
-    # EquationOfState: 0.000508s
-    # mpi::synchronizeHalos: 0.000562s
-    # IadVelocityDivCurl: 0.117684s
-    # mpi::synchronizeHalos: 3.2e-05s
-    # AVswitches: 0.035228s
-    # mpi::synchronizeHalos: 4.6e-05s
-    # MomentumAndEnergy: 0.071481s
-    # Timestep: 7.3e-05s
-    # UpdateQuantities: 0.00442s
-    # UpdateSmoothingLength: 0.00032s
-    """
     fname = sys.argv[1]
     quantities = ["domain::sync", "XMass", "synchronizeHalos", "Gradh",
                   "IadVelocityDivCurl", "AVswitches", "MomentumAndEnergy",
-                  # "Upsweep", "Gravity",
-                  "Timestep"]
+                  "Upsweep", "Gravity", "Timestep"]
     plotOrder = ["domain::sync", "XMass", "synchronizeHalos0", "Gradh",
                  "synchronizeHalos1", "IadVelocityDivCurl",
                  "synchronizeHalos2", "AVswitches", "synchronizeHalos3",
-                 "MomentumAndEnergy", "Timestep"] # "Upsweep", "Gravity"
+                 "MomentumAndEnergy", "Upsweep", "Gravity", "Timestep"]
     results = extractFromFile(fname, quantities)
 
     # rolling average range in steps
