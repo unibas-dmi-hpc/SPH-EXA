@@ -190,7 +190,7 @@ struct Cooler
 
             auto particle_block = getBlockPointers(particle, b);
             cooling_time_arr(rho_copy.data(), u_copy.data(), particle_block, ct_ret.data(), b.len);
-            const double ct = *std::max_element(ct_ret.begin(), ct_ret.end());
+            const double ct = *std::min_element(ct_ret.begin(), ct_ret.end());
             ct_min = std::min(ct_min, ct);
         }
         return ct_min;

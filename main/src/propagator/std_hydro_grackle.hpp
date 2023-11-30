@@ -223,7 +223,7 @@ public:
         // std::vector<double> rho_copy{d.rho.begin(), d.rho.end()};
         timer.step("Copy rho, u");
         cooling_data.cool_particles(T(d.minDt), d.rho, d.u,
-                                    cstone::getPointers(get<CoolingFields>(simData.chem), first), d.du, first, last);
+                                    cstone::getPointers(get<CoolingFields>(simData.chem), 0), d.du, first, last);
         // cooling_data.cool_particle_arr(T(d.minDt), rho_copy.data() + first, u_copy.data() + first,
         //                               cstone::getPointers(get<CoolingFields>(simData.chem), first), last - first);
         for (size_t i = first; i < last; i++)
