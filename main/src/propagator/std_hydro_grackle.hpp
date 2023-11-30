@@ -169,7 +169,7 @@ public:
 
         transferToHost(d, first, last, {"rho", "u"});
         cooling::multiply_in_place(d.rho.data(), cstone::getPointers(get<CoolingFields>(simData.chem), first),
-                                   first - last);
+                                   last - first);
         // coolingFracToDens(simData.chem, first, last);
 
         eos_cooling(first, last, d, simData.chem, cooling_data);
