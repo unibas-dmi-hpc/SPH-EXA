@@ -168,6 +168,10 @@ public:
         timer.step("Density");
 
         transferToHost(d, first, last, {"rho", "u"});
+        cooling::multiply_in_place(d.rho.data(), cstone::getPointers(get<CoolingFields>(simData.chem), first),
+                                   first - last);
+        // coolingFracToDens(simData.chem, first, last);
+
         eos_cooling(first, last, d, simData.chem, cooling_data);
         transferToDevice(d, first, last, {"p", "c"});
         timer.step("EquationOfState");
@@ -224,6 +228,7 @@ public:
         {
             d.du[i] += (u_copy[i] - d.u[i]) / d.minDt;
         }
+        // coolignDensToFrac(simData.chem, first, last);
         /*#pragma omp parallel for schedule(static)
                 for (size_t i = first; i < last; i++)
                 {
@@ -235,6 +240,8 @@ public:
                     const T du = (u_cool - u_old) / d.minDt;
                     d.du[i] += du;
                 }*/
+        cooling::divide_in_place(d.rho.data(), cstone::getPointers(get<CoolingFields>(simData.chem), first),
+                                 last - first);
         transferToDevice(d, first, last, {"du"});
         timer.step("GRACKLE chemistry and cooling");
 

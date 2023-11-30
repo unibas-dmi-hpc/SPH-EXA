@@ -51,7 +51,7 @@ configure_file(${PROJECT_SOURCE_DIR}/config/grackle_float.h.in ${CMAKE_BINARY_DI
 target_include_directories(grackle PUBLIC ${PROJECT_SOURCE_DIR}/grackle_repo/src/clib)
 target_include_directories(grackle PUBLIC ${PROJECT_BINARY_DIR}/grackle_deps)
 target_include_directories(grackle PRIVATE ${HDF5_INCLUDE_DIRS} ${MPI_C_INCLUDE_PATH})
-target_link_libraries(grackle PUBLIC ${HDF5_LIBRARIES} ${MPI_C_LIBRARIES} OpenMP::OpenMP_Fortran OpenMP::OpenMP_C gfortran)
+target_link_libraries(grackle PUBLIC ${HDF5_LIBRARIES} ${MPI_C_LIBRARIES} gfortran)# OpenMP::OpenMP_Fortran OpenMP::OpenMP_C gfortran)
 #Omit warning of deprecated functions (already from removed SPH-EXA)
 target_compile_definitions(grackle PUBLIC OMIT_LEGACY_INTERNAL_GRACKLE_FUNC)
 target_compile_definitions(grackle PRIVATE LINUX H5_USE_16_API PIC)
