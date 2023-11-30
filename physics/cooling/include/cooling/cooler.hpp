@@ -123,14 +123,14 @@ struct Cooler
     void cool_particle(T dt, T& rho, T& u, const ParticleType& particle);
     void cool_particle_arr(T dt, T* rho, T* u, const ParticleType& particle, const size_t len);
 
-    template<typename Tvec>
-    void cool_particles(T dt, const Tvec& rho, const Tvec& u, const ParticleType& particle, const size_t first,
+    template<typename Tvec, typename Tvec2>
+    void cool_particles(T dt, const Tvec& rho, const Tvec2& u, const ParticleType& particle, Tvec2 &du, const size_t first,
                         const size_t last)
     {
         constexpr size_t N = 100;
         const task<N>    t(first, last);
         const auto       compute_du =
-            [&](const auto& u_block, const auto& du, const block& b)
+            [&](const auto& u_block, auto& du, const block& b)
         {
             for (size_t i = 0; i < b.len; i++)
             {
@@ -143,14 +143,15 @@ struct Cooler
             const block           b(i, t);
             std::array<double, N> rho_copy;
             std::array<double, N> u_copy;
-            std::array<double, N> du;
+            std::array<double, N> du_local;
 
             copyToBlock(rho, rho_copy, b);
             copyToBlock(u, u_copy, b);
 
             auto particle_block = getBlockPointers(particle, b);
             cool_particle_arr(dt, rho_copy.data(), u_copy.data(), particle_block, b.len);
-            compute_du(u_copy, du, b);
+            compute_du(u_copy, du_local, b);
+            copyFromBlock(du_local, du, b);
         }
     }
 
@@ -169,8 +170,8 @@ struct Cooler
     T    cooling_time(T rho, T u, const ParticleType& particle);
     void cooling_time_arr(T* rho, T* u, const ParticleType& particle, T* ct, const size_t len);
 
-    template<typename Tvec>
-    double min_cooling_time(const Tvec& rho, const Tvec& u, const ParticleType& particle, const size_t first,
+    template<typename Tvec, typename Tvec2>
+    double min_cooling_time(const Tvec& rho, const Tvec2& u, const ParticleType& particle, const size_t first,
                                       const size_t last)
     {
         constexpr size_t    N = 100;
@@ -188,8 +189,8 @@ struct Cooler
             copyToBlock(u, u_copy, b);
 
             auto particle_block = getBlockPointers(particle, b);
-            cooling_time_arr(rho_copy.data(), u_copy.data(), particle_block, b.len, ct_ret.data());
-            double ct = *std::max_element(ct_ret.begin(), ct_ret.end());
+            cooling_time_arr(rho_copy.data(), u_copy.data(), particle_block, ct_ret.data(), b.len);
+            const double ct = *std::max_element(ct_ret.begin(), ct_ret.end());
             ct_min = std::min(ct_min, ct);
         }
         return ct_min;

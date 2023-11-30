@@ -14,7 +14,9 @@ auto coolingTimestep(size_t first, size_t last, Dataset& d, Cooler& cooler, Chem
     using T             = typename Dataset::RealType;
     using CoolingFields = typename Cooler::CoolingFields;
 
-    std::vector<double> cooling_times(last - first);
+    T minCt = cooler.min_cooling_time(d.rho, d.u, cstone::getPointers(get<CoolingFields>(chem), first), first, last);
+    return minCt;
+    /*std::vector<double> cooling_times(last - first);
     std::vector<double> rho_copy(last - first);
     std::vector<double> u_copy(last - first);
 
@@ -39,7 +41,7 @@ auto coolingTimestep(size_t first, size_t last, Dataset& d, Cooler& cooler, Chem
             const T cooling_time = cooling_times[i - first];
             minTc                = std::min(std::abs(cooler.ct_crit * cooling_time), minTc);
         }
-        return minTc;
+        return minTc;*/
 }
 
 template<typename HydroData, typename ChemData, typename Cooler>

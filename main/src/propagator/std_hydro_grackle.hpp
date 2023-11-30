@@ -219,11 +219,13 @@ public:
         timer.step("Timestep");
 
         transferToHost(d, first, last, {"du"});
-        auto                u_copy = d.u;
-        std::vector<double> rho_copy{d.rho.begin(), d.rho.end()};
+        auto u_copy = d.u;
+        // std::vector<double> rho_copy{d.rho.begin(), d.rho.end()};
         timer.step("Copy rho, u");
-        cooling_data.cool_particle_arr(T(d.minDt), rho_copy.data() + first, u_copy.data() + first,
-                                       cstone::getPointers(get<CoolingFields>(simData.chem), first), last - first);
+        cooling_data.cool_particles(T(d.minDt), d.rho, d.u,
+                                    cstone::getPointers(get<CoolingFields>(simData.chem), first), d.du, first, last);
+        // cooling_data.cool_particle_arr(T(d.minDt), rho_copy.data() + first, u_copy.data() + first,
+        //                               cstone::getPointers(get<CoolingFields>(simData.chem), first), last - first);
         for (size_t i = first; i < last; i++)
         {
             d.du[i] += (u_copy[i] - d.u[i]) / d.minDt;

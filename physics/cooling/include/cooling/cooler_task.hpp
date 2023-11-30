@@ -39,12 +39,12 @@ struct block
     }
 };
 
-void copyToBlock(const auto& v, const auto& v_block, const block& b)
+void copyToBlock(const auto& v, auto& v_block, const block& b)
 {
     std::copy_n(v.data() + b.first, b.len, v_block.data());
 }
 
-void copyFromBlock(const auto& v_block, const auto& v, const block& b)
+void copyFromBlock(const auto& v_block, auto& v, const block& b)
 {
     std::copy_n(v_block.data(), b.len, v.data() + b.first);
 }
