@@ -120,7 +120,7 @@ public:
         int leftMultiplier         = std::rint(std::cbrt(rhoHigh / rhoLow));
 
         int               multi1D    = std::lround(cbrtNumPart / std::cbrt(xBlock.size()));
-        cstone::Vec3<int> rightMulti = {8 * multi1D, multi1D, multi1D};
+        cstone::Vec3<int> rightMulti = {4 * multi1D, multi1D, multi1D};
         cstone::Vec3<int> leftMulti  = leftMultiplier * rightMulti;
 
         cstone::Box<T> left(0, 0.5, 0, 0.125, 0, 0.125, pbc, pbc, pbc);
