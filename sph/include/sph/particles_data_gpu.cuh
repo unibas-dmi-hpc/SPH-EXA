@@ -43,19 +43,21 @@
 #include "cstone/util/reallocate.hpp"
 
 #include "table_lookup.hpp"
+#include "types.hpp"
 
 namespace sphexa
 {
 
-template<typename T, class KeyType>
-class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData<T, KeyType>>
+class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData>
 {
     template<class FType>
     using DevVector = thrust::device_vector<FType>;
 
-    using HydroType = float;
-    using XM1Type   = float;
-    using Tmass     = float;
+    using KeyType   = sph::SphTypes::KeyType;
+    using RealType  = sph::SphTypes::CoordinateType;
+    using HydroType = sph::SphTypes::HydroType;
+    using XM1Type   = sph::SphTypes::XM1Type;
+    using Tmass     = sph::SphTypes::Tmass;
 
 public:
     // number of CUDA streams to use
@@ -73,12 +75,12 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    DevVector<T>         x, y, z;                            // Positions
+    DevVector<RealType>  x, y, z;                            // Positions
     DevVector<XM1Type>   x_m1, y_m1, z_m1;                   // Difference to previous positions
     DevVector<HydroType> vx, vy, vz;                         // Velocities
     DevVector<HydroType> rho;                                // Density
-    DevVector<T>         temp;                               // Temperature
-    DevVector<T>         u;                                  // Internal Energy
+    DevVector<RealType>  temp;                               // Temperature
+    DevVector<RealType>  u;                                  // Internal Energy
     DevVector<HydroType> p;                                  // Pressure
     DevVector<HydroType> prho;                               // p / (kx * m^2 * gradh)
     DevVector<HydroType> tdpdTrho;                           // temp * dp/dT * prho
@@ -89,7 +91,7 @@ public:
     DevVector<HydroType> mue, mui;                           // mean molecular weight (electrons, ions)
     DevVector<HydroType> divv, curlv;                        // Div(velocity), Curl(velocity)
     DevVector<HydroType> ax, ay, az;                         // acceleration
-    DevVector<T>         du;                                 // energy rate of change (du/dt)
+    DevVector<RealType>  du;                                 // energy rate of change (du/dt)
     DevVector<XM1Type>   du_m1;                              // previous energy rate of change (du/dt)
     DevVector<HydroType> c11, c12, c13, c22, c23, c33;       // IAD components
     DevVector<HydroType> alpha;                              // AV coeficient
@@ -221,6 +223,16 @@ void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<
         int fieldIdx =
             std::find(DataType::fieldNames.begin(), DataType::fieldNames.end(), field) - DataType::fieldNames.begin();
         std::visit(launchTransfer, hostData[fieldIdx], deviceData[fieldIdx]);
+    }
+}
+
+//! @brief transfer all specified fields allocated on both host and device to the device
+template<class DataType, std::enable_if_t<cstone::HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
+void transferAllocatedToDevice(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
+{
+    for (const auto& field : fields)
+    {
+        if (d.isAllocated(field) && d.devData.isAllocated(field)) { transferToDevice(d, first, last, {field}); }
     }
 }
 

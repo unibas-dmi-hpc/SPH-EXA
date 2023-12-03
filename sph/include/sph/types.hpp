@@ -1,7 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2023 CSCS, ETH Zurich, University of Basel, University of Zurich
+ * Copyright (c) 2024 CSCS, ETH Zurich
+ *               2024 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,26 +24,25 @@
  */
 
 /*! @file
- * @brief file I/O interface
+ * @brief Types and definitions for SPH interfaces
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include <memory>
+#include <cstdlib>
 
-#include "ifile_io_impl.h"
-
-namespace sphexa
+namespace sph
 {
 
-std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm)
+struct SphTypes
 {
-    if (ascii) { return makeAsciiWriter(comm); }
-    else { return makeH5PartWriter(comm); }
-}
+    using KeyType        = uint64_t;
+    using CoordinateType = double;
+    using HydroType      = float;
+    using XM1Type        = float;
+    using Tmass          = float;
+};
 
-std::unique_ptr<IFileReader> fileReaderFactory(bool /*ascii*/, MPI_Comm comm) { return makeH5PartReader(comm); }
-
-} // namespace sphexa
+} // namespace sph

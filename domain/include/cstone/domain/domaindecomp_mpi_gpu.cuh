@@ -43,13 +43,13 @@ namespace cstone
 {
 
 //! @brief copy the value of @a count to the start the provided GPU-buffer
-void encodeSendCount(size_t count, char* sendPtr)
+inline void encodeSendCount(size_t count, char* sendPtr)
 {
     checkGpuErrors(cudaMemcpy(sendPtr, &count, sizeof(size_t), cudaMemcpyHostToDevice));
 }
 
 //! @brief extract message length count from head of received GPU buffer and advance the buffer pointer by alignment
-char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
+inline char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
 {
     checkGpuErrors(cudaMemcpy(count, recvPtr, sizeof(size_t), cudaMemcpyDeviceToHost));
     return recvPtr + alignment;

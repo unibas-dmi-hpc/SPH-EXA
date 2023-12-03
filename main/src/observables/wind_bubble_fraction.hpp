@@ -106,12 +106,13 @@ class WindBubble : public IObservables<Dataset>
     double        initialMass;
 
 public:
-    WindBubble(std::ostream& constPath, double rhoInt, double uExt, double bubbleMass)
+    WindBubble(std::ostream& constPath, double rhoInt, double uExt, double rSphere)
         : constantsFile(constPath)
         , rhoBubble(rhoInt)
         , uWind(uExt)
-        , initialMass(bubbleMass)
     {
+        double bubbleVolume = std::pow(rSphere, 3) * 4.0 / 3.0 * M_PI;
+        initialMass         = bubbleVolume * rhoInt;
     }
 
     using T = typename Dataset::RealType;

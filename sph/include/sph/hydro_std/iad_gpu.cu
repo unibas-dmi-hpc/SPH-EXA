@@ -126,13 +126,7 @@ void computeIADGpu(size_t startIndex, size_t endIndex, Dataset& d, const cstone:
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeIADGpu(size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
-                            const cstone::Box<double>&);
-template void computeIADGpu(size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
-                            const cstone::Box<double>&);
-template void computeIADGpu(size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
-                            const cstone::Box<float>&);
-template void computeIADGpu(size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
-                            const cstone::Box<float>&);
+template void computeIADGpu(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
+                            const cstone::Box<SphTypes::CoordinateType>&);
 
 } // namespace sph

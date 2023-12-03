@@ -10,9 +10,6 @@ template<class Dataset>
 extern void computeTargetGroups(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeDensityGpu(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
-
-template<class Dataset>
 extern void computeIADGpu(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
@@ -37,7 +34,7 @@ template<bool avClean, class Dataset>
 extern void computeMomentumEnergy(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Tu, class Trho, class Tp, class Tc>
-extern void computeEOS_HydroStd(size_t, size_t, Trho, Tu, const Tu*, const Trho*, Tp*, Tc*);
+extern void computeEOS_HydroStd(size_t, size_t, Trho, Tu, const Tu*, const Trho* m, Trho*, Tp*, Tc*);
 
 template<class Tu, class Tm, class Thydro>
 extern void computeEOS(size_t, size_t, Tm mui, Tu gamma, const Tu*, const Tm*, const Thydro*, const Thydro*,
