@@ -34,8 +34,9 @@
 
 #include <variant>
 
-#include "util/timer.hpp"
 #include "io/ifile_io.hpp"
+#include "util/pm_reader.hpp"
+#include "util/timer.hpp"
 
 namespace sphexa
 {
@@ -46,9 +47,10 @@ class Propagator
     using T = typename ParticleDataType::RealType;
 
 public:
-    Propagator(std::ostream& output, size_t rank)
-        : timer(output, rank)
-        , out(output)
+    Propagator(std::ostream& output, int rank)
+        : out(output)
+        , timer(output)
+        , pmReader(rank)
         , rank_(rank)
     {
     }
@@ -74,39 +76,39 @@ public:
     //! @brief load internal state from file
     virtual void load(const std::string& path, IFileReader*){};
 
+    //! @brief add pm counters if they exist
+    void addCounters(const std::string& pmRoot, int numRanksPerNode) { pmReader.addCounters(pmRoot, numRanksPerNode); }
+
+    //! @brief print timing info
+    void writeMetrics(IFileWriter* writer, const std::string& outFile)
+    {
+        timer.writeTimings(writer, outFile);
+        pmReader.writeTimings(writer, outFile);
+    };
+
     virtual ~Propagator() = default;
 
     void printIterationTimings(const DomainType& domain, const ParticleDataType& simData)
     {
         const auto& d = simData.hydro;
-        if (rank_ == 0)
+        printCheck(d.ttot, d.minDt, d.etot, d.eint, d.ecin, d.egrav, domain.box(), d.numParticlesGlobal,
+                   domain.nParticles(), domain.globalTree().numLeafNodes(),
+                   domain.nParticlesWithHalos() - domain.nParticles(), d.totalNeighbors);
+
+        out << "### Check ### Focus Tree Nodes: " << domain.focusTree().octreeViewAcc().numLeafNodes << ", maxDepth "
+            << domain.focusTree().depth();
+        if constexpr (cstone::HaveGpu<typename ParticleDataType::AcceleratorType>{})
         {
-            printCheck(d.ttot, d.minDt, d.etot, d.eint, d.ecin, d.egrav, domain.box(), d.numParticlesGlobal,
-                       domain.nParticles(), domain.globalTree().numLeafNodes(),
-                       domain.nParticlesWithHalos() - domain.nParticles(), d.totalNeighbors);
-
-            std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().octreeViewAcc().numLeafNodes
-                      << ", maxDepth " << domain.focusTree().depth();
-            if constexpr (cstone::HaveGpu<typename ParticleDataType::AcceleratorType>{})
-            {
-                std::cout << ", maxStackNc " << d.devData.stackUsedNc << ", maxStackGravity "
-                          << d.devData.stackUsedGravity;
-            }
-            std::cout << std::endl;
-
-            printTotalIterationTime(d.iteration, timer.duration());
+            out << ", maxStackNc " << d.devData.stackUsedNc << ", maxStackGravity " << d.devData.stackUsedGravity;
         }
+        out << "\n=== Total time for iteration(" << d.iteration << ") " << timer.sumOfSteps() << "s\n\n";
     }
 
 protected:
-    MasterProcessTimer timer;
-    std::ostream&      out;
-    size_t             rank_;
-
-    void printTotalIterationTime(size_t iteration, float duration)
-    {
-        out << "=== Total time for iteration(" << iteration << ") " << duration << "s" << std::endl << std::endl;
-    }
+    std::ostream& out;
+    Timer         timer;
+    PmReader      pmReader;
+    int           rank_;
 
     template<class Box>
     void printCheck(double totalTime, double minTimeStep, double totalEnergy, double internalEnergy,

@@ -146,12 +146,9 @@ public:
 
         d.minDtCourant = INFINITY;
         computeTimestep(first, last, d);
+        timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
-
-        timer.step("Timestep");
-
-        timer.stop();
     }
 };
 

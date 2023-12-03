@@ -2,7 +2,6 @@
 
 #include <chrono>
 #include <iostream>
-#include <functional>
 
 #if defined(USE_PROFILING_NVTX) || defined(USE_PROFILING_SCOREP)
 
@@ -30,52 +29,56 @@ namespace sphexa
 
 class Timer
 {
-public:
     typedef std::chrono::high_resolution_clock Clock;
-    typedef std::chrono::time_point<Clock>     TimePoint;
     typedef std::chrono::duration<float>       Time;
 
+public:
     Timer(std::ostream& out)
         : out(out)
     {
     }
 
-    float duration() { return std::chrono::duration_cast<Time>(tstop - tstart).count(); }
-
-    float getSimDuration() { return std::chrono::duration_cast<Time>(Clock::now() - tstart).count(); }
-
-    void start() { tstart = tstop = tlast = Clock::now(); }
-
-    void stop() { tstop = Clock::now(); }
-
-    void step(const std::string& name)
+    void start()
     {
-        stop();
-        out << "# " << name << ": " << std::chrono::duration_cast<Time>(tstop - tlast).count() << "s" << std::endl;
-        tlast = tstop;
-    }
-
-private:
-    std::ostream& out;
-    TimePoint     tstart, tstop, tlast;
-};
-
-class MasterProcessTimer : public Timer
-{
-public:
-    MasterProcessTimer(std::ostream& out, int rank)
-        : Timer(out)
-        , rank(rank)
-    {
+        numStartCalled++;
+        tstart = tlast = Clock::now();
     }
 
     void step(const std::string& name)
     {
-        if (rank == 0) Timer::step(name);
+        auto now = Clock::now();
+        stepTimes.push_back(stepDuration(now));
+        if (!name.empty()) { out << "# " << name << ": " << stepTimes.back() << "s" << std::endl; }
+        tlast = now;
+    }
+
+    //! @brief time elapsed between tstart and last call of step()
+    [[nodiscard]] float sumOfSteps() const { return std::chrono::duration_cast<Time>(tlast - tstart).count(); }
+
+    //! @brief time elapsed between tstart and now
+    [[nodiscard]] float elapsed() const { return std::chrono::duration_cast<Time>(Clock::now() - tstart).count(); }
+
+    template<class Archive>
+    void writeTimings(Archive* ar, const std::string& outFile)
+    {
+        ar->addStep(0, stepTimes.size(), outFile + ar->suffix());
+        int numRanks = ar->numRanks();
+        ar->stepAttribute("numRanks", &numRanks, 1);
+        ar->stepAttribute("numIterations", &numStartCalled, 1);
+        ar->writeField("timings", stepTimes.data(), stepTimes.size());
+        ar->closeStep();
+
+        numStartCalled = 0;
+        stepTimes.clear();
     }
 
 private:
-    int rank;
+    float stepDuration(auto now) { return std::chrono::duration_cast<Time>(now - tlast).count(); }
+
+    std::ostream&                  out;
+    std::chrono::time_point<Clock> tstart, tlast;
+    std::vector<float>             stepTimes;
+    int                            numStartCalled{0};
 };
 
 } // namespace sphexa
