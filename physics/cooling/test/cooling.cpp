@@ -8,6 +8,7 @@
 
 #include "cstone/fields/field_get.hpp"
 #include "io/ifile_io.hpp"
+#include "init/settings.hpp"
 
 TEST(cooling_grackle, test1a)
 {
@@ -17,7 +18,7 @@ TEST(cooling_grackle, test1a)
     constexpr Real time_units    = 1.0e12;
     constexpr Real length_units  = 1.0;
 
-    constexpr Real GCGS = 6.674e-8;
+    // constexpr Real GCGS = 6.674e-8;
 
     constexpr Real density_units_c = 1. / (time_units * time_units);
     // EXPECT_NEAR(density_units, density_units_c, 1e-26);

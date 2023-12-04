@@ -90,11 +90,25 @@ public:
 
     void printIterationTimings(const DomainType& domain, const ParticleDataType& simData)
     {
-        const auto& d = simData.hydro;
-        printCheck(d.ttot, d.minDt, d.etot, d.eint, d.ecin, d.egrav, domain.box(), d.numParticlesGlobal,
-                   domain.nParticles(), domain.globalTree().numLeafNodes(),
-                   domain.nParticlesWithHalos() - domain.nParticles(), d.totalNeighbors);
+        const auto& d   = simData.hydro;
+        const auto& box = domain.box();
 
+        auto nodeCount          = domain.globalTree().numLeafNodes();
+        auto particleCount      = domain.nParticles();
+        auto haloCount          = domain.nParticlesWithHalos() - domain.nParticles();
+        auto totalNeighbors     = d.totalNeighbors;
+        auto totalParticleCount = d.numParticlesGlobal;
+
+        out << "### Check ### Global Tree Nodes: " << nodeCount << ", Particles: " << particleCount
+            << ", Halos: " << haloCount << std::endl;
+        out << "### Check ### Computational domain: " << box.xmin() << " " << box.xmax() << " " << box.ymin() << " "
+            << box.ymax() << " " << box.zmin() << " " << box.zmax() << std::endl;
+        out << "### Check ### Total Neighbors: " << totalNeighbors
+            << ", Avg neighbor count per particle: " << totalNeighbors / totalParticleCount << std::endl;
+        out << "### Check ### Total time: " << d.ttot << ", current time-step: " << d.minDt << std::endl;
+        out << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", kinetic: " << d.ecin;
+        out << ", gravitational: " << d.egrav;
+        out << ")" << std::endl;
         out << "### Check ### Focus Tree Nodes: " << domain.focusTree().octreeViewAcc().numLeafNodes << ", maxDepth "
             << domain.focusTree().depth();
         if constexpr (cstone::HaveGpu<typename ParticleDataType::AcceleratorType>{})
@@ -109,24 +123,6 @@ protected:
     Timer         timer;
     PmReader      pmReader;
     int           rank_;
-
-    template<class Box>
-    void printCheck(double totalTime, double minTimeStep, double totalEnergy, double internalEnergy,
-                    double kineticEnergy, double gravitationalEnergy, const Box& box, size_t totalParticleCount,
-                    size_t particleCount, size_t nodeCount, size_t haloCount, size_t totalNeighbors)
-    {
-        out << "### Check ### Global Tree Nodes: " << nodeCount << ", Particles: " << particleCount
-            << ", Halos: " << haloCount << std::endl;
-        out << "### Check ### Computational domain: " << box.xmin() << " " << box.xmax() << " " << box.ymin() << " "
-            << box.ymax() << " " << box.zmin() << " " << box.zmax() << std::endl;
-        out << "### Check ### Total Neighbors: " << totalNeighbors
-            << ", Avg neighbor count per particle: " << totalNeighbors / totalParticleCount << std::endl;
-        out << "### Check ### Total time: " << totalTime << ", current time-step: " << minTimeStep << std::endl;
-        out << "### Check ### Total energy: " << totalEnergy << ", (internal: " << internalEnergy
-            << ", kinetic: " << kineticEnergy;
-        out << ", gravitational: " << gravitationalEnergy;
-        out << ")" << std::endl;
-    }
 };
 
 } // namespace sphexa

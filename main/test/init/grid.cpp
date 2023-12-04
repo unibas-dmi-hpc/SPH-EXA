@@ -179,3 +179,62 @@ TEST(Grids, assembleCuboid)
         EXPECT_EQ(keys[i], keys2[i]);
     }
 }
+
+TEST(IsobaricCube, pyramidStretch)
+{
+    using T = double;
+
+    T h = 0.25;
+    T s = 0.40548013;
+    T r = 0.5;
+
+    {
+        cstone::Vec3<T> X{s, 0, 0};
+        auto            Xp = X * cappedPyramidStretch(X, h, s, r);
+        EXPECT_NEAR(Xp[0], h, 1e-6);
+        EXPECT_NEAR(Xp[1], 0, 1e-6);
+        EXPECT_NEAR(Xp[2], 0, 1e-6);
+    }
+    { // point on the surface of the stretch boundary stays
+        cstone::Vec3<T> X{s, 0.1, 0.2};
+        auto            Xp = X * cappedPyramidStretch(X, h, s, r);
+        EXPECT_NEAR(Xp[0], h, 1e-6);
+        EXPECT_LT(Xp[1], X[1]);
+        EXPECT_LT(Xp[2], X[2]);
+    }
+    { // point on surface of stretch-boundary gets mapped to the surface of the internal cube
+        cstone::Vec3<T> X{s, s, s};
+        auto            Xp = X * cappedPyramidStretch(X, h, s, r);
+        EXPECT_NEAR(Xp[0], h, 1e-6);
+        EXPECT_NEAR(Xp[1], h, 1e-6);
+        EXPECT_NEAR(Xp[2], h, 1e-6);
+    }
+    { // point on the surface of the outer cube stays on the outer surface
+        cstone::Vec3<T> X{r, r, r};
+        auto            Xp = X * cappedPyramidStretch(X, h, s, r);
+        EXPECT_NEAR(Xp[0], r, 1e-6);
+        EXPECT_NEAR(Xp[1], r, 1e-6);
+        EXPECT_NEAR(Xp[2], r, 1e-6);
+    }
+    { // point on the surface of the outer cube stays on the outer surface
+        cstone::Vec3<T> X{r, 0.1, 0.2};
+        auto            Xp = X * cappedPyramidStretch(X, h, s, r);
+        EXPECT_NEAR(Xp[0], r, 1e-6);
+        EXPECT_NEAR(Xp[1], 0.1, 1e-6);
+        EXPECT_NEAR(Xp[2], 0.2, 1e-6);
+    }
+}
+
+TEST(IsobaricCube, stretchFactor)
+{
+    using T = double;
+
+    T h        = 0.25;
+    T r        = 0.5;
+    T rhoRatio = 8;
+
+    T s = computeStretchFactor(h, r, rhoRatio);
+
+    T sRef = 0.40548013;
+    EXPECT_NEAR(s, sRef, 1e-6);
+}

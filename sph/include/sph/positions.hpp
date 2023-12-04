@@ -38,6 +38,7 @@
 #include "cstone/tree/accel_switch.hpp"
 
 #include "sph/sph_gpu.hpp"
+#include "sph/eos.hpp"
 
 namespace sph
 {

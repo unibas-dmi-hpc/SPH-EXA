@@ -33,8 +33,6 @@
 
 #include "cstone/sfc/box.hpp"
 
-#include "io/arg_parser.hpp"
-#include "io/factory.hpp"
 #include "isim_init.hpp"
 
 namespace sphexa
@@ -83,9 +81,9 @@ class FileInit : public ISimInitializer<Dataset>
     int          initStep = -1;
 
 public:
-    explicit FileInit(const std::string& fname, IFileReader* reader)
-        : h5_fname(strBeforeSign(fname, ":"))
-        , initStep(numberAfterSign(fname, ":"))
+    explicit FileInit(const std::string& fname, int initStep_, IFileReader* reader)
+        : h5_fname(fname)
+        , initStep(initStep_)
     {
         // Read file attributes and put them in settings_ such that they propagate to the new output after a restart
         readFileAttributes(settings_, h5_fname, reader, false);
@@ -111,9 +109,9 @@ class FileSplitInit : public ISimInitializer<Dataset>
     int          numSplits;
 
 public:
-    explicit FileSplitInit(const std::string& fname, IFileReader* reader)
-        : h5_fname(strBeforeSign(fname, ","))
-        , numSplits(numberAfterSign(fname, ","))
+    explicit FileSplitInit(const std::string& fname, int numSplits_, IFileReader* reader)
+        : h5_fname(fname)
+        , numSplits(numSplits_)
     {
         if (numSplits < 1)
         {

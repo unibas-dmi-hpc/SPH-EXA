@@ -139,18 +139,12 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
     d.minDtCourant = minDt;
 }
 
-#define MOM_ENERGY(avc, real, key)                                                                                     \
-    template void computeMomentumEnergy<avc>(size_t, size_t, sphexa::ParticlesData<real, key, cstone::GpuTag> & d,     \
-                                             const cstone::Box<real>&)
+#define MOM_ENERGY(avc)                                                                                                \
+    template void computeMomentumEnergy<avc>(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag> & d,                \
+                                             const cstone::Box<SphTypes::CoordinateType>&)
 
-MOM_ENERGY(true, double, uint32_t);
-MOM_ENERGY(true, double, uint64_t);
-MOM_ENERGY(true, float, uint32_t);
-MOM_ENERGY(true, float, uint64_t);
-MOM_ENERGY(false, double, uint32_t);
-MOM_ENERGY(false, double, uint64_t);
-MOM_ENERGY(false, float, uint32_t);
-MOM_ENERGY(false, float, uint64_t);
+MOM_ENERGY(true);
+MOM_ENERGY(false);
 
 } // namespace cuda
 } // namespace sph
