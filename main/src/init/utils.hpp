@@ -98,12 +98,21 @@ void readFileAttributes(InitSettings& settings, const std::string& settingsFile,
             int64_t sz = reader->fileAttributeSize(attr);
             if (sz == 1)
             {
-                settings[attr] = {};
+                bool settingRecognized = settings.count(attr);
+                settings[attr]         = {};
                 reader->fileAttribute(attr, &settings[attr], sz);
                 if (reader->rank() == 0 && verbose)
                 {
-                    std::cout << "Override setting from " << settingsFile << ": " << attr << " = " << settings[attr]
-                              << std::endl;
+                    if (settingRecognized)
+                    {
+                        std::cout << "Override setting from " << settingsFile << ": " << attr << " = " << settings[attr]
+                                  << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << "Setting from " << settingsFile << ": " << attr << " = " << settings[attr]
+                                  << " not recognized " << std::endl;
+                    }
                 }
             }
         }
