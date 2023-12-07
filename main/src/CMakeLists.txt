@@ -17,13 +17,14 @@ add_subdirectory(init)
 add_subdirectory(io)
 add_subdirectory(observables)
 add_subdirectory(sphexa)
+add_subdirectory(power_spectrum)
 
-if (BUILD_ANALYTICAL)
+if(BUILD_ANALYTICAL)
     add_subdirectory(analytical_solutions)
-endif ()
+endif()
 
 include(setup_gitinfo)
 configure_file(
-  version.h.in
-  ${CMAKE_BINARY_DIR}/main/src/version.h
+    version.h.in
+    ${CMAKE_BINARY_DIR}/main/src/version.h
 )
