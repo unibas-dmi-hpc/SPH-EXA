@@ -4,6 +4,8 @@
 #include <cmath>
 #include <chrono>
 #include <mpi.h>
+#include <map>
+#include <tuple>
 
 #ifdef HEFFTE_ENABLED
 #include "heffte.h"
@@ -14,12 +16,14 @@ namespace sphexa
 
 double cubickernel(double r, double h)
 {
-    double       u;
-    const double pi = 3.141592653589793;
-    double       W;
+    double u;
+    double W;
     u = r / h;
-    if (u >= 0.0 && u <= 1.0) { W = 1.0 / (pi * h * h * h) * (1 - 1.5e0 * u * u * (1.0e0 - 0.5e0 * u)); }
-    else if (u > 1.0e0 && u < 2.0e0) { W = 1.0 / (pi * h * h * h) * 0.25e0 * (2.0e0 - u) * (2.0e0 - u) * (2.0e0 - u); }
+    if (u >= 0.0 && u <= 1.0) { W = 1.0 / (M_PI * h * h * h) * (1 - 1.5e0 * u * u * (1.0e0 - 0.5e0 * u)); }
+    else if (u > 1.0e0 && u < 2.0e0)
+    {
+        W = 1.0 / (M_PI * h * h * h) * 0.25e0 * (2.0e0 - u) * (2.0e0 - u) * (2.0e0 - u);
+    }
     else { W = 0.0; }
 
     return W;
@@ -28,24 +32,76 @@ double cubickernel(double r, double h)
 template<typename T>
 class GriddedDomain
 {
+    // The key of the map is a tuple of <rank, index>
+    typedef std::tuple<int, uint64_t> mapKey;
+
 public:
     GriddedDomain(size_t domainSize, T Lb)
         : Lbox(Lb)
         , domainSize_(domainSize)
         , gridSize_(domainSize * 8)
         , gridDim_(std::cbrt(domainSize) * 2)
+        , all_indexes({0, 0, 0}, {gridDim_ - 1, gridDim_ - 1, gridDim_ - 1})
+        , inbox(getInbox())
     {
-        mass = 1. / domainSize_;
+        boxSize_ = inbox.size[0] * inbox.size[1] * inbox.size[2];
 
-        // Gix.resize(gridSize_);
-        // Giy.resize(gridSize_);
-        // Giz.resize(gridSize_);
-        GlobalGv.resize(gridSize_);
-        Gv.resize(gridSize_);
-        norm.resize(gridSize_);
-        GlobalNorm.resize(gridSize_);
+        Gv.resize(boxSize_);
+        norm.resize(boxSize_);
+
+        std::cout << "size = " << Gv.size() << std::endl;
 
         calculatePixelCenters();
+    }
+
+    heffte::box3d<> getInbox()
+    {
+        int num_ranks; // total number of ranks in the comm
+
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
+        MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+
+        std::array<int, 3> proc_grid = heffte::proc_setup_min_surface(all_indexes, num_ranks);
+
+        // split all indexes across the processor grid, defines a set of boxes
+        std::vector<heffte::box3d<>> all_boxes = heffte::split_world(all_indexes, proc_grid);
+
+        return all_boxes[rank_];
+    }
+
+    void calculatePowerSpectrum()
+    {
+        int num_ranks; // total number of ranks in the comm
+
+        MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+
+        heffte::box3d<> const outbox = inbox; // all_boxes[me]; // same inbox and outbox
+
+        // at this stage we can manually adjust some HeFFTe options
+        heffte::plan_options options = heffte::default_options<heffte::backend::fftw>();
+
+        // define the heffte class and the input and output geometry
+        heffte::fft3d<heffte::backend::fftw> fft(inbox, outbox, MPI_COMM_WORLD, options);
+
+        // vectors with the correct sizes to store the input and output data
+        // taking the size of the input and output boxes
+        std::vector<T>               input(fft.size_inbox());
+        std::vector<std::complex<T>> output(fft.size_outbox());
+
+        // check the size of the vector
+        for (uint64_t i = 0; i < Gv.size(); i++)
+        {
+            input.at(i) = Gv[i];
+        }
+
+        // // perform a forward DFT
+        fft.forward(input.data(), output.data());
+
+        // check the size of the vector
+        for (uint64_t i = 0; i < Gv.size(); i++)
+        {
+            Gv[i] = abs(output.at(i));
+        }
     }
 
     void rasterizeDomain(const T* xpos, const T* ypos, const T* zpos, const T* v, const T* rho, const T* h,
@@ -54,21 +110,24 @@ public:
         size_t counts[numLocalParticles];
         size_t counts_reduced = 0;
         std::fill_n(counts, numLocalParticles, 0);
-        std::cout << "domainSize = " << domainSize_ << ", numLocalParticles = " << numLocalParticles
-                  << ", npixels = " << gridDim_ << std::endl;
+        // std::cout << "domainSize = " << domainSize_ << ", numLocalParticles = " << numLocalParticles
+        //           << ", npixels = " << gridDim_ << std::endl;
+        std::cout << "in.size[0] = " << inbox.size[0] << ", in.size[1] = " << inbox.size[1]
+                  << ", in.size[2] = " << inbox.size[2] << std::endl;
+        int num_ranks; // total number of ranks in the comm
 
-#pragma omp parallel for
+        MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+
+#pragma omp parallel for schedule(static)
         for (size_t n = 0; n < numLocalParticles; n++)
         {
             // double h1     = h[n];
-            // double h2     = 2 * h1;
-            // double h2_2   = h2 * h2;
-            // double h3     = h1 * h1 * h1;
+            double h1   = 1.003 * std::cbrt(3. / 4. / M_PI * partperpixel / domainSize_) * Lbox / 2;
+            double h2   = 2 * h1;
+            double h2_2 = h2 * h2;
+            double h3   = h1 * h1 * h1;
+            double mass = 1. / domainSize_;
             // double weight = mass / rho[n] / h3;
-            double h1     = 1.003 * std::cbrt(3. / 4. / M_PI * partperpixel / domainSize_) * Lbox / 2;
-            double h2     = 2 * h1;
-            double h2_2   = h2 * h2;
-            double h3     = h1 * h1 * h1;
             double weight = mass / rho[n] / h3; // 1.0;
 
             int max_intz = std::floor((zpos[n] + h2) * gridDim_ - 0.5e0);
@@ -118,12 +177,36 @@ public:
 
                         if (r < h2)
                         {
-                            uint64_t iii = xindex + gridDim_ * (yindex + gridDim_ * zindex);
-                            double   W   = weight * sphexa::cubickernel(r, h1);
-                            Gv[iii]      = Gv[iii] + W * v[n];
-                            norm[iii]    = norm[iii] + W;
-                            counts[n]++;
-                            // counts_reduced++;
+                            // Calculate the indices according to the heffte boxes
+                            int iii = (xindex % inbox.size[0]) +
+                                      gridDim_ * (yindex % inbox.size[1] + gridDim_ * (zindex % inbox.size[2]));
+                            // std::cout << "x, y, z = " << xindex << ", " << yindex << ", " << zindex << std::endl;
+
+                            double W = weight * sphexa::cubickernel(r, h1);
+                            if (isIndexThisRanks(xindex, yindex, zindex))
+                            {
+                                Gv[iii]   = Gv[iii] + W * v[n];
+                                norm[iii] = norm[iii] + W;
+                                counts[n]++;
+                            }
+                            else
+                            {
+                                int indexRank = getRankOfIndex(xindex, yindex, zindex);
+                                if (indexRank >= num_ranks) std::terminate();
+                                auto key = std::make_tuple(indexRank, iii);
+                                // std::cout << "Rank: " << rank_ << "indexRank: " << indexRank << std::endl;
+
+                                if (auto search = map_Gv.find(key); search != map_Gv.end())
+                                    map_Gv[key] = map_Gv[key] + W * v[n];
+                                else
+                                    map_Gv.emplace(key, W * v[n]);
+
+                                if (auto search = map_norm.find(key); search != map_norm.end())
+                                    map_norm[key] = map_norm[key] + W;
+                                else
+                                    map_norm.emplace(key, W);
+                                // handle counts in communication
+                            }
                         }
                     }
                 }
@@ -138,33 +221,142 @@ public:
         std::cout << "counts: " << counts_reduced << std::endl;
         std::cout << "number of particles contributing to a pixel: " << counts_reduced * 1.0 / gridSize_ << std::endl;
 
-        // Need to Gather from all ranks.
-        MPI_Reduce(Gv.data(), GlobalGv.data(), gridSize_, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-        MPI_Reduce(norm.data(), GlobalNorm.data(), gridSize_, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        std::cout << "map_Gv.size(): " << map_Gv.size() << std::endl;
+        std::cout << "map_norm.size(): " << map_norm.size() << std::endl;
 
+        exchangeDataMap();
         // normalizeGrid();
-        // printGrid();
+        printGridVector();
+        // calculatePowerSpectrum();
     }
 
-    void printGrid()
+    void exchangeDataMap()
     {
+        if (map_Gv.empty()) return;
+        std::cout << "exchange map" << std::endl;
+
+        std::vector<int> indices;
+        std::vector<T>   values;
+        std::vector<int> rank_counts;
+        std::vector<int> displacements;
+
+        int num_ranks; // total number of ranks in the comm
+
+        MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+
+        rank_counts.resize(num_ranks);
+
+        for (const auto& [key, value] : map_Gv)
+        {
+            indices.push_back(std::get<1>(key));
+            values.push_back(value);
+            rank_counts[std::get<0>(key)]++;
+        }
+        std::cout << "calc displacements" << std::endl;
+        displacements.push_back(0);
+        for (int i = 1; i < rank_counts.size(); i++)
+        {
+            displacements.push_back(displacements[i - 1] + rank_counts[i - 1]);
+        }
+
+        // mpi_alltoallv to exchange data
+        std::vector<int> indices_recv;
+        std::vector<T>   values_recv;
+        std::vector<int> rank_counts_recv;
+        std::vector<int> displacements_recv;
+        indices_recv.resize(indices.size());
+        values_recv.resize(values.size());
+        rank_counts_recv.resize(rank_counts.size());
+        displacements_recv.resize(rank_counts.size());
+
+        for (int i = 0; i < rank_counts.size(); i++)
+        {
+            std::cout << "RANK = " << rank_ << ", " << rank_counts[i] << " ";
+        }
+
+        std::cout << "mpi_alltoall start" << std::endl;
+        MPI_Alltoall(rank_counts.data(), 1, MPI_INT, rank_counts_recv.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+        std::cout << "calc displacements" << std::endl;
+        displacements_recv[0] = 0;
+        for (int i = 1; i < rank_counts_recv.size(); i++)
+        {
+            displacements_recv[i] = displacements_recv[i - 1] + rank_counts_recv[i - 1];
+        }
+
+        std::cout << "mpi_alltoallv start" << std::endl;
+        MPI_Alltoallv(indices.data(), rank_counts.data(), displacements.data(), MPI_INT, indices_recv.data(),
+                      rank_counts_recv.data(), displacements_recv.data(), MPI_INT, MPI_COMM_WORLD);
+        // MPI_Alltoallv(values.data(), rank_counts.data(), rank_counts.data(), MPI_DOUBLE, values_recv.data(),
+        //               rank_counts_recv.data(), rank_counts_recv.data(), MPI_DOUBLE, MPI_COMM_WORLD);
+
+        for (int i = 0; i < rank_counts_recv.size(); i++)
+        {
+            std::cout << "RANK = " << rank_ << ", " << rank_counts_recv[i] << " ";
+        }
+
+        std::cout << "mpi_alltoall finish" << std::endl;
+
+        // put the values_recv in the Gv using indices_recv as indices
+        for (size_t i = 0; i < indices_recv.size(); i++)
+        {
+            Gv[indices_recv[i]] = Gv[indices_recv[i]] + values_recv[i];
+        }
+
+        // Do the same thing for norm data using the same buffers
+        // for (const auto& [key, value] : map_norm)
+        // {
+        //     indices.push_back(std::get<1>(key));
+        //     values.push_back(value);
+        // }
+
+        // MPI_Alltoallv(indices.data(), rank_counts.data(), rank_counts.data(), MPI_UNSIGNED_LONG, indices_recv.data(),
+        //               rank_counts_recv.data(), rank_counts_recv.data(), MPI_UNSIGNED_LONG, MPI_COMM_WORLD);
+        // MPI_Alltoallv(values.data(), rank_counts.data(), rank_counts.data(), MPI_DOUBLE, values_recv.data(),
+        //               rank_counts_recv.data(), rank_counts_recv.data(), MPI_DOUBLE, MPI_COMM_WORLD);
+
+        // for (size_t i = 0; i < indices_recv.size(); i++)
+        // {
+        //     norm[indices_recv[i]] = norm[indices_recv[i]] + values_recv[i];
+        // }
+    }
+
+    void printGridVector()
+    {
+        int num_ranks; // total number of ranks in the comm
+        MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+
         std::string   v_filename = "Gv_sphexa_50.txt";
         std::ofstream gridfile;
-        gridfile.open(v_filename, std::ios::trunc);
-        for (size_t i = 0; i < gridSize_; i++)
+
+        for (int turn = 0; turn < num_ranks; turn++)
         {
-            gridfile << std::setprecision(8) << std::scientific << GlobalGv[i] << std::endl;
+            if (rank_ == turn)
+            {
+                gridfile.open(v_filename, std::ios::trunc);
+                for (size_t i = 0; i < Gv.size(); i++)
+                {
+                    gridfile << std::setprecision(8) << std::scientific << Gv[i] << std::endl;
+                }
+                gridfile.close();
+            }
         }
-        gridfile.close();
 
         v_filename = "norm_sphexa_50.txt";
         std::ofstream normfile;
-        normfile.open(v_filename, std::ios::trunc);
-        for (size_t i = 0; i < gridSize_; i++)
+
+        for (int turn = 0; turn < num_ranks; turn++)
         {
-            normfile << std::setprecision(8) << std::scientific << GlobalNorm[i] << std::endl;
+            if (rank_ == turn)
+            {
+                normfile.open(v_filename, std::ios::trunc);
+                for (size_t i = 0; i < norm.size(); i++)
+                {
+                    normfile << std::setprecision(8) << std::scientific << norm[i] << std::endl;
+                }
+                normfile.close();
+            }
         }
-        normfile.close();
     }
 
 private:
@@ -182,55 +374,101 @@ private:
         }
     }
 
+    // return true if the index belongs to this rank's box
+    bool isIndexThisRanks(int x, int y, int z)
+    {
+        bool inX = (x >= inbox.low[0] && x <= inbox.high[0]);
+        bool inY = (y >= inbox.low[1] && y <= inbox.high[1]);
+        bool inZ = (z >= inbox.low[2] && z <= inbox.high[2]);
+
+        return inX && inY && inZ;
+    }
+
+    // Assume a power of two number of ranks
+    int getRankOfIndex(int x, int y, int z)
+    {
+        int inX = x / inbox.size[0];
+        int inY = y / inbox.size[1];
+        int inZ = z / inbox.size[2];
+
+        // Mapping of dimensions to ranks is as follows:
+        // R0 -> 0,0,0; R1 -> 0,1,0; R2 -> 0,0,1; R3 -> 0,1,1;
+        // R4 -> 1,0,0; R5 -> 1,1,0 and so on.
+        // return inX * 4 + inZ * 2 + inY;
+        return inX * 4 + inY * 2 + inZ;
+    }
+
     void normalizeGrid()
     {
         double average = 0.0;
-#pragma omp parallel for reduction(+ : average)
-        for (size_t i = 0; i < gridSize_; i++)
+        // #pragma omp parallel for reduction(+ : average)
+        for (size_t i = 0; i < boxSize_; i++)
         {
-            if (GlobalNorm[i] == 0)
+            if (norm[i] == 0)
             {
-                // std::cout << "Failed Rasterization in iteration = " //<< i << ", j = " << j << ", k = " << k
-                //           << std::endl;
+                // Normally we should not get here
+                std::cout << "Failed Rasterization in iteration = " << i //", j = " << j << ", k = " << k
+                          << std::endl;
                 // std::terminate();
-                GlobalGv[i] = 0.0;
+                Gv[i] = 0.0;
             }
             else
             {
-                GlobalGv[i] = GlobalGv[i] / GlobalNorm[i];
-                average += GlobalGv[i] * GlobalGv[i];
+                Gv[i] = Gv[i] / norm[i];
+                average += Gv[i] * Gv[i];
             }
         }
-        std::cout << "root mean square: " << sqrt((average / gridSize_)) << std::endl;
+        // printed per rank
+        std::cout << "root mean square: " << sqrt((average / boxSize_)) << std::endl;
     }
 
-    double partperpixel = 8.; // Doesn't work approximately lower than 6
-    float  mass;
-    size_t gridSize_;
-    size_t gridDim_;
-    size_t domainSize_;
-    T      Lbox;
+    void averaging()
+    {
+        int    Kmax = std::ceil(std::sqrt(3.0) * (0.5 * gridDim_));
+        double k_center[Kmax];
+        E.resize(Kmax);
+        counts.resize(Kmax);
 
-    // Grid indices
-    // std::vector<T> Gix, Giy, Giz;
+        for (int i = 0; i < Kmax; i++)
+        {
+            E[i]      = 0;
+            counts[i] = 0;
+        }
+    }
+
+    double          partperpixel = 8.; // Doesn't work approximately lower than 6
+    size_t          gridSize_;
+    int             gridDim_;
+    size_t          domainSize_;
+    T               Lbox;
+    int             rank_;
+    int             boxSize_;
+    heffte::box3d<> all_indexes;
+    heffte::box3d<> inbox;
+
+    // Gridded velocity map. Key is a tuple of <rank, index>
+    std::map<mapKey, T> map_Gv;
+    // pixel norms map. Key is a tuple of <rank, index>
+    std::map<mapKey, T> map_norm;
 
     // Gridded velocity
     std::vector<T> Gv;
-    // Gridded velocity
-    std::vector<T> GlobalGv;
-    // pixel norms
+    // Pixel norms
     std::vector<T> norm;
-    // pixel norms
-    std::vector<T> GlobalNorm;
+
+    // Averages
+    std::vector<T> E;
+    std::vector<T> counts;
 
     // Pixel centers
     std::vector<T> D;
 };
 
+// E is the output array, w is the gridded values, npixels is the number of pixels in each dimension
 void shells(double w[], int npixels, double E[], double k_center[])
 {
-    int halfnpixels = std::floor(npixels / 2);
-    int Kmax        = std::ceil(std::sqrt(3.0) * (0.5 * npixels));
+    int halfnpixels = std::floor(npixels * 0.5);
+    int Kmax        = std::ceil(std::sqrt(3.0) * (halfnpixels));
     // double E[Kmax],k_center[Kmax];
     int      Kx, Ky, Kz, K;
     uint64_t iii;
@@ -272,55 +510,6 @@ void shells(double w[], int npixels, double E[], double k_center[])
     {
         E[i] = 4 * M_PI * y_N3 * k_center[i] * k_center[i] * E[i] / counts[i];
     }
-}
-
-void fft3D(double G_1D[], int gridDim)
-{
-    // int      me;        // this process rank within the comm
-    // MPI_Comm comm;
-    // int      num_ranks; // total number of ranks in the comm
-
-    // MPI_Comm_rank(comm, &me);
-    // MPI_Comm_size(comm, &num_ranks);
-
-    // heffte::box3d<> all_indexes({0, 0, 0}, {gridDim - 1, gridDim - 1, gridDim - 1});
-
-    // // create a processor grid with minimum surface(measured in number of indexes)
-    // std::array<int, 3> proc_grid = heffte::proc_setup_min_surface(all_indexes, num_ranks);
-
-    // // split all indexes across the processor grid, defines a set of boxes
-    // std::vector<heffte::box3d<>> all_boxes = heffte::split_world(all_indexes, proc_grid);
-
-    // // pick the box corresponding to this rank
-    // heffte::box3d<> const inbox  = all_boxes[me];
-    // heffte::box3d<> const outbox = all_boxes[me]; // same inbox and outbox
-
-    // OLD
-    // heffte::box3d<> inbox    = {{0, 0, 0}, {npixels - 1, npixels - 1, npixels - 1}};
-    // heffte::box3d<> outbox   = {{0, 0, 0}, {npixels - 1, npixels - 1, npixels - 1}};
-
-    // // define the heffte class and the input and output geometry
-    // heffte::fft3d<heffte::backend::fftw> fft(inbox, outbox, MPI_COMM_WORLD);
-
-    // // vectors with the correct sizes to store the input and output data
-    // // taking the size of the input and output boxes
-    // std::vector<double>               input(fft.size_inbox());
-    // std::vector<std::complex<double>> output(fft.size_outbox());
-
-    // // fill the input vector with data that looks like 0, 1, 2, ...
-    // // std::iota(input.begin(), input.end(), 0); // put some data in the input
-    // for (uint64_t i = 0; i < npixels * npixels * npixels; i++)
-    // {
-    //     input.at(i) = G_1D[i];
-    // }
-
-    // // perform a forward DFT
-    // fft.forward(input.data(), output.data());
-
-    // for (uint64_t i = 0; i < npixels * npixels * npixels; i++)
-    // {
-    //     G_1D[i] = abs(output.at(i));
-    // }
 }
 
 } // namespace sphexa

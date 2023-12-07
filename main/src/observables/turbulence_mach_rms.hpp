@@ -138,11 +138,11 @@ public:
         rho.resize(npart);
         h.resize(npart);
         v.resize(npart);
-        std::cout << "numlocalparts = " << numLocalParticles << std::endl;
-        std::cout << "npart = " << npart << std::endl;
+        // std::cout << "numlocalparts = " << numLocalParticles << std::endl;
+        // std::cout << "npart = " << npart << std::endl;
 
-        std::cout << "first index = " << firstIndex << std::endl;
-        std::cout << "last index = " << lastIndex << std::endl;
+        // std::cout << "first index = " << firstIndex << std::endl;
+        // std::cout << "last index = " << lastIndex << std::endl;
 
         // std::terminate();
 
