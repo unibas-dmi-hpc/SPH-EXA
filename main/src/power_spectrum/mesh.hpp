@@ -105,7 +105,6 @@ public:
         std::vector<std::complex<T>> output(fft.size_outbox());
 
         fft.forward(velX_.data(), output.data());
-        std::cout << "fft for X dim done." << std::endl;
 
         for (size_t i = 0; i < velX_.size(); i++)
         {
@@ -113,17 +112,15 @@ public:
         }
 
         fft.forward(velY_.data(), output.data());
-        std::cout << "fft for Y dim done." << std::endl;
 
-        for (size_t i = 0; i < velX_.size(); i++)
+        for (size_t i = 0; i < velY_.size(); i++)
         {
             velY_[i] = abs(output.at(i)) * abs(output.at(i));
         }
 
         fft.forward(velZ_.data(), output.data());
-        std::cout << "fft for Z dim done." << std::endl;
 
-        for (size_t i = 0; i < velX_.size(); i++)
+        for (size_t i = 0; i < velZ_.size(); i++)
         {
             velZ_[i] = abs(output.at(i)) * abs(output.at(i));
         }
@@ -156,11 +153,12 @@ public:
         }
     }
 
-    // Need to implement this using MPI
+    // The normalized power spectrum results will be stored in rank 0
     void perform_spherical_averaging(T* ps)
     {
         std::vector<T> k_values(gridDim_);
         std::vector<T> k_1d(gridDim_);
+        std::vector<T> ps_rad(numShells_);
 
         fftfreq(k_values, gridDim_, 1.0 / gridDim_);
 
@@ -193,12 +191,12 @@ public:
                     auto   it      = std::min_element(std::begin(k_dif), std::end(k_dif));
                     size_t k_index = std::distance(std::begin(k_dif), it);
 
-                    power_spectrum_[k_index] += ps[freq_index];
+                    ps_rad[k_index] += ps[freq_index];
                 }
             }
         }
 
-        MPI_Reduce(power_spectrum_.data(), power_spectrum_.data(), numShells_, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Reduce(ps_rad.data(), power_spectrum_.data(), numShells_, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
         // normalize the power spectrum
         if (rank_ == 0)
