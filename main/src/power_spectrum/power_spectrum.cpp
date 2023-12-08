@@ -25,16 +25,15 @@ int main(int argc, char** argv)
 
     // get the dimensions from the checkpoint
     int gridDim = 100; // 100 is placeholder. Need to get this from the checkpoint
+    numShells   = gridDim / 2;
 
     // init mesh
-    Mesh<MeshType> mesh(rank, numRanks, gridDim);
+    Mesh<MeshType> mesh(rank, numRanks, gridDim, numShells);
 
     // convert cornerstone tree to mesh
 
-    numShells = gridDim / 2;
-    std::vector<MeshType> powerSpectrum;
     // calculate power spectrum
-    mesh.calculate_power_spectrum(powerSpectrum.data(), numShells);
+    mesh.calculate_power_spectrum();
 
     // write power spectrum to HDF5?
 

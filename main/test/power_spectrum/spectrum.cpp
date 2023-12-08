@@ -52,3 +52,29 @@ TEST(GlobalMesh, makeGlobalMesh)
     EXPECT_EQ(mesh.inbox_.size[1], 10);
     EXPECT_EQ(mesh.inbox_.size[2], 10);
 }
+
+TEST(GlobalMesh, fftFreq)
+{
+    // Test even variation
+    int    n  = 10;
+    double dt = 1.0 / n;
+
+    std::vector<double> freq(n);
+
+    fftfreq(freq, n, dt);
+
+    EXPECT_EQ(freq[1], 1);
+    EXPECT_EQ(freq[5], -5);
+    EXPECT_EQ(freq[9], -1);
+
+    // Test odd variation
+    n  = 5;
+    dt = 1.0 / n;
+
+    fftfreq(freq, n, dt);
+
+    EXPECT_EQ(freq[1], 1);
+    EXPECT_EQ(freq[2], -2);
+    EXPECT_EQ(freq[3], -1);
+    EXPECT_EQ(freq[4], 0);
+}
