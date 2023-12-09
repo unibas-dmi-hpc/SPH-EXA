@@ -84,7 +84,6 @@ void readTemplateBlock(const std::string& block, IFileReader* reader, Vector& x,
     reader->closeStep();
 }
 
-
 /*!@brief apply fixed boundary conditions to one axis
  *
  * @tparam T    field type
@@ -94,7 +93,7 @@ void readTemplateBlock(const std::string& block, IFileReader* reader, Vector& x,
  * @param size  number of particles
  */
 template<class T, class Th>
-void initFixedBoundaries(T* pos, Th* vx, Th* vy, Th* vz, Th* h, T axisMax, T axisMin, size_t size, T thickness)
+void initFixedBoundaries(T* pos, Th* vx, Th* vy, Th* vz, Th* h, T axisMax, T axisMin, size_t size, int thickness)
 {
 
 #pragma omp parallel for
@@ -134,8 +133,9 @@ struct
  */
 template<class T, class Vector>
 void addFixedBoundaryLayer(cstone::Vec3<int> axis, Vector& x, Vector& y, Vector& z, std::vector<T> h, size_t size,
-                           cstone::Box<T>& box, T thickness)
+                           cstone::Box<T>& box)
 {
+    int             thickness = box.fbcThickness();
     int             axisIndex = axis[0] * 1 + axis[1] * 2 + axis[2] * 3;
     cstone::Vec3<T> boxMax    = {box.xmax(), box.ymax(), box.zmax()};
     cstone::Vec3<T> boxMin    = {box.xmin(), box.ymin(), box.zmin()};
@@ -147,14 +147,14 @@ void addFixedBoundaryLayer(cstone::Vec3<int> axis, Vector& x, Vector& y, Vector&
         T               distanceMin = std::abs(boxMin[axisIndex - 1] - X[axisIndex - 1]);
         if (distanceMax < 2 * h[i] * thickness)
         {
-            X[axisIndex - 1] += 2.0 * distanceMax + 0.1 * h[i];
+            X[axisIndex - 1] += 2.0 * distanceMax;
             x.push_back(X[0]);
             y.push_back(X[1]);
             z.push_back(X[2]);
         }
         if (distanceMin < 2 * h[i] * thickness)
         {
-            X[axisIndex - 1] -= 2.0 * distanceMin + 0.1 * h[i];
+            X[axisIndex - 1] -= 2.0 * distanceMin;
             x.push_back(X[0]);
             y.push_back(X[1]);
             z.push_back(X[2]);

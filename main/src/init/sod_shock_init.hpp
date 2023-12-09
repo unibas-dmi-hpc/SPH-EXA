@@ -84,6 +84,27 @@ void initSodShock(Dataset& d, const std::map<std::string, double>& constants, T 
     }
 }
 
+/*!
+ * @brief create temporary smoothing lengths to add fixed boundary particles
+ */
+template<class Dataset, class T>
+std::vector<T> temporarySmoothingLength(Dataset& d, std::map<std::string, double>& constants, T particleMass)
+{
+    T              rhoLeft  = constants.at("rho_l");
+    T              rhoRight = constants.at("rho_r");
+    size_t         ng0      = 100;
+    T              hLeft    = 0.5 * std::cbrt(3. * ng0 * particleMass / 4. / M_PI / rhoLeft);
+    T              hRight   = 0.5 * std::cbrt(3. * ng0 * particleMass / 4. / M_PI / rhoRight);
+    std::vector<T> h(d.x.size());
+
+    for (int i = 0; i < d.x.size(); ++i)
+    {
+        if (d.x[i] < 0.5) { h[i] = hLeft; }
+        else { h[i] = hRight; }
+    }
+    return h;
+}
+
 std::map<std::string, double> SodShockConstants()
 {
     return {{"P_l", 1.0},       {"P_r", 0.1},    {"rho_l", 1.0},    {"rho_r", 0.125},
@@ -115,9 +136,9 @@ public:
 
         std::vector<T> xBlock, yBlock, zBlock;
         readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
-        T   rhoHigh                = settings_.at("rho_l");
-        T   rhoLow                 = settings_.at("rho_r");
-        int leftMultiplier         = std::rint(std::cbrt(rhoHigh / rhoLow));
+        T   rhoHigh        = settings_.at("rho_l");
+        T   rhoLow         = settings_.at("rho_r");
+        int leftMultiplier = std::rint(std::cbrt(rhoHigh / rhoLow));
 
         int               multi1D    = std::lround(cbrtNumPart / std::cbrt(xBlock.size()));
         cstone::Vec3<int> rightMulti = {4 * multi1D, multi1D, multi1D};
@@ -126,14 +147,26 @@ public:
         cstone::Box<T> left(0, 0.5, 0, 0.125, 0, 0.125, pbc, pbc, pbc);
         cstone::Box<T> right(0.5, 1, 0, 0.125, 0, 0.125, pbc, pbc, pbc);
 
-        cstone::Box<T> globalBox(0, 1, 0, 0.125, 0, 0.125, fbc, pbc, pbc);
+        cstone::Box<T> globalBox(0, 1, 0, 0.125, 0, 0.125, fbc, pbc, pbc, 8);
         auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
 
         assembleCuboid<T>(keyStart, keyEnd, left, leftMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
         assembleCuboid<T>(keyStart, keyEnd, right, rightMulti, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        T highDensVolume = globalBox.lx() * globalBox.ly() * globalBox.lz() * 0.5;
+        T nPartHighDens  = d.x.size() * rhoHigh / (rhoHigh + rhoLow); // estimate from template block
+        T particleMass   = highDensVolume * settings_.at("rho_l") / nPartHighDens;
+
+        auto tempH = temporarySmoothingLength(d, settings_, particleMass);
+        addFixedBoundaryLayer(Axis.x, d.x, d.y, d.z, tempH, d.x.size(), globalBox);
 
         size_t numParticlesGlobal = d.x.size();
         MPI_Allreduce(MPI_IN_PLACE, &numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, simData.comm);
+
+        T newXMin = *std::min_element(d.x.begin(), d.x.end());
+        T newXMax = *std::max_element(d.x.begin(), d.x.end());
+        globalBox = cstone::Box<T>(newXMin, newXMax, 0, 0.125, 0, 0.125, cstone::BoundaryType::fixed,
+                                   cstone::BoundaryType::periodic, cstone::BoundaryType::periodic);
+
         syncCoords<KeyType>(rank, numRanks, numParticlesGlobal, d.x, d.y, d.z, globalBox);
         d.resize(d.x.size());
 
@@ -141,11 +174,8 @@ public:
         BuiltinWriter attributeSetter(settings_);
         d.loadOrStoreAttributes(&attributeSetter);
 
-        T highDensVolume = globalBox.lx() * globalBox.ly() * globalBox.lz() * 0.5;
-        T nPartHighDens  = d.x.size() * rhoHigh / (rhoHigh + rhoLow); // estimate from template block
-        T particleMass   = highDensVolume * settings_.at("rho_l") / nPartHighDens;
-
         initSodShock(d, settings_, particleMass);
+        initFixedBoundaries(d.y.data(), d.vx.data(), d.vy.data(), d.vz.data(), d.h.data(), newXMax, newXMin, d.x.size(), globalBox.fbcThickness());
 
         return globalBox;
     }

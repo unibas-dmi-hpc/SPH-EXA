@@ -177,7 +177,7 @@ public:
         ar->stepAttribute("boundaryType", (char*)boundaries, 3);
         bool anyFbc = boundaries[0] == BoundaryType::fixed || boundaries[1] == BoundaryType::fixed ||
                       boundaries[3] == BoundaryType::fixed;
-        if (anyFbc) { ar->stepAttribute("fbcThickness_", &fbcThickness_, 1); }
+        if (anyFbc) { ar->stepAttribute("fbcThickness", &fbcThickness_, 1); }
 
         *this = Box<T>(limits[0], limits[1], limits[2], limits[3], limits[4], limits[5], boundaries[0], boundaries[1],
                        boundaries[2], fbcThickness_);
