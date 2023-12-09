@@ -85,7 +85,6 @@ void readTemplateBlock(const std::string& block, IFileReader* reader, Vector& x,
     reader->closeStep();
 }
 
-
 /*!@brief apply fixed boundary conditions to one axis
  *
  * @tparam T    field type
@@ -148,14 +147,14 @@ void addFixedBoundaryLayer(cstone::Vec3<int> axis, Vector& x, Vector& y, Vector&
         T               distanceMin = std::abs(boxMin[axisIndex - 1] - X[axisIndex - 1]);
         if (distanceMax < 2 * h[i] * thickness)
         {
-            X[axisIndex - 1] += 2.0 * distanceMax + 0.1 * h[i];
+            X[axisIndex - 1] += 2.0 * distanceMax;
             x.push_back(X[0]);
             y.push_back(X[1]);
             z.push_back(X[2]);
         }
         if (distanceMin < 2 * h[i] * thickness)
         {
-            X[axisIndex - 1] -= 2.0 * distanceMin + 0.1 * h[i];
+            X[axisIndex - 1] -= 2.0 * distanceMin;
             x.push_back(X[0]);
             y.push_back(X[1]);
             z.push_back(X[2]);
