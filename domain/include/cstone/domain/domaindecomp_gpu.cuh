@@ -45,32 +45,23 @@ namespace cstone
  *
  * @tparam    KeyType        32- or 64-bit integer
  * @param[in] assignment     global space curve assignment to ranks
- * @param[in] tree           global cornerstone octree that matches the node counts used to create @p assignment
  * @param[in] particleKeys   sorted list of SFC keys of local particles present on this rank, ON DEVICE
- * @param[-]  sendScratch    array of length assignment.numRanks() to store search keys, uninitialized, ON DEVICE
- * @param[-]  receiveScratch array of length assignment.numRanks() to store search results, uninitialized, ON DEVICE
- * @return                   for each rank, a list of index ranges into @p particleKeys to send
+ * @param[-]  d_searchKeys   array of length assignment.numRanks() to store search keys, uninitialized, ON DEVICE
+ * @param[-]  d_indices      array of length assignment.numRanks() to store search results, uninitialized, ON DEVICE
+ * @return                    for each rank, a list of index ranges into @p particleKeys to send
  *
  * Converts the global assignment particle keys ranges into particle indices with binary search
  */
 template<class KeyType>
-SendRanges createSendRangesGpu(const SpaceCurveAssignment& assignment,
-                               gsl::span<const KeyType> treeLeaves,
+SendRanges createSendRangesGpu(const SfcAssignment<KeyType>& assignment,
                                gsl::span<const KeyType> particleKeys,
                                KeyType* d_searchKeys,
                                LocalIndex* d_indices)
 {
     size_t numRanks = assignment.numRanks();
-
     SendRanges ret(numRanks + 1);
 
-    std::vector<KeyType> searchKeys(numRanks);
-    for (int rank = 0; rank < numRanks; ++rank)
-    {
-        searchKeys[rank] = treeLeaves[assignment.firstNodeIdx(rank)];
-    }
-
-    memcpyH2D(searchKeys.data(), searchKeys.size(), d_searchKeys);
+    memcpyH2D(assignment.data(), numRanks, d_searchKeys);
     lowerBoundGpu(particleKeys.begin(), particleKeys.end(), d_searchKeys, d_searchKeys + numRanks, d_indices);
     memcpyD2H(d_indices, numRanks, ret.data());
     ret.back() = particleKeys.size();

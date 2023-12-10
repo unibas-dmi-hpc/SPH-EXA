@@ -61,13 +61,13 @@ namespace cstone
  */
 template<class T, template<class> class TreeType, class KeyType>
 std::vector<int> findPeersMac(int myRank,
-                              const SpaceCurveAssignment& assignment,
+                              const SfcAssignment<KeyType>& assignment,
                               const TreeType<KeyType>& domainTree,
                               const Box<T>& box,
                               float invThetaEff)
 {
-    KeyType domainStart = domainTree.codeStart(domainTree.toInternal(assignment.firstNodeIdx(myRank)));
-    KeyType domainEnd   = domainTree.codeEnd(domainTree.toInternal(assignment.lastNodeIdx(myRank) - 1));
+    KeyType domainStart = assignment[myRank];
+    KeyType domainEnd   = assignment[myRank + 1];
 
     auto crossFocusPairs =
         [domainStart, domainEnd, invThetaEff, &tree = domainTree, &box](TreeNodeIndex a, TreeNodeIndex b)
@@ -89,7 +89,7 @@ std::vector<int> findPeersMac(int myRank,
     std::vector<int> peerRanks(assignment.numRanks(), 0);
     auto p2p = [&domainTree, &assignment, &peerRanks](TreeNodeIndex /*a*/, TreeNodeIndex b)
     {
-        int peerRank = assignment.findRank(domainTree.cstoneIndex(b));
+        int peerRank = assignment.findRank(domainTree.codeStart(b));
         if (peerRanks[peerRank] == 0) { peerRanks[peerRank] = 1; }
     };
 
@@ -117,23 +117,25 @@ std::vector<int> findPeersMac(int myRank,
 }
 
 //! @brief Args identical to findPeersMac, but implemented with single tree traversal for comparison
-template<template<class> class TreeType, class KeyType, class T>
+template<class KeyType, class T>
 std::vector<int> findPeersMacStt(int myRank,
-                                 const SpaceCurveAssignment& assignment,
-                                 const TreeType<KeyType>& octree,
+                                 const SfcAssignment<KeyType>& assignment,
+                                 const Octree<KeyType>& octree,
                                  const Box<T>& box,
                                  float invThetaEff)
 {
-    KeyType domainStart = octree.codeStart(octree.toInternal(assignment.firstNodeIdx(myRank)));
-    KeyType domainEnd   = octree.codeEnd(octree.toInternal(assignment.lastNodeIdx(myRank) - 1));
+    KeyType domainStart     = assignment[myRank];
+    KeyType domainEnd       = assignment[myRank + 1];
+    const KeyType* leaves   = octree.treeLeaves().data();
+    TreeNodeIndex firstLeaf = findNodeAbove(leaves, octree.numLeafNodes(), domainStart);
+    TreeNodeIndex lastLeaf  = findNodeAbove(leaves, octree.numLeafNodes(), domainEnd);
 
     std::vector<int> peers(assignment.numRanks());
 
 #pragma omp parallel for
-    for (TreeNodeIndex i = assignment.firstNodeIdx(myRank); i < assignment.lastNodeIdx(myRank); ++i)
+    for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
     {
-        TreeNodeIndex internalIdx = octree.toInternal(i);
-        IBox target               = sfcIBox(sfcKey(octree.codeStart(internalIdx)), octree.level(internalIdx));
+        IBox target = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
         Vec3<T> targetCenter, targetSize;
         std::tie(targetCenter, targetSize) = centerAndSize<KeyType>(target, box);
 
@@ -150,9 +152,9 @@ std::vector<int> findPeersMacStt(int myRank,
             return !minVecMacMutual(targetCenter, targetSize, sourceCenter, sourceSize, box, invThetaEff);
         };
 
-        auto markLeafIdx = [toLeaf = octree.toLeafOrder(), &peers, &assignment](TreeNodeIndex idx)
+        auto markLeafIdx = [&octree, &peers, &assignment](TreeNodeIndex idx)
         {
-            int peerRank    = assignment.findRank(toLeaf[idx]);
+            int peerRank    = assignment.findRank(octree.codeStart(idx));
             peers[peerRank] = 1;
         };
 

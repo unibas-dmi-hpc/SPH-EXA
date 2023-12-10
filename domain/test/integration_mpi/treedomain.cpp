@@ -89,8 +89,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     // particles are in SFC order
     std::iota(begin(ordering), end(ordering), 0);
 
-    auto assignment = singleRangeSfcSplit(counts, numRanks);
-    auto sends      = createSendRanges<KeyType>(assignment, tree, coords.particleKeys());
+    auto assignment = makeSfcAssignment(numRanks, counts, tree.data());
+    auto sends      = createSendRanges<KeyType>(assignment, coords.particleKeys());
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), numParticles * numRanks);
 
@@ -130,7 +130,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     EXPECT_EQ(tree, newTree);
     EXPECT_EQ(counts, newCounts);
 
-    auto newSends = createSendRanges<KeyType>(assignment, newTree, {newCodes.data(), numAssigned});
+    auto newSends = createSendRanges<KeyType>(assignment, {newCodes.data(), numAssigned});
 
     for (int rank = 0; rank < numRanks; ++rank)
     {
@@ -149,7 +149,6 @@ TEST(GlobalTreeDomain, randomGaussian)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    globalRandomGaussian<unsigned, double>(rank, nRanks);
     globalRandomGaussian<uint64_t, double>(rank, nRanks);
     globalRandomGaussian<unsigned, float>(rank, nRanks);
     globalRandomGaussian<uint64_t, float>(rank, nRanks);

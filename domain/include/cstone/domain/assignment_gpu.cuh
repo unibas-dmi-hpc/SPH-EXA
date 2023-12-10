@@ -113,14 +113,6 @@ public:
         // sort keys and keep track of ordering for later use
         sfcSorter.setMapFromCodes(keyView.begin(), keyView.end(), s0, s1);
 
-        gsl::span<const KeyType> oldLeaves = tree_.treeLeaves();
-        std::vector<KeyType> oldBoundaries(assignment_.numRanks() + 1);
-        for (size_t rank = 0; rank < oldBoundaries.size() - 1; ++rank)
-        {
-            oldBoundaries[rank] = oldLeaves[assignment_.firstNodeIdx(rank)];
-        }
-        oldBoundaries.back() = nodeRange<KeyType>(0);
-
         updateOctreeGlobalGpu(keyView.begin(), keyView.end(), bucketSize_, tree_, d_csTree_, nodeCounts_,
                               d_nodeCounts_);
         if (firstCall_)
@@ -131,13 +123,12 @@ public:
                 ;
         }
 
-        auto newAssignment = singleRangeSfcSplit(nodeCounts_, numRanks_);
-        limitBoundaryShifts<KeyType>(oldBoundaries, tree_.treeLeaves(), nodeCounts_, newAssignment);
+        auto newAssignment = makeSfcAssignment(numRanks_, nodeCounts_, tree_.treeLeaves().data());
+        limitBoundaryShifts<KeyType>(assignment_, newAssignment, tree_.treeLeaves(), nodeCounts_);
         assignment_ = std::move(newAssignment);
 
-        exchanges_ =
-            createSendRangesGpu<KeyType>(assignment_, tree_.treeLeaves(), {particleKeys + bufDesc.start, numParticles},
-                                         rawPtr(d_boundaryKeys_), rawPtr(d_boundaryIndices_));
+        exchanges_ = createSendRangesGpu<KeyType>(assignment_, {particleKeys + bufDesc.start, numParticles},
+                                                  rawPtr(d_boundaryKeys_), rawPtr(d_boundaryIndices_));
 
         return domain_exchange::exchangeBufferSize(bufDesc, numPresent(), numAssigned());
     }
@@ -209,7 +200,7 @@ public:
     //! @brief the global coordinate bounding box
     const Box<T>& box() const { return box_; }
     //! @brief return the space filling curve rank assignment of the last call to @a assign()
-    const SpaceCurveAssignment& assignment() const { return assignment_; }
+    const SfcAssignment<KeyType>& assignment() const { return assignment_; }
 
     //! @brief number of local particles to be sent to lower ranks
     LocalIndex numSendDown() const { return exchanges_[myRank_]; }
@@ -224,7 +215,7 @@ private:
     //! @brief global coordinate bounding box
     Box<T> box_;
 
-    SpaceCurveAssignment assignment_;
+    SfcAssignment<KeyType> assignment_;
     SendRanges exchanges_;
     mutable ExchangeLog recvLog_;
 
