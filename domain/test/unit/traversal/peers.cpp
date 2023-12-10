@@ -41,13 +41,13 @@ using namespace cstone;
 //! @brief reference peer search, all-all leaf comparison
 template<class KeyType, class T>
 static std::vector<int> findPeersAll2All(int myRank,
-                                         const SpaceCurveAssignment& assignment,
+                                         const SfcAssignment<KeyType>& assignment,
                                          gsl::span<const KeyType> tree,
                                          const Box<T>& box,
                                          float invThetaEff)
 {
-    TreeNodeIndex firstIdx = assignment.firstNodeIdx(myRank);
-    TreeNodeIndex lastIdx  = assignment.lastNodeIdx(myRank);
+    TreeNodeIndex firstIdx = findNodeAbove(tree.data(), nNodes(tree), assignment[myRank]);
+    TreeNodeIndex lastIdx  = findNodeAbove(tree.data(), nNodes(tree), assignment[myRank + 1]);
 
     std::vector<Vec3<T>> boxCenter(nNodes(tree));
     std::vector<Vec3<T>> boxSize(nNodes(tree));
@@ -62,7 +62,7 @@ static std::vector<int> findPeersAll2All(int myRank,
         for (TreeNodeIndex j = 0; j < TreeNodeIndex(nNodes(tree)); ++j)
             if (!minVecMacMutual(boxCenter[i], boxSize[i], boxCenter[j], boxSize[j], box, invThetaEff))
             {
-                peers[assignment.findRank(j)] = 1;
+                peers[assignment.findRank(tree[j])] = 1;
             }
 
     std::vector<int> ret;
@@ -80,10 +80,10 @@ static void findMacPeers64grid(int rank, float theta, BoundaryType pbc, int /*re
     auto leaves = makeUniformNLevelTree<KeyType>(64, 1);
     octree.update(leaves.data(), nNodes(leaves));
 
-    SpaceCurveAssignment assignment(octree.numLeafNodes());
-    for (int i = 0; i < octree.numLeafNodes(); ++i)
+    SfcAssignment<KeyType> assignment(octree.numLeafNodes());
+    for (int i = 0; i < octree.numLeafNodes() + 1; ++i)
     {
-        assignment.addRange(i, i, i + 1, 1);
+        assignment.set(i, leaves[i], 1);
     }
 
     std::vector<int> peers     = findPeersMac(rank, assignment, octree, box, invThetaVecMac(theta));
@@ -128,7 +128,7 @@ static void findPeers()
     Octree<KeyType> octree;
     octree.update(tree.data(), nNodes(tree));
 
-    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);
+    auto assignment = makeSfcAssignment(numRanks, counts, tree.data());
 
     int probeRank             = numRanks / 2;
     std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, invThetaEff);

@@ -76,14 +76,14 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     Octree<KeyType> domainTree;
     domainTree.update(tree.data(), nNodes(tree));
 
-    auto assignment = singleRangeSfcSplit(counts, numRanks);
+    auto assignment = makeSfcAssignment(numRanks, counts, tree.data());
 
     // *******************************
 
     auto peers = findPeersMac(thisRank, assignment, domainTree, box, invThetaEff);
 
-    KeyType focusStart = tree[assignment.firstNodeIdx(thisRank)];
-    KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
+    KeyType focusStart = assignment[thisRank];
+    KeyType focusEnd   = assignment[thisRank + 1];
 
     // locate particles assigned to thisRank
     auto firstAssignedIndex = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusStart);
@@ -183,14 +183,14 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     Octree<KeyType> domainTree;
     domainTree.update(tree.data(), nNodes(tree));
 
-    auto assignment = singleRangeSfcSplit(counts, numRanks);
+    auto assignment = makeSfcAssignment(numRanks, counts, tree.data());
 
     /*******************************/
 
     auto peers = findPeersMac(thisRank, assignment, domainTree, box, invThetaEff);
 
-    KeyType focusStart = tree[assignment.firstNodeIdx(thisRank)];
-    KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
+    KeyType focusStart = assignment[thisRank];
+    KeyType focusEnd   = assignment[thisRank + 1];
 
     // locate particles assigned to thisRank
     auto firstAssignedIndex = findNodeAbove(coords.particleKeys().data(), coords.particleKeys().size(), focusStart);
@@ -212,7 +212,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
 
     auto octree = focusTree.octreeViewAcc();
 
-    focusTree.updateCenters(x.data(), y.data(), z.data(), m.data(), assignment, domainTree, box);
+    focusTree.updateCenters(x.data(), y.data(), z.data(), m.data(), domainTree, box);
     auto sourceCenter = focusTree.expansionCenters();
 
     constexpr T tol = std::is_same_v<T, double> ? 1e-10 : 1e-4;
