@@ -57,6 +57,11 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for Noh implosion\n"); }
         return SimInitializers<Dataset>::makeNoh(glassBlock, settingsFile, reader);
     }
+    if (testNamedBase == "gresho-chan")
+    {
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for Gresho-Chan\n"); }
+        return SimInitializers<Dataset>::makeGreshoChan(glassBlock, settingsFile, reader);
+    }
     if (testNamedBase == "isobaric-cube")
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for isobaric cube\n"); }
