@@ -65,10 +65,9 @@ public:
      *                      passes the min-distance MAC with theta as the parameter w.r.t
      *                      to any point inside the focus area.
      */
-    FocusedOctree(int myRank, int numRanks, unsigned bucketSize, float theta)
+    FocusedOctree(int myRank, int numRanks, unsigned bucketSize)
         : myRank_(myRank)
         , numRanks_(numRanks)
-        , theta_(theta)
         , bucketSize_(bucketSize)
         , treelets_(numRanks_)
         , counts_{bucketSize + 1}
@@ -387,10 +386,6 @@ public:
 
         //! upsweep with all (leaf) data in place
         upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<RealType>{});
-        //! calculate mac radius for each cell based on location of expansion centers
-        setMac<RealType, KeyType>(treeData_.prefixes, centers_, 1.0 / theta_, box);
-
-        if constexpr (HaveGpu<Accelerator>{}) { memcpyH2D(centers_.data(), centers_.size(), rawPtr(centersAcc_)); }
     }
 
     /*! @brief Update the MAC criteria based on a min distance MAC
@@ -411,7 +406,7 @@ public:
             centers_[i] = computeMinMacR2(nodeKeys[i], invThetaEff, box);
         }
 
-        updateMacs(box, assignment);
+        updateMacs(box, assignment, invThetaEff);
     }
 
     /*! @brief Update the MAC criteria based on the vector MAC
@@ -419,8 +414,16 @@ public:
      * @param[in] box              global coordinate bounding box
      * @param[in] assignment       assignment of the global leaf tree to ranks
      */
-    void updateMacs(const Box<RealType>& box, const SfcAssignment<KeyType>& assignment)
+    void updateMacs(const Box<RealType>& box, const SfcAssignment<KeyType>& assignment, float invTheta)
     {
+        //! calculate mac radius for each cell based on location of expansion centers
+        setMac<RealType, KeyType>(treeData_.prefixes, centers_, invTheta, box);
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            // TODO: get rid of this if-statement
+            if (centersAcc_.size() == centers_.size()) memcpyH2D(centers_.data(), centers_.size(), rawPtr(centersAcc_));
+        }
+
         macs_.resize(treeData_.numNodes);
         markMacs(treeData_.data(), centers_.data(), box, assignment[myRank_], assignment[myRank_ + 1], macs_.data());
 
@@ -577,8 +580,6 @@ private:
     int myRank_;
     //! @brief the total number of ranks
     int numRanks_;
-    //! @brief opening angle refinement criterion
-    float theta_;
     //! @brief bucket size (ncrit) inside the focus are
     unsigned bucketSize_;
 
