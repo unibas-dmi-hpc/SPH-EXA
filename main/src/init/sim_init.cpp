@@ -35,6 +35,7 @@
 
 #include "evrard_init.hpp"
 #include "file_init.hpp"
+#include "gresho_chan.hpp"
 #include "isobaric_cube_init.hpp"
 #include "kelvin_helmholtz_init.hpp"
 #include "noh_init.hpp"
@@ -84,6 +85,13 @@ std::unique_ptr<ISimInitializer<Dataset>> SimInitializers<Dataset>::makeFileSpli
                                                                                   IFileReader* reader)
 {
     return std::make_unique<FileSplitInit<Dataset>>(testCase, numSplits, reader);
+}
+
+template<class Dataset>
+std::unique_ptr<ISimInitializer<Dataset>>
+SimInitializers<Dataset>::makeGreshoChan(std::string glassBlock, std::string settingsFile, IFileReader* reader)
+{
+    return std::make_unique<GreshoChan<Dataset>>(glassBlock, settingsFile, reader);
 }
 
 template<class Dataset>
