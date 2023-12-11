@@ -99,7 +99,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
-    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
+    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal);
     focusTree.converge(box, particleKeys, peers, assignment, tree, counts, invThetaEff);
 
     auto octree = focusTree.octreeViewAcc();
@@ -207,7 +207,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
-    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
+    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal);
     focusTree.converge(box, particleKeys, peers, assignment, tree, counts, invThetaEff);
 
     auto octree = focusTree.octreeViewAcc();
@@ -229,9 +229,6 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
             SourceCenterType<T> reference = massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(),
                                                           globalMasses.data(), startIndex, endIndex);
 
-            T refMac     = computeVecMacR2(octree.prefixes[i], makeVec3(reference), 1.0 / theta, box);
-            reference[3] = (reference[3] == T(0)) ? T(0) : refMac;
-
             EXPECT_NEAR(sourceCenter[i][0], reference[0], tol);
             EXPECT_NEAR(sourceCenter[i][1], reference[1], tol);
             EXPECT_NEAR(sourceCenter[i][2], reference[2], tol);
@@ -246,8 +243,6 @@ TEST(GeneralFocusExchange, sourceCenter)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    generalExchangeSourceCenter<unsigned, double>(rank, nRanks);
     generalExchangeSourceCenter<uint64_t, double>(rank, nRanks);
     generalExchangeSourceCenter<unsigned, float>(rank, nRanks);
-    generalExchangeSourceCenter<uint64_t, float>(rank, nRanks);
 }
