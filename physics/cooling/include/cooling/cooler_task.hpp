@@ -47,13 +47,13 @@ void copyToBlock(const auto& v, auto& v_block, const block& b)
 
 void copyFromBlock(const auto& v_block, auto& v, const block& b)
 {
-    std::copy_n(v_block.data(), b.len, v.data() + b.first);
+    std::copy_n(v_block.begin(), b.len, v.begin() + b.first);
 }
 
 template<typename ...T>
 auto getBlockPointers(const std::tuple<T*...>& particle, const block& b)
 {
-    auto f = [&](auto*... args) { return std::make_tuple(args + b.first...); };
+    auto f = [&](auto*... args) { return std::make_tuple((args + b.first)...); };
     return std::apply(f, particle);
 };
 

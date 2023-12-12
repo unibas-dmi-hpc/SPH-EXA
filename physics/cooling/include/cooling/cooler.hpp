@@ -206,7 +206,7 @@ struct Cooler
             const double ct = *std::min_element(ct_ret.begin(), ct_ret.end());
             ct_min = std::min(ct_min, ct);
         }
-        return ct_min;
+        return ct_min * ct_crit;
     }
     // Parameter for cooling time criterion
     T ct_crit{0.1};
