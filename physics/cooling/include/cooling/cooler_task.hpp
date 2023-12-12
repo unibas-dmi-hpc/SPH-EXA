@@ -53,6 +53,7 @@ void copyFromBlock(const auto& v_block, auto& v, const block& b)
 template<typename ...T>
 auto getBlockPointers(const std::tuple<T*...>& particle, const block& b)
 {
+    printf("getBlockPointers: %zu\n", b.first);
     auto f = [&](auto*... args) { return std::make_tuple((args + b.first)...); };
     return std::apply(f, particle);
 };
