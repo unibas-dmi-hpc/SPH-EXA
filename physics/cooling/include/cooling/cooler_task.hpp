@@ -23,7 +23,8 @@ struct task
         const size_t mod         = n_particles % N;
         const size_t ceil_term   = (mod == 0) ? 0 : 1;
         n_bins                   = n_particles / N + ceil_term;
-        N_last                   = n_particles % n_bins;
+        N_last                   = n_particles % N;
+        //n_per_block = n_particles / N;
     }
 };
 
@@ -31,7 +32,7 @@ struct block
 {
     size_t first;
     size_t len;
-    template<size_t N>
+    template <size_t N>
     block(size_t i, const task<N>& t)
         : first(t.first + N * i)
         , len((i == t.n_bins - 1) ? t.N_last : N)
@@ -41,7 +42,7 @@ struct block
 
 void copyToBlock(const auto& v, auto& v_block, const block& b)
 {
-    std::copy_n(v.data() + b.first, b.len, v_block.data());
+    std::copy_n(v.begin() + b.first, b.len, v_block.begin());
 }
 
 void copyFromBlock(const auto& v_block, auto& v, const block& b)

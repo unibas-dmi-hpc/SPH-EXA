@@ -129,6 +129,8 @@ struct Cooler
     {
         constexpr size_t N = 100;
         const task<N>    t(first, last);
+        printf("task: first: %d n_bins: %zu N_last: %zu n_part: %zu\n",
+               t.first, t.n_bins, t.N_last, last - first);
         const auto       compute_du =
             [&](const auto& u_block, auto& du, const block& b)
         {
@@ -137,21 +139,31 @@ struct Cooler
                 du[i] = (u_block[i] - u[i + b.first]) / dt;
             }
         };
+
 #pragma omp parallel for
         for (size_t i = 0; i < t.n_bins; i++)
         {
-            const block           b(i, t);
             std::array<double, N> rho_copy;
             std::array<double, N> u_copy;
             std::array<double, N> du_local;
-
+            const block           b(i, t);
             copyToBlock(rho, rho_copy, b);
+           // printf("copied %zu\n", i);
             copyToBlock(u, u_copy, b);
+            //printf("copied\n");
 
             auto particle_block = getBlockPointers(particle, b);
+            //printf("copied\n");
+
             cool_particle_arr(dt, rho_copy.data(), u_copy.data(), particle_block, b.len);
+           // printf("copied\n");
+
             compute_du(u_copy, du_local, b);
+            //printf("copied\n");
+
             copyFromBlock(du_local, du, b);
+            //printf("copied\n");
+
         }
     }
 
@@ -190,6 +202,7 @@ struct Cooler
 
             auto particle_block = getBlockPointers(particle, b);
             cooling_time_arr(rho_copy.data(), u_copy.data(), particle_block, ct_ret.data(), b.len);
+            std::transform(ct_ret.begin(), ct_ret.end(), ct_ret.begin(), [](double a) {return std::abs(a);});
             const double ct = *std::min_element(ct_ret.begin(), ct_ret.end());
             ct_min = std::min(ct_min, ct);
         }

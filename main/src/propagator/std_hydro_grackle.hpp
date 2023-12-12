@@ -226,10 +226,10 @@ public:
                                     cstone::getPointers(get<CoolingFields>(simData.chem), 0), d.du, first, last);
         // cooling_data.cool_particle_arr(T(d.minDt), rho_copy.data() + first, u_copy.data() + first,
         //                               cstone::getPointers(get<CoolingFields>(simData.chem), first), last - first);
-        for (size_t i = first; i < last; i++)
+        /*for (size_t i = first; i < last; i++)
         {
             d.du[i] += (u_copy[i] - d.u[i]) / d.minDt;
-        }
+        }*/
         // coolignDensToFrac(simData.chem, first, last);
         /*#pragma omp parallel for schedule(static)
                 for (size_t i = first; i < last; i++)
