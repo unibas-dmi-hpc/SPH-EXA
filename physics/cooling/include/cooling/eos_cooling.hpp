@@ -13,7 +13,7 @@ auto coolingTimestep(size_t first, size_t last, Dataset& d, Cooler& cooler, Chem
 {
     using T             = typename Dataset::RealType;
     using CoolingFields = typename Cooler::CoolingFields;
-    return INFINITY;
+    return std::numeric_limits<double>::infinity();
     //T minCt = cooler.min_cooling_time(d.rho, d.u, cstone::getPointers(get<CoolingFields>(chem), 0), first, last);
    // return minCt;
     /*std::vector<double> cooling_times(last - first);
