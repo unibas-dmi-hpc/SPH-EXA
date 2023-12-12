@@ -59,7 +59,7 @@ template<class Dataset, class T>
 void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T stirMax, T stirMin, size_t ndim,
                          size_t spectForm, T powerLawExp, T anglesExp, bool verbose)
 {
-    // TODO: this should not take the whole Dataset, only modes and amplitudes are needed
+    // TODO: this should not take the whole Dataset, only d.modes and d.amplitudes are needed
     // TODO: st_maxmodes should not be an input parameter. the caller will have determineNumModes
     // TODO: and it's up to the call-site to decide if they want to create as many as it takes (or skip the check)
 
@@ -78,7 +78,7 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T sti
     size_t ikzmax = (ndim > 2) ? 256 : 0;
 
     // TODO: this should be a separate function "determineNumModes".
-    // determine the number of required modes (in case of full sampling)
+    // determine the number of required d.modes (in case of full sampling)
     d.numModes = 0;
     for (size_t ikx = ikxmin; ikx <= ikxmax; ikx++)
     {
@@ -106,13 +106,13 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T sti
     // TODO: should be a separate function
     if (spectForm != 2)
     {
-        if (verbose) std::cout << "Generating " << st_tot_nmodes << " driving modes..." << std::endl;
+        if (verbose) std::cout << "Generating " << st_tot_nmodes << " driving d.modes..." << std::endl;
 
         // prefactor for amplitude normalistion to 1 at kc = 0.5*(st_stirmin+st_stirmax)
         T parab_prefact = -4.0 / ((stirMax - stirMin) * (stirMax - stirMin));
 
-        // for band and parabolic spectrum, use the standard full sampling
-        // loop over all kx, ky, kz to generate driving modes
+        // for band and parabolic spectrum, use the standard full sd.ampling
+        // loop over all kx, ky, kz to generate driving d.modes
         for (size_t ikx = ikxmin; ikx <= ikxmax; ikx++)
         {
             T kx = twopi * ikx / Lx;
@@ -128,9 +128,9 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T sti
                     {
                         if ((d.numModes + 1 + std::pow(2, ndim - 1)) > st_maxmodes)
                         {
-                            std::cout << "init_stir:  number of modes: = " << d.numModes + 1
+                            std::cout << "init_stir:  number of d.modes: = " << d.numModes + 1
                                       << " maxstirmodes = " << st_maxmodes << std::endl;
-                            std::cout << "Too many stirring modes" << std::endl;
+                            std::cout << "Too many stirring d.modes" << std::endl;
                             break;
                         }
 
@@ -199,7 +199,7 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T sti
 
             for (int iang = 1; iang <= nang; iang++)
             {
-                T phi = twopi * uniRng(); // phi = [0,2pi] sample the whole sphere
+                T phi = twopi * uniRng(); // phi = [0,2pi] sd.ample the whole sphere
                 if (ndim == 1)
                 {
                     if (phi < twopi / 2) { phi = 0.0; }
@@ -207,7 +207,7 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T sti
                 }
 
                 T theta = twopi / 4.0;
-                if (ndim > 2) { theta = std::acos(1.0 - 2.0 * uniRng()); } // theta = [0,pi] sample the whole sphere
+                if (ndim > 2) { theta = std::acos(1.0 - 2.0 * uniRng()); } // theta = [0,pi] sd.ample the whole sphere
 
                 T rand = ik + uniRng() - 0.5;
                 T kx   = twopi * std::round(rand * std::sin(theta) * std::cos(phi)) / Lx;
@@ -220,16 +220,16 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T sti
                 {
                     if ((d.numModes + 1 + std::pow(2, ndim - 1)) > st_maxmodes)
                     {
-                        std::cout << "init_stir:  number of modes: = " << d.numModes + 1
+                        std::cout << "init_stir:  number of d.modes: = " << d.numModes + 1
                                   << " maxstirmodes = " << st_maxmodes << std::endl;
-                        std::cout << "Too many stirring modes" << std::endl;
+                        std::cout << "Too many stirring d.modes" << std::endl;
                         break;
                     }
 
                     T amplitude = std::pow(k / kc, powerLawExp); // Power law
 
                     // note: power spectrum ~ amplitude^2 (1D), amplitude^2 * 2pi k (2D), amplitude^2 * 4pi k^2 (3D)
-                    // ...and correct for the number of angles sampled relative to the full sampling (k^2 per k-shell in
+                    // ...and correct for the number of angles sd.ampled relative to the full sd.ampling (k^2 per k-shell in
                     // 3D)
                     amplitude = std::sqrt(amplitude * (std::pow(ik, ndim - 1) * 4.0 * (std::sqrt(3.0)) / nang)) *
                                 std::pow(kc / k, (ndim - 1) / 2.0);
@@ -247,7 +247,7 @@ void createStirringModes(Dataset& d, T Lx, T Ly, T Lz, size_t st_maxmodes, T sti
     }             // st_spectform .eq. 2
     d.numModes += 1;
 
-    if (verbose) std::cout << "Total Number of Stirring Modes: " << d.numModes << std::endl;
+    if (verbose) std::cout << "Total Number of Stirring d.modes: " << d.numModes << std::endl;
 }
 
 } // namespace sph

@@ -60,6 +60,8 @@ HOST_DEVICE_FUN auto stirParticle(size_t ndim, Tc xi, Tc yi, Tc zi, size_t numMo
         T cosxi_im = std::cos(modes[m_ndim] * xi);
         T sinxi_im = std::sin(modes[m_ndim] * xi);
 
+        std::cout << cosxi_im << ' ' <<  cosxi_im << ' ' << sinxi_im << ' ' << cosxj_im << ' ' << sinxj_im << ' ' << cosxk_im << ' ' <<  sinxk_im << std::endl;
+
         //  these are the real and imaginary parts, respectively, of
         //     e^{ i \vec{k} \cdot \vec{x} }
         //          = cos(kx*x + ky*y + kz*z) + i sin(kx*x + ky*y + kz*z)
