@@ -52,7 +52,9 @@ enum class CompressionMethod
     szip,
     zfp
 };
-
+struct compressionSettings {
+    double accuracy;
+};
 struct H5ZType
 {
     CompressionMethod compression = CompressionMethod::none;
