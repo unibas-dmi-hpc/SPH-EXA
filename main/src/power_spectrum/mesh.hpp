@@ -97,32 +97,34 @@ public:
 
     void calculate_fft()
     {
-        heffte::box3d<> outbox = inbox_;
+        heffte::box3d<> outbox   = inbox_;
+        size_t          meshSize = gridDim_ * gridDim_ * gridDim_;
 
         // change fftw depending on the configuration into cufft or rocmfft
         heffte::fft3d<heffte::backend::fftw> fft(inbox_, outbox, MPI_COMM_WORLD);
 
         std::vector<std::complex<T>> output(fft.size_outbox());
 
+        // divide the fft.forward results by the mesh size as the first step of normalization
         fft.forward(velX_.data(), output.data());
 
         for (size_t i = 0; i < velX_.size(); i++)
         {
-            velX_[i] = abs(output.at(i)) * abs(output.at(i));
+            velX_[i] = abs(output.at(i)) * abs(output.at(i)) / meshSize;
         }
 
         fft.forward(velY_.data(), output.data());
 
         for (size_t i = 0; i < velY_.size(); i++)
         {
-            velY_[i] = abs(output.at(i)) * abs(output.at(i));
+            velY_[i] = abs(output.at(i)) * abs(output.at(i)) / meshSize;
         }
 
         fft.forward(velZ_.data(), output.data());
 
         for (size_t i = 0; i < velZ_.size(); i++)
         {
-            velZ_[i] = abs(output.at(i)) * abs(output.at(i));
+            velZ_[i] = abs(output.at(i)) * abs(output.at(i)) / meshSize;
         }
     }
 
