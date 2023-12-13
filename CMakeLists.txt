@@ -72,8 +72,29 @@ if (SPH_EXA_WITH_H5PART)
     endif ()
 endif ()
 
+option(SPH_EXA_WITH_ADIOS "Enable ADIOS2 IO" ON)
+if (SPH_EXA_WITH_ADIOS)
+    set(_components C)
+    find_package(MPI COMPONENTS ${_components})
+    if(MPI_FOUND)
+        # Workaround for various MPI implementations forcing the link of C++ bindings
+        add_definitions(-DOMPI_SKIP_MPICXX -DMPICH_SKIP_MPICXX)
+        list(APPEND _components MPI)
+    endif()
+    list(APPEND _components CXX)
+    find_package(SZ QUIET)
+    find_package(ADIOS2 REQUIRED COMPONENTS ${_components})
+    if (ADIOS2_FOUND)
+    else()
+        message(STATUS "No ADIOS2 support")
+        set(SPH_EXA_WITH_ADIOS OFF)
+    endif ()
+endif ()
+
 option(SPH_EXA_WITH_HDF5 "Enable HDF5 IO using complete HDF5" ON)
 add_subdirectory(./extern/h5zzfp)
+
+
 
 set(INSITU None CACHE STRING "Enable in-situ support")
 set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent)

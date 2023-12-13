@@ -59,6 +59,7 @@ public:
         MPI_Comm_rank(comm, &rank_);
         as_.accuracy = 0.001;
         as_.rank = rank_;
+        as_.comm = comm;
 
     }
 
@@ -77,21 +78,33 @@ public:
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ = -MPI_Wtime();
 
-        if ((!h5z_.file_id) || (path != pathStep_))
-        {
-            if (std::filesystem::exists(path)) { h5z_ = fileutils::openHDF5File(path, comm_); }
-            else { h5z_ = fileutils::createHDF5File(path, comm_); }
-        }
-
-        if (lastIndex > firstIndex)
-        {
-            // Only when writing particle info, we create another group
-            // Otherwise no group is created
-            h5z_.numParticles = lastIndex - firstIndex;
+        // BP doesn't have hierarchical structure, thus each timestep
+        // has a unique specifier in the variable name. When reading in,
+        // we use regex for parsing the hierarchy.
+        as_.comm = comm_;
+        as_.fileName = path;
+        // In BP we use a "Step#0_" prefix to identify steps
+        if (lastIndex > firstIndex) {
+            as_.numLocalParticles = lastIndex - firstIndex;
             currStep_         = currStep_ + 1;
-            pathStep_         = "Step#" + std::to_string(currStep_ - 1);
-            fileutils::addHDF5Step(h5z_, pathStep_);
+            as_.stepPrefix     = "Step#" + std::to_string(currStep_ - 1) + "_";
         }
+        else {
+            as_.numLocalParticles = 0;
+        }
+        as_.numTotalRanks = totalRanks_;
+        as_.offset = firstIndex;
+
+        // For now, the writer will only append data instead of writing new
+        fileutils::initADIOSWriter(as_);
+
+        // if ((!h5z_.file_id) || (path != pathStep_))
+        // {
+        //     if (std::filesystem::exists(path)) { 
+        //         fileutils::openHDF5File(path, comm_); }
+        //     else {  }
+                
+        // }
 
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ += MPI_Wtime();
@@ -100,37 +113,42 @@ public:
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit([this, &key, size](auto arg) { fileutils::writeHDF5Attrib(h5z_, key.c_str(), arg, size); }, val);
+        std::visit([this, &key, size](auto arg) {
+            fileutils::writeADIOSAttribute(as_, key, arg);
+        }, val);
     }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
         std::visit([this, &key, size](auto arg) { 
-            fileutils::writeHDF5FileAttribute(h5z_, key, arg, H5T_NATIVE_DOUBLE, size);
+            fileutils::writeADIOSAttribute(as_, key, arg);
          }, val);
     }
 
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
-        long long int currIndex[totalRanks_ + 1];
-        currIndex[0] = 0;
-        int ret = MPI_Allgather((void*)&h5z_.numParticles, 1, MPI_LONG_LONG, (void*)&currIndex[1], 1, MPI_LONG_LONG,
-                                MPI_COMM_WORLD);
-        if (ret != MPI_SUCCESS) { std::cout << "error! " << std::endl; };
-        for (int i = 1; i < totalRanks_ + 1; i++)
-        {
-            currIndex[i] += currIndex[i - 1];
-        }
+        // long long int currIndex[totalRanks_ + 1];
+        // currIndex[0] = 0;
+        // int ret = MPI_Allgather((void*)&h5z_.numParticles, 1, MPI_LONG_LONG, (void*)&currIndex[1], 1, MPI_LONG_LONG,
+        //                         MPI_COMM_WORLD);
+        // if (ret != MPI_SUCCESS) { std::cout << "error! " << std::endl; };
+        // for (int i = 1; i < totalRanks_ + 1; i++)
+        // {
+        //     currIndex[i] += currIndex[i - 1];
+        // }
 
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ = -MPI_Wtime();
+
+        // If there's a need to change particle numbers, do it here and now!!
+        // Directly change it in as_.
         std::visit(
-            [this, &key, &currIndex](auto arg)
+            [this, &key](auto arg)
             {
-                fileutils::writeHDF5Field(h5z_, key, arg + firstIndex_, currIndex[rank_], currIndex[rank_ + 1],
-                                          totalNumParticles_);
+                fileutils::writeADIOSField(as_, key, arg);
             },
             field);
+
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
     }
@@ -139,10 +157,10 @@ public:
 
     void setCompression(const std::string& compressionMethod, int compressionParam) override
     {
-        if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
-        if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
-        if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
-        h5z_.compressionParam = compressionParam;
+        // if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
+        // if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
+        // if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
+        // h5z_.compressionParam = compressionParam;
     }
 
     void closeStep() override
@@ -151,7 +169,7 @@ public:
         {
             std::cout << "Writter!!!File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
         }
-        fileutils::closeHDF5File(h5z_);
+        // fileutils::closeHDF5File(h5z_);
     }
 
 private:

@@ -40,6 +40,9 @@
 #ifdef SPH_EXA_HAVE_H5PART
 #include "ifile_io_h5part.hpp"
 #endif
+#ifdef SPH_EXA_HAVE_ADIOS
+#include "ifile_io_adios.hpp"
+#endif
 
 namespace sphexa
 {
@@ -49,7 +52,11 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
 {
     if (ascii) { return std::make_unique<AsciiWriter>(comm); }
     if (compressionMethod == "") {
-        // If user didn't specify compression method at all, use H5Part
+        // If ADIOS is available, use ADIOS
+        // Otherwise if user didn't specify compression method at all, use H5Part
+#ifdef SPH_EXA_HAVE_ADIOS
+        return std::make_unique<ADIOSWriter>(comm, compressionMethod, compressionParam);
+#endif
 #ifdef SPH_EXA_HAVE_H5PART
         return std::make_unique<H5PartWriter>(comm);
 #endif

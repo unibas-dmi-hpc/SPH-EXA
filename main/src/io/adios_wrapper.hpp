@@ -6,7 +6,6 @@
 
 #include "cstone/util/type_list.hpp"
 #include "cstone/util/tuple_util.hpp"
-
 #include "adios2.h"
 #if ADIOS2_USE_MPI
 #include <mpi.h>
@@ -22,68 +21,65 @@ namespace fileutils
 struct ADIOS2Settings {
     double accuracy = 1E-6;
     adios2::IO io;
+    adios2::ADIOS adios;
     MPI_Comm comm;
-    string & fileName;
+    std::string fileName;
 
     size_t numLocalParticles;
-    size_t numRanks;
+    size_t numTotalRanks;
+    std::string stepPrefix;
     size_t offset;
     size_t rank;
 };
 
 // Suppose we only have 1D arrays here
-void initADIOSWriter(ADIOS2Settings & as, MPI_Comm comm, string & fileName, double accuracy = 1E-6, size_t numLocalParticles, size_t numRanks, size_t offset) {
+void initADIOSWriter(ADIOS2Settings & as) {
     /** ADIOS class factory of IO class objects */
     #if ADIOS2_USE_MPI
-            adios2::ADIOS adios(MPI_COMM_WORLD);
+            as.adios = adios2::ADIOS(as.comm);
     #else
-            adios2::ADIOS adios;
+            as.adios = adios2::ADIOS();
     #endif
-    as.io = adios.DeclareIO("BPFile_SZ");
-    as.fileName = fileName;
-    as.accuracy = accuracy;
-    as.numLocalParticles = numLocalParticles;
-    as.numRanks = numRanks;
-    as.offset = offset;
+    as.io = as.adios.DeclareIO("BPFile_SZ");
     return;
 }
 
-
-void writeADIOSField(ADIOS2Settings & as, string & fieldName, const double* field) {
-    adios2::Variable<double> varDoubles = bpIO.DefineVariable<double>(
-        fieldName, // Field name
-        {as.numLocalParticles * as.numRanks}, // Global dimensions
+template<class T>
+void writeADIOSField(ADIOS2Settings & as, const std::string & fieldName, const T * field) {
+    adios2::Variable<T> varDoubles = as.io.DefineVariable<T>(
+        as.stepPrefix + fieldName, // Field name
+        {as.numLocalParticles * as.numTotalRanks}, // Global dimensions
         {as.offset}, // Starting local offset
         {as.numLocalParticles},        // Local dimensions  (limited to 1 rank)
         adios2::ConstantDims);
 
     if (as.accuracy > 1E-16)
     {
-        adios2::Operator op = adios.DefineOperator("SZCompressor", "sz");
+        adios2::Operator op = as.adios.DefineOperator("SZCompressor", "sz");
         varDoubles.AddOperation(op, {{"accuracy", std::to_string(as.accuracy)}});
     }
 
-    adios2::Attribute<double> attribute = bpIO.DefineAttribute<double>("SZ_accuracy", as.accuracy);
+    adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
 
     // To avoid compiling warnings
     (void)attribute;
 
-    adios2::Engine bpWriter = bpIO.Open(as.fileName, adios2::Mode::Append);
+    adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
     bpWriter.BeginStep();
     bpWriter.Put(varDoubles, field);
     bpWriter.EndStep();
     bpWriter.Close();
 }
 
-
-void writeADIOSAttribute(ADIOS2Settings & as, string & fieldName, const double & field) {
+template<class T>
+void writeADIOSAttribute(ADIOS2Settings & as, const std::string & fieldName, const T * field) {
     if (as.rank == 0) {
-        adios2::Variable<double> varAttrib = bpIO.DefineVariable<double>(
-            fieldName, // Field name
+        adios2::Variable<T> varAttrib = as.io.DefineVariable<T>(
+            as.stepPrefix + fieldName // Field name
             );
-        adios2::Engine bpWriter = bpIO.Open(as.fileName, adios2::Mode::Append);
+        adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
         bpWriter.BeginStep();
-        engine.Put( varAttrib, field );
+        bpWriter.Put( varAttrib, field );
         bpWriter.EndStep();
         bpWriter.Close();
     }
