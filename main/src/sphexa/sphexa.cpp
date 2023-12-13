@@ -91,7 +91,7 @@ int main(int argc, char** argv)
     const bool               avClean           = parser.exists("--avclean");
     const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
     const std::string        compressionMethod = parser.get("--compression", std::string(""));
-    const int                compressionParam  = parser.get("--compression-param", 0);
+    const std::string                compressionParam  = parser.get("--compression-param", std::string(""));
     const bool               writeEnabled      = writeFrequencyStr != "0" || !writeExtra.empty();
     std::string              outFile           = parser.get("-o", "dump_" + removeModifiers(initCond));
 

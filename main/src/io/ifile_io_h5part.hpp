@@ -107,7 +107,7 @@ public:
 
     void setNumParticles(uint64_t numParticles) override { return; }
 
-    void setCompression(const std::string& compressionMethod, int compressionParam) override {return;}
+    void setCompression(const std::string& compressionMethod, const std::string& compressionParam) override {return;}
 
     void closeStep() override
     {

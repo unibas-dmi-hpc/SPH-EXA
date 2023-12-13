@@ -48,7 +48,7 @@ namespace sphexa
 {
 
 std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const std::string& compressionMethod,
-                                               const int& compressionParam = 0)
+                                               const std::string& compressionParam = "")
 {
     if (ascii) { return std::make_unique<AsciiWriter>(comm); }
     if (compressionMethod == "") {
