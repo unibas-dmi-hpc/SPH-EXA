@@ -57,7 +57,7 @@ public:
         : comm_(comm)
     {
         MPI_Comm_rank(comm, &rank_);
-        as_.accuracy = 0.001;
+        as_.accuracy = 0.00001;
         as_.rank = rank_;
         as_.comm = comm;
 

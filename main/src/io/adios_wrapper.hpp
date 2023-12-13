@@ -46,6 +46,12 @@ void initADIOSWriter(ADIOS2Settings & as) {
 
 template<class T>
 void writeADIOSField(ADIOS2Settings & as, const std::string & fieldName, const T * field) {
+    #if ADIOS2_USE_MPI
+        adios2::ADIOS adios(MPI_COMM_WORLD);
+    #else
+        adios2::ADIOS adios;
+    #endif
+    as.io = adios.DeclareIO("BPFile_SZ");
     adios2::Variable<T> varDoubles = as.io.DefineVariable<T>(
         as.stepPrefix + fieldName, // Field name
         {as.numLocalParticles * as.numTotalRanks}, // Global dimensions
@@ -55,7 +61,7 @@ void writeADIOSField(ADIOS2Settings & as, const std::string & fieldName, const T
 
     if (as.accuracy > 1E-16)
     {
-        adios2::Operator op = as.adios.DefineOperator("SZCompressor", "sz");
+        adios2::Operator op = adios.DefineOperator("SZCompressor", "sz");
         varDoubles.AddOperation(op, {{"accuracy", std::to_string(as.accuracy)}});
     }
 
@@ -73,6 +79,12 @@ void writeADIOSField(ADIOS2Settings & as, const std::string & fieldName, const T
 
 template<class T>
 void writeADIOSAttribute(ADIOS2Settings & as, const std::string & fieldName, const T * field) {
+    #if ADIOS2_USE_MPI
+        adios2::ADIOS adios(MPI_COMM_WORLD);
+    #else
+        adios2::ADIOS adios;
+    #endif
+    as.io = adios.DeclareIO("BPFile_SZ");
     if (as.rank == 0) {
         adios2::Variable<T> varAttrib = as.io.DefineVariable<T>(
             as.stepPrefix + fieldName // Field name

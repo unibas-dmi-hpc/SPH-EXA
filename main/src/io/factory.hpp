@@ -52,16 +52,16 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
 {
     if (ascii) { return std::make_unique<AsciiWriter>(comm); }
     if (compressionMethod == "") {
-        // If ADIOS is available, use ADIOS
-        // Otherwise if user didn't specify compression method at all, use H5Part
-#ifdef SPH_EXA_HAVE_ADIOS
-        return std::make_unique<ADIOSWriter>(comm, compressionMethod, compressionParam);
-#endif
 #ifdef SPH_EXA_HAVE_H5PART
         return std::make_unique<H5PartWriter>(comm);
 #endif
         throw std::runtime_error("unsupported file i/o choice\n");
     } else {
+        // If ADIOS is available, use ADIOS
+        // Otherwise if user didn't specify compression method at all, use H5Part
+#ifdef SPH_EXA_HAVE_ADIOS
+        return std::make_unique<ADIOSWriter>(comm, compressionMethod, compressionParam);
+#endif
         return std::make_unique<HDF5Writer>(comm, compressionMethod, compressionParam);
     }
 }
