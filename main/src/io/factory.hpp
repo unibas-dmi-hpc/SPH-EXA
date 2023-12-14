@@ -41,12 +41,12 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
                                                const std::string& compressionParam = "")
 {
     if (ascii) { return makeAsciiWriter(comm); }
-    else { 
+    else {
+        std::cout << compressionMethod << std::endl;
         if (compressionMethod == "") {
             // If no compression specified, both adios and h5part can work.
             // Adios is preferred for compatibility reasons
             #ifdef SPH_EXA_HAVE_ADIOS
-            // return std::make_unique<ADIOSWriter>(comm, compressionMethod, "0.000001");
             return makeADIOSWriter(comm, compressionMethod, "0.000001");
             #endif
             return makeH5PartWriter(comm);
@@ -54,7 +54,6 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
         else {
             // If compression, only adios would work
             #ifdef SPH_EXA_HAVE_ADIOS
-            // return std::make_unique<ADIOSWriter>(comm, compressionMethod, "0.000001");
             return makeADIOSWriter(comm, compressionMethod, "0.000001");
             #endif
             throw std::runtime_error("unsupported compression file i/o choice. Compression is only available with ADIOS.\n");

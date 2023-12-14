@@ -54,12 +54,8 @@ public:
         : comm_(comm)
     {
         MPI_Comm_rank(comm, &rank_);
-        as_.accuracy = 0.00001;
         as_.rank = rank_;
         as_.comm = comm;
-        // if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
-        // if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
-        // if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
         as_.accuracy = std::stof(compressionParam);
     }
 
@@ -84,6 +80,8 @@ public:
         // we use regex for parsing the hierarchy.
         as_.comm = comm_;
         as_.fileName = path;
+        // Here it's mandatory to refresh rank num into as_
+        as_.rank = rank_;
         // In BP we use a "Step#X_" prefix to identify steps
         if (lastIndex > firstIndex) {
             as_.numLocalParticles = lastIndex - firstIndex;
@@ -106,15 +104,19 @@ public:
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
+        MPI_Barrier(MPI_COMM_WORLD);
+        writeTime_ = -MPI_Wtime();
         std::visit([this, &key, size](auto arg) {
-            fileutils::writeADIOSAttribute(as_, key, arg);
+            fileutils::writeADIOSStepAttribute(as_, key, arg);
         }, val);
+        MPI_Barrier(MPI_COMM_WORLD);
+        writeTime_ += MPI_Wtime();
     }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
         std::visit([this, &key, size](auto arg) { 
-            fileutils::writeADIOSAttribute(as_, key, arg);
+            fileutils::writeADIOSFileAttribute(as_, key, arg);
          }, val);
     }
 

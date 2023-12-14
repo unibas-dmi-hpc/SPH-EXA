@@ -75,17 +75,59 @@ void writeADIOSField(ADIOS2Settings & as, const std::string & fieldName, const T
 }
 
 template<class T>
-void writeADIOSAttribute(ADIOS2Settings & as, const std::string & fieldName, const T * field) {
+void writeADIOSStepAttribute(ADIOS2Settings & as, const std::string & fieldName, T *& field) {
+    // std::cout << "write file attr in adios with rank " << as.rank << std::endl;
+    // One MPI_COMM can only have one ADIOS instance.
+    // Thus if we need another instance to write, has to recreate without the original as.comm.
+    adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
+    as.io.DefineAttribute<T>(
+        as.stepPrefix + fieldName, // Field name
+        T()
+        );
+    // if (as.rank == 0) {
+    // // #if ADIOS2_USE_MPI
+    // //         adios2::ADIOS tempAdios = adios2::ADIOS(as.comm);
+    // // #else
+    // //         adios2::ADIOS tempAdios = adios2::ADIOS();
+    // // #endif
+    //     // adios2::ADIOS tempAdios = adios2::ADIOS();
+    //     // adios2::IO tempIO = tempAdios.DeclareIO("BPFile_SZ");
+
+    //     // adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
+    //     bpWriter.BeginStep();
+    //     bpWriter.Put( varAttrib, field );
+    //     bpWriter.EndStep();
+    //     // bpWriter.Close();
+    // }
+    bpWriter.Close();
+}
+
+template<class T>
+void writeADIOSFileAttribute(ADIOS2Settings & as, const std::string & fieldName, T *& field) {
+    // std::cout << "write file attr in adios with rank " << as.rank << std::endl;
+    // One MPI_COMM can only have one ADIOS instance.
+    // Thus if we need another instance to write, has to recreate without the original as.comm.
+    adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
+    as.io.DefineAttribute<T>(
+        fieldName, // Field name
+        T()
+        );
     if (as.rank == 0) {
-        adios2::Variable<T> varAttrib = as.io.DefineVariable<T>(
-            as.stepPrefix + fieldName // Field name
-            );
-        adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
+    // #if ADIOS2_USE_MPI
+    //         adios2::ADIOS tempAdios = adios2::ADIOS(as.comm);
+    // #else
+    //         adios2::ADIOS tempAdios = adios2::ADIOS();
+    // #endif
+        // adios2::ADIOS tempAdios = adios2::ADIOS();
+        // adios2::IO tempIO = tempAdios.DeclareIO("BPFile_SZ");
+
+        // adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
         bpWriter.BeginStep();
-        bpWriter.Put( varAttrib, field );
+        // bpWriter.Put( varAttrib, field );
         bpWriter.EndStep();
-        bpWriter.Close();
+        // bpWriter.Close();
     }
+    bpWriter.Close();
 }
 
 
