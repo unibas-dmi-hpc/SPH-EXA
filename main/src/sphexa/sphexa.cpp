@@ -88,6 +88,8 @@ int main(int argc, char** argv)
     const bool               quiet        = parser.exists("--quiet");
     const bool               avClean      = parser.exists("--avclean");
     const int                simDuration  = parser.get("--duration", std::numeric_limits<int>::max());
+    const std::string        compressionMethod = parser.get("--compression", std::string(""));
+    const std::string        compressionParam  = parser.get("--compression-param", std::string(""));
     const std::string        writeFreqStr = parser.get("-w", std::string("0"));
     const bool               writeEnabled = writeFreqStr != "0" || !writeExtra.empty();
     const std::string        profFreqStr  = parser.get("--profile", maxStepStr);
@@ -100,7 +102,7 @@ int main(int argc, char** argv)
     std::ofstream constantsFile(fs::path(outFile).parent_path() / fs::path("constants.txt"));
 
     //! @brief evaluate user choice for different kind of actions
-    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD);
+    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD, compressionMethod, compressionParam);
     auto fileReader  = fileReaderFactory(ascii, MPI_COMM_WORLD);
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get());
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank, simInit->constants());
