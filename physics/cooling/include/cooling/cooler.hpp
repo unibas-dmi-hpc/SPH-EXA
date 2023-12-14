@@ -127,7 +127,7 @@ struct Cooler
     void cool_particles(T dt, const Tvec& rho, const Tvec2& u, const ParticleType& particle, Tvec2 &du, const size_t first,
                         const size_t last)
     {
-        constexpr size_t N = 1000;
+        constexpr size_t N = 1;
         const task<N>    t(first, last);
         //printf("task: first: %d n_bins: %zu N_last: %zu n_part: %zu\n",
      //          t.first, t.n_bins, t.N_last, last - first);
