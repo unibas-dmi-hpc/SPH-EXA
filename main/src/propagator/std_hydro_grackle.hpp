@@ -206,7 +206,8 @@ public:
         // halo exchange for masses, allows for particles with variable masses
         domain.exchangeHalos(std::tie(get<"m">(d)), get<"ax">(d), get<"ay">(d));
         timer.step("domain::sync");
-
+        printf("Dataset sizes. hydro:  %zu, chem: %zu, first: %zu, last: %zu\n",
+               get<"x">(d).size(), get<"HI_fraction">(simData.chem).size(), domain.startIndex(), domain.endIndex());
         d.resize(domain.nParticlesWithHalos());
 
         computeForces(domain, simData);
