@@ -136,37 +136,37 @@ struct Cooler
         {
             for (size_t i = 0; i < b.len; i++)
             {
-                du[i + b.first] = (u_block[i + b.first] - u[i + b.first]) / dt;
+                du[i] = (u_block[i] - u[i + b.first]) / dt;
             }
         };
 
-        std::vector<double> rho_copy(rho.begin(), rho.end());
-        std::vector<double> u_copy(u.begin(), u.end());
+        //std::vector<double> rho_copy(rho.begin(), rho.end());
+        //std::vector<double> u_copy(u.begin(), u.end());
         //std::vector<double> du_copy(u_copy.size());
 #pragma omp parallel for
         for (size_t i = 0; i < t.n_bins; i++)
         {
-            //std::array<double, N> rho_copy;
-            //std::array<double, N> u_copy;
-            //std::array<double, N> du_local;
+            std::array<double, N> rho_copy;
+            std::array<double, N> u_copy;
+            std::array<double, N> du_local;
             const block           b(i, t);
-            //copyToBlock(rho, rho_copy, b);
-            //copyToBlock(u, u_copy, b);
+            copyToBlock(rho, rho_copy, b);
+            copyToBlock(u, u_copy, b);
             //printf("copied\n");
 
             auto particle_block = getBlockPointers(particle, b);
             //printf("copied\n");
 
-            //cool_particle_arr(dt, rho_copy.data(), u_copy.data(), particle_block, b.len);
-            cool_particle_arr(dt, rho_copy.data() + first, u_copy.data() + first, particle_block, b.len);
+            cool_particle_arr(dt, rho_copy.data(), u_copy.data(), particle_block, b.len);
+            //cool_particle_arr(dt, rho_copy.data() + first, u_copy.data() + first, particle_block, b.len);
 
            // printf("copied\n");
 
-            //compute_du(u_copy, du_local, b);
-            compute_du(u_copy, du, b);
+            compute_du(u_copy, du_local, b);
+            //compute_du(u_copy, du, b);
             //printf("copied\n");
 
-            //copyFromBlock(du_local, du, b);
+            copyFromBlock(du_local, du, b);
             //printf("copied\n");
 
         }
