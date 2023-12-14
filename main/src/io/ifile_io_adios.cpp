@@ -136,15 +136,15 @@ public:
         writeTime_ += MPI_Wtime();
     }
 
-    void setNumParticles(uint64_t numParticles) override { totalNumParticles_ = numParticles; }
+    // void setNumParticles(uint64_t numParticles) override { totalNumParticles_ = numParticles; }
 
-    void setCompression(const std::string& compressionMethod, const std::string& compressionParam) override
-    {
-        // if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
-        // if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
-        // if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
-        // h5z_.compressionParam = compressionParam;
-    }
+    // void setCompression(const std::string& compressionMethod, const std::string& compressionParam) override
+    // {
+    //     // if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
+    //     // if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
+    //     // if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
+    //     // h5z_.compressionParam = compressionParam;
+    // }
 
     void closeStep() override
     {
