@@ -168,7 +168,7 @@ public:
         timer.step("Density");
 
         transferToHost(d, first, last, {"rho", "u"});
-        cooling::multiply_in_place(d.rho.data(), cstone::getPointers(get<CoolingFields>(simData.chem), first),
+        cooling::multiply_in_place(d.rho.data() + first, cstone::getPointers(get<CoolingFields>(simData.chem), first),
                                    last - first);
         // coolingFracToDens(simData.chem, first, last);
 
@@ -243,7 +243,7 @@ public:
                     const T du = (u_cool - u_old) / d.minDt;
                     d.du[i] += du;
                 }*/
-        cooling::divide_in_place(d.rho.data(), cstone::getPointers(get<CoolingFields>(simData.chem), first),
+        cooling::divide_in_place(d.rho.data() + first, cstone::getPointers(get<CoolingFields>(simData.chem), first),
                                  last - first);
         transferToDevice(d, first, last, {"du"});
         timer.step("GRACKLE chemistry and cooling");

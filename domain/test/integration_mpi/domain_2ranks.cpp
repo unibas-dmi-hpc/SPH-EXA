@@ -553,3 +553,80 @@ TEST(FocusDomain, haloRadii)
     domainHaloRadii<unsigned, float>(rank, numRanks);
     domainHaloRadii<uint64_t, float>(rank, numRanks);
 }
+template<size_t N = 100>
+struct task
+{
+    size_t first;
+    size_t n_bins;
+    size_t N_last;
+    task(size_t first, size_t last)
+        : first(first)
+    {
+        const size_t n_particles = last - first;
+        const size_t mod         = n_particles % N;
+        const size_t ceil_term   = (mod == 0) ? 0 : 1;
+        n_bins                   = n_particles / N + ceil_term;
+        N_last                   = mod == 0 ? N : mod;
+        //n_per_block = n_particles / N;
+    }
+};
+
+struct block
+{
+    size_t first;
+    size_t len;
+    template <size_t N>
+    block(size_t i, const task<N>& t)
+        : first(t.first + N * i)
+        , len((i == t.n_bins - 1) ? t.N_last : N)
+    {
+    }
+};
+void copyToBlock(const auto& v, auto& v_block, const block& b)
+{
+    std::copy_n(v.begin() + b.first, b.len, v_block.begin());
+}
+
+void copyFromBlock(const auto& v_block, auto& v, const block& b)
+{
+    std::copy_n(v_block.begin(), b.len, v.begin() + b.first);
+}
+
+template<typename ...T>
+auto getBlockPointers(const std::tuple<T*...>& particle, const block& b)
+{
+    printf("getBlockPointers: %zu\n", b.first);
+    auto f = [&](auto*... args) { return std::make_tuple((args + b.first)...); };
+    return std::apply(f, particle);
+};
+
+TEST(Task, task) {
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+    std::vector<double> x(1012);
+    x[800] = 2.;
+    x[1002] = 3.;
+
+    //2 Halos, 2 part.
+    size_t first = 200;
+    size_t last = 1004;
+    task t(first, last);
+    block b1(0, t);
+    block b2(1, t);
+    block b3(t.n_bins - 1, t);
+    if (rank == 0) { printf("first: %zu, len: %zu\n", b1.first, b1.len);
+        printf("first: %zu, len: %zu\n", b2.first, b2.len);
+        printf("first: %zu, len: %zu\n", b3.first, b3.len);}
+
+    std::array<double, 100> x_copy;
+    copyToBlock(x, x_copy, b3);
+    printf("xcopy: %lf\n", x_copy[2]);
+    x_copy[3] = 3.5;
+    copyFromBlock(x_copy, x, b3);
+    printf("x: %lf\n", x[1003]);
+
+    auto p = std::make_tuple(x.data());
+    auto p_block = getBlockPointers(p, b3);
+    printf("x: %lf\n", std::get<0>(p_block)[3]);
+}

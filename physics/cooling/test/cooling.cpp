@@ -5,6 +5,7 @@
 #include "gtest/gtest.h"
 
 #include "cooling/cooler.hpp"
+#include "cooling/cooler_task.hpp"
 
 #include "cstone/fields/field_get.hpp"
 #include "io/ifile_io.hpp"
