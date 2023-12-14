@@ -41,6 +41,7 @@
 #include "cstone/focus/source_center_gpu.h"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/tree/accel_switch.hpp"
+#include "cstone/traversal/collisions_gpu.h"
 
 namespace cstone
 {
@@ -386,6 +387,12 @@ public:
 
         //! upsweep with all (leaf) data in place
         upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<RealType>{});
+
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            reallocate(centersAcc_, octreeAcc_.numNodes, 1.01);
+            memcpyH2D(centers_.data(), centers_.size(), rawPtr(centersAcc_));
+        }
     }
 
     /*! @brief Update the MAC criteria based on a min distance MAC
@@ -396,14 +403,22 @@ public:
      */
     void updateMinMac(const Box<RealType>& box, const SfcAssignment<KeyType>& assignment, float invThetaEff)
     {
-        centers_.resize(treeData_.numNodes);
-        const KeyType* nodeKeys = treeData_.prefixes.data();
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            reallocate(centersAcc_, octreeAcc_.numNodes, 1.01);
+            moveCenters(rawPtr(geoCentersAcc_), octreeAcc_.numNodes, rawPtr(centersAcc_));
+        }
+        else
+        {
+            centers_.resize(treeData_.numNodes);
+            const KeyType* nodeKeys = treeData_.prefixes.data();
 
 #pragma omp parallel for schedule(static)
-        for (size_t i = 0; i < treeData_.numNodes; ++i)
-        {
-            //! set centers to geometric centers for min dist Mac
-            centers_[i] = computeMinMacR2(nodeKeys[i], invThetaEff, box);
+            for (size_t i = 0; i < treeData_.numNodes; ++i)
+            {
+                //! set centers to geometric centers for min dist Mac
+                centers_[i] = computeMinMacR2(nodeKeys[i], invThetaEff, box);
+            }
         }
 
         updateMacs(box, assignment, invThetaEff);
@@ -416,21 +431,26 @@ public:
      */
     void updateMacs(const Box<RealType>& box, const SfcAssignment<KeyType>& assignment, float invTheta)
     {
-        //! calculate mac radius for each cell based on location of expansion centers
-        setMac<RealType, KeyType>(treeData_.prefixes, centers_, invTheta, box);
-        if constexpr (HaveGpu<Accelerator>{})
-        {
-            // TODO: get rid of this if-statement
-            if (centersAcc_.size() == centers_.size()) memcpyH2D(centers_.data(), centers_.size(), rawPtr(centersAcc_));
-        }
-
         macs_.resize(treeData_.numNodes);
-        markMacs(treeData_.data(), centers_.data(), box, assignment[myRank_], assignment[myRank_ + 1], macs_.data());
-
         if constexpr (HaveGpu<Accelerator>{})
         {
-            reallocate(macsAcc_, macs_.size(), 1.01);
-            memcpyH2D(macs_.data(), macs_.size(), rawPtr(macsAcc_));
+            setMacGpu(rawPtr(octreeAcc_.prefixes), octreeAcc_.numNodes, rawPtr(centersAcc_), invTheta, box);
+            // need to find again assignment start and end indices in focus tree because assignment might have changed
+            TreeNodeIndex fAssignStart = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), assignment[myRank_]);
+            TreeNodeIndex fAssignEnd   = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), assignment[myRank_ + 1]);
+
+            reallocate(macsAcc_, octreeAcc_.numNodes, 1.01);
+            fillGpu(rawPtr(macsAcc_), rawPtr(macsAcc_) + macsAcc_.size(), char(0));
+            markMacsGpu(rawPtr(octreeAcc_.prefixes), rawPtr(octreeAcc_.childOffsets), rawPtr(centersAcc_), box,
+                        rawPtr(leavesAcc_) + fAssignStart, fAssignEnd - fAssignStart, rawPtr(macsAcc_));
+
+            memcpyD2H(rawPtr(macsAcc_), macsAcc_.size(), macs_.data());
+        }
+        else
+        {
+            setMac<RealType, KeyType>(treeData_.prefixes, centers_, invTheta, box);
+            markMacs(treeData_.data(), centers_.data(), box, assignment[myRank_], assignment[myRank_ + 1],
+                     macs_.data());
         }
 
         rebalanceStatus_ |= macCriterion;
@@ -465,6 +485,7 @@ public:
         {
             converged = updateTree(peers, assignment);
             updateCounts(particleKeys, globalTreeLeaves, globalCounts, scratch);
+            updateGeoCenters(box);
             updateMinMac(box, assignment, invThetaEff);
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         }
@@ -478,10 +499,10 @@ public:
     //! @brief the assignment of the focus tree leaves to peer ranks
     gsl::span<const TreeIndexPair> assignment() const { return assignment_; }
     //! @brief Expansion (com) centers of each cell
-    gsl::span<const SourceCenterType<RealType>> expansionCenters() const { return centers_; }
     gsl::span<const SourceCenterType<RealType>> expansionCentersAcc() const
     {
-        return {rawPtr(centersAcc_), centersAcc_.size()};
+        if constexpr (HaveGpu<Accelerator>{}) { return {rawPtr(centersAcc_), centersAcc_.size()}; }
+        else { return centers_; }
     }
     //! @brief Expansion (com) centers of each global cell
     gsl::span<const SourceCenterType<RealType>> globalExpansionCenters() const { return globalCenters_; }

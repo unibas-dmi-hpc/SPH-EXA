@@ -48,7 +48,7 @@ void computeGlobalMultipoles(const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                              const cstone::LocalIndex* layout, MType* multipoles)
 {
     auto octree        = focusTree.octreeViewAcc();
-    auto centers       = focusTree.expansionCenters();
+    auto centers       = focusTree.expansionCentersAcc();
     auto globalCenters = focusTree.globalExpansionCenters();
 
     gsl::span multipoleSpan{multipoles, size_t(octree.numNodes)};

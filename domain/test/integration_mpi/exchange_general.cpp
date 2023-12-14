@@ -213,7 +213,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     auto octree = focusTree.octreeViewAcc();
 
     focusTree.updateCenters(x.data(), y.data(), z.data(), m.data(), domainTree, box);
-    auto sourceCenter = focusTree.expansionCenters();
+    auto sourceCenter = focusTree.expansionCentersAcc();
 
     constexpr T tol = std::is_same_v<T, double> ? 1e-10 : 1e-4;
     {
