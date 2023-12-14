@@ -66,6 +66,7 @@ public:
     ~ADIOSWriter() override { closeStep(); }
 
     [[nodiscard]] int rank() const override { return rank_; }
+    [[nodiscard]] int numRanks() const override { return numRanks_; }
 
     std::string suffix() const override { return ".bp"; }
 
@@ -154,7 +155,7 @@ public:
     }
 
 private:
-    int      rank_{0};
+    int      rank_{0}, numRanks_{0};
     int      totalRanks_{0};
     size_t   totalNumParticles_{0};
     double   fileInitTime_, writeTime_;
@@ -164,12 +165,13 @@ private:
     std::string pathStep_;
     size_t      currStep_{0};
 
-    fileutils::compressionSettings cs_;
     fileutils::ADIOS2Settings as_;
 };
 
 std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm comm, const std::string& compressionMethod,
-                                               const std::string& compressionParam = "") { return std::make_unique<ADIOSWriter>(comm, compressionMethod, compressionParam); }
+                                               const std::string& compressionParam) {
+        return std::make_unique<ADIOSWriter>(comm, compressionMethod, compressionParam);
+}
 
 #else
 

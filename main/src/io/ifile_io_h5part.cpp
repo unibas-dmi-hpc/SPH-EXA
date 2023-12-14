@@ -90,6 +90,10 @@ public:
         pathStep_ = path;
     }
 
+    void setNumParticles(uint64_t numParticles) override {}
+    
+    void setCompression(const std::string& compressionMethod, const std::string& compressionParam) override {}
+
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
         std::visit([this, &key, size](auto arg) { fileutils::writeH5PartStepAttrib(h5File_, key.c_str(), arg, size); },
