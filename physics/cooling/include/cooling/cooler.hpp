@@ -191,7 +191,7 @@ struct Cooler
     double min_cooling_time(const Tvec& rho, const Tvec2& u, const ParticleType& particle, const size_t first,
                                       const size_t last)
     {
-        constexpr size_t    N = 100;
+        constexpr size_t    N = 1000;
         const task<N>       t(first, last);
         double ct_min = std::numeric_limits<double>::infinity();
 #pragma omp parallel for reduction(min: ct_min)
