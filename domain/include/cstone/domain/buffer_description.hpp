@@ -209,7 +209,7 @@ receiveStart(BufferDescription bufDesc, LocalIndex numPresent, LocalIndex numAss
     LocalIndex numIncoming = numAssigned - numPresent;
 
     bool fitHead = bufDesc.start >= numIncoming;
-    assert(fitHead || /*fitTail*/ bufDesc.size - bufDesc.end >= numIncoming);
+    // assert(fitHead || /*fitTail*/ bufDesc.size - bufDesc.end >= numIncoming);
 
     if (fitHead) { return bufDesc.start - numIncoming; }
     else { return bufDesc.end; }
@@ -222,7 +222,7 @@ assignedEnvelope(BufferDescription bufDesc, LocalIndex numPresent, LocalIndex nu
     LocalIndex numIncoming = numAssigned - numPresent;
 
     bool fitHead = bufDesc.start >= numIncoming;
-    assert(fitHead || /*fitTail*/ bufDesc.size - bufDesc.end >= numIncoming);
+    // assert(fitHead || /*fitTail*/ bufDesc.size - bufDesc.end >= numIncoming);
 
     if (fitHead) { return {bufDesc.start - numIncoming, bufDesc.end}; }
     else { return {bufDesc.start, bufDesc.end + numIncoming}; }

@@ -52,6 +52,10 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
 {
     if (ascii) { return std::make_unique<AsciiWriter>(comm); }
     if (compressionMethod == "") {
+        // If no compression specified, both adios and h5part can work
+#ifdef SPH_EXA_HAVE_ADIOS
+        return std::make_unique<ADIOSWriter>(comm, compressionMethod, "0.000001");
+#endif
 #ifdef SPH_EXA_HAVE_H5PART
         return std::make_unique<H5PartWriter>(comm);
 #endif
@@ -62,7 +66,9 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
 #ifdef SPH_EXA_HAVE_ADIOS
         return std::make_unique<ADIOSWriter>(comm, compressionMethod, compressionParam);
 #endif
+#ifdef SPH_EXA_HAVE_HDF5
         return std::make_unique<HDF5Writer>(comm, compressionMethod, compressionParam);
+#endif
     }
 }
 
@@ -71,6 +77,7 @@ std::unique_ptr<IFileReader> fileReaderFactory(bool /*ascii*/, MPI_Comm comm)
 #if defined(SPH_EXA_HAVE_HDF5)
     return std::make_unique<HDF5Reader>(comm);
 #elif defined(SPH_EXA_HAVE_H5PART)
+    std::cout<<"use H5PartReader\n"std::endl;
     return std::make_unique<H5PartReader>(comm);
 #else
     return std::make_unique<UnimplementedReader>();
