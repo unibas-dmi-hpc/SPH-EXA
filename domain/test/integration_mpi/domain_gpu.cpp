@@ -131,19 +131,6 @@ void randomGaussianAssignment(int rank, int numRanks)
         thrust::copy_n(d_x.data(), d_x.size(), dl.data());
         EXPECT_TRUE(std::equal(dl.begin(), dl.end(), x.begin()));
     }
-
-    {
-        auto centers = domainCpu.focusTree().expansionCenters();
-        for (auto ci : centers[0])
-            std::cout << ci << " ";
-        std::cout << std::endl;
-    }
-    {
-        auto centers = domainGpu.focusTree().expansionCenters();
-        for (auto ci : centers[0])
-            std::cout << ci << " ";
-        std::cout << std::endl;
-    }
 }
 
 TEST(DomainGpu, matchTreeCpu)

@@ -224,9 +224,8 @@ public:
         }
         focusTree_.updateTree(peers, global_.assignment());
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
-        focusTree_.updateMinMac(box(), global_.assignment(), invThetaEff);
-
         focusTree_.updateGeoCenters(box());
+        focusTree_.updateMinMac(box(), global_.assignment(), invThetaEff);
 
         auto octreeView            = focusTree_.octreeViewAcc();
         const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
@@ -292,7 +291,6 @@ public:
         focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.octree(), box(),
                                  std::get<0>(scratch), std::get<1>(scratch));
         focusTree_.updateMacs(box(), global_.assignment(), 1.0 / theta_);
-
         focusTree_.updateGeoCenters(box());
 
         auto octreeView            = focusTree_.octreeViewAcc();

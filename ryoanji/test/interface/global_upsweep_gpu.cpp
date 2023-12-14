@@ -89,8 +89,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
     const cstone::FocusedOctree<KeyType, T, cstone::GpuTag>& focusTree = domain.focusTree();
     //! the focused octree, structure only
-    auto                                         octree  = focusTree.octreeViewAcc();
-    gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
+    auto octree = focusTree.octreeViewAcc();
 
     std::vector<MultipoleType> multipoles(octree.numNodes);
     multipoleHolder.upsweep(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), domain.globalTree(), domain.focusTree(),
@@ -103,6 +102,10 @@ static int multipoleHolderTest(int thisRank, int numRanks)
         thrust::copy(devM, devM + multipoles.size(), multipoles.data());
 
         MultipoleType globalRootMultipole = multipoles[0];
+
+        auto d_centers = focusTree.expansionCentersAcc();
+        std::vector<cstone::SourceCenterType<T>> centers(d_centers.size());
+        memcpyD2H(d_centers.data(), d_centers.size(), centers.data());
 
         // compute reference root cell multipole from global particle data
         MultipoleType reference;
