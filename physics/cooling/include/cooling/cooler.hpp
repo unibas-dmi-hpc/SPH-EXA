@@ -148,7 +148,6 @@ struct Cooler
             std::array<double, N> du_local;
             const block           b(i, t);
             copyToBlock(rho, rho_copy, b);
-            printf("copied %zu\n", i);
             copyToBlock(u, u_copy, b);
             //printf("copied\n");
 
