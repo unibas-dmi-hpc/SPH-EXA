@@ -25,6 +25,8 @@
 
 #include <mpi.h>
 
+#include "cstone/tree/accel_switch.hpp"
+
 #include "io/file_utils.hpp"
 #include "conserved_quantities.hpp"
 #include "gpu_reductions.h"
@@ -86,17 +88,17 @@ double calculateMachRMS(size_t first, size_t last, Dataset& d, MPI_Comm comm)
 template<class Dataset>
 class TurbulenceMachRMS : public IObservables<Dataset>
 {
-    std::ofstream& constantsFile;
+    std::ostream& constantsFile;
 
 public:
-    TurbulenceMachRMS(std::ofstream& constPath)
+    TurbulenceMachRMS(std::ostream& constPath)
         : constantsFile(constPath)
     {
     }
 
     using T = typename Dataset::RealType;
 
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& /*box*/)
     {
         auto& d = simData.hydro;
         computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);

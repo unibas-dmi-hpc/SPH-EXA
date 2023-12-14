@@ -131,15 +131,8 @@ void computeXMass(size_t startIndex, size_t endIndex, Dataset& d, const cstone::
     if (convergenceFailure) { throw std::runtime_error("coupled nc/h-updated failed to converge"); }
 }
 
-#define COMPUTE_XMASS_GPU(RealType, KeyType)                                                                           \
-    template void computeXMass(size_t, size_t, sphexa::ParticlesData<RealType, KeyType, cstone::GpuTag>& d,            \
-                               const cstone::Box<RealType>&)
-
-COMPUTE_XMASS_GPU(double, unsigned);
-COMPUTE_XMASS_GPU(double, uint64_t);
-COMPUTE_XMASS_GPU(float, unsigned);
-COMPUTE_XMASS_GPU(float, uint64_t);
-
+template void computeXMass(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
+                           const cstone::Box<SphTypes::CoordinateType>&);
 } // namespace cuda
 
 template<class Dataset>
@@ -155,13 +148,7 @@ void computeTargetGroups(size_t startIndex, size_t endIndex, Dataset& d,
                                                        S, d.devData.traversalStack, d.devData.targetGroups);
 }
 
-#define COMPUTE_TARGET_GROUPS(RealType, KeyType)                                                                       \
-    template void computeTargetGroups(size_t, size_t, sphexa::ParticlesData<RealType, KeyType, cstone::GpuTag>& d,     \
-                                      const cstone::Box<RealType>&)
-
-COMPUTE_TARGET_GROUPS(double, unsigned);
-COMPUTE_TARGET_GROUPS(double, uint64_t);
-COMPUTE_TARGET_GROUPS(float, unsigned);
-COMPUTE_TARGET_GROUPS(float, uint64_t);
+template void computeTargetGroups(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
+                                  const cstone::Box<SphTypes::CoordinateType>&);
 
 } // namespace sph

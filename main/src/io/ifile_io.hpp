@@ -33,6 +33,7 @@
 #include <map>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include "cstone/util/type_list.hpp"
 
@@ -56,8 +57,9 @@ public:
     using FieldType   = util::Reduce<std::variant, util::Map<IO::ConstPtr, IO::Types>>;
     using FieldVector = util::Reduce<std::variant, util::Map<ToVec, IO::Types>>;
 
-    virtual int         rank() const   = 0;
-    virtual std::string suffix() const = 0;
+    virtual int         rank() const     = 0;
+    virtual int         numRanks() const = 0;
+    virtual std::string suffix() const   = 0;
 
     virtual ~IFileWriter() = default;
 

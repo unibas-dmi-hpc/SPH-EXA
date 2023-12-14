@@ -35,15 +35,18 @@
 #include <vector>
 #include <iostream>
 #include <mpi.h>
+#ifdef SPH_EXA_HAVE_HDF5
 #include "H5Part.h"
 #include "hdf5.h"
 #include "H5Zzfp.h"
+#endif
 
 namespace sphexa
 {
 namespace fileutils
 {
 
+#ifdef SPH_EXA_HAVE_HDF5
 enum class CompressionMethod
 {
     none,
@@ -492,6 +495,6 @@ inline unsigned readHDF5Field(H5ZType& h5z, const std::string& fieldName, uint64
 {
     return readHDF5Field_(h5z, fieldName, field, H5T_NATIVE_UINT64, numParticles);
 }
-
+#endif
 } // namespace fileutils
 } // namespace sphexa

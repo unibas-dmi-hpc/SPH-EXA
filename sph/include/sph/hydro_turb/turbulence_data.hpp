@@ -158,7 +158,7 @@ private:
         double anglesExp   = constants.at("anglesExp");
 
         double twopi   = 2.0 * M_PI;
-        double energy  = 5.0e-3 * std::pow(velocity, 3) / Lbox;
+        double energy  = constants.at("stEnergyPrefac") * std::pow(velocity, 3) / Lbox;
         double stirMin = (1.0 - eps) * twopi / Lbox;
         double stirMax = (3.0 + eps) * twopi / Lbox;
 

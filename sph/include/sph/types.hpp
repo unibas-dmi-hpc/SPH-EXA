@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 CSCS, ETH Zurich
- *               2022 University of Basel
+ * Copyright (c) 2024 CSCS, ETH Zurich
+ *               2024 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,34 +24,25 @@
  */
 
 /*! @file
- * @brief Density i-loop OpenMP driver
+ * @brief Types and definitions for SPH interfaces
  *
- * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include "sph/hydro_ve/xmass.hpp"
+#include <cstdlib>
 
 namespace sph
 {
 
-template<class T, class Dataset>
-void computeDensity(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
+struct SphTypes
 {
-    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
-    {
-        swap(d.devData.xm, d.devData.rho);
-        computeXMass(startIndex, endIndex, d, box);
-        swap(d.devData.xm, d.devData.rho);
-    }
-    else
-    {
-        swap(d.xm, d.rho);
-        computeXMass(startIndex, endIndex, d, box);
-        swap(d.xm, d.rho);
-    }
-}
+    using KeyType        = uint64_t;
+    using CoordinateType = double;
+    using HydroType      = float;
+    using XM1Type        = float;
+    using Tmass          = float;
+};
 
 } // namespace sph

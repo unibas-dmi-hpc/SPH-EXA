@@ -44,6 +44,7 @@
 
 #include "sph/kernels.hpp"
 #include "sph/table_lookup.hpp"
+#include "sph/types.hpp"
 
 #include "particles_data_stubs.hpp"
 #include "sph_kernel_tables.hpp"
@@ -58,17 +59,17 @@ namespace sphexa
 
 namespace lt = ::sph::lt;
 
-template<typename T, typename KeyType_, class AccType>
-class ParticlesData : public cstone::FieldStates<ParticlesData<T, KeyType_, AccType>>
+template<class AccType>
+class ParticlesData : public cstone::FieldStates<ParticlesData<AccType>>
 {
 public:
     using AcceleratorType = AccType;
 
-    using KeyType   = KeyType_;
-    using RealType  = T;
-    using HydroType = float;
-    using XM1Type   = float;
-    using Tmass     = float;
+    using KeyType   = sph::SphTypes::KeyType;
+    using RealType  = sph::SphTypes::CoordinateType;
+    using HydroType = sph::SphTypes::HydroType;
+    using XM1Type   = sph::SphTypes::XM1Type;
+    using Tmass     = sph::SphTypes::Tmass;
 
     template<class ValueType>
     using PinnedVec = std::vector<ValueType, PinnedAlloc_t<AcceleratorType, ValueType>>;
@@ -91,28 +92,28 @@ public:
     //! @brief default maximum number of neighbors per particle before additional h-adjustment will be triggered
     unsigned ngmax{150};
 
-    T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
-    T linmom{0.0}, angmom{0.0};
+    RealType ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
+    RealType linmom{0.0}, angmom{0.0};
 
     //! current and previous (global) time-steps
-    T minDt{1e-12}, minDt_m1{1e-12};
+    RealType minDt{1e-12}, minDt_m1{1e-12};
 
     //! temporary MPI rank local timesteps;
-    T minDtCourant{INFINITY}, minDtRho{INFINITY};
+    RealType minDtCourant{INFINITY}, minDtRho{INFINITY};
     //! @brief Fraction of Courant condition for timestep
-    T Kcour{0.2};
+    RealType Kcour{0.2};
     //! @brief Fraction of 1/|divv| condition for timestep
-    T Krho{0.06};
+    RealType Krho{0.06};
 
     //! @brief gravitational constant
-    T g{0.0};
+    RealType g{0.0};
     //! @brief gravitational smoothing
-    T eps{0.005};
+    RealType eps{0.005};
     //! @brief acceleration based time-step control
-    T etaAcc{0.2};
+    RealType etaAcc{0.2};
 
     //! @brief adiabatic index
-    T gamma{5.0 / 3.0};
+    RealType gamma{5.0 / 3.0};
 
     //! @brief mean molecular weight of ions for models that use one value for all particles
     Tmass muiConst{10.0};
@@ -129,10 +130,10 @@ public:
     constexpr static HydroType Atmax = 0.2;
     constexpr static HydroType ramp  = 1.0 / (Atmax - Atmin);
 
-    constexpr static T maxDtIncrease = 1.1;
+    constexpr static RealType maxDtIncrease = 1.1;
 
     //! @brief exponent n of sinc-kernel S_n
-    T sincIndex{6.0};
+    RealType sincIndex{6.0};
     //! @brief choice of smoothing kernel type
     sph::SphKernelType kernelChoice{sph::SphKernelType::sinc_n};
 
@@ -192,7 +193,7 @@ public:
     }
 
     //! @brief Interpolation kernel normalization constant, will be recomputed on initialization
-    T K{0};
+    RealType K{0};
 
     //! @brief non-stateful variables for statistics
     uint64_t totalNeighbors{0};
@@ -202,14 +203,15 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    FieldVector<T>         x, y, z;                            // Positions
+    FieldVector<RealType>  x, y, z;                            // Positions
     FieldVector<XM1Type>   x_m1, y_m1, z_m1;                   // Difference between current and previous positions
     FieldVector<HydroType> vx, vy, vz;                         // Velocities
     FieldVector<HydroType> rho;                                // Density
-    FieldVector<T>         temp;                               // Temperature
-    FieldVector<T>         u;                                  // Internal Energy
+    FieldVector<RealType>  temp;                               // Temperature
+    FieldVector<RealType>  u;                                  // Internal Energy
     FieldVector<HydroType> p;                                  // Pressure
     FieldVector<HydroType> prho;                               // p / (kx * m^2 * gradh)
+    FieldVector<HydroType> tdpdTrho;                           // temp * dp/dT * prho
     FieldVector<HydroType> h;                                  // Smoothing Length
     FieldVector<Tmass>     m;                                  // Mass
     FieldVector<HydroType> c;                                  // Speed of sound
@@ -217,7 +219,7 @@ public:
     FieldVector<HydroType> mue, mui;                           // mean molecular weight (electrons, ions)
     FieldVector<HydroType> divv, curlv;                        // Div(velocity), Curl(velocity)
     FieldVector<HydroType> ax, ay, az;                         // acceleration
-    FieldVector<T>         du;                                 // energy rate of change (du/dt)
+    FieldVector<RealType>  du;                                 // energy rate of change (du/dt)
     FieldVector<XM1Type>   du_m1;                              // previous energy rate of change (du/dt)
     FieldVector<HydroType> c11, c12, c13, c22, c23, c33;       // IAD components
     FieldVector<HydroType> alpha;                              // AV coeficient
@@ -232,7 +234,7 @@ public:
     std::vector<cstone::LocalIndex>             neighbors;
     cstone::OctreeProperties<RealType, KeyType> treeView;
 
-    DeviceData_t<AccType, T, KeyType> devData;
+    DeviceData_t<AccType> devData;
 
     //! @brief lookup tables for the SPH-kernel and its derivative
     std::array<HydroType, lt::kTableSize> wh{0}, whd{0};
@@ -241,16 +243,15 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",     "y",    "z",   "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",    "rho",  "u",     "p",
-        "prho",  "h",    "m",   "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",   "c13",
-        "c22",   "c23",  "c33", "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv", "alpha",
-        "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
+        "x",     "y",        "z",    "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",   "rho",   "u",    "p",
+        "prho",  "tdpdTrho", "h",    "m",    "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",
+        "c13",   "c22",      "c23",  "c33",  "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv",
+        "alpha", "gradh",    "keys", "nc",   "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
 
     //! @brief dataset prefix to be prepended to fieldNames for structured output
     static const inline std::string prefix{};
 
-    static_assert(!cstone::HaveGpu<AcceleratorType>{} ||
-                      fieldNames.size() == DeviceData_t<AccType, T, KeyType>::fieldNames.size(),
+    static_assert(!cstone::HaveGpu<AcceleratorType>{} || fieldNames.size() == DeviceData_t<AccType>::fieldNames.size(),
                   "ParticlesData on CPU and GPU must have the same fields");
 
     /*! @brief return a tuple of field references
@@ -259,11 +260,12 @@ public:
      */
     auto dataTuple()
     {
-        auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11,
-                            c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc,
-                            dV11, dV12, dV13, dV22, dV23, dV33);
-
+        auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, tdpdTrho, h, m, c, ax, ay, az, du,
+                            du_m1, c11, c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh,
+                            keys, nc, dV11, dV12, dV13, dV22, dV23, dV33);
+#if defined(__clang__) || __GNUC__ > 11 || (__GNUC__ == 11 && __GNUC_MINOR__ > 3)
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
+#endif
         return ret;
     }
 
@@ -339,6 +341,11 @@ void resizeNeighbors(Dataset& d, size_t size)
 
 template<class Dataset, std::enable_if_t<not cstone::HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
 void transferToDevice(Dataset&, size_t, size_t, const std::vector<std::string>&)
+{
+}
+
+template<class Dataset, std::enable_if_t<not cstone::HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
+void transferAllocatedToDevice(Dataset&, size_t, size_t, const std::vector<std::string>&)
 {
 }
 

@@ -78,33 +78,29 @@ class HydroGrackleProp final : public HydroProp<DomainType, DataType>
     using CoolingFields = typename util::MakeFieldList<ChemData>::Fields;
 
 public:
-    HydroGrackleProp(std::ostream& output, size_t rank)
+    HydroGrackleProp(std::ostream& output, size_t rank, const InitSettings& settings)
         : Base(output, rank)
     {
+        BuiltinWriter attributeSetter(settings);
+        cooling_data.loadOrStoreAttributes(&attributeSetter);
+        cooling_data.init(0);
     }
 
     void load(const std::string& initCond, IFileReader* reader) override
     {
-        if (initCond == "evrard-cooling")
+        std::string path = removeModifiers(initCond);
+        if (std::filesystem::exists(path))
         {
-            BuiltinWriter attributeSetter(evrardCoolingConstants());
-            cooling_data.loadOrStoreAttributes(&attributeSetter);
+            int snapshotIndex = numberAfterSign(initCond, ":");
+            reader->setStep(path, snapshotIndex, FileMode::independent);
+            cooling_data.loadOrStoreAttributes(reader);
+            reader->closeStep();
         }
-        else
+        else if (path != "evrard-cooling")
         {
-            std::string path = removeModifiers(initCond);
-            if (std::filesystem::exists(path))
-            {
-                int snapshotIndex = numberAfterSign(initCond, ":");
-                reader->setStep(path, snapshotIndex, FileMode::independent);
-                cooling_data.loadOrStoreAttributes(reader);
-                reader->closeStep();
-            }
-            else
-                throw std::runtime_error("Cooling propagator has to be used with the evrard-cooling builtin test-case "
-                                         "or a suitable init file");
+            throw std::runtime_error("Cooling propagator has to be used with the evrard-cooling builtin test-case "
+                                     "or a suitable init file");
         }
-        cooling_data.init(0);
     }
 
     void save(IFileWriter* writer) override { cooling_data.loadOrStoreAttributes(writer); }
@@ -113,6 +109,7 @@ public:
     {
         std::vector<std::string> ret{"x", "y", "z", "h", "m"};
         for_each_tuple([&ret](auto f) { ret.push_back(f.value); }, make_tuple(ConservedFields{}));
+        for_each_tuple([&ret](auto f) { ret.push_back(f.value); }, make_tuple(CoolingFields{}));
         return ret;
     }
 
@@ -233,8 +230,6 @@ public:
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");
-
-        timer.stop();
     }
 };
 

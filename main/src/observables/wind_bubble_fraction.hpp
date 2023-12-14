@@ -100,18 +100,19 @@ double calculateSurvivingFraction(size_t first, size_t last, double rhoBubble, d
 template<class Dataset>
 class WindBubble : public IObservables<Dataset>
 {
-    std::ofstream& constantsFile;
-    double         rhoBubble;
-    double         uWind;
-    double         initialMass;
+    std::ostream& constantsFile;
+    double        rhoBubble;
+    double        uWind;
+    double        initialMass;
 
 public:
-    WindBubble(std::ofstream& constPath, double rhoInt, double uExt, double bubbleMass)
+    WindBubble(std::ostream& constPath, double rhoInt, double uExt, double rSphere)
         : constantsFile(constPath)
         , rhoBubble(rhoInt)
         , uWind(uExt)
-        , initialMass(bubbleMass)
     {
+        double bubbleVolume = std::pow(rSphere, 3) * 4.0 / 3.0 * M_PI;
+        initialMass         = bubbleVolume * rhoInt;
     }
 
     using T = typename Dataset::RealType;

@@ -140,7 +140,7 @@ std::vector<std::string> fileAttributeNames(H5PartFile* h5_file)
     return setNames;
 }
 
-//! @brief return the names of all file attributes in @p h5_file
+//! @brief return the names of all step attributes in @p h5_file
 std::vector<std::string> stepAttributeNames(H5PartFile* h5_file)
 {
     auto numAttributes = H5PartGetNumStepAttribs(h5_file);

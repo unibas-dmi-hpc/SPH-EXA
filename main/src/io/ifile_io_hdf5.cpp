@@ -28,8 +28,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#pragma once
-
 #include <mpi.h>
 
 #include <filesystem>
@@ -37,15 +35,16 @@
 #include <variant>
 #include <vector>
 
-#include "init/grid.hpp"
-
-#include "mpi_file_utils.hpp"
+#include "ifile_io_impl.h"
+#ifdef SPH_EXA_HAVE_H5PART
 #include "h5part_wrapper.hpp"
-#include "ifile_io.hpp"
+#include "mpi_file_utils.hpp"
+#endif
 
 namespace sphexa
 {
 
+#ifdef SPH_EXA_HAVE_HDF5
 class HDF5Writer final : public IFileWriter
 {
 public:
@@ -167,6 +166,9 @@ private:
 
     fileutils::H5ZType h5z_;
 };
+
+std::unique_ptr<IFileWriter> makeHDF5Writer(MPI_Comm comm, const std::string& compressionMethod,
+                                               const std::string& compressionParam = "") { return std::make_unique<HDF5Writer>(comm, compressionMethod, compressionParam); }
 
 class HDF5Reader final : public IFileReader
 {
@@ -348,5 +350,15 @@ private:
     fileutils::H5ZType h5z_;
     double      fileInitTime_, writeTime_;
 };
+
+std::unique_ptr<IFileReader> makeHDF5Reader(MPI_Comm comm) { return std::make_unique<HDF5Reader>(comm); }
+
+#else
+
+std::unique_ptr<IFileWriter> makeHDF5Writer(MPI_Comm, const std::string&,
+                                               const std::string&) { return {}; }
+std::unique_ptr<IFileReader> makeHDF5Reader(MPI_Comm) { return std::make_unique<UnimplementedReader>(); }
+
+#endif
 
 } // namespace sphexa

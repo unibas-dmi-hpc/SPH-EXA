@@ -124,10 +124,10 @@ std::tuple<KeyType, KeyType> estimateEvrardSfcPartition(size_t cbrtNumPart, cons
         else { return T(numParticlesGlobal) / (2 * M_PI * radius); }
     };
 
-    auto [tree, counts]            = cstone::computeContinuumCsarray<KeyType>(oneOverR, box, bucketSize);
-    cstone::SpaceCurveAssignment a = cstone::singleRangeSfcSplit(counts, numRanks);
+    auto [tree, counts] = cstone::computeContinuumCsarray<KeyType>(oneOverR, box, bucketSize);
+    auto a              = cstone::makeSfcAssignment(numRanks, counts, tree.data());
 
-    return {tree[a.firstNodeIdx(rank)], tree[a.lastNodeIdx(rank)]};
+    return {a[rank], a[rank + 1]};
 }
 
 template<class Dataset>

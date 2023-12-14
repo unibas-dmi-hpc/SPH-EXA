@@ -95,20 +95,13 @@ public:
 
     /*! @brief Update the tree structure according to previously calculated criteria (MAC and particle counts)
      *
-     * @param[in] myRank           ID of the executing rank
-     * @param[in] peerRanks        list of ranks that have nodes that fail the MAC criterion
-     *                             w.r.t to the assigned SFC part of @p myRank
-     *                             use e.g. findPeersMac to calculate this list
+     * @param[in] peerRanks        list of ranks with nodes that fail the MAC in the SFC part assigned to @p myRank
      * @param[in] assignment       assignment of the global leaf tree to ranks
-     * @param[in] globalTreeLeaves global cornerstone leaf tree
-     * @param[in] globalCounts     global cornerstone leaf tree counts
      * @return                     true if the tree structure did not change
      *
      * The part of the SFC that is assigned to @p myRank is considered as the focus area.
      */
-    bool updateTree(gsl::span<const int> peerRanks,
-                    const SpaceCurveAssignment& assignment,
-                    gsl::span<const KeyType> globalTreeLeaves)
+    bool updateTree(gsl::span<const int> peerRanks, const SfcAssignment<KeyType>& assignment)
     {
         if (rebalanceStatus_ != valid)
         {
@@ -117,8 +110,8 @@ public:
         peers_.resize(peerRanks.size());
         std::copy(peerRanks.begin(), peerRanks.end(), peers_.begin());
 
-        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
-        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
+        KeyType focusStart = assignment[myRank_];
+        KeyType focusEnd   = assignment[myRank_ + 1];
         // init on first call
         if (prevFocusStart == 0 && prevFocusEnd == 0)
         {
@@ -133,8 +126,8 @@ public:
                                focusEnd, enforcedKeys);
         for (int peer : peers_)
         {
-            enforcedKeys.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
-            enforcedKeys.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
+            enforcedKeys.push_back(assignment[peer]);
+            enforcedKeys.push_back(assignment[peer + 1]);
         }
         auto uniqueEnd = std::unique(enforcedKeys.begin(), enforcedKeys.end());
         enforcedKeys.erase(uniqueEnd, enforcedKeys.end());
@@ -153,7 +146,7 @@ public:
         }
         downloadOctree();
 
-        translateAssignment<KeyType>(assignment, globalTreeLeaves, leaves_, peers_, myRank_, assignment_);
+        translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
 
         prevFocusStart   = focusStart;
         prevFocusEnd     = focusEnd;
@@ -330,7 +323,6 @@ public:
                        const RealType* y,
                        const RealType* z,
                        const Tm* m,
-                       const SpaceCurveAssignment& assignment,
                        const Octree<KeyType>& globalTree,
                        const Box<RealType>& box,
                        DeviceVector&& scratch1 = std::vector<LocalIndex>{},
@@ -399,7 +391,6 @@ public:
         setMac<RealType, KeyType>(treeData_.prefixes, centers_, 1.0 / theta_, box);
 
         if constexpr (HaveGpu<Accelerator>{}) { memcpyH2D(centers_.data(), centers_.size(), rawPtr(centersAcc_)); }
-        // else { omp_copy(centers_.begin(), centers_.end(), centersAcc_.begin()); }
     }
 
     /*! @brief Update the MAC criteria based on a min distance MAC
@@ -407,12 +398,8 @@ public:
      * @tparam    T                float or double
      * @param[in] box              global coordinate bounding box
      * @param[in] assignment       assignment of the global leaf tree to ranks
-     * @param[in] globalTreeLeaves global cornerstone leaf tree
      */
-    void updateMinMac(const Box<RealType>& box,
-                      const SpaceCurveAssignment& assignment,
-                      gsl::span<const KeyType> globalTreeLeaves,
-                      float invThetaEff)
+    void updateMinMac(const Box<RealType>& box, const SfcAssignment<KeyType>& assignment, float invThetaEff)
     {
         centers_.resize(treeData_.numNodes);
         const KeyType* nodeKeys = treeData_.prefixes.data();
@@ -424,24 +411,18 @@ public:
             centers_[i] = computeMinMacR2(nodeKeys[i], invThetaEff, box);
         }
 
-        updateMacs(box, assignment, globalTreeLeaves);
+        updateMacs(box, assignment);
     }
 
     /*! @brief Update the MAC criteria based on the vector MAC
      *
      * @param[in] box              global coordinate bounding box
      * @param[in] assignment       assignment of the global leaf tree to ranks
-     * @param[in] globalTreeLeaves global cornerstone leaf tree
      */
-    void updateMacs(const Box<RealType>& box,
-                    const SpaceCurveAssignment& assignment,
-                    gsl::span<const KeyType> globalTreeLeaves)
+    void updateMacs(const Box<RealType>& box, const SfcAssignment<KeyType>& assignment)
     {
-        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
-        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
-
         macs_.resize(treeData_.numNodes);
-        markMacs(treeData_.data(), centers_.data(), box, focusStart, focusEnd, macs_.data());
+        markMacs(treeData_.data(), centers_.data(), box, assignment[myRank_], assignment[myRank_ + 1], macs_.data());
 
         if constexpr (HaveGpu<Accelerator>{})
         {
@@ -470,7 +451,7 @@ public:
     void converge(const Box<RealType>& box,
                   gsl::span<const KeyType> particleKeys,
                   gsl::span<const int> peers,
-                  const SpaceCurveAssignment& assignment,
+                  const SfcAssignment<KeyType>& assignment,
                   gsl::span<const KeyType> globalTreeLeaves,
                   gsl::span<const unsigned> globalCounts,
                   float invThetaEff,
@@ -479,9 +460,9 @@ public:
         int converged = 0;
         while (converged != numRanks_)
         {
-            converged = updateTree(peers, assignment, globalTreeLeaves);
+            converged = updateTree(peers, assignment);
             updateCounts(particleKeys, globalTreeLeaves, globalCounts, scratch);
-            updateMinMac(box, assignment, globalTreeLeaves, invThetaEff);
+            updateMinMac(box, assignment, invThetaEff);
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         }
     }

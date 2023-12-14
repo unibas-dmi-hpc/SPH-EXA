@@ -57,8 +57,8 @@ __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsi
                                   const cstone::LocalIndex* groups, cstone::LocalIndex numGroups,
                                   const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x, const Tc* y, const Tc* z,
                                   const T* vx, const T* vy, const T* vz, const T* h, const Tm* m, const T* prho,
-                                  const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
-                                  const T* c33, const T* wh, const T* whd, const T* kx, const T* xm, const T* alpha,
+                                  const T* tdpdTrho, const T* c, const T* c11, const T* c12, const T* c13, const T* c22,
+                                  const T* c23, const T* c33, const T* wh, const T* kx, const T* xm, const T* alpha,
                                   const T* dV11, const T* dV12, const T* dV13, const T* dV22, const T* dV23,
                                   const T* dV33, T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, LocalIndex* nidx,
                                   TreeNodeIndex* globalPool)
@@ -91,9 +91,9 @@ __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsi
         T        maxvsignal;
 
         momentumAndEnergyJLoop<avClean, TravConfig::targetSize>(
-            i, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, vx, vy, vz, h, m, prho, c, c11, c12, c13, c22, c23,
-            c33, Atmin, Atmax, ramp, wh, whd, kx, xm, alpha, dV11, dV12, dV13, dV22, dV23, dV33, grad_P_x, grad_P_y,
-            grad_P_z, du, &maxvsignal);
+            i, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, vx, vy, vz, h, m, prho, tdpdTrho, c, c11, c12, c13,
+            c22, c23, c33, Atmin, Atmax, ramp, wh, kx, xm, alpha, dV11, dV12, dV13, dV22, dV23, dV33, grad_P_x,
+            grad_P_y, grad_P_z, du, &maxvsignal);
 
         dt_i = stl::min(dt_i, tsKCourant(maxvsignal, h[i], c[i], Kcour));
     }
@@ -126,12 +126,12 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
         d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups,
         d.treeView.nsView(), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx),
         rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.prho),
-        rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
-        rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.kx),
-        rawPtr(d.devData.xm), rawPtr(d.devData.alpha), rawPtr(d.devData.dV11), rawPtr(d.devData.dV12),
-        rawPtr(d.devData.dV13), rawPtr(d.devData.dV22), rawPtr(d.devData.dV23), rawPtr(d.devData.dV33),
-        rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.du), nidxPool,
-        traversalPool);
+        rawPtr(d.devData.tdpdTrho), rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12),
+        rawPtr(d.devData.c13), rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33),
+        rawPtr(d.devData.wh), rawPtr(d.devData.kx), rawPtr(d.devData.xm), rawPtr(d.devData.alpha),
+        rawPtr(d.devData.dV11), rawPtr(d.devData.dV12), rawPtr(d.devData.dV13), rawPtr(d.devData.dV22),
+        rawPtr(d.devData.dV23), rawPtr(d.devData.dV33), rawPtr(d.devData.ax), rawPtr(d.devData.ay),
+        rawPtr(d.devData.az), rawPtr(d.devData.du), nidxPool, traversalPool);
     checkGpuErrors(cudaGetLastError());
 
     float minDt;
@@ -139,18 +139,12 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
     d.minDtCourant = minDt;
 }
 
-#define MOM_ENERGY(avc, real, key)                                                                                     \
-    template void computeMomentumEnergy<avc>(size_t, size_t, sphexa::ParticlesData<real, key, cstone::GpuTag> & d,     \
-                                             const cstone::Box<real>&)
+#define MOM_ENERGY(avc)                                                                                                \
+    template void computeMomentumEnergy<avc>(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag> & d,                \
+                                             const cstone::Box<SphTypes::CoordinateType>&)
 
-MOM_ENERGY(true, double, uint32_t);
-MOM_ENERGY(true, double, uint64_t);
-MOM_ENERGY(true, float, uint32_t);
-MOM_ENERGY(true, float, uint64_t);
-MOM_ENERGY(false, double, uint32_t);
-MOM_ENERGY(false, double, uint64_t);
-MOM_ENERGY(false, float, uint32_t);
-MOM_ENERGY(false, float, uint64_t);
+MOM_ENERGY(true);
+MOM_ENERGY(false);
 
 } // namespace cuda
 } // namespace sph
