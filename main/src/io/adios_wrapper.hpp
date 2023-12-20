@@ -23,6 +23,8 @@ struct ADIOS2Settings {
     adios2::IO io;
     adios2::ADIOS adios;
     adios2::Operator adiosOp;
+    adios2::Engine reader;
+    adios2::Engine writer;
     MPI_Comm comm;
     std::string fileName;
 
@@ -39,95 +41,146 @@ struct ADIOS2Settings {
 
 // Suppose we only have 1D arrays here
 void initADIOSWriter(ADIOS2Settings & as) {
+    #if ADIOS2_USE_MPI
+            as.adios = adios2::ADIOS(as.comm);
+    #else
+            as.adios = adios2::ADIOS();
+    #endif
+    // adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
+    // To avoid compiling warnings
+    // (void)attribute;
+    return;
+}
+
+// Suppose we only have 1D arrays here
+void initADIOSReader(ADIOS2Settings & as) {
     /** ADIOS class factory of IO class objects */
     #if ADIOS2_USE_MPI
             as.adios = adios2::ADIOS(as.comm);
     #else
             as.adios = adios2::ADIOS();
     #endif
-    as.adiosOp = as.adios.DefineOperator("SZCompressor", "sz");
     as.io = as.adios.DeclareIO("BPFile_SZ");
-    adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
+    
+    // adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
+    
     // To avoid compiling warnings
-    (void)attribute;
+    // (void)attribute;
     return;
 }
 
 template<class T>
+size_t ADIOSGetNumSteps(ADIOS2Settings & as) {
+    return 0;
+}
+
+template<class T>
+size_t ADIOSGetNumParticles(ADIOS2Settings & as) {
+    return 0;
+}
+
+void openADIOSStepRead(ADIOS2Settings & as) {
+    as.reader = as.io.Open(as.fileName, adios2::Mode::Read);
+    as.reader.BeginStep();
+}
+void closeADIOSStepRead(ADIOS2Settings & as) {
+    as.reader.EndStep();
+    as.reader.Close();
+}
+void openADIOSStepWrite(ADIOS2Settings & as) {
+    as.io = as.adios.DeclareIO("BPFile_SZ");
+    as.writer = as.io.Open(as.fileName, adios2::Mode::Append);
+}
+void closeADIOSStepWrite(ADIOS2Settings & as) {
+    as.writer.Close();
+}
+void closeADIOSWriter(ADIOS2Settings & as) {
+    // as.writer.Close();
+}
+
+template<class T>
 void writeADIOSField(ADIOS2Settings & as, const std::string & fieldName, const T * field) {
-    adios2::Variable<T> varDoubles = as.io.DefineVariable<T>(
-        as.stepPrefix + fieldName, // Field name
-        {as.numLocalParticles * as.numTotalRanks}, // Global dimensions
-        {as.offset}, // Starting local offset
-        {as.numLocalParticles},        // Local dimensions  (limited to 1 rank)
-        adios2::ConstantDims);
-
-    if (as.accuracy > 1E-16)
-    {
-        varDoubles.AddOperation(as.adiosOp, {{"accuracy", std::to_string(as.accuracy)}});
-    }
-
-    adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
-    bpWriter.BeginStep();
-    bpWriter.Put(varDoubles, field);
-    bpWriter.EndStep();
-    bpWriter.Close();
+    // as.writer.BeginStep();
+    // adios2::Variable<T> var = as.io.DefineVariable<T>(
+    //     fieldName, // Field name
+    //     {as.numLocalParticles * as.numTotalRanks}, // Global dimensions
+    //     {as.offset}, // Starting local offset
+    //     {as.numLocalParticles},        // Local dimensions  (limited to 1 rank)
+    //     adios2::ConstantDims);
+    // var.AddOperation("sz", {{"accuracy", std::to_string(as.accuracy)}});
+    // as.writer.Put(var, field);
+    // as.writer.EndStep();
 }
 
 template<class T>
-void writeADIOSStepAttribute(ADIOS2Settings & as, const std::string & fieldName, T *& field) {
-    // std::cout << "write file attr in adios with rank " << as.rank << std::endl;
-    // One MPI_COMM can only have one ADIOS instance.
-    // Thus if we need another instance to write, has to recreate without the original as.comm.
-    adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
-    as.io.DefineAttribute<T>(
-        as.stepPrefix + fieldName, // Field name
-        T()
-        );
-    // if (as.rank == 0) {
-    // // #if ADIOS2_USE_MPI
-    // //         adios2::ADIOS tempAdios = adios2::ADIOS(as.comm);
-    // // #else
-    // //         adios2::ADIOS tempAdios = adios2::ADIOS();
-    // // #endif
-    //     // adios2::ADIOS tempAdios = adios2::ADIOS();
-    //     // adios2::IO tempIO = tempAdios.DeclareIO("BPFile_SZ");
-
-    //     // adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
-    //     bpWriter.BeginStep();
-    //     bpWriter.Put( varAttrib, field );
-    //     bpWriter.EndStep();
-    //     // bpWriter.Close();
+void writeADIOSStepAttribute(ADIOS2Settings & as, const std::string & fieldName, const T * field) {
+    // StepAttribute is one variable with multiple copies (i.e. steps).
+    // It's almost same as a field. We only write with 1 rank, though
+    // There's no need for compression
+    // if(as.rank == 0) {
+    //     as.writer.BeginStep();
+    //     adios2::Variable<T> var = as.io.DefineVariable<T>(
+    //         fieldName,
+    //         {1},
+    //         {0},
+    //         {1},
+    //         adios2::ConstantDims);
+    //     as.writer.Put(var, field);
+    //     as.writer.EndStep();
     // }
-    bpWriter.Close();
 }
 
 template<class T>
-void writeADIOSFileAttribute(ADIOS2Settings & as, const std::string & fieldName, T *& field) {
-    // std::cout << "write file attr in adios with rank " << as.rank << std::endl;
+void writeADIOSFileAttribute(ADIOS2Settings & as, const std::string & fieldName, const T * field) {
+    // FileAttribute is a unique variable.
+    // We only write with 1 rank, with a unique field name (starting with "global_")
+    // There's no need for compression
+    if(as.rank == 0) {
+        // as.writer.BeginStep();
+        std::cout << "Name: " << "global_" + fieldName << std::endl;
+        adios2::Variable<T> var = as.io.DefineVariable<T>(
+            "global_" + fieldName,
+            {1},
+            {0},
+            {1},
+            adios2::ConstantDims);
+        as.writer.Put(var, field);
+        // as.writer.EndStep();
+        
+    }
+}
+
+
+template<class T>
+void readADIOSField(ADIOS2Settings & as, const std::string & fieldName, const T * field) {
+    adios2::Variable<T> variable = as.io.InquireVariable<T>(fieldName);
+    variable.SetSelection(adios2::Box<adios2::Dims>(
+        as.offset, // Offset
+        as.numLocalParticles // size to read
+        ));
+    as.reader.Get(variable, field, adios2::Mode::Sync);
+}
+
+template<class T>
+std::vector<T> readADIOSStepAttribute(ADIOS2Settings & as, const std::string & fieldName) {
     // One MPI_COMM can only have one ADIOS instance.
     // Thus if we need another instance to write, has to recreate without the original as.comm.
-    adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
-    as.io.DefineAttribute<T>(
-        fieldName, // Field name
-        T()
-        );
-    if (as.rank == 0) {
-    // #if ADIOS2_USE_MPI
-    //         adios2::ADIOS tempAdios = adios2::ADIOS(as.comm);
-    // #else
-    //         adios2::ADIOS tempAdios = adios2::ADIOS();
-    // #endif
-        // adios2::ADIOS tempAdios = adios2::ADIOS();
-        // adios2::IO tempIO = tempAdios.DeclareIO("BPFile_SZ");
+    adios2::Engine bpReader = as.io.Open(as.fileName, adios2::Mode::Read);
+    std::vector<T> res = as.io.InquireAttribute<T>(fieldName).data();
+    bpReader.Close();
+    return res;
+}
 
-        // adios2::Engine bpWriter = as.io.Open(as.fileName, adios2::Mode::Append);
-        bpWriter.BeginStep();
-        // bpWriter.Put( varAttrib, field );
-        bpWriter.EndStep();
-        // bpWriter.Close();
-    }
-    bpWriter.Close();
+
+
+template<class T>
+auto readADIOSFileAttribute(ADIOS2Settings & as, const std::string & fieldName) {
+    // One MPI_COMM can only have one ADIOS instance.
+    // Thus if we need another instance to write, has to recreate without the original as.comm.
+    adios2::Engine bpReader = as.io.Open(as.fileName, adios2::Mode::Read);
+    std::vector<T> res = as.io.InquireAttribute<T>(fieldName).data();
+    bpReader.Close();
+    return res;
 }
 
 

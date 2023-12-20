@@ -44,10 +44,10 @@ using InitSettings = std::map<std::string, double>;
 //! @brief write @p InitSettings as file attributes of a new file @p path
 inline void writeSettings(const InitSettings& settings, const std::string& path, IFileWriter* writer)
 {
-    if (std::filesystem::exists(path))
-    {
-        throw std::runtime_error("Cannot write settings: file " + path + " already exists\n");
-    }
+    // if (std::filesystem::exists(path))
+    // {
+    //     throw std::runtime_error("Cannot write settings: file " + path + " already exists\n");
+    // }
 
     writer->addStep(0, 0, path);
     for (auto it = settings.cbegin(); it != settings.cend(); ++it)

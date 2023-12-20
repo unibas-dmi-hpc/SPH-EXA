@@ -57,9 +57,10 @@ public:
         as_.rank = rank_;
         as_.comm = comm;
         as_.accuracy = std::stof(compressionParam);
+        
     }
 
-    ~ADIOSWriter() override { closeStep(); }
+    ~ADIOSWriter() override { }
 
     [[nodiscard]] int rank() const override { return rank_; }
     [[nodiscard]] int numRanks() const override { return numRanks_; }
@@ -96,6 +97,7 @@ public:
 
         // For now, the writer will only append data instead of writing new
         fileutils::initADIOSWriter(as_);
+        fileutils::openADIOSStepWrite(as_);
 
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ += MPI_Wtime();
@@ -104,13 +106,13 @@ public:
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        MPI_Barrier(MPI_COMM_WORLD);
-        writeTime_ = -MPI_Wtime();
+        // MPI_Barrier(MPI_COMM_WORLD);
+        // writeTime_ = -MPI_Wtime();
         std::visit([this, &key, size](auto arg) {
             fileutils::writeADIOSStepAttribute(as_, key, arg);
         }, val);
-        MPI_Barrier(MPI_COMM_WORLD);
-        writeTime_ += MPI_Wtime();
+        // MPI_Barrier(MPI_COMM_WORLD);
+        // writeTime_ += MPI_Wtime();
     }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
@@ -125,6 +127,8 @@ public:
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ = -MPI_Wtime();
 
+        // auto v = std::get<0>(field);
+        // std::cout << v[0] << std::endl;
         // If there's a need to change particle numbers, do it here and now!!
         // Directly change it in as_.
         std::visit(
@@ -150,6 +154,7 @@ public:
 
     void closeStep() override
     {
+        fileutils::closeADIOSStepWrite(as_);
         if (rank_ == 0)
         {
             std::cout << "Writter!!!File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
