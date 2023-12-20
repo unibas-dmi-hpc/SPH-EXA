@@ -103,7 +103,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
         MultipoleType globalRootMultipole = multipoles[0];
 
-        auto d_centers = focusTree.expansionCentersAcc();
+        auto                                     d_centers = focusTree.expansionCentersAcc();
         std::vector<cstone::SourceCenterType<T>> centers(d_centers.size());
         memcpyD2H(d_centers.data(), d_centers.size(), centers.data());
 

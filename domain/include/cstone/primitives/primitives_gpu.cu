@@ -237,6 +237,36 @@ template void sequenceGpu(int*, size_t, int);
 template void sequenceGpu(unsigned*, size_t, unsigned);
 template void sequenceGpu(uint64_t*, uint64_t, uint64_t);
 
+template<class KeyType>
+void sortGpu(KeyType* first, KeyType* last, KeyType* keyBuf)
+{
+    size_t numElements = last - first;
+
+    cub::DoubleBuffer<KeyType> d_keys(first, keyBuf);
+
+    // Determine temporary device storage requirements
+    void* d_tempStorage     = nullptr;
+    size_t tempStorageBytes = 0;
+    cub::DeviceRadixSort::SortKeys(d_tempStorage, tempStorageBytes, d_keys, numElements);
+
+    // Allocate temporary storage
+    checkGpuErrors(cudaMalloc(&d_tempStorage, tempStorageBytes));
+
+    // Run sorting operation
+    checkGpuErrors(cub::DeviceRadixSort::SortKeys(d_tempStorage, tempStorageBytes, d_keys, numElements));
+
+    auto* curValues = d_keys.Current();
+    if (curValues != first)
+    {
+        checkGpuErrors(cudaMemcpy(first, curValues, numElements * sizeof(KeyType), cudaMemcpyDeviceToDevice));
+    }
+
+    checkGpuErrors(cudaFree(d_tempStorage));
+}
+
+template void sortGpu(uint32_t*, uint32_t*, uint32_t*);
+template void sortGpu(uint64_t*, uint64_t*, uint64_t*);
+
 template<class KeyType, class ValueType>
 void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values, KeyType* keyBuf, ValueType* valueBuf)
 {

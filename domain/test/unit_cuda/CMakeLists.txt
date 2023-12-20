@@ -14,6 +14,7 @@ if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
             primitives/clz.cu
             primitives/primitives_gpu.cu
             primitives/warpscan.cu
+            focus/inject.cu
             sfc/common.cu
             traversal/groups.cu
             tree/btree.cu

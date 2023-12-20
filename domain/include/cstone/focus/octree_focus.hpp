@@ -46,6 +46,7 @@
 #include "cstone/util/gsl-lite.hpp"
 #include "cstone/domain/index_ranges.hpp"
 
+#include "cstone/focus/inject.hpp"
 #include "cstone/focus/rebalance.hpp"
 #include "cstone/focus/rebalance_gpu.h"
 #include "cstone/primitives/primitives_gpu.h"
@@ -158,7 +159,7 @@ struct CombinedUpdate
                                gsl::span<const unsigned> counts,
                                gsl::span<const char> macs)
     {
-        [[maybe_unused]] TreeNodeIndex numNodes = tree.numLeafNodes + tree.numInternalNodes;
+        TreeNodeIndex numNodes = tree.numLeafNodes + tree.numInternalNodes;
         assert(TreeNodeIndex(counts.size()) == numNodes);
         assert(TreeNodeIndex(macs.size()) == numNodes);
         assert(TreeNodeIndex(tree.internalToLeaf.size()) >= numNodes);
@@ -170,14 +171,12 @@ struct CombinedUpdate
                                       numNodes);
 
         auto status = ResolutionStatus::converged;
-        if (!mandatoryKeys.empty())
-        {
-            thrust::device_vector<KeyType, Alloc> d_mandatoryKeys;
-            reallocate(d_mandatoryKeys, mandatoryKeys.size(), 1.0);
-            memcpyH2D(mandatoryKeys.data(), mandatoryKeys.size(), rawPtr(d_mandatoryKeys));
-            status = enforceKeysGpu(rawPtr(d_mandatoryKeys), d_mandatoryKeys.size(), rawPtr(tree.prefixes),
-                                    rawPtr(tree.childOffsets), rawPtr(tree.parents), nodeOpsAll.data());
-        }
+
+        thrust::device_vector<KeyType, Alloc> d_mandatoryKeys;
+        reallocate(d_mandatoryKeys, mandatoryKeys.size(), 1.0);
+        memcpyH2D(mandatoryKeys.data(), mandatoryKeys.size(), rawPtr(d_mandatoryKeys));
+        status         = enforceKeysGpu(rawPtr(d_mandatoryKeys), d_mandatoryKeys.size(), rawPtr(tree.prefixes),
+                                        rawPtr(tree.childOffsets), rawPtr(tree.parents), nodeOpsAll.data());
         bool converged = protectAncestorsGpu(rawPtr(tree.prefixes), rawPtr(tree.parents), nodeOpsAll.data(), numNodes);
 
         // extract leaf decision, using childOffsets as temp storage
@@ -195,25 +194,18 @@ struct CombinedUpdate
         TreeNodeIndex newNumLeafNodes;
         memcpyD2H(nodeOps.data() + nodeOps.size() - 1, 1, &newNumLeafNodes);
 
-        // carry out rebalance based on nodeOps
         auto& newLeaves = tree.prefixes;
         reallocateDestructive(newLeaves, newNumLeafNodes + 1, 1.01);
         rebalanceTreeGpu(rawPtr(leaves), nNodes(leaves), newNumLeafNodes, nodeOps.data(), rawPtr(newLeaves));
+        swap(newLeaves, leaves);
 
         // if rebalancing couldn't introduce the mandatory keys, we force-inject them now into the tree
         if (status == ResolutionStatus::failed)
         {
             converged = false;
-
-            std::vector<KeyType> hostLeaves(newLeaves.size());
-            memcpyD2H(rawPtr(newLeaves), newLeaves.size(), hostLeaves.data());
-
-            injectKeys<KeyType>(hostLeaves, mandatoryKeys);
-            reallocateDestructive(newLeaves, hostLeaves.size(), 1.01);
-            memcpyH2D(hostLeaves.data(), newLeaves.size(), rawPtr(newLeaves));
+            injectKeysGpu(tree, leaves, d_mandatoryKeys);
         }
 
-        swap(newLeaves, leaves);
         tree.resize(nNodes(leaves));
         buildOctreeGpu(rawPtr(leaves), tree.data());
 
