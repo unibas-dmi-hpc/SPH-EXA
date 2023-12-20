@@ -397,6 +397,9 @@ void spanSfcRange()
         EXPECT_EQ(spanSfcRange(pad(I(01), 3), nodeRange<I>(0), probe.data()), 7);
         EXPECT_EQ(reference, probe);
     }
+
+    EXPECT_EQ(0, spanSfcRange(I(0), I(0)));
+    EXPECT_EQ(0, spanSfcRange(I(1), I(1)));
 }
 
 TEST(SfcCode, spanSfcRange32) { spanSfcRange<unsigned>(); }

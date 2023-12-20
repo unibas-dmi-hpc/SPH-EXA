@@ -263,7 +263,7 @@ public:
         auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, tdpdTrho, h, m, c, ax, ay, az, du,
                             du_m1, c11, c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh,
                             keys, nc, dV11, dV12, dV13, dV22, dV23, dV33);
-#if defined(__clang__) || __GNUC__ > 11 || (__GNUC__ == 11 && __GNUC_MINOR__ > 3)
+#if defined(__clang__) || __GNUC__ > 11
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
 #endif
         return ret;

@@ -155,13 +155,10 @@ void markMacsGpu(const KeyType* prefixes,
                                                  markings);
 }
 
-#define MARK_MACS_GPU(KeyType, T) template void markMacsGpu(const KeyType* prefixes, \
-                 const TreeNodeIndex* childOffsets, \
-                 const Vec4<T>* centers, \
-                 const Box<T>& box, \
-                 const KeyType* focusNodes, \
-                 TreeNodeIndex numFocusNodes, \
-                 char* markings)
+#define MARK_MACS_GPU(KeyType, T)                                                                                      \
+    template void markMacsGpu(const KeyType* prefixes, const TreeNodeIndex* childOffsets, const Vec4<T>* centers,      \
+                              const Box<T>& box, const KeyType* focusNodes, TreeNodeIndex numFocusNodes,               \
+                              char* markings)
 
 MARK_MACS_GPU(uint64_t, double);
 MARK_MACS_GPU(uint64_t, float);

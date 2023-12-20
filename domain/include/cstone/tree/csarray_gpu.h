@@ -82,4 +82,10 @@ extern bool rebalanceTreeGpu(const KeyType* tree,
                              const TreeNodeIndex* nodeOps,
                              KeyType* newTree);
 
+template<class KeyType>
+extern void countSfcGapsGpu(const KeyType* tree, TreeNodeIndex numNodes, TreeNodeIndex* nodeOps);
+
+template<class KeyType>
+extern void fillSfcGapsGpu(const KeyType* tree, TreeNodeIndex numNodes, const TreeNodeIndex* nodeOps, KeyType* newTree);
+
 } // namespace cstone
