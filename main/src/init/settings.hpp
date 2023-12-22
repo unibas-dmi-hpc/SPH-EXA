@@ -49,12 +49,14 @@ inline void writeSettings(const InitSettings& settings, const std::string& path,
     //     throw std::runtime_error("Cannot write settings: file " + path + " already exists\n");
     // }
 
-    writer->addStep(0, 0, path);
+    // Since file attribs do not belong to any step
+    // There's no need to add/close a step, but only init.
+    writer->initFile(path);
     for (auto it = settings.cbegin(); it != settings.cend(); ++it)
     {
         writer->fileAttribute(it->first, &(it->second), 1);
     }
-    writer->closeStep();
+    writer->closeFile();
 }
 
 //! @brief Used to initialize particle dataset attributes from builtin named test-cases

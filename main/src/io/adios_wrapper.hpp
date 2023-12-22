@@ -35,6 +35,7 @@ struct ADIOS2Settings
     size_t numTotalRanks;
     size_t offset;
     size_t rank;
+    size_t currStep = 0;
 };
 
 // One executable should have 1 adios instance only
@@ -45,54 +46,24 @@ void initADIOSWriter(ADIOS2Settings& as)
 #else
     as.adios = adios2::ADIOS();
 #endif
-    as.io                               = as.adios.DeclareIO("bpio");
+    as.io                               = as.adios.DeclareIO("bpio#"+std::to_string(as.currStep));
     adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
     // To avoid compiling warnings
     (void)attribute;
+    as.writer = as.io.Open(as.fileName, adios2::Mode::Append);
     return;
 }
 
-// Suppose we only have 1D arrays here
-void initADIOSReader(ADIOS2Settings& as)
+void closeADIOSWrite(ADIOS2Settings& as)
 {
-#if ADIOS2_USE_MPI
-    as.adios = adios2::ADIOS(as.comm);
-#else
-    as.adios = adios2::ADIOS();
-#endif
-    as.io                               = as.adios.DeclareIO("bpio");
-    adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
-    // To avoid compiling warnings
-    (void)attribute;
-    return;
+    as.writer.Close();
 }
-
-template<class T>
-size_t ADIOSGetNumSteps(ADIOS2Settings& as)
-{
-    return 0;
-}
-
-template<class T>
-size_t ADIOSGetNumParticles(ADIOS2Settings& as)
-{
-    return 0;
-}
-
-void openADIOSStepRead(ADIOS2Settings& as)
-{
-    as.reader = as.io.Open(as.fileName, adios2::Mode::Read);
-    as.reader.BeginStep();
-}
-
-void closeADIOSStepRead(ADIOS2Settings& as)
-{
-    as.reader.EndStep();
-    as.reader.Close();
-}
-
 void openADIOSStepWrite(ADIOS2Settings& as)
 {
+    // Since the variables are not removed at EndStep() or Close(),
+    // We should not reuse the IO.
+    as.io                               = as.adios.DeclareIO("bpio#"+std::to_string(as.currStep));
+    adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
     as.writer = as.io.Open(as.fileName, adios2::Mode::Append);
     as.writer.BeginStep();
 }
@@ -129,48 +100,15 @@ void writeADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, c
 }
 
 template<class T>
-void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, const T* field)
+void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, const T * field)
 {
     // FileAttribute is a unique variable. It is written into step 0.
     // Write only in rank 0.
     // There's no need for compression.
     if (as.rank == 0)
     {
-        adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName);
-        as.writer.Put(var, field);
+        as.io.DefineAttribute<T>("global_"+fieldName, field[0]);
     }
-}
-
-template<class T>
-void readADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* field)
-{
-    adios2::Variable<T> variable = as.io.InquireVariable<T>(fieldName);
-    variable.SetSelection(adios2::Box<adios2::Dims>(as.offset,           // Offset
-                                                    as.numLocalParticles // size to read
-                                                    ));
-    as.reader.Get(variable, field, adios2::Mode::Sync);
-}
-
-template<class T>
-std::vector<T> readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName)
-{
-    // One MPI_COMM can only have one ADIOS instance.
-    // Thus if we need another instance to write, has to recreate without the original as.comm.
-    adios2::Engine bpReader = as.io.Open(as.fileName, adios2::Mode::Read);
-    std::vector<T> res      = as.io.InquireAttribute<T>(fieldName).data();
-    bpReader.Close();
-    return res;
-}
-
-template<class T>
-auto readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName)
-{
-    // One MPI_COMM can only have one ADIOS instance.
-    // Thus if we need another instance to write, has to recreate without the original as.comm.
-    adios2::Engine bpReader = as.io.Open(as.fileName, adios2::Mode::Read);
-    std::vector<T> res      = as.io.InquireAttribute<T>(fieldName).data();
-    bpReader.Close();
-    return res;
 }
 
 } // namespace fileutils

@@ -103,7 +103,7 @@ int main(int argc, char** argv)
 
     //! @brief evaluate user choice for different kind of actions
     auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD, compressionMethod, compressionParam);
-    auto fileReader  = fileReaderFactory(ascii, MPI_COMM_WORLD);
+    auto fileReader  = fileReaderFactory(ascii, MPI_COMM_WORLD, compressionMethod, compressionParam);
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get());
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank, simInit->constants());
     auto observables = observablesFactory<Dataset>(simInit->constants(), constantsFile);

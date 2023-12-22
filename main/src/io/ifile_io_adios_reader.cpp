@@ -38,6 +38,7 @@
 
 #include "ifile_io_impl.h"
 #ifdef SPH_EXA_HAVE_ADIOS
+#include "adios_reader_wrapper.hpp"
 #include "adios_wrapper.hpp"
 #endif
 
@@ -51,19 +52,22 @@ public:
     using Base      = IFileReader;
     using FieldType = typename Base::FieldType;
 
-    explicit ADIOSReader(MPI_Comm comm)
+    explicit ADIOSReader(MPI_Comm comm, const std::string& compressionMethod, const std::string& compressionParam = "")
         : comm_(comm)
-        , h5File_{nullptr}
     {
         MPI_Comm_rank(comm, &rank_);
+        as_.rank = rank_;
+        as_.comm = comm;
+        as_.accuracy = std::stof(compressionParam);
     }
 
     ~ADIOSReader() override { closeStep(); }
 
     [[nodiscard]] int     rank() const override { return rank_; }
+    [[nodiscard]] int numRanks() const override { return numRanks_; }
     [[nodiscard]] int64_t numParticles() const override
     {
-        return 0;
+        return ADIOSGetNumParticles(as_);
     }
 
     /*! @brief open a file at a given step
@@ -190,16 +194,14 @@ private:
     fileutils::ADIOS2Settings as_;
 };
 
-std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm comm) { return std::make_unique<ADIOSReader>(comm); }
-
-
+std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm comm, const std::string& compressionMethod,
+                                               const std::string& compressionParam) { return std::make_unique<ADIOSReader>(comm, compressionMethod, compressionParam); }
 }
 
 #else
 
-std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm, const std::string&,
+std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm comm, const std::string&,
                                                const std::string&) { return {}; }
-std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm comm) { return {}; }
 
 #endif
 

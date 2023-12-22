@@ -66,6 +66,11 @@ public:
 
     std::string suffix() const override { return ".h5"; }
 
+    void initFile(std::string path) override
+    {
+        return addStep(0, 0, path);
+    }
+
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndex_ = firstIndex;
@@ -107,6 +112,10 @@ public:
         std::visit([this, &key](auto arg) { fileutils::writeH5PartField(h5File_, key, arg + firstIndex_); }, field);
     }
 
+    void closeFile() override
+    {
+        closeStep();
+    }
     void closeStep() override
     {
         if (h5File_)
