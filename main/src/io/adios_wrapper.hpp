@@ -50,20 +50,11 @@ void initADIOSWriter(ADIOS2Settings& as)
     adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
     // To avoid compiling warnings
     (void)attribute;
-    as.writer = as.io.Open(as.fileName, adios2::Mode::Append);
     return;
 }
 
-void closeADIOSWrite(ADIOS2Settings& as)
-{
-    as.writer.Close();
-}
 void openADIOSStepWrite(ADIOS2Settings& as)
 {
-    // Since the variables are not removed at EndStep() or Close(),
-    // We should not reuse the IO.
-    as.io                               = as.adios.DeclareIO("bpio#"+std::to_string(as.currStep));
-    adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
     as.writer = as.io.Open(as.fileName, adios2::Mode::Append);
     as.writer.BeginStep();
 }
@@ -107,7 +98,7 @@ void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, c
     // There's no need for compression.
     if (as.rank == 0)
     {
-        as.io.DefineAttribute<T>("global_"+fieldName, field[0]);
+        as.io.DefineAttribute<T>(fieldName, field[0]);
     }
 }
 

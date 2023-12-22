@@ -66,13 +66,6 @@ public:
 
     std::string suffix() const override { return ".bp"; }
 
-    void initFile(std::string path) override
-    {
-        as_.rank = rank_;
-        as_.fileName = path;
-        fileutils::initADIOSWriter(as_);
-    }
-
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndex_ = firstIndex;
@@ -82,24 +75,29 @@ public:
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ = -MPI_Wtime();
 
+        // BP doesn't have hierarchical structure, thus each timestep
+        // has a unique specifier in the variable name. When reading in,
+        // we use regex for parsing the hierarchy.
+        as_.comm = MPI_COMM_WORLD;
+        as_.fileName = path;
         // Here it's mandatory to refresh rank num into as_
-        // as_.rank = rank_;
+        as_.rank = rank_;
+        // In BP we use a "Step#X_" prefix to identify steps
         if (lastIndex > firstIndex) {
             as_.numLocalParticles = lastIndex - firstIndex;
             currStep_         = currStep_ + 1;
-            as_.numTotalRanks = totalRanks_;
-            as_.offset = firstIndex;
-            as_.currStep = currStep_;
-
-            // Only when it's a valid update
-            // The rank writes into checkpoint
-            fileutils::openADIOSStepWrite(as_);
         }
         else {
             as_.numLocalParticles = 0;
         }
+        as_.numTotalRanks = totalRanks_;
+        as_.offset = firstIndex;
+        as_.currStep = currStep_;
 
         // For now, the writer will only append data instead of writing new
+        fileutils::initADIOSWriter(as_);
+        fileutils::openADIOSStepWrite(as_);
+
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ += MPI_Wtime();
         pathStep_ = path;
@@ -159,8 +157,6 @@ public:
             std::cout << "Writter!!!File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
         }
     }
-
-    void closeFile() override { closeADIOSWrite(as_); }
 
 private:
     int      rank_{0}, numRanks_{0};

@@ -60,11 +60,6 @@ public:
 
     std::string suffix() const override { return ""; }
 
-    void initFile(std::string path) override
-    {
-        return addStep(0, 0, path);
-    }
-
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndexStep_ = firstIndex;
@@ -132,10 +127,6 @@ public:
         }
         columns_.clear();
         stepBuffer_.clear();
-    }
-    void closeFile() override
-    {
-        closeStep();
     }
 
 private:
