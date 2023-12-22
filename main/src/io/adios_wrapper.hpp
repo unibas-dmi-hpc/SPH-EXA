@@ -105,5 +105,84 @@ void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, c
     }
 }
 
+// ============================================================================
+// ============================================================================
+
+// Suppose we only have 1D arrays here
+void initADIOSReader(ADIOS2Settings& as)
+{
+#if ADIOS2_USE_MPI
+    as.adios = adios2::ADIOS(as.comm);
+#else
+    as.adios = adios2::ADIOS();
+#endif
+    as.io                               = as.adios.DeclareIO("bpio");
+    // adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
+    // To avoid compiling warnings
+    // (void)attribute;
+    return;
+}
+void openADIOSStepRead(ADIOS2Settings& as)
+{
+    as.reader = as.io.Open(as.fileName, adios2::Mode::Read);
+    as.reader.BeginStep();
+}
+
+void closeADIOSStepRead(ADIOS2Settings& as)
+{
+    as.reader.EndStep();
+    as.reader.Close();
+}
+
+int64_t ADIOSGetNumParticles(ADIOS2Settings& as)
+{
+    // Global numParticles is written in numParticlesGlobal in step 0. Type is double.
+    double res      = as.io.InquireAttribute<double>("numParticlesGlobal").Data()[0];
+    return static_cast<int64_t>(res);
+}
+
+int ADIOSGetNumSteps(ADIOS2Settings& as)
+{
+    // When using this func, a new Engine has to be created
+    // For step-wise access
+    // adios2::Engine 
+    return 0;
+}
+
+template<class T>
+void readADIOSField(ADIOS2Settings& as, const std::string& fieldName, T* field)
+{
+    adios2::Variable<T> variable = as.io.InquireVariable<T>(fieldName);
+    variable.SetSelection(adios2::Box<adios2::Dims>(as.offset,           // Offset
+                                                    as.numLocalParticles // size to read
+                                                    ));
+    as.reader.Get(variable, field, adios2::Mode::Sync);
+}
+
+template<class ExtractType>
+ExtractType readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr)
+{
+    // One MPI_COMM can only have one ADIOS instance.
+    // Thus if we need another instance to write, has to recreate without the original as.comm.
+    // Step attribute is a variable
+    adios2::Variable<ExtractType> variable      = as.io.InquireVariable<ExtractType>(fieldName);
+    variable.SetSelection({{0}, {1}});
+    std::vector<ExtractType> res(1);
+    as.reader.Get(variable, res.data(), adios2::Mode::Sync);
+    return res[0];
+}
+
+template<class ExtractType>
+ExtractType readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr)
+{
+    // One MPI_COMM can only have one ADIOS instance.
+    // Thus if we need another instance to write, has to recreate without the original as.comm.
+    // File attribute is a real attribute.
+    // T res      = as.io.InquireAttribute<T>(fieldName)
+    adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
+    return res.Data()[0];
+    // return res;
+}
+
 } // namespace fileutils
 } // namespace sphexa
