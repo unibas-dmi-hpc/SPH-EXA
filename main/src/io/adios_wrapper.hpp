@@ -31,10 +31,10 @@ struct ADIOS2Settings
     double accuracy = 1E-6;
 
     // Rank-specific settings
-    size_t numLocalParticles;
-    size_t numTotalRanks;
-    size_t offset;
-    size_t rank;
+    size_t numLocalParticles = 0;
+    size_t numTotalRanks = 0;
+    size_t offset = 0;
+    size_t rank = 0;
     size_t currStep = 0;
 };
 
@@ -46,7 +46,7 @@ void initADIOSWriter(ADIOS2Settings& as)
 #else
     as.adios = adios2::ADIOS();
 #endif
-    as.io                               = as.adios.DeclareIO("bpio#"+std::to_string(as.currStep));
+    as.io                               = as.adios.DeclareIO("bpio");
     adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
     // To avoid compiling warnings
     (void)attribute;
@@ -68,6 +68,9 @@ void closeADIOSStepWrite(ADIOS2Settings& as)
 template<class T>
 void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* field)
 {
+    // Technically the var definition should be outside of BeginStep()/EndStep() loop
+    // But given the current implementation of I/O APIs, I leave it like this
+    // Consequences are the "step" logic in ADIOS is not fully reachable.
     adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName,                                 // Field name
                                                       {as.numLocalParticles * as.numTotalRanks}, // Global dimensions
                                                       {as.offset},            // Starting local offset

@@ -46,6 +46,24 @@
 namespace sphexa
 {
 #ifdef SPH_EXA_HAVE_ADIOS
+inline auto partitionRange(size_t R, size_t i, size_t N)
+{
+    size_t s = R / N;
+    size_t r = R % N;
+    if (i < r)
+    {
+        size_t start = (s + 1) * i;
+        size_t end   = start + s + 1;
+        return std::make_tuple(start, end);
+    }
+    else
+    {
+        size_t start = (s + 1) * r + s * (i - r);
+        size_t end   = start + s;
+        return std::make_tuple(start, end);
+    }
+}
+
 class ADIOSReader final : public IFileReader
 {
 public:
@@ -64,10 +82,9 @@ public:
     ~ADIOSReader() override { closeStep(); }
 
     [[nodiscard]] int     rank() const override { return rank_; }
-    [[nodiscard]] int numRanks() const override { return numRanks_; }
     [[nodiscard]] int64_t numParticles() const override
     {
-        return ADIOSGetNumParticles(as_);
+        return globalCount_;
     }
 
     /*! @brief open a file at a given step
@@ -83,12 +100,12 @@ public:
 
         pathStep_ = path;
 
-        if (ADIOSGetNumSteps(as_) == 0) { return; }
+        if (fileutils::ADIOSGetNumSteps(as_) == 0) { return; }
 
         // set step to last step in file if negative
-        if (step < 0) { step = ADIOSGetNumSteps(as_) - 1; }
+        if (step < 0) { step = fileutils::ADIOSGetNumSteps(as_) - 1; }
 
-        globalCount_ = ADIOSGetNumParticles(as_);
+        globalCount_ = fileutils::ADIOSGetNumParticles(as_);
         if (globalCount_ < 1) { return; }
 
         int rank, numRanks;
@@ -128,7 +145,7 @@ public:
         std::visit(
             [this, size, &key](auto arg)
             {
-                fileutils::readADIOSFileAttribute<FieldType>(as_, key)
+                fileutils::readADIOSFileAttribute<FieldType>(as_, key);
             },
             val);
     }
@@ -146,31 +163,8 @@ public:
     void readField(const std::string& key, FieldType field) override
     {
         std::visit([this, &key](auto arg) {
-            try {
-                return fileutils::readADIOSField<FieldType>(as_, key, arg);
-            }
-            catch (std::invalid_argument &e)
-            {
-                std::cout << "Invalid argument exception, STOPPING PROGRAM from rank " << rank_ << "\n";
-                std::cout << e.what() << "\n";
-                throw std::runtime_error("Could not read field: " + key);
-            }
-            catch (std::ios_base::failure &e)
-            {
-                std::cout << "IO System base failure exception, STOPPING PROGRAM "
-                            "from rank "
-                        << rank_ << "\n";
-                std::cout << e.what() << "\n";
-                throw std::runtime_error("Could not read field: " + key);
-            }
-            catch (std::exception &e)
-            {
-                std::cout << "Exception, STOPPING PROGRAM from rank " << rank_ << "\n";
-                std::cout << e.what() << "\n";
-                throw std::runtime_error("Could not read field: " + key);
-            }
+            return fileutils::readADIOSField(as_, key, arg);
         }, field);
-
     }
 
     uint64_t localNumParticles() override { return localCount_; }
@@ -179,14 +173,14 @@ public:
 
     void closeStep() override
     {
-
+        closeADIOSStepRead(as_);
     }
 
 private:
-    int      rank_{0};
+    int      rank_{0}, numRanks_{0};
     MPI_Comm comm_;
 
-    uint64_t    firstIndex_, lastIndex_;
+    uint64_t      firstIndex_{0}, lastIndex_{0};
     uint64_t    localCount_;
     uint64_t    globalCount_;
     std::string pathStep_;
@@ -194,9 +188,8 @@ private:
     fileutils::ADIOS2Settings as_;
 };
 
-std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm comm, const std::string& compressionMethod,
-                                               const std::string& compressionParam) { return std::make_unique<ADIOSReader>(comm, compressionMethod, compressionParam); }
-}
+std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm comm, const std::string& compressionMethod,const std::string& compressionParam) { return std::make_unique<ADIOSReader>(comm, compressionMethod, compressionParam); }
+
 
 #else
 
