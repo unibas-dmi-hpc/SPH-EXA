@@ -79,7 +79,7 @@ public:
         // BP doesn't have hierarchical structure, thus each timestep
         // has a unique specifier in the variable name. When reading in,
         // we use regex for parsing the hierarchy.
-        as_.comm = comm_;
+        as_.comm = MPI_COMM_WORLD;
         as_.fileName = path;
         // Here it's mandatory to refresh rank num into as_
         as_.rank = rank_;
@@ -87,7 +87,6 @@ public:
         if (lastIndex > firstIndex) {
             as_.numLocalParticles = lastIndex - firstIndex;
             currStep_         = currStep_ + 1;
-            as_.stepPrefix     = "Step#" + std::to_string(currStep_ - 1) + "_";
         }
         else {
             as_.numLocalParticles = 0;
@@ -127,8 +126,6 @@ public:
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ = -MPI_Wtime();
 
-        // auto v = std::get<0>(field);
-        // std::cout << v[0] << std::endl;
         // If there's a need to change particle numbers, do it here and now!!
         // Directly change it in as_.
         std::visit(
