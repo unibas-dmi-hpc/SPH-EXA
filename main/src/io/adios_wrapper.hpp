@@ -124,7 +124,7 @@ void initADIOSReader(ADIOS2Settings& as)
 }
 void openADIOSStepRead(ADIOS2Settings& as)
 {
-    as.reader = as.io.Open(as.fileName, adios2::Mode::Read);
+    as.reader = as.io.Open(as.fileName, adios2::Mode::ReadRandomAccess);
     as.reader.BeginStep();
 }
 

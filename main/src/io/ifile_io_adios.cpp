@@ -151,9 +151,10 @@ public:
 
     void closeStep() override
     {
+        fileutils::writeADIOSFileAttribute(as_, "lastStep", &currStep_);
         fileutils::closeADIOSStepWrite(as_);
         // size_t numStep[1]={currStep_};
-        fileutils::writeADIOSFileAttribute(as_, "lastStep", &currStep_);
+        std::cout<<"--------------"<<currStep_<<std::endl;
         if (rank_ == 0)
         {
             std::cout << "Writter!!!File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
