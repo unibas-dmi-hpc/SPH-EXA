@@ -35,7 +35,7 @@ struct ADIOS2Settings
     size_t numTotalRanks = 0;
     size_t offset = 0;
     size_t rank = 0;
-    size_t currStep = 0;
+    size_t currStep = 0; // Step, not numIteration
 };
 
 // One executable should have 1 adios instance only
@@ -90,7 +90,8 @@ void writeADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, c
     if (as.rank == 0)
     {
         // For now due to inconsistency of global attrib and step attrib, I set them all to double.
-        as.io.DefineAttribute<double>(fieldName, (double)(field[0]));
+        adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName);
+        as.writer.Put(var, field);
     }
 }
 
@@ -119,42 +120,48 @@ void initADIOSReader(ADIOS2Settings& as)
     as.adios = adios2::ADIOS();
 #endif
     as.io                               = as.adios.DeclareIO("bpio");
-    // adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
-    // To avoid compiling warnings
-    // (void)attribute;
     return;
 }
 void openADIOSStepRead(ADIOS2Settings& as)
 {
     as.reader = as.io.Open(as.fileName, adios2::Mode::ReadRandomAccess);
-    as.reader.BeginStep();
+    // as.reader.BeginStep();
 }
 
 void closeADIOSStepRead(ADIOS2Settings& as)
 {
-    as.reader.EndStep();
+    // as.reader.EndStep();
     as.reader.Close();
 }
 
 int64_t ADIOSGetNumParticles(ADIOS2Settings& as)
 {
-    // Global numParticles is written in numParticlesGlobal in step 0. Type is double.
-    double res      = as.io.InquireAttribute<double>("numParticlesGlobal").Data()[0];
-    return static_cast<int64_t>(res);
+    adios2::Variable<uint64_t> variable = as.io.InquireVariable<uint64_t>("numParticlesGlobal");
+    variable.SetStepSelection({as.currStep - 1, 1});
+    std::vector<uint64_t> varData(1);
+    as.reader.Get(variable, varData.data(), adios2::Mode::Sync);
+    return varData[0];
 }
 
-int ADIOSGetNumSteps(ADIOS2Settings& as)
+// This is step, not numIteration!!!
+// Here the numSteps includes step0 (i.e. the step without actual particles)
+// Returns the last Step where iteration is available
+// Actual last step to read from should be {res.back() - 1, 1}
+int64_t ADIOSGetNumSteps(ADIOS2Settings& as)
 {
-    // When using this func, a new Engine has to be created
-    // For step-wise access
-    // adios2::Engine 
-    return 0;
+    // Time is a stepAttrib that gets written in all output formats
+    // AllStepsBlocksInfo() is very expensive. Make sure it's only used once.
+    // adios2::Variable<double> in = ioObj.InquireVariable<double>("time");
+    adios2::Variable<uint64_t> in = as.io.InquireVariable<uint64_t>("iteration");
+    std::vector<size_t> res = as.reader.GetAbsoluteSteps(in);
+    return res.back();
 }
 
-template<class T>
-void readADIOSField(ADIOS2Settings& as, const std::string& fieldName, T* field)
+template<class ExtractType>
+void readADIOSField(ADIOS2Settings& as, const std::string& fieldName, ExtractType* field)
 {
-    adios2::Variable<T> variable = as.io.InquireVariable<T>(fieldName);
+    adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
+    variable.SetStepSelection({as.currStep - 1, 1});
     variable.SetSelection(adios2::Box<adios2::Dims>(as.offset,           // Offset
                                                     as.numLocalParticles // size to read
                                                     ));
@@ -162,28 +169,29 @@ void readADIOSField(ADIOS2Settings& as, const std::string& fieldName, T* field)
 }
 
 template<class ExtractType>
-ExtractType readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr)
+void readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr)
 {
-    // One MPI_COMM can only have one ADIOS instance.
-    // Thus if we need another instance to write, has to recreate without the original as.comm.
-    // Step attribute is a variable
-    adios2::Variable<ExtractType> variable      = as.io.InquireVariable<ExtractType>(fieldName);
-    variable.SetSelection({{0}, {1}});
-    std::vector<ExtractType> res(1);
-    as.reader.Get(variable, res.data(), adios2::Mode::Sync);
-    return res[0];
+    // StepAttrib is an ADIOS single variable.
+    // Should be read by only 1 rank.
+    if (as.rank == 0) {
+        adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
+        variable.SetStepSelection({as.currStep - 1, 1});
+        variable.SetSelection(adios2::Box<adios2::Dims>(0,1));
+        as.reader.Get(variable, attr, adios2::Mode::Sync);
+    }
 }
 
 template<class ExtractType>
-ExtractType readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr)
+void readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr)
 {
     // One MPI_COMM can only have one ADIOS instance.
     // Thus if we need another instance to write, has to recreate without the original as.comm.
     // File attribute is a real attribute.
-    // T res      = as.io.InquireAttribute<T>(fieldName)
-    adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
-    return res.Data()[0];
-    // return res;
+    // Should be read by only 1 rank.
+    if (as.rank == 0) {
+        adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
+        attr[0] = res.Data()[0];
+    }
 }
 
 } // namespace fileutils

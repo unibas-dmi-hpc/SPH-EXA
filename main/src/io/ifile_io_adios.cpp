@@ -66,11 +66,6 @@ public:
 
     std::string suffix() const override { return ".bp"; }
 
-    // void initFile(std::string path) override
-    // {
-
-    // }
-
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndex_ = firstIndex;
@@ -110,13 +105,13 @@ public:
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        // MPI_Barrier(MPI_COMM_WORLD);
-        // writeTime_ = -MPI_Wtime();
+        MPI_Barrier(MPI_COMM_WORLD);
+        writeTime_ = -MPI_Wtime();
         std::visit([this, &key, size](auto arg) {
             fileutils::writeADIOSStepAttribute(as_, key, arg);
         }, val);
-        // MPI_Barrier(MPI_COMM_WORLD);
-        // writeTime_ += MPI_Wtime();
+        MPI_Barrier(MPI_COMM_WORLD);
+        writeTime_ += MPI_Wtime();
     }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
@@ -234,14 +229,20 @@ public:
      */
     void setStep(std::string path, int step, FileMode mode) override
     {
-        closeStep();
-
+        
         pathStep_ = path;
+        as_.comm = comm_;
+        as_.fileName = path;
+        fileutils::initADIOSReader(as_);
+        fileutils::openADIOSStepRead(as_);
 
-        if (fileutils::ADIOSGetNumSteps(as_) == 0) { return; }
+        int64_t totalSteps = fileutils::ADIOSGetNumSteps(as_);
+
+        if (totalSteps <= 0) { return; }
 
         // set step to last step in file if negative
-        if (step < 0) { step = fileutils::ADIOSGetNumSteps(as_) - 1; }
+        if (step < 0) { step = totalSteps; }
+        as_.currStep = step;
 
         globalCount_ = fileutils::ADIOSGetNumParticles(as_);
         if (globalCount_ < 1) { return; }
@@ -256,6 +257,14 @@ public:
             localCount_                       = lastIndex_ - firstIndex_;
         }
         else { std::tie(firstIndex_, lastIndex_, localCount_) = std::make_tuple(0, globalCount_, globalCount_); }
+
+        as_.numLocalParticles = localCount_;
+        as_.numTotalRanks = numRanks;
+        as_.offset = firstIndex_;
+        as_.rank = rank;
+
+        
+        
     }
 
     std::vector<std::string> fileAttributes() override
@@ -301,7 +310,7 @@ public:
     void readField(const std::string& key, FieldType field) override
     {
         std::visit([this, &key](auto arg) {
-            return fileutils::readADIOSField(as_, key, arg);
+            fileutils::readADIOSField(as_, key, arg);
         }, field);
     }
 

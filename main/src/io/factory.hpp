@@ -64,7 +64,7 @@ std::unique_ptr<IFileReader> fileReaderFactory(bool /*ascii*/, MPI_Comm comm, co
                                                const std::string& compressionParam = "") {
     
     #ifdef SPH_EXA_HAVE_ADIOS
-    // return makeADIOSReader(comm, compressionMethod, compressionParam);
+    return makeADIOSReader(comm, compressionMethod, compressionParam);
     #endif
     return makeH5PartReader(comm);
     }
