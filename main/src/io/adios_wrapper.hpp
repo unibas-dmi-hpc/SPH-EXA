@@ -69,8 +69,9 @@ template<class T>
 void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* field)
 {
     // Technically the var definition should be outside of BeginStep()/EndStep() loop
-    // But given the current implementation of I/O APIs, I leave it like this
-    // Consequences are the "step" logic in ADIOS is not fully reachable.
+    // But given the current implementation of I/O APIs, and also numLocalParticles is not fixed,
+    // I leave it like this.
+    // Consequences are the "step" logic in ADIOS is not fully operating.
     adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName,                                 // Field name
                                                       {as.numLocalParticles * as.numTotalRanks}, // Global dimensions
                                                       {as.offset},            // Starting local offset
@@ -88,8 +89,8 @@ void writeADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, c
     // There's no need for compression.
     if (as.rank == 0)
     {
-        adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName);
-        as.writer.Put(var, field);
+        // For now due to inconsistency of global attrib and step attrib, I set them all to double.
+        as.io.DefineAttribute<double>(fieldName, (double)(field[0]));
     }
 }
 
@@ -101,7 +102,8 @@ void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, c
     // There's no need for compression.
     if (as.rank == 0)
     {
-        as.io.DefineAttribute<T>(fieldName, field[0]);
+        // For now due to inconsistency of global attrib and step attrib, I set them all to double.
+        as.io.DefineAttribute<double>(fieldName, (double)(field[0]));
     }
 }
 

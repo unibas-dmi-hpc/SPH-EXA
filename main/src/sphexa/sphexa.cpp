@@ -129,7 +129,9 @@ int main(int argc, char** argv)
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 
     if (!parser.exists("-o")) { outFile += fileWriter->suffix(); }
-    if (writeEnabled) { writeSettings(simInit->constants(), outFile, fileWriter.get()); }
+    if (writeEnabled) { 
+        writeSettings(simInit->constants(), outFile, fileWriter.get()); 
+    }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
     uint64_t bucketSizeFocus = 64;

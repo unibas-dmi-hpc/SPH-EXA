@@ -66,23 +66,25 @@ public:
 
     std::string suffix() const override { return ".bp"; }
 
+    // void initFile(std::string path) override
+    // {
+
+    // }
+
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndex_ = firstIndex;
         MPI_Comm_rank(comm_, &rank_);
         MPI_Comm_size(comm_, &totalRanks_);
-
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ = -MPI_Wtime();
 
         // BP doesn't have hierarchical structure, thus each timestep
         // has a unique specifier in the variable name. When reading in,
         // we use regex for parsing the hierarchy.
-        as_.comm = MPI_COMM_WORLD;
-        as_.fileName = path;
+
         // Here it's mandatory to refresh rank num into as_
-        as_.rank = rank_;
-        // In BP we use a "Step#X_" prefix to identify steps
+
         if (lastIndex > firstIndex) {
             as_.numLocalParticles = lastIndex - firstIndex;
             currStep_         = currStep_ + 1;
@@ -90,6 +92,9 @@ public:
         else {
             as_.numLocalParticles = 0;
         }
+        as_.comm = MPI_COMM_WORLD;
+        as_.fileName = path;
+        as_.rank = rank_;
         as_.numTotalRanks = totalRanks_;
         as_.offset = firstIndex;
         as_.currStep = currStep_;
@@ -151,10 +156,7 @@ public:
 
     void closeStep() override
     {
-        fileutils::writeADIOSFileAttribute(as_, "lastStep", &currStep_);
         fileutils::closeADIOSStepWrite(as_);
-        // size_t numStep[1]={currStep_};
-        std::cout<<"--------------"<<currStep_<<std::endl;
         if (rank_ == 0)
         {
             std::cout << "Writter!!!File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
