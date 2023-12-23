@@ -60,6 +60,8 @@ public:
 
     std::string suffix() const override { return ""; }
 
+    void initFile(std::string path) override {}
+    
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndexStep_ = firstIndex;

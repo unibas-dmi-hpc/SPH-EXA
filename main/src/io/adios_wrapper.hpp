@@ -36,6 +36,8 @@ struct ADIOS2Settings
     size_t offset = 0;
     size_t rank = 0;
     size_t currStep = 0;
+
+    std::map<std::string, void*> fieldMap;
 };
 
 // One executable should have 1 adios instance only
@@ -47,38 +49,43 @@ void initADIOSWriter(ADIOS2Settings& as)
     as.adios = adios2::ADIOS();
 #endif
     as.io                               = as.adios.DeclareIO("bpio");
-    adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
-    // To avoid compiling warnings
-    (void)attribute;
+    as.fieldMap["SZ_accuracy"] = new adios2::Variable<double>(as.io.DefineVariable<double>("SZ_accuracy"));
+    as.writer = as.io.Open(as.fileName, adios2::Mode::Append);
     return;
+}
+
+void closeADIOSWriter(ADIOS2Settings& as) {
+    for (auto it = as.fieldMap.begin(); it != as.fieldMap.end(); ++it) {
+        delete it->second; // Delete the pointer
+    }
+    as.fieldMap.clear();
+    as.writer.Close();
 }
 
 void openADIOSStepWrite(ADIOS2Settings& as)
 {
-    as.writer = as.io.Open(as.fileName, adios2::Mode::Append);
     as.writer.BeginStep();
 }
 
 void closeADIOSStepWrite(ADIOS2Settings& as)
 {
+    
     as.writer.EndStep();
-    as.writer.Close();
 }
 
 template<class T>
 void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* field)
 {
-    // Technically the var definition should be outside of BeginStep()/EndStep() loop
-    // But given the current implementation of I/O APIs, and also numLocalParticles is not fixed,
-    // I leave it like this.
-    // Consequences are the "step" logic in ADIOS is not fully operating.
-    adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName,                                 // Field name
-                                                      {as.numLocalParticles * as.numTotalRanks}, // Global dimensions
-                                                      {as.offset},            // Starting local offset
-                                                      {as.numLocalParticles}, // Local dimensions (limited to 1 rank)
-                                                      adios2::ConstantDims);
-    var.AddOperation("sz", {{"accuracy", std::to_string(as.accuracy)}});
-    as.writer.Put(var, field);
+    auto it = as.fieldMap.find(fieldName);
+    if (it == as.fieldMap.end()) {
+        as.fieldMap[fieldName] = new adios2::Variable<T>(as.io.DefineVariable<T>(
+        fieldName,                                 // Field name
+        {as.numLocalParticles * as.numTotalRanks}, // Global dimensions
+        {as.offset},            // Starting local offset
+        {as.numLocalParticles}, // Local dimensions (limited to 1 rank)
+        adios2::ConstantDims));
+    }
+    as.writer.Put(*(adios2::Variable<T> *)(as.fieldMap[fieldName]), field);
 }
 
 template<class T>
@@ -90,7 +97,7 @@ void writeADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, c
     if (as.rank == 0)
     {
         // For now due to inconsistency of global attrib and step attrib, I set them all to double.
-        as.io.DefineAttribute<double>(fieldName, (double)(field[0]));
+        as.io.DefineAttribute<double>(fieldName, (double)(field[0]), "", "/", true);
     }
 }
 
@@ -103,7 +110,7 @@ void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, c
     if (as.rank == 0)
     {
         // For now due to inconsistency of global attrib and step attrib, I set them all to double.
-        as.io.DefineAttribute<double>(fieldName, (double)(field[0]));
+        as.io.DefineAttribute<double>(fieldName, (double)(field[0]), "", "/", true);
     }
 }
 

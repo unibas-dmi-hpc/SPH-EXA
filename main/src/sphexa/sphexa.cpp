@@ -130,6 +130,7 @@ int main(int argc, char** argv)
 
     if (!parser.exists("-o")) { outFile += fileWriter->suffix(); }
     if (writeEnabled) { 
+        fileWriter.get()->initFile(outFile);
         writeSettings(simInit->constants(), outFile, fileWriter.get()); 
     }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }

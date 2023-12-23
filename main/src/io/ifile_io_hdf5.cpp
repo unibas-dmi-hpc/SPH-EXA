@@ -66,6 +66,8 @@ public:
 
     std::string suffix() const override { return ".h5"; }
 
+    void initFile(std::string path) override {}
+    
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndex_ = firstIndex;

@@ -59,23 +59,31 @@ public:
         as_.accuracy = std::stof(compressionParam);
     }
 
-    ~ADIOSWriter() override {}
+    ~ADIOSWriter() override { fileutils::closeADIOSWriter(as_); }
 
     [[nodiscard]] int rank() const override { return rank_; }
     [[nodiscard]] int numRanks() const override { return numRanks_; }
 
     std::string suffix() const override { return ".bp"; }
 
-    // void initFile(std::string path) override
-    // {
+    void initFile(std::string path) override
+    {
+        MPI_Comm_rank(comm_, &rank_);
+        MPI_Comm_size(comm_, &totalRanks_);
+        as_.comm = MPI_COMM_WORLD;
+        as_.fileName = path;
+        as_.rank = rank_;
+        as_.numTotalRanks = totalRanks_;
+        as_.currStep = 0;
 
-    // }
+        fileutils::initADIOSWriter(as_);
+    }
 
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndex_ = firstIndex;
-        MPI_Comm_rank(comm_, &rank_);
-        MPI_Comm_size(comm_, &totalRanks_);
+        // MPI_Comm_rank(comm_, &rank_);
+        // MPI_Comm_size(comm_, &totalRanks_);
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ = -MPI_Wtime();
 
@@ -92,15 +100,14 @@ public:
         else {
             as_.numLocalParticles = 0;
         }
-        as_.comm = MPI_COMM_WORLD;
-        as_.fileName = path;
-        as_.rank = rank_;
-        as_.numTotalRanks = totalRanks_;
+        // as_.comm = MPI_COMM_WORLD;
+        // as_.fileName = path;
+        // as_.rank = rank_;
+        // as_.numTotalRanks = totalRanks_;
         as_.offset = firstIndex;
         as_.currStep = currStep_;
 
-        // For now, the writer will only append data instead of writing new
-        fileutils::initADIOSWriter(as_);
+        // fileutils::initADIOSWriter(as_);
         fileutils::openADIOSStepWrite(as_);
 
         MPI_Barrier(MPI_COMM_WORLD);
