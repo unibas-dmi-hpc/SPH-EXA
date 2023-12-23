@@ -82,29 +82,38 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
 }
 
 template<class T>
-void writeADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, const T* field)
+void writeADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, const T* field, uint64_t size = 1)
 {
     // StepAttribute is one variable with multiple copies (i.e. steps).
     // It's almost same as a field. Write only in rank 0.
     // There's no need for compression.
     if (as.rank == 0)
     {
-        // For now due to inconsistency of global attrib and step attrib, I set them all to double.
-        adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName);
-        as.writer.Put(var, field);
+        // StepAttribs are always double.
+        if (size == 1)
+        {
+            adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName);
+            as.writer.Put(var, field);
+        }
+        else
+        {
+            adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName, {size}, {0}, {size}, adios2::ConstantDims);
+            as.writer.Put(var, field);
+        }
     }
 }
 
 template<class T>
-void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, const T* field)
+void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, const T* field, uint64_t size = 1)
 {
     // FileAttribute is a unique variable. It is written into step 0.
     // Write only in rank 0.
     // There's no need for compression.
     if (as.rank == 0)
     {
-        // For now due to inconsistency of global attrib and step attrib, I set them all to double.
-        as.io.DefineAttribute<double>(fieldName, (double)(field[0]));
+        // TODO: set them all to double
+        if (size == 1) { as.io.DefineAttribute<T>(fieldName, (T)(field[0])); }
+        else { as.io.DefineAttribute<T>(fieldName, field, size); }
     }
 }
 
@@ -127,7 +136,7 @@ void openADIOSStepRead(ADIOS2Settings& as) { as.reader = as.io.Open(as.fileName,
 
 void closeADIOSStepRead(ADIOS2Settings& as) { as.reader.Close(); }
 
-int64_t ADIOSGetNumParticles(ADIOS2Settings& as)
+uint64_t ADIOSGetNumParticles(ADIOS2Settings& as)
 {
     adios2::Variable<uint64_t> variable = as.io.InquireVariable<uint64_t>("numParticlesGlobal");
     variable.SetStepSelection({as.currStep - 1, 1});
@@ -140,7 +149,7 @@ int64_t ADIOSGetNumParticles(ADIOS2Settings& as)
 // Here the numSteps includes step0 (i.e. the step without actual particles)
 // Returns the last Step where iteration is available
 // Actual last step to read from should be {res.back() - 1, 1}
-int64_t ADIOSGetNumSteps(ADIOS2Settings& as)
+uint64_t ADIOSGetNumSteps(ADIOS2Settings& as)
 {
     // Time is a stepAttrib that gets written in all output formats
     // AllStepsBlocksInfo() is very expensive. Make sure it's only used once.
@@ -156,6 +165,19 @@ auto ADIOSGetFileAttributes(ADIOS2Settings& as)
     std::vector<std::string>                    res;
     std::ranges::transform(attribs, std::back_inserter(res), [](const auto& pair) { return pair.first; });
     return res;
+}
+
+uint64_t ADIOSGetFileAttributeSize(ADIOS2Settings& as, const std::string& key)
+{
+    const std::map<std::string, adios2::Params> attribs = as.io.AvailableAttributes();
+    return std::stoi(attribs.at(key).at("Elements"));
+}
+
+uint64_t ADIOSGetStepAttributeSize(ADIOS2Settings& as, const std::string& key)
+{
+    const std::map<std::string, adios2::Params> attribs = as.io.AvailableAttributes();
+    if (attribs.at(key).at("SingleValue") == "true") { return 1; }
+    else { return std::stoi(attribs.at(key).at("Shape")); }
 }
 
 uint64_t ADIOSGetNumIterations(ADIOS2Settings& as)
@@ -190,7 +212,7 @@ void readADIOSField(ADIOS2Settings& as, const std::string& fieldName, ExtractTyp
 }
 
 template<class ExtractType>
-void readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr)
+void readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr, uint64_t size = 1)
 {
     if (as.currStep == 0)
     {
@@ -201,15 +223,24 @@ void readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
     // Should be read by only 1 rank.
     if (as.rank == 0)
     {
-        adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
-        variable.SetStepSelection({as.currStep - 1, 1});
-        // variable.SetSelection(adios2::Box<adios2::Dims>(0, 1));
-        as.reader.Get(variable, attr, adios2::Mode::Sync);
+        if (size == 1)
+        {
+            adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
+            variable.SetStepSelection({as.currStep - 1, 1});
+            as.reader.Get(variable, attr, adios2::Mode::Sync);
+        }
+        else
+        {
+            adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
+            variable.SetStepSelection({as.currStep - 1, 1});
+            variable.SetSelection({{0}, {size}});
+            as.reader.Get(variable, attr, adios2::Mode::Sync);
+        }
     }
 }
 
 template<class ExtractType>
-void readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr)
+void readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr, uint64_t size = 1)
 {
     // One MPI_COMM can only have one ADIOS instance.
     // Thus if we need another instance to write, has to recreate without the original as.comm.
@@ -217,8 +248,19 @@ void readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
     // Should be read by only 1 rank.
     if (as.rank == 0)
     {
-        adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
-        attr[0]                            = res.Data()[0];
+        if (size == 1)
+        {
+            adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
+            attr[0]                            = res.Data()[0];
+        }
+        else
+        {
+            adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
+            for (u_int64_t i = 0; i < res.Data().size(); i++)
+            {
+                attr[i] = res.Data()[i];
+            }
+        }
     }
 }
 

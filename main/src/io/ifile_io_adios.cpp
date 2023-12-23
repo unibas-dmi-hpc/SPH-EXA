@@ -105,14 +105,14 @@ public:
     {
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ = -MPI_Wtime();
-        std::visit([this, &key, size](auto arg) { fileutils::writeADIOSStepAttribute(as_, key, arg); }, val);
+        std::visit([this, &key, size](auto arg) { fileutils::writeADIOSStepAttribute(as_, key, arg, size); }, val);
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
     }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit([this, &key, size](auto arg) { fileutils::writeADIOSFileAttribute(as_, key, arg); }, val);
+        std::visit([this, &key, size](auto arg) { fileutils::writeADIOSFileAttribute(as_, key, arg, size); }, val);
     }
 
     void writeField(const std::string& key, FieldType field, int = 0) override
@@ -261,23 +261,57 @@ public:
 
     std::vector<std::string> stepAttributes() override { return std::vector<std::string>(); }
 
-    int64_t fileAttributeSize(const std::string& key) override { return 1; }
+    int64_t fileAttributeSize(const std::string& key) override { return ADIOSGetFileAttributeSize(as_, key); }
 
     int64_t stepAttributeSize(const std::string& key) override { return 1; }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit([this, size, &key](auto arg) { fileutils::readADIOSFileAttribute(as_, key, arg); }, val);
+        std::visit(
+            [this, size, &key](auto arg)
+            {
+                fileutils::readADIOSFileAttribute(as_, key, arg, size);
+                for (int i = 0; i < 1; i++)
+                {
+                    std::cout << arg[i] << ":" << key << std::endl;
+                }
+            },
+            val);
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit([this, size, &key](auto arg) { fileutils::readADIOSStepAttribute(as_, key, arg); }, val);
+        std::visit(
+            [this, size, &key](auto arg)
+            {
+                fileutils::readADIOSStepAttribute(as_, key, arg, size);
+                for (int i = 0; i < 1; i++)
+                {
+                    std::cout << arg[i] << ":" << key << std::endl;
+                }
+                if (key == "boundaryType")
+                {
+                    for (int i = 0; i < 3; i++)
+                    {
+                        std::cout << arg[i] << ":" << key << std::endl;
+                    }
+                }
+            },
+            val);
     }
 
     void readField(const std::string& key, FieldType field) override
     {
-        std::visit([this, &key](auto arg) { fileutils::readADIOSField(as_, key, arg); }, field);
+        std::visit(
+            [this, &key](auto arg)
+            {
+                fileutils::readADIOSField(as_, key, arg);
+                for (int i = 0; i < 3; i++)
+                {
+                    std::cout << arg[i] << std::endl;
+                }
+            },
+            field);
     }
 
     uint64_t localNumParticles() override { return localCount_; }
