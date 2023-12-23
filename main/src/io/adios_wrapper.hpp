@@ -32,10 +32,10 @@ struct ADIOS2Settings
 
     // Rank-specific settings
     size_t numLocalParticles = 0;
-    size_t numTotalRanks = 0;
-    size_t offset = 0;
-    size_t rank = 0;
-    size_t currStep = 0; // Step, not numIteration
+    size_t numTotalRanks     = 0;
+    size_t offset            = 0;
+    size_t rank              = 0;
+    size_t currStep          = 0; // Step, not numIteration
 };
 
 // One executable should have 1 adios instance only
@@ -69,7 +69,7 @@ template<class T>
 void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* field)
 {
     // Technically the var definition should be outside of BeginStep()/EndStep() loop
-    // But given the current implementation of I/O APIs, and also numLocalParticles is not fixed,
+    // But given the current I/O APIs, and that numLocalParticles is not fixed,
     // I leave it like this.
     // Consequences are the "step" logic in ADIOS is not fully operating.
     adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName,                                 // Field name
@@ -96,7 +96,7 @@ void writeADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, c
 }
 
 template<class T>
-void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, const T * field)
+void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, const T* field)
 {
     // FileAttribute is a unique variable. It is written into step 0.
     // Write only in rank 0.
@@ -119,20 +119,13 @@ void initADIOSReader(ADIOS2Settings& as)
 #else
     as.adios = adios2::ADIOS();
 #endif
-    as.io                               = as.adios.DeclareIO("bpio");
+    as.io = as.adios.DeclareIO("bpio");
     return;
 }
-void openADIOSStepRead(ADIOS2Settings& as)
-{
-    as.reader = as.io.Open(as.fileName, adios2::Mode::ReadRandomAccess);
-    // as.reader.BeginStep();
-}
 
-void closeADIOSStepRead(ADIOS2Settings& as)
-{
-    // as.reader.EndStep();
-    as.reader.Close();
-}
+void openADIOSStepRead(ADIOS2Settings& as) { as.reader = as.io.Open(as.fileName, adios2::Mode::ReadRandomAccess); }
+
+void closeADIOSStepRead(ADIOS2Settings& as) { as.reader.Close(); }
 
 int64_t ADIOSGetNumParticles(ADIOS2Settings& as)
 {
@@ -151,32 +144,66 @@ int64_t ADIOSGetNumSteps(ADIOS2Settings& as)
 {
     // Time is a stepAttrib that gets written in all output formats
     // AllStepsBlocksInfo() is very expensive. Make sure it's only used once.
-    // adios2::Variable<double> in = ioObj.InquireVariable<double>("time");
-    adios2::Variable<uint64_t> in = as.io.InquireVariable<uint64_t>("iteration");
-    std::vector<size_t> res = as.reader.GetAbsoluteSteps(in);
+    adios2::Variable<uint64_t> variable = as.io.InquireVariable<uint64_t>("iteration");
+    std::vector<size_t>        res      = as.reader.GetAbsoluteSteps(variable);
+    if (res.back() <= 0) { throw std::runtime_error("The imported file is empty!"); }
     return res.back();
+}
+
+auto ADIOSGetFileAttributes(ADIOS2Settings& as)
+{
+    const std::map<std::string, adios2::Params> attribs = ioObj.AvailableAttributes();
+    std::vector<std::string>                    res;
+    std::ranges::transform(attribs, std::back_inserter(res), [](const auto& pair) { return pair.first; });
+    return res;
+}
+
+uint64_t ADIOSGetNumIterations(ADIOS2Settings& as)
+{
+    // Time is a stepAttrib that gets written in all output formats
+    // AllStepsBlocksInfo() is very expensive. Make sure it's only used once.
+    if (as.currStep == 0)
+    {
+        throw std::runtime_error(
+            "The imported file is empty! ADIOSGetNumIterations() should be called after ADIOSGetNumSteps().");
+    }
+    adios2::Variable<uint64_t> variable = as.io.InquireVariable<uint64_t>("iteration");
+    variable.SetStepSelection({as.currStep - 1, 1});
+    // variable.SetSelection(adios2::Box<adios2::Dims>(0, 1));
+    std::vector<uint64_t> res(1);
+    as.reader.Get(variable, res.data(), adios2::Mode::Sync);
+    return res[0];
 }
 
 template<class ExtractType>
 void readADIOSField(ADIOS2Settings& as, const std::string& fieldName, ExtractType* field)
 {
+    if (as.currStep == 0)
+    {
+        throw std::runtime_error(
+            "The imported file is empty! readADIOSField() should be called after ADIOSGetNumSteps().");
+    }
     adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
     variable.SetStepSelection({as.currStep - 1, 1});
-    variable.SetSelection(adios2::Box<adios2::Dims>(as.offset,           // Offset
-                                                    as.numLocalParticles // size to read
-                                                    ));
+    variable.SetSelection({{as.offset}, {as.numLocalParticles}});
     as.reader.Get(variable, field, adios2::Mode::Sync);
 }
 
 template<class ExtractType>
 void readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr)
 {
+    if (as.currStep == 0)
+    {
+        throw std::runtime_error(
+            "The imported file is empty! readADIOSStepAttribute() should be called after ADIOSGetNumSteps().");
+    }
     // StepAttrib is an ADIOS single variable.
     // Should be read by only 1 rank.
-    if (as.rank == 0) {
+    if (as.rank == 0)
+    {
         adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
         variable.SetStepSelection({as.currStep - 1, 1});
-        variable.SetSelection(adios2::Box<adios2::Dims>(0,1));
+        // variable.SetSelection(adios2::Box<adios2::Dims>(0, 1));
         as.reader.Get(variable, attr, adios2::Mode::Sync);
     }
 }
@@ -188,9 +215,10 @@ void readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
     // Thus if we need another instance to write, has to recreate without the original as.comm.
     // File attribute is a real attribute.
     // Should be read by only 1 rank.
-    if (as.rank == 0) {
+    if (as.rank == 0)
+    {
         adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
-        attr[0] = res.Data()[0];
+        attr[0]                            = res.Data()[0];
     }
 }
 

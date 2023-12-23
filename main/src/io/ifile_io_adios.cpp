@@ -40,7 +40,6 @@
 #include "adios_wrapper.hpp"
 #endif
 
-
 namespace sphexa
 {
 #ifdef SPH_EXA_HAVE_ADIOS
@@ -54,8 +53,8 @@ public:
         : comm_(comm)
     {
         MPI_Comm_rank(comm, &rank_);
-        as_.rank = rank_;
-        as_.comm = comm;
+        as_.rank     = rank_;
+        as_.comm     = comm;
         as_.accuracy = std::stof(compressionParam);
     }
 
@@ -80,19 +79,18 @@ public:
 
         // Here it's mandatory to refresh rank num into as_
 
-        if (lastIndex > firstIndex) {
+        if (lastIndex > firstIndex)
+        {
             as_.numLocalParticles = lastIndex - firstIndex;
-            currStep_         = currStep_ + 1;
+            currStep_             = currStep_ + 1;
         }
-        else {
-            as_.numLocalParticles = 0;
-        }
-        as_.comm = MPI_COMM_WORLD;
-        as_.fileName = path;
-        as_.rank = rank_;
+        else { as_.numLocalParticles = 0; }
+        as_.comm          = MPI_COMM_WORLD;
+        as_.fileName      = path;
+        as_.rank          = rank_;
         as_.numTotalRanks = totalRanks_;
-        as_.offset = firstIndex;
-        as_.currStep = currStep_;
+        as_.offset        = firstIndex;
+        as_.currStep      = currStep_;
 
         // For now, the writer will only append data instead of writing new
         fileutils::initADIOSWriter(as_);
@@ -107,18 +105,14 @@ public:
     {
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ = -MPI_Wtime();
-        std::visit([this, &key, size](auto arg) {
-            fileutils::writeADIOSStepAttribute(as_, key, arg);
-        }, val);
+        std::visit([this, &key, size](auto arg) { fileutils::writeADIOSStepAttribute(as_, key, arg); }, val);
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
     }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit([this, &key, size](auto arg) { 
-            fileutils::writeADIOSFileAttribute(as_, key, arg);
-         }, val);
+        std::visit([this, &key, size](auto arg) { fileutils::writeADIOSFileAttribute(as_, key, arg); }, val);
     }
 
     void writeField(const std::string& key, FieldType field, int = 0) override
@@ -128,12 +122,7 @@ public:
 
         // If there's a need to change particle numbers, do it here and now!!
         // Directly change it in as_.
-        std::visit(
-            [this, &key](auto arg)
-            {
-                fileutils::writeADIOSField(as_, key, arg);
-            },
-            field);
+        std::visit([this, &key](auto arg) { fileutils::writeADIOSField(as_, key, arg); }, field);
 
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
@@ -154,7 +143,8 @@ public:
         fileutils::closeADIOSStepWrite(as_);
         if (rank_ == 0)
         {
-            std::cout << "Writter!!!File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_ << std::endl;
+            std::cout << "Writter!!!File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_
+                      << std::endl;
         }
     }
 
@@ -172,8 +162,10 @@ private:
     fileutils::ADIOS2Settings as_;
 };
 
-std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm comm, const std::string& compressionMethod, const std::string& compressionParam) {
-        return std::make_unique<ADIOSWriter>(comm, compressionMethod, compressionParam);
+std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm comm, const std::string& compressionMethod,
+                                             const std::string& compressionParam)
+{
+    return std::make_unique<ADIOSWriter>(comm, compressionMethod, compressionParam);
 }
 
 // ============================================================================
@@ -207,18 +199,15 @@ public:
         : comm_(comm)
     {
         MPI_Comm_rank(comm, &rank_);
-        as_.rank = rank_;
-        as_.comm = comm;
+        as_.rank     = rank_;
+        as_.comm     = comm;
         as_.accuracy = std::stof(compressionParam);
     }
 
-    ~ADIOSReader() override { closeStep(); }
+    ~ADIOSReader() override {}
 
     [[nodiscard]] int     rank() const override { return rank_; }
-    [[nodiscard]] int64_t numParticles() const override
-    {
-        return globalCount_;
-    }
+    [[nodiscard]] int64_t numParticles() const override { return globalCount_; }
 
     /*! @brief open a file at a given step
      *
@@ -229,20 +218,24 @@ public:
      */
     void setStep(std::string path, int step, FileMode mode) override
     {
-        
-        pathStep_ = path;
-        as_.comm = comm_;
+
+        pathStep_    = path;
+        as_.comm     = comm_;
         as_.fileName = path;
         fileutils::initADIOSReader(as_);
         fileutils::openADIOSStepRead(as_);
 
         int64_t totalSteps = fileutils::ADIOSGetNumSteps(as_);
 
-        if (totalSteps <= 0) { return; }
+        // Step should >= 1
+        if (step <= totalSteps && step > 0) { as_.currStep = step; }
 
-        // set step to last step in file if negative
-        if (step < 0) { step = totalSteps; }
-        as_.currStep = step;
+        // set step to last iteration in file if negative
+        if (step < 0)
+        {
+            as_.currStep = totalSteps;
+            step         = ADIOSGetNumIterations(as_);
+        }
 
         globalCount_ = fileutils::ADIOSGetNumParticles(as_);
         if (globalCount_ < 1) { return; }
@@ -259,75 +252,45 @@ public:
         else { std::tie(firstIndex_, lastIndex_, localCount_) = std::make_tuple(0, globalCount_, globalCount_); }
 
         as_.numLocalParticles = localCount_;
-        as_.numTotalRanks = numRanks;
-        as_.offset = firstIndex_;
-        as_.rank = rank;
-
-        
-        
+        as_.numTotalRanks     = numRanks;
+        as_.offset            = firstIndex_;
+        as_.rank              = rank;
     }
 
-    std::vector<std::string> fileAttributes() override
-    {
-        return std::vector<std::string>();
-    }
+    std::vector<std::string> fileAttributes() override { return ADIOSGetFileAttributes(as_); }
 
-    std::vector<std::string> stepAttributes() override
-    {
-        return std::vector<std::string>();
-    }
+    std::vector<std::string> stepAttributes() override { return std::vector<std::string>(); }
 
-    int64_t fileAttributeSize(const std::string& key) override
-    {
-        return 1;
-    }
+    int64_t fileAttributeSize(const std::string& key) override { return 1; }
 
-    int64_t stepAttributeSize(const std::string& key) override
-    {
-        return 1;
-    }
+    int64_t stepAttributeSize(const std::string& key) override { return 1; }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit(
-            [this, size, &key](auto arg)
-            {
-                fileutils::readADIOSFileAttribute(as_, key, arg);
-            },
-            val);
+        std::visit([this, size, &key](auto arg) { fileutils::readADIOSFileAttribute(as_, key, arg); }, val);
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit(
-            [this, size, &key](auto arg)
-            {
-                fileutils::readADIOSStepAttribute(as_, key, arg);
-            },
-            val);
+        std::visit([this, size, &key](auto arg) { fileutils::readADIOSStepAttribute(as_, key, arg); }, val);
     }
 
     void readField(const std::string& key, FieldType field) override
     {
-        std::visit([this, &key](auto arg) {
-            fileutils::readADIOSField(as_, key, arg);
-        }, field);
+        std::visit([this, &key](auto arg) { fileutils::readADIOSField(as_, key, arg); }, field);
     }
 
     uint64_t localNumParticles() override { return localCount_; }
 
     uint64_t globalNumParticles() override { return globalCount_; }
 
-    void closeStep() override
-    {
-        closeADIOSStepRead(as_);
-    }
+    void closeStep() override { closeADIOSStepRead(as_); }
 
 private:
     int      rank_{0}, numRanks_{0};
     MPI_Comm comm_;
 
-    uint64_t      firstIndex_{0}, lastIndex_{0};
+    uint64_t    firstIndex_{0}, lastIndex_{0};
     uint64_t    localCount_;
     uint64_t    globalCount_;
     std::string pathStep_;
@@ -335,18 +298,16 @@ private:
     fileutils::ADIOS2Settings as_;
 };
 
-std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm comm, const std::string& compressionMethod,const std::string& compressionParam) 
+std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm comm, const std::string& compressionMethod,
+                                             const std::string& compressionParam)
 {
-    return std::make_unique<ADIOSReader>(comm, compressionMethod, compressionParam); 
+    return std::make_unique<ADIOSReader>(comm, compressionMethod, compressionParam);
 }
-
 
 #else
 
-std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm, const std::string&,
-                                               const std::string&) { return {}; }
-std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm, const std::string&,
-                                               const std::string&) { return {}; }
+std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm, const std::string&, const std::string&) { return {}; }
+std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm, const std::string&, const std::string&) { return {}; }
 
 #endif
 
