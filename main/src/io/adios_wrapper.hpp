@@ -152,7 +152,7 @@ int64_t ADIOSGetNumSteps(ADIOS2Settings& as)
 
 auto ADIOSGetFileAttributes(ADIOS2Settings& as)
 {
-    const std::map<std::string, adios2::Params> attribs = ioObj.AvailableAttributes();
+    const std::map<std::string, adios2::Params> attribs = as.io.AvailableAttributes();
     std::vector<std::string>                    res;
     std::ranges::transform(attribs, std::back_inserter(res), [](const auto& pair) { return pair.first; });
     return res;
