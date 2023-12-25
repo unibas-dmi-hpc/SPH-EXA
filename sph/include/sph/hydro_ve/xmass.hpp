@@ -52,10 +52,6 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, Dataset& d, const csto
     const auto* whd = d.whd.data();
 
     auto* xm = d.xm.data();
-    for (int i = 0; i < 5; i++)
-    {
-        std::cout << xm[i] << std::endl;
-    }
 
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; i++)

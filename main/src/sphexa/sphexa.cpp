@@ -77,33 +77,33 @@ int main(int argc, char** argv)
     using Dataset = SimulationData<AccType>;
     using Domain  = cstone::Domain<SphTypes::KeyType, SphTypes::CoordinateType, AccType>;
 
-    const std::string        initCond     = parser.get("--init");
-    const size_t             problemSize  = parser.get("-n", 50);
-    const std::string        glassBlock   = parser.get("--glass");
-    const std::string        propChoice   = parser.get("--prop", std::string("ve"));
-    const std::string        maxStepStr   = parser.get("-s", std::string("200"));
-    std::vector<std::string> writeExtra   = parser.getCommaList("--wextra");
-    std::vector<std::string> outputFields = parser.getCommaList("-f");
-    const bool               ascii        = parser.exists("--ascii");
-    const bool               quiet        = parser.exists("--quiet");
-    const bool               avClean      = parser.exists("--avclean");
-    const int                simDuration  = parser.get("--duration", std::numeric_limits<int>::max());
+    const std::string        initCond          = parser.get("--init");
+    const size_t             problemSize       = parser.get("-n", 50);
+    const std::string        glassBlock        = parser.get("--glass");
+    const std::string        propChoice        = parser.get("--prop", std::string("ve"));
+    const std::string        maxStepStr        = parser.get("-s", std::string("200"));
+    std::vector<std::string> writeExtra        = parser.getCommaList("--wextra");
+    std::vector<std::string> outputFields      = parser.getCommaList("-f");
+    const bool               ascii             = parser.exists("--ascii");
+    const bool               quiet             = parser.exists("--quiet");
+    const bool               avClean           = parser.exists("--avclean");
+    const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
     const std::string        compressionMethod = parser.get("--compression", std::string(""));
     const std::string        compressionParam  = parser.get("--compression-param", std::string(""));
-    const std::string        writeFreqStr = parser.get("-w", std::string("0"));
-    const bool               writeEnabled = writeFreqStr != "0" || !writeExtra.empty();
-    const std::string        profFreqStr  = parser.get("--profile", maxStepStr);
-    const bool               profEnabled  = parser.exists("--profile");
-    const std::string        pmroot       = parser.get("--pmroot", std::string("/sys/cray/pm_counters"));
-    std::string              outFile      = parser.get("-o", "dump_" + removeModifiers(initCond));
+    const std::string        writeFreqStr      = parser.get("-w", std::string("0"));
+    const bool               writeEnabled      = writeFreqStr != "0" || !writeExtra.empty();
+    const std::string        profFreqStr       = parser.get("--profile", maxStepStr);
+    const bool               profEnabled       = parser.exists("--profile");
+    const std::string        pmroot            = parser.get("--pmroot", std::string("/sys/cray/pm_counters"));
+    std::string              outFile           = parser.get("-o", "dump_" + removeModifiers(initCond));
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = (quiet || rank) ? nullOutput : std::cout;
     std::ofstream constantsFile(fs::path(outFile).parent_path() / fs::path("constants.txt"));
 
     //! @brief evaluate user choice for different kind of actions
-    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD, compressionMethod, compressionParam);
-    auto fileReader  = fileReaderFactory(ascii, MPI_COMM_WORLD, compressionMethod, compressionParam);
+    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD, compressionMethod, compressionParam, outFile);
+    auto fileReader  = fileReaderFactory(ascii, MPI_COMM_WORLD, compressionMethod, compressionParam, initCond);
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get());
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank, simInit->constants());
     auto observables = observablesFactory<Dataset>(simInit->constants(), constantsFile);
@@ -129,9 +129,7 @@ int main(int argc, char** argv)
     float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 
     if (!parser.exists("-o")) { outFile += fileWriter->suffix(); }
-    if (writeEnabled) { 
-        writeSettings(simInit->constants(), outFile, fileWriter.get()); 
-    }
+    if (writeEnabled) { writeSettings(simInit->constants(), outFile, fileWriter.get()); }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
     uint64_t bucketSizeFocus = 64;

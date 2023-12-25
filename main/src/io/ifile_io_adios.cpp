@@ -143,7 +143,7 @@ public:
         fileutils::closeADIOSStepWrite(as_);
         if (rank_ == 0)
         {
-            std::cout << "Writter!!!File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_
+            std::cout << "ADIOS2 Writer -- File init elapse: " << fileInitTime_ << ", writing elapse: " << writeTime_
                       << std::endl;
         }
     }
@@ -267,16 +267,7 @@ public:
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit(
-            [this, size, &key](auto arg)
-            {
-                fileutils::readADIOSFileAttribute(as_, key, arg, size);
-                for (int i = 0; i < 1; i++)
-                {
-                    std::cout << arg[i] << ":" << key << std::endl;
-                }
-            },
-            val);
+        std::visit([this, size, &key](auto arg) { fileutils::readADIOSFileAttribute(as_, key, arg, size); }, val);
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
@@ -285,10 +276,6 @@ public:
             [this, size, &key](auto arg)
             {
                 fileutils::readADIOSStepAttribute(as_, key, arg, size);
-                for (int i = 0; i < 1; i++)
-                {
-                    std::cout << arg[i] << ":" << key << std::endl;
-                }
                 if (key == "boundaryType")
                 {
                     for (int i = 0; i < 3; i++)
@@ -302,16 +289,7 @@ public:
 
     void readField(const std::string& key, FieldType field) override
     {
-        std::visit(
-            [this, &key](auto arg)
-            {
-                fileutils::readADIOSField(as_, key, arg);
-                for (int i = 0; i < 3; i++)
-                {
-                    std::cout << arg[i] << std::endl;
-                }
-            },
-            field);
+        std::visit([this, &key](auto arg) { fileutils::readADIOSField(as_, key, arg); }, field);
     }
 
     uint64_t localNumParticles() override { return localCount_; }

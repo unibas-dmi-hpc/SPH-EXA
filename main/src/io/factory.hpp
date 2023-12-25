@@ -31,46 +31,52 @@
 #pragma once
 
 #include <memory>
+#include <filesystem>
 
 #include "ifile_io_impl.h"
 
 namespace sphexa
 {
 
-std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const std::string& compressionMethod,
-                                               const std::string& compressionParam = "")
+std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const std::string& filePath = "",
+                                               const std::string& compressionMethod,
+                                               const std::string& compressionParam = "", )
 {
     if (ascii) { return makeAsciiWriter(comm); }
+    // If the file suffix ends in ".bp", use ADIOS reader/writer.
+    // else use H5Part reader/writer, but then compression is unavailable.
+    auto suffix = std::filesystem::path(filePath).extension().string();
+    if (suffix == ".bp")
+    {
+#ifdef SPH_EXA_HAVE_ADIOS
+        return makeADIOSWriter(comm, compressionMethod, compressionParam);
+#endif
+        throw std::runtime_error(
+            "unsupported compression file i/o choice. BP I/O is only available with ADIOS2 enabled.\n");
+    }
     else
     {
-        if (compressionMethod == "")
+        if (compressionParam != "" || compressionMethod != "")
         {
-// If no compression specified, both adios and h5part can work.
-// Adios is preferred for compatibility reasons
-#ifdef SPH_EXA_HAVE_ADIOS
-            return makeADIOSWriter(comm, compressionMethod, compressionParam);
-#endif
-            return makeH5PartWriter(comm);
-        }
-        else
-        {
-// If compression, only adios would work
-#ifdef SPH_EXA_HAVE_ADIOS
-            return makeADIOSWriter(comm, compressionMethod, compressionParam);
-#endif
             throw std::runtime_error(
-                "unsupported compression file i/o choice. Compression is only available with ADIOS.\n");
+                "unsupported compression file i/o choice. Compression is only available with ADIOS2 enabled.\n");
         }
+        return makeH5PartWriter(comm);
     }
 }
 
-std::unique_ptr<IFileReader> fileReaderFactory(bool /*ascii*/, MPI_Comm comm, const std::string& compressionMethod,
-                                               const std::string& compressionParam = "")
+std::unique_ptr<IFileReader> fileReaderFactory(bool /*ascii*/, MPI_Comm comm, const std::string& filePath = "",
+                                               const std::string& compressionMethod,
+                                               const std::string& compressionParam = "", )
 {
-
+    auto suffix = std::filesystem::path(filePath).extension().string();
+    if (suffix == ".bp")
+    {
 #ifdef SPH_EXA_HAVE_ADIOS
-    return makeADIOSReader(comm, compressionMethod, compressionParam);
+        return makeADIOSReader(comm, compressionMethod, compressionParam);
 #endif
+        throw std::runtime_error("unsupported file i/o choice. BP I/O is only available with ADIOS2 enabled.\n");
+    }
     return makeH5PartReader(comm);
 }
 
