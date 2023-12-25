@@ -121,7 +121,7 @@ int main(int argc, char** argv)
     propagator->activateFields(simData);
     propagator->load(initCond, fileReader.get());
     auto box = simInit->init(rank, numRanks, problemSize, simData, fileReader.get(), fileReaderGlassBlock.get());
-
+    std::cout << "Domain synchronized, nLocalParticles " << simData.hydro.x.size() << std::endl;
     auto& d = simData.hydro;
     transferAllocatedToDevice(d, 0, d.x.size(), propagator->conservedFields());
     simData.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);

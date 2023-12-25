@@ -47,7 +47,7 @@ void initADIOSWriter(ADIOS2Settings& as)
     as.adios = adios2::ADIOS();
 #endif
     as.io                               = as.adios.DeclareIO("bpio");
-    adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy);
+    adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy, "", "", true);
     // To avoid compiling warnings
     (void)attribute;
     return;
@@ -154,9 +154,14 @@ uint64_t ADIOSGetNumSteps(ADIOS2Settings& as)
     // Time is a stepAttrib that gets written in all output formats
     // AllStepsBlocksInfo() is very expensive. Make sure it's only used once.
     adios2::Variable<uint64_t> variable = as.io.InquireVariable<uint64_t>("iteration");
-    std::vector<size_t>        res      = as.reader.GetAbsoluteSteps(variable);
-    if (res.back() <= 0) { throw std::runtime_error("The imported file is empty!"); }
-    return res.back();
+    return variable.Steps();
+    // std::vector<size_t> res = as.reader.GetAbsoluteSteps(variable);
+    // for (auto i : res)
+    // {
+    //     std::cout << i << std::endl;
+    // }
+    // if (res.back() <= 0) { throw std::runtime_error("The imported file is empty!"); }
+    // return res.back();
 }
 
 auto ADIOSGetFileAttributes(ADIOS2Settings& as)
