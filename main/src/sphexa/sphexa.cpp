@@ -148,6 +148,7 @@ int main(int argc, char** argv)
     size_t startIteration = d.iteration;
     for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
     {
+
         propagator->step(domain, simData);
         box = domain.box();
 

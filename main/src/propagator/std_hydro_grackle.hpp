@@ -145,7 +145,6 @@ public:
             domain.sync(get<"keys">(d), get<"x">(d), get<"y">(d), get<"z">(d), get<"h">(d),
                         std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d));
         }
-
         std::vector<ChemRealType> scratch1, scratch2;
         domain.reapplySync(get<CoolingFields>(simData.chem), scratch1, scratch2, get<"nc">(d));
         d.treeView = domain.octreeProperties();

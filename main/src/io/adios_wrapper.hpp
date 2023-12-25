@@ -226,22 +226,22 @@ void readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
     }
     // StepAttrib is an ADIOS single variable.
     // Should be read by only 1 rank.
-    if (as.rank == 0)
+    // if (as.rank == 0)
+    // {
+    if (size == 1)
     {
-        if (size == 1)
-        {
-            adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
-            variable.SetStepSelection({as.currStep - 1, 1});
-            as.reader.Get(variable, attr, adios2::Mode::Sync);
-        }
-        else
-        {
-            adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
-            variable.SetStepSelection({as.currStep - 1, 1});
-            variable.SetSelection({{0}, {size}});
-            as.reader.Get(variable, attr, adios2::Mode::Sync);
-        }
+        adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
+        variable.SetStepSelection({as.currStep - 1, 1});
+        as.reader.Get(variable, attr, adios2::Mode::Sync);
     }
+    else
+    {
+        adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
+        variable.SetStepSelection({as.currStep - 1, 1});
+        variable.SetSelection({{0}, {size}});
+        as.reader.Get(variable, attr, adios2::Mode::Sync);
+    }
+    // }
 }
 
 template<class ExtractType>
@@ -251,22 +251,22 @@ void readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
     // Thus if we need another instance to write, has to recreate without the original as.comm.
     // File attribute is a real attribute.
     // Should be read by only 1 rank.
-    if (as.rank == 0)
+    // if (as.rank == 0)
+    // {
+    if (size == 1)
     {
-        if (size == 1)
+        adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
+        attr[0]                            = res.Data()[0];
+    }
+    else
+    {
+        adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
+        for (u_int64_t i = 0; i < res.Data().size(); i++)
         {
-            adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
-            attr[0]                            = res.Data()[0];
-        }
-        else
-        {
-            adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
-            for (u_int64_t i = 0; i < res.Data().size(); i++)
-            {
-                attr[i] = res.Data()[i];
-            }
+            attr[i] = res.Data()[i];
         }
     }
+    // }
 }
 
 } // namespace fileutils

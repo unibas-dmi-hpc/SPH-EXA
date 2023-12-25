@@ -61,7 +61,7 @@ public:
         }
         catch (const std::invalid_argument& e)
         {
-            std::cout << "No compression for output set." << std::endl;
+            if (rank_ == 0) std::cout << "No compression for output set." << std::endl;
         }
     }
 
@@ -201,7 +201,7 @@ public:
         }
         catch (const std::invalid_argument& e)
         {
-            std::cout << "No compression for input set." << std::endl;
+            if (rank_ == 0) std::cout << "No compression for input set." << std::endl;
         }
     }
 
@@ -273,19 +273,7 @@ public:
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit(
-            [this, size, &key](auto arg)
-            {
-                fileutils::readADIOSStepAttribute(as_, key, arg, size);
-                if (key == "boundaryType")
-                {
-                    for (int i = 0; i < 3; i++)
-                    {
-                        std::cout << arg[i] << ":" << key << std::endl;
-                    }
-                }
-            },
-            val);
+        std::visit([this, size, &key](auto arg) { fileutils::readADIOSStepAttribute(as_, key, arg, size); }, val);
     }
 
     void readField(const std::string& key, FieldType field) override
