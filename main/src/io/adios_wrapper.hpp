@@ -28,6 +28,7 @@ struct ADIOS2Settings
     std::string      fileName;
 
     // Compression settings
+    // TODO: need a better API for setting up compressor
     double accuracy = 1E-6;
 
     // Rank-specific settings
@@ -106,8 +107,8 @@ void writeADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, c
 template<class T>
 void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, const T* field, uint64_t size = 1)
 {
-    // FileAttribute is a unique variable. It is written into step 0.
-    // Write only in rank 0.
+    // FileAttribute is a unique variable.
+    // It is written into step 0. Write only by rank 0.
     // There's no need for compression.
     if (as.rank == 0)
     {
@@ -117,10 +118,6 @@ void writeADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, c
     }
 }
 
-// ============================================================================
-// ============================================================================
-
-// Suppose we only have 1D arrays here
 void initADIOSReader(ADIOS2Settings& as)
 {
 #if ADIOS2_USE_MPI
@@ -146,22 +143,15 @@ uint64_t ADIOSGetNumParticles(ADIOS2Settings& as)
 }
 
 // This is step, not numIteration!!!
+// Step is number of data groups within a checkpoint.
 // Here the numSteps includes step0 (i.e. the step without actual particles)
 // Returns the last Step where iteration is available
 // Actual last step to read from should be {res.back() - 1, 1}
 uint64_t ADIOSGetNumSteps(ADIOS2Settings& as)
 {
-    // Time is a stepAttrib that gets written in all output formats
-    // AllStepsBlocksInfo() is very expensive. Make sure it's only used once.
+    // iteration is a stepAttrib that gets written in all output formats
     adios2::Variable<uint64_t> variable = as.io.InquireVariable<uint64_t>("iteration");
     return variable.Steps();
-    // std::vector<size_t> res = as.reader.GetAbsoluteSteps(variable);
-    // for (auto i : res)
-    // {
-    //     std::cout << i << std::endl;
-    // }
-    // if (res.back() <= 0) { throw std::runtime_error("The imported file is empty!"); }
-    // return res.back();
 }
 
 auto ADIOSGetFileAttributes(ADIOS2Settings& as)
@@ -187,8 +177,7 @@ uint64_t ADIOSGetStepAttributeSize(ADIOS2Settings& as, const std::string& key)
 
 uint64_t ADIOSGetNumIterations(ADIOS2Settings& as)
 {
-    // Time is a stepAttrib that gets written in all output formats
-    // AllStepsBlocksInfo() is very expensive. Make sure it's only used once.
+    // iteration is a stepAttrib that gets written in all output formats, as long as it's not empty.
     if (as.currStep == 0)
     {
         throw std::runtime_error(
@@ -196,7 +185,6 @@ uint64_t ADIOSGetNumIterations(ADIOS2Settings& as)
     }
     adios2::Variable<uint64_t> variable = as.io.InquireVariable<uint64_t>("iteration");
     variable.SetStepSelection({as.currStep - 1, 1});
-    // variable.SetSelection(adios2::Box<adios2::Dims>(0, 1));
     std::vector<uint64_t> res(1);
     as.reader.Get(variable, res.data(), adios2::Mode::Sync);
     return res[0];
@@ -225,9 +213,7 @@ void readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
             "The imported file is empty! readADIOSStepAttribute() should be called after ADIOSGetNumSteps().");
     }
     // StepAttrib is an ADIOS single variable.
-    // Should be read by only 1 rank.
-    // if (as.rank == 0)
-    // {
+    // Can be read by every rank -- ADIOS will handle the MPI communication.
     if (size == 1)
     {
         adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
@@ -241,7 +227,6 @@ void readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
         variable.SetSelection({{0}, {size}});
         as.reader.Get(variable, attr, adios2::Mode::Sync);
     }
-    // }
 }
 
 template<class ExtractType>
@@ -250,9 +235,8 @@ void readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
     // One MPI_COMM can only have one ADIOS instance.
     // Thus if we need another instance to write, has to recreate without the original as.comm.
     // File attribute is a real attribute.
-    // Should be read by only 1 rank.
-    // if (as.rank == 0)
-    // {
+    // Can be read by every rank -- ADIOS will handle the MPI communication.
+
     if (size == 1)
     {
         adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);
@@ -266,7 +250,6 @@ void readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
             attr[i] = res.Data()[i];
         }
     }
-    // }
 }
 
 } // namespace fileutils

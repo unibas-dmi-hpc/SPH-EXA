@@ -207,6 +207,7 @@ public:
         ReorderFunctor_t<std::decay_t<decltype(sfcOrder)>> sorter(sfcOrder);
 
         auto scratch = util::discardLastElement(scratchBuffers);
+
         auto [exchangeStart, keyView] =
             distribute(sorter, particleKeys, x, y, z, std::tuple_cat(std::tie(h), particleProperties), scratch);
         // h is already reordered here for use in halo discovery
@@ -463,13 +464,13 @@ private:
     {
         initBounds(x.size());
         auto distributedArrays = std::tuple_cat(std::tie(keys, x, y, z), particleProperties);
-
         std::apply([size = x.size()](auto&... arrays) { checkSizesEqual(size, arrays...); }, distributedArrays);
 
         // Global tree build and assignment
         auto exchangeSize = global_.assign(bufDesc_, sorter, std::get<0>(scratchBuffers), std::get<1>(scratchBuffers),
                                            rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
         lowMemReallocate(exchangeSize, 1.01, distributedArrays, scratchBuffers);
+
         return std::apply(
             [exchangeSize, &sorter, &scratchBuffers, this](auto&... arrays)
             {

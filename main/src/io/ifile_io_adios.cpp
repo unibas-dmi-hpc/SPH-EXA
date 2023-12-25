@@ -80,12 +80,7 @@ public:
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ = -MPI_Wtime();
 
-        // BP doesn't have hierarchical structure, thus each timestep
-        // has a unique specifier in the variable name. When reading in,
-        // we use regex for parsing the hierarchy.
-
         // Here it's mandatory to refresh rank num into as_
-
         if (lastIndex > firstIndex)
         {
             as_.numLocalParticles = lastIndex - firstIndex;
