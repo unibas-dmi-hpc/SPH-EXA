@@ -53,9 +53,16 @@ public:
         : comm_(comm)
     {
         MPI_Comm_rank(comm, &rank_);
-        as_.rank     = rank_;
-        as_.comm     = comm;
-        as_.accuracy = std::stof(compressionParam);
+        as_.rank = rank_;
+        as_.comm = comm;
+        try
+        {
+            as_.accuracy = std::stof(compressionParam);
+        }
+        catch (const std::invalid_argument& e)
+        {
+            std::cout << "No compression for output set." << std::endl;
+        }
     }
 
     ~ADIOSWriter() override {}
@@ -128,16 +135,6 @@ public:
         writeTime_ += MPI_Wtime();
     }
 
-    // void setNumParticles(uint64_t numParticles) override { totalNumParticles_ = numParticles; }
-
-    // void setCompression(const std::string& compressionMethod, const std::string& compressionParam) override
-    // {
-    //     // if (compressionMethod == "gzip") h5z_.compression = fileutils::CompressionMethod::gzip;
-    //     // if (compressionMethod == "szip") h5z_.compression = fileutils::CompressionMethod::szip;
-    //     // if (compressionMethod == "zfp") h5z_.compression = fileutils::CompressionMethod::zfp;
-    //     // h5z_.compressionParam = compressionParam;
-    // }
-
     void closeStep() override
     {
         fileutils::closeADIOSStepWrite(as_);
@@ -168,9 +165,6 @@ std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm comm, const std::string& c
     return std::make_unique<ADIOSWriter>(comm, compressionMethod, compressionParam);
 }
 
-// ============================================================================
-// ============================================================================
-
 inline auto partitionRange(size_t R, size_t i, size_t N)
 {
     size_t s = R / N;
@@ -199,9 +193,16 @@ public:
         : comm_(comm)
     {
         MPI_Comm_rank(comm, &rank_);
-        as_.rank     = rank_;
-        as_.comm     = comm;
-        as_.accuracy = std::stof(compressionParam);
+        as_.rank = rank_;
+        as_.comm = comm;
+        try
+        {
+            as_.accuracy = std::stof(compressionParam);
+        }
+        catch (const std::invalid_argument& e)
+        {
+            std::cout << "No compression for input set." << std::endl;
+        }
     }
 
     ~ADIOSReader() override {}

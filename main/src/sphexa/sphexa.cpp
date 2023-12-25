@@ -101,10 +101,12 @@ int main(int argc, char** argv)
     std::ostream& output = (quiet || rank) ? nullOutput : std::cout;
     std::ofstream constantsFile(fs::path(outFile).parent_path() / fs::path("constants.txt"));
 
-    //! @brief evaluate user choice for different kind of actions
-    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD, compressionMethod, compressionParam, outFile);
-    auto fileReader  = fileReaderFactory(ascii, MPI_COMM_WORLD, compressionMethod, compressionParam, initCond);
-    auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get());
+    //! @brief evaluate user choice for different kind of actions.
+    //! @brief glassBlock and initCond can be in different formats, but glassBlock shouldn't be compressed.
+    auto fileWriter           = fileWriterFactory(ascii, MPI_COMM_WORLD, outFile, compressionMethod, compressionParam);
+    auto fileReader           = fileReaderFactory(ascii, MPI_COMM_WORLD, initCond, compressionMethod, compressionParam);
+    auto fileReaderGlassBlock = fileReaderFactory(ascii, MPI_COMM_WORLD, glassBlock);
+    auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get(), fileReaderGlassBlock.get());
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank, simInit->constants());
     auto observables = observablesFactory<Dataset>(simInit->constants(), constantsFile);
 
@@ -118,7 +120,7 @@ int main(int argc, char** argv)
     propagator->addCounters(profEnabled ? pmroot : "", getNumLocalRanks(numRanks));
     propagator->activateFields(simData);
     propagator->load(initCond, fileReader.get());
-    auto box = simInit->init(rank, numRanks, problemSize, simData, fileReader.get());
+    auto box = simInit->init(rank, numRanks, problemSize, simData, fileReader.get(), fileReaderGlassBlock.get());
 
     auto& d = simData.hydro;
     transferAllocatedToDevice(d, 0, d.x.size(), propagator->conservedFields());

@@ -39,8 +39,8 @@ namespace sphexa
 {
 
 std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const std::string& filePath = "",
-                                               const std::string& compressionMethod,
-                                               const std::string& compressionParam = "", )
+                                               const std::string& compressionMethod = "",
+                                               const std::string& compressionParam  = "")
 {
     if (ascii) { return makeAsciiWriter(comm); }
     // If the file suffix ends in ".bp", use ADIOS reader/writer.
@@ -58,16 +58,16 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
     {
         if (compressionParam != "" || compressionMethod != "")
         {
-            throw std::runtime_error(
-                "unsupported compression file i/o choice. Compression is only available with ADIOS2 enabled.\n");
+            throw std::runtime_error("unsupported compression file i/o choice. Output compression is only available "
+                                     "with BP file and ADIOS2 enabled.\n");
         }
         return makeH5PartWriter(comm);
     }
 }
 
 std::unique_ptr<IFileReader> fileReaderFactory(bool /*ascii*/, MPI_Comm comm, const std::string& filePath = "",
-                                               const std::string& compressionMethod,
-                                               const std::string& compressionParam = "", )
+                                               const std::string& compressionMethod = "",
+                                               const std::string& compressionParam  = "")
 {
     auto suffix = std::filesystem::path(filePath).extension().string();
     if (suffix == ".bp")

@@ -131,7 +131,8 @@ public:
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
-                                                 IFileReader* reader) const override
+                                                 IFileReader* reader,
+                                                 IFileReader* readerGlassBlock = nullptr) const override
     {
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
@@ -139,7 +140,10 @@ public:
         auto  pbc     = cstone::BoundaryType::periodic;
 
         std::vector<T> xBlock, yBlock, zBlock;
-        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
+        if (readerGlassBlock)
+            readTemplateBlock(glassBlock, readerGlassBlock, xBlock, yBlock, zBlock);
+        else
+            readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
         sortBySfcKey<KeyType>(xBlock, yBlock, zBlock);
 
         cstone::Box<T> globalBox(0, 1, 0, 1, 0, 0.0625, pbc, pbc, pbc);
