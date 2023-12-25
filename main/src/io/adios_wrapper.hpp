@@ -77,7 +77,7 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
                                                       {as.offset},            // Starting local offset
                                                       {as.numLocalParticles}, // Local dimensions (limited to 1 rank)
                                                       adios2::ConstantDims);
-    var.AddOperation("sz", {{"accuracy", std::to_string(as.accuracy)}});
+    // var.AddOperation("sz", {{"accuracy", std::to_string(as.accuracy)}});
     as.writer.Put(var, field);
 }
 

@@ -41,32 +41,37 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
                                                const std::string& compressionParam = "")
 {
     if (ascii) { return makeAsciiWriter(comm); }
-    else {
-        if (compressionMethod == "") {
-            // If no compression specified, both adios and h5part can work.
-            // Adios is preferred for compatibility reasons
-            #ifdef SPH_EXA_HAVE_ADIOS
+    else
+    {
+        if (compressionMethod == "")
+        {
+// If no compression specified, both adios and h5part can work.
+// Adios is preferred for compatibility reasons
+#ifdef SPH_EXA_HAVE_ADIOS
             return makeADIOSWriter(comm, compressionMethod, compressionParam);
-            #endif
+#endif
             return makeH5PartWriter(comm);
         }
-        else {
-            // If compression, only adios would work
-            #ifdef SPH_EXA_HAVE_ADIOS
+        else
+        {
+// If compression, only adios would work
+#ifdef SPH_EXA_HAVE_ADIOS
             return makeADIOSWriter(comm, compressionMethod, compressionParam);
-            #endif
-            throw std::runtime_error("unsupported compression file i/o choice. Compression is only available with ADIOS.\n");
+#endif
+            throw std::runtime_error(
+                "unsupported compression file i/o choice. Compression is only available with ADIOS.\n");
         }
     }
 }
 
 std::unique_ptr<IFileReader> fileReaderFactory(bool /*ascii*/, MPI_Comm comm, const std::string& compressionMethod,
-                                               const std::string& compressionParam = "") {
-    
-    #ifdef SPH_EXA_HAVE_ADIOS
+                                               const std::string& compressionParam = "")
+{
+
+#ifdef SPH_EXA_HAVE_ADIOS
     return makeADIOSReader(comm, compressionMethod, compressionParam);
-    #endif
+#endif
     return makeH5PartReader(comm);
-    }
+}
 
 } // namespace sphexa
