@@ -179,8 +179,8 @@ Available compressors:
   - `accuracy`: a float number, fixed absolute error tolerance.
   - `tolerance`: an integer, fixed number of bits in a compression unit.
   **The 2 fields above are mutually exclusive.**
-  - `mode`: a string, specifying backend device. Can be `cuda`, `omp` or `serial`. `omp` by default.
-  - `s`: a string, specifying backend device. Can be `cuda`, `omp` or `serial`. `omp` by default.
+  - `mode`: 
+  - `s`: 
 
 Example usage:  
 * ```OMP_NUM_THREADS=4 ./sphexa --init sedov -n 100 -s 1000 -w 10 -f x,y,z,rho,p```
