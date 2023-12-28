@@ -51,11 +51,11 @@ public:
 
     void insert(const std::string& key, const std::string& value) { settingsMap_[key] = value; }
 
-    std::string get(const std::string& key) const
+    std::string get(const std::string& key, const std::string defaultValue = "") const
     {
         auto it = settingsMap_.find(key);
         if (it != settingsMap_.end()) { return it->second; }
-        return ""; // Return an empty string if the key is not found
+        return defaultValue; // Return an empty string if the key is not found
     }
 
     std::string getSettingsString() const { return settingsString_; }
@@ -92,7 +92,8 @@ struct ADIOS2Settings
 
     // Compression settings
     // TODO: need a better API for setting up compressor
-    CompressorSettings cs;
+    CompressorSettings                      cs;
+    std::map<std::string, adios2::Operator> operators;
 
     // Rank-specific settings
     size_t numLocalParticles = 0;
@@ -106,7 +107,10 @@ struct ADIOS2Settings
     {
     }
 
-    std::string getCompressorSetting(const std::string& key) { return cs.get(key); }
+    std::string getCompressorSetting(const std::string& key, const std::string defaultValue = "")
+    {
+        return cs.get(key, defaultValue);
+    }
 };
 
 // One executable should have 1 adios instance only
@@ -119,6 +123,17 @@ void initADIOSWriter(ADIOS2Settings& as)
 #endif
     as.io = as.adios.DeclareIO("bpio");
     as.io.DefineAttribute<std::string>("CompressorSettings", as.cs.getSettingsString(), "", "", true);
+    if (as.cs.isSet())
+    {
+        if (as.getCompressorSetting("name") == "zfp")
+        {
+            as.operators["zfp"] = as.adios.DefineOperator("CompressorZFP", adios2::ops::LossyZFP);
+        }
+        else if (as.getCompressorSetting("name") == "mgard")
+        {
+            as.operators["mgard"] = adios.DefineOperator("CompressorMGARD", adios2::ops::LossyMGARD);
+        }
+    }
     return;
 }
 
@@ -150,9 +165,49 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
     {
         if (as.getCompressorSetting("name") == "sz")
         {
-            var.AddOperation("sz", {{"accuracy", as.getCompressorSetting("accuracy")}});
+            var.AddOperation("sz", {{"accuracy", as.getCompressorSetting("accuracy", "0.0000001")}});
         }
-        else {}
+        else if (as.getCompressorSetting("name") == "zfp")
+        {
+            if (as.cs.contains("accuracy"))
+            {
+                var.AddOperation(as.operators["zfp"],
+                                 {{adios2::ops::zfp::key::accuracy, as.getCompressorSetting("accuracy", "0.0000001")},
+                                  {adios2::ops::zfp::key::backend, as.getCompressorSetting("backend", "omp")}});
+            }
+            else if (as.cs.contains("rate"))
+            {
+                var.AddOperation(as.operators["zfp"],
+                                 {{adios2::ops::zfp::key::rate, as.getCompressorSetting("rate", "7")},
+                                  {adios2::ops::zfp::key::backend, as.getCompressorSetting("backend", "omp")}});
+            }
+            else if (as.cs.contains("precision"))
+            {
+                var.AddOperation(as.operators["zfp"],
+                                 {{adios2::ops::zfp::key::precision, as.getCompressorSetting("precision", "7")},
+                                  {adios2::ops::zfp::key::backend, as.getCompressorSetting("backend", "omp")}});
+            }
+            else {}
+        }
+        else if (as.getCompressorSetting("name") == "mgard")
+        {
+            if (as.cs.contains("accuracy"))
+            {
+                var.AddOperation(as.operators["mgard"], {{adios2::ops::mgard::key::accuracy,
+                                                          as.getCompressorSetting("accuracy", "0.0000001")}});
+            }
+            else if (as.cs.contains("tolerance"))
+            {
+                var.AddOperation(as.operators["mgard"],
+                                 {{adios2::ops::mgard::key::rate, as.getCompressorSetting("tolerance", "7")}});
+            }
+            else if (as.cs.contains("s"))
+            {
+                var.AddOperation(as.operators["mgard"],
+                                 {{adios2::ops::mgard::key::s, as.getCompressorSetting("s", "7")}});
+            }
+            else {}
+        }
     }
     as.writer.Put(var, field);
 }

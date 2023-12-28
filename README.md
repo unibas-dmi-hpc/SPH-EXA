@@ -163,13 +163,24 @@ Compressor example usage:
 * ```--compression name=sz,accuracy=0.01```: use SZ lossy compressor for output, accuracy is 0.01
 
 Available compressors:
-* ```sz```: SZ, need SZ installed. Available fields: `accuracy`: a float number.
+* ```sz```: SZ, need SZ installed. Available fields:
+  - `accuracy`: a float number, fixed absolute error tolerance
 * ```cusz```: cuSZ, CUDA-based SZ. Need SZ installed and ADIOS compiled with CUDA
 * ```cuszp```: cuSZp, CUDA-based accelerated SZ. Need SZ and CUDA installed, and ADIOS compiled with LibPressio
-* ```zfp```: ZFP, need ZFP installed
+* ```zfp```: ZFP, need ZFP installed. Available fields:
+  - `accuracy`: a float number, fixed absolute error tolerance.
+  - `rate`: an integer, fixed number of bits in a compression unit.
+  - `precision`: an integer, fixed number of uncompressed bits per value.
+  **The 3 fields above are mutually exclusive.**
+  - `backend`: a string, specifying backend device. Can be `cuda`, `omp` or `serial`. `omp` by default.
 * ```cuzfp```: cuZFP, CUDA-based ZFP. Need SZ installed and ADIOS compiled with CUDA
 * ```bzip2```: BZip2, need BZip2 installed
-* ```mgard```: MGARD, need MGARD installed
+* ```mgard```: MGARD, need MGARD installed. See [here](https://github.com/CODARcode/MGARD/blob/master/doc/MGARD-X.md) for detailed info of params. Available fields:
+  - `accuracy`: a float number, fixed absolute error tolerance.
+  - `tolerance`: an integer, fixed number of bits in a compression unit.
+  **The 2 fields above are mutually exclusive.**
+  - `mode`: a string, specifying backend device. Can be `cuda`, `omp` or `serial`. `omp` by default.
+  - `s`: a string, specifying backend device. Can be `cuda`, `omp` or `serial`. `omp` by default.
 
 Example usage:  
 * ```OMP_NUM_THREADS=4 ./sphexa --init sedov -n 100 -s 1000 -w 10 -f x,y,z,rho,p```
