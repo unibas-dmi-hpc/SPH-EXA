@@ -15,6 +15,69 @@ namespace sphexa
 {
 namespace fileutils
 {
+/*! @brief Class for parsing and storing compressor settings
+ *
+ * Following fields are mandatory:
+ * name
+ */
+class CompressorSettings
+{
+private:
+    std::map<std::string, std::string> settingsMap_;
+    std::string                        settingsString_;
+
+public:
+    CompressorSettings() {}
+
+    CompressorSettings(const std::string& input, char pairDelimiter = ',', char keyValueDelimiter = '=')
+        : settingsString_(input)
+    {
+        std::istringstream iss(input);
+        std::string        token;
+
+        while (std::getline(iss, token, pairDelimiter))
+        {
+            std::istringstream tokenStream(token);
+            std::string        key, value;
+
+            if (std::getline(tokenStream, key, keyValueDelimiter) && std::getline(tokenStream, value))
+            {
+                settingsMap_[key] = value;
+            }
+        }
+    }
+
+    CompressorSettings(const CompressorSettings& other) { settingsMap_ = other.settingsMap_; }
+
+    void insert(const std::string& key, const std::string& value) { settingsMap_[key] = value; }
+
+    std::string get(const std::string& key) const
+    {
+        auto it = settingsMap_.find(key);
+        if (it != settingsMap_.end()) { return it->second; }
+        return ""; // Return an empty string if the key is not found
+    }
+
+    std::string getSettingsString() const { return settingsString_; }
+
+    bool contains(const std::string& key) const { return settingsMap_.find(key) != settingsMap_.end(); }
+
+    bool isSet() const
+    {
+        if (get("name") == "") return false;
+        return true;
+    }
+
+    void remove(const std::string& key) { settingsMap_.erase(key); }
+
+    void print() const
+    {
+        for (const auto& pair : settingsMap_)
+        {
+            std::cout << "Key: " << pair.first << ", Value: " << pair.second << std::endl;
+        }
+    }
+};
 
 struct ADIOS2Settings
 {
@@ -29,7 +92,7 @@ struct ADIOS2Settings
 
     // Compression settings
     // TODO: need a better API for setting up compressor
-    double accuracy = 1E-6;
+    CompressorSettings cs;
 
     // Rank-specific settings
     size_t numLocalParticles = 0;
@@ -37,6 +100,13 @@ struct ADIOS2Settings
     size_t offset            = 0;
     size_t rank              = 0;
     size_t currStep          = 0; // Step, not numIteration
+
+    ADIOS2Settings(const std::string& n)
+        : cs(n)
+    {
+    }
+
+    std::string getCompressorSetting(const std::string& key) { return cs.get(key); }
 };
 
 // One executable should have 1 adios instance only
@@ -47,10 +117,8 @@ void initADIOSWriter(ADIOS2Settings& as)
 #else
     as.adios = adios2::ADIOS();
 #endif
-    as.io                               = as.adios.DeclareIO("bpio");
-    adios2::Attribute<double> attribute = as.io.DefineAttribute<double>("SZ_accuracy", as.accuracy, "", "", true);
-    // To avoid compiling warnings
-    (void)attribute;
+    as.io = as.adios.DeclareIO("bpio");
+    as.io.DefineAttribute<std::string>("CompressorSettings", as.cs.getSettingsString(), "", "", true);
     return;
 }
 
@@ -78,7 +146,14 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
                                                       {as.offset},            // Starting local offset
                                                       {as.numLocalParticles}, // Local dimensions (limited to 1 rank)
                                                       adios2::ConstantDims);
-    // var.AddOperation("sz", {{"accuracy", std::to_string(as.accuracy)}});
+    if (as.cs.isSet())
+    {
+        if (as.getCompressorSetting("name") == "sz")
+        {
+            var.AddOperation("sz", {{"accuracy", as.getCompressorSetting("accuracy")}});
+        }
+        else {}
+    }
     as.writer.Put(var, field);
 }
 

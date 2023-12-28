@@ -39,8 +39,7 @@ namespace sphexa
 {
 
 std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const std::string& filePath = "",
-                                               const std::string& compressionMethod = "",
-                                               const std::string& compressionParam  = "")
+                                               const std::string& compression = "")
 {
     if (ascii) { return makeAsciiWriter(comm); }
     // If the file suffix ends in ".bp", use ADIOS reader/writer.
@@ -49,14 +48,14 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
     if (suffix == ".bp")
     {
 #ifdef SPH_EXA_HAVE_ADIOS
-        return makeADIOSWriter(comm, compressionMethod, compressionParam);
+        return makeADIOSWriter(comm, compression);
 #endif
         throw std::runtime_error(
             "unsupported compression file i/o choice. BP I/O is only available with ADIOS2 enabled.\n");
     }
     else
     {
-        if (compressionParam != "" || compressionMethod != "")
+        if (compression != "")
         {
             throw std::runtime_error("unsupported compression file i/o choice. Output compression is only available "
                                      "with BP file and ADIOS2 enabled.\n");
@@ -66,14 +65,13 @@ std::unique_ptr<IFileWriter> fileWriterFactory(bool ascii, MPI_Comm comm, const 
 }
 
 std::unique_ptr<IFileReader> fileReaderFactory(bool /*ascii*/, MPI_Comm comm, const std::string& filePath = "",
-                                               const std::string& compressionMethod = "",
-                                               const std::string& compressionParam  = "")
+                                               const std::string& compression = "")
 {
     auto suffix = std::filesystem::path(filePath).extension().string();
     if (suffix == ".bp")
     {
 #ifdef SPH_EXA_HAVE_ADIOS
-        return makeADIOSReader(comm, compressionMethod, compressionParam);
+        return makeADIOSReader(comm, compression);
 #endif
         throw std::runtime_error("unsupported file i/o choice. BP I/O is only available with ADIOS2 enabled.\n");
     }

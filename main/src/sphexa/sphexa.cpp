@@ -77,25 +77,24 @@ int main(int argc, char** argv)
     using Dataset = SimulationData<AccType>;
     using Domain  = cstone::Domain<SphTypes::KeyType, SphTypes::CoordinateType, AccType>;
 
-    const std::string        initCond          = parser.get("--init");
-    const size_t             problemSize       = parser.get("-n", 50);
-    const std::string        glassBlock        = parser.get("--glass");
-    const std::string        propChoice        = parser.get("--prop", std::string("ve"));
-    const std::string        maxStepStr        = parser.get("-s", std::string("200"));
-    std::vector<std::string> writeExtra        = parser.getCommaList("--wextra");
-    std::vector<std::string> outputFields      = parser.getCommaList("-f");
-    const bool               ascii             = parser.exists("--ascii");
-    const bool               quiet             = parser.exists("--quiet");
-    const bool               avClean           = parser.exists("--avclean");
-    const int                simDuration       = parser.get("--duration", std::numeric_limits<int>::max());
-    const std::string        compressionMethod = parser.get("--compression", std::string(""));
-    const std::string        compressionParam  = parser.get("--compression-param", std::string(""));
-    const std::string        writeFreqStr      = parser.get("-w", std::string("0"));
-    const bool               writeEnabled      = writeFreqStr != "0" || !writeExtra.empty();
-    const std::string        profFreqStr       = parser.get("--profile", maxStepStr);
-    const bool               profEnabled       = parser.exists("--profile");
-    const std::string        pmroot            = parser.get("--pmroot", std::string("/sys/cray/pm_counters"));
-    std::string              outFile           = parser.get("-o", "dump_" + removeModifiers(initCond));
+    const std::string        initCond     = parser.get("--init");
+    const size_t             problemSize  = parser.get("-n", 50);
+    const std::string        glassBlock   = parser.get("--glass");
+    const std::string        propChoice   = parser.get("--prop", std::string("ve"));
+    const std::string        maxStepStr   = parser.get("-s", std::string("200"));
+    std::vector<std::string> writeExtra   = parser.getCommaList("--wextra");
+    std::vector<std::string> outputFields = parser.getCommaList("-f");
+    const bool               ascii        = parser.exists("--ascii");
+    const bool               quiet        = parser.exists("--quiet");
+    const bool               avClean      = parser.exists("--avclean");
+    const int                simDuration  = parser.get("--duration", std::numeric_limits<int>::max());
+    const std::string        compression  = parser.get("--compression", std::string(""));
+    const std::string        writeFreqStr = parser.get("-w", std::string("0"));
+    const bool               writeEnabled = writeFreqStr != "0" || !writeExtra.empty();
+    const std::string        profFreqStr  = parser.get("--profile", maxStepStr);
+    const bool               profEnabled  = parser.exists("--profile");
+    const std::string        pmroot       = parser.get("--pmroot", std::string("/sys/cray/pm_counters"));
+    std::string              outFile      = parser.get("-o", "dump_" + removeModifiers(initCond));
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = (quiet || rank) ? nullOutput : std::cout;
@@ -103,8 +102,8 @@ int main(int argc, char** argv)
 
     //! @brief evaluate user choice for different kind of actions.
     //! @brief glassBlock and initCond can be in different formats, but glassBlock shouldn't be compressed.
-    auto fileWriter           = fileWriterFactory(ascii, MPI_COMM_WORLD, outFile, compressionMethod, compressionParam);
-    auto fileReader           = fileReaderFactory(ascii, MPI_COMM_WORLD, initCond, compressionMethod, compressionParam);
+    auto fileWriter           = fileWriterFactory(ascii, MPI_COMM_WORLD, outFile, compression);
+    auto fileReader           = fileReaderFactory(ascii, MPI_COMM_WORLD, initCond, compression);
     auto fileReaderGlassBlock = fileReaderFactory(ascii, MPI_COMM_WORLD, glassBlock);
     auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get(), fileReaderGlassBlock.get());
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank, simInit->constants());

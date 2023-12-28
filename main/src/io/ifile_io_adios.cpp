@@ -49,20 +49,13 @@ public:
     using Base      = IFileWriter;
     using FieldType = typename Base::FieldType;
 
-    explicit ADIOSWriter(MPI_Comm comm, const std::string& compressionMethod, const std::string& compressionParam = "")
+    explicit ADIOSWriter(MPI_Comm comm, const std::string& compression = "")
         : comm_(comm)
+        , as_(compression)
     {
         MPI_Comm_rank(comm, &rank_);
         as_.rank = rank_;
         as_.comm = comm;
-        try
-        {
-            as_.accuracy = std::stof(compressionParam);
-        }
-        catch (const std::invalid_argument& e)
-        {
-            if (rank_ == 0) std::cout << "No compression for output set." << std::endl;
-        }
     }
 
     ~ADIOSWriter() override {}
@@ -154,10 +147,9 @@ private:
     fileutils::ADIOS2Settings as_;
 };
 
-std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm comm, const std::string& compressionMethod,
-                                             const std::string& compressionParam)
+std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm comm, const std::string& compression)
 {
-    return std::make_unique<ADIOSWriter>(comm, compressionMethod, compressionParam);
+    return std::make_unique<ADIOSWriter>(comm, compression);
 }
 
 inline auto partitionRange(size_t R, size_t i, size_t N)
@@ -184,20 +176,13 @@ public:
     using Base      = IFileReader;
     using FieldType = typename Base::FieldType;
 
-    explicit ADIOSReader(MPI_Comm comm, const std::string& compressionMethod, const std::string& compressionParam = "")
+    explicit ADIOSReader(MPI_Comm comm, const std::string& compression = "")
         : comm_(comm)
+        , as_(compression)
     {
         MPI_Comm_rank(comm, &rank_);
         as_.rank = rank_;
         as_.comm = comm;
-        try
-        {
-            as_.accuracy = std::stof(compressionParam);
-        }
-        catch (const std::invalid_argument& e)
-        {
-            if (rank_ == 0) std::cout << "No compression for input set." << std::endl;
-        }
     }
 
     ~ADIOSReader() override {}
@@ -294,16 +279,15 @@ private:
     fileutils::ADIOS2Settings as_;
 };
 
-std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm comm, const std::string& compressionMethod,
-                                             const std::string& compressionParam)
+std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm comm, const std::string& compression)
 {
-    return std::make_unique<ADIOSReader>(comm, compressionMethod, compressionParam);
+    return std::make_unique<ADIOSReader>(comm, compression);
 }
 
 #else
 
-std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm, const std::string&, const std::string&) { return {}; }
-std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm, const std::string&, const std::string&) { return {}; }
+std::unique_ptr<IFileWriter> makeADIOSWriter(MPI_Comm, const std::string&) { return {}; }
+std::unique_ptr<IFileReader> makeADIOSReader(MPI_Comm, const std::string&) { return {}; }
 
 #endif
 
