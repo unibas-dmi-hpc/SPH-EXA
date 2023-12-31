@@ -131,7 +131,7 @@ void initADIOSWriter(ADIOS2Settings& as)
         }
         else if (as.getCompressorSetting("name") == "mgard")
         {
-            as.operators["mgard"] = adios.DefineOperator("CompressorMGARD", adios2::ops::LossyMGARD);
+            as.operators["mgard"] = as.adios.DefineOperator("CompressorMGARD", adios2::ops::LossyMGARD);
         }
     }
     return;
