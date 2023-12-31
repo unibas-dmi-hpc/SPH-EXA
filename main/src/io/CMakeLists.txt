@@ -17,7 +17,7 @@ function(enableADIOS exename)
         target_link_libraries(${exename} PRIVATE adios2::cxx11_mpi MPI::MPI_C)
     endif()
     if (ADIOS_WITH_MGARD)
-        target_compile_definitions(${exename} PUBLIC ADIOS_HAVE_MGARD)
+        target_compile_definitions(${exename} PUBLIC ADIOS2_HAVE_MGARD)
     endif()
 endfunction()
 
