@@ -121,17 +121,52 @@ void initADIOSWriter(ADIOS2Settings& as)
 #else
     as.adios = adios2::ADIOS();
 #endif
+    // TODO: will add this back very soon after the new release of ADIOS2
+    // So that we can get rid of all the ifdefs
+
+    // const char* const* list_operators = nullptr;
+    // size_t             noperators     = 0;
+    // adios2_available_operators(&noperators, &list_operators);
     as.io = as.adios.DeclareIO("bpio");
     as.io.DefineAttribute<std::string>("CompressorSettings", as.cs.getSettingsString(), "", "", true);
     if (as.cs.isSet())
     {
         if (as.getCompressorSetting("name") == "zfp")
         {
+#ifdef ADIOS2_HAVE_ZFP
             as.operators["zfp"] = as.adios.DefineOperator("CompressorZFP", adios2::ops::LossyZFP);
+#else
+            throw std::runtime_error("Unsupported compressor ZFP. Compile ADIOS2 with ZFP to enable it.");
+#endif
         }
         else if (as.getCompressorSetting("name") == "mgard")
         {
+#ifdef ADIOS2_HAVE_MGARD
             as.operators["mgard"] = as.adios.DefineOperator("CompressorMGARD", adios2::ops::LossyMGARD);
+#else
+            throw std::runtime_error("Unsupported compressor MGARD. Compile ADIOS2 with MGARD to enable it.");
+#endif
+        }
+        else if (as.getCompressorSetting("name") == "bzip2")
+        {
+#ifdef ADIOS2_HAVE_BZIP2
+#else
+            throw std::runtime_error("Unsupported compressor BZip2. Compile ADIOS2 with BZip2 to enable it.");
+#endif
+        }
+        else if (as.getCompressorSetting("name") == "sz")
+        {
+#ifdef ADIOS2_HAVE_SZ
+#else
+            throw std::runtime_error("Unsupported compressor SZ. Compile ADIOS2 with SZ to enable it.");
+#endif
+        }
+        else if (as.getCompressorSetting("name") == "png")
+        {
+#ifdef ADIOS2_HAVE_PNG
+#else
+            throw std::runtime_error("Unsupported compressor PNG(GZip). Compile ADIOS2 with PNG(GZip) to enable it.");
+#endif
         }
     }
     return;
@@ -165,10 +200,15 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
     {
         if (as.getCompressorSetting("name") == "sz")
         {
+#ifdef ADIOS2_HAVE_SZ
             var.AddOperation("sz", {{"accuracy", as.getCompressorSetting("accuracy", "0.0000001")}});
+#else
+            throw std::runtime_error("Unsupported compressor ZFP. Compile ADIOS2 with ZFP to enable it.");
+#endif
         }
         else if (as.getCompressorSetting("name") == "zfp")
         {
+#ifdef ADIOS2_HAVE_ZFP
             if (as.cs.contains("accuracy"))
             {
                 var.AddOperation(as.operators["zfp"],
@@ -177,6 +217,7 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
             }
             else if (as.cs.contains("rate"))
             {
+
                 var.AddOperation(as.operators["zfp"],
                                  {{adios2::ops::zfp::key::rate, as.getCompressorSetting("rate", "7")},
                                   {adios2::ops::zfp::key::backend, as.getCompressorSetting("backend", "omp")}});
@@ -188,9 +229,13 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
                                   {adios2::ops::zfp::key::backend, as.getCompressorSetting("backend", "omp")}});
             }
             else {}
+#else
+            throw std::runtime_error("Unsupported compressor ZFP. Compile ADIOS2 with ZFP to enable it.");
+#endif
         }
         else if (as.getCompressorSetting("name") == "mgard")
         {
+#ifdef ADIOS2_HAVE_MGARD
             if (as.cs.contains("accuracy"))
             {
                 var.AddOperation(as.operators["mgard"], {{adios2::ops::mgard::key::accuracy,
@@ -207,6 +252,9 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
                                  {{adios2::ops::mgard::key::s, as.getCompressorSetting("s", "0")}});
             }
             else {}
+#else
+            throw std::runtime_error("Unsupported compressor MGARD. Compile ADIOS2 with MGARD to enable it.");
+#endif
         }
     }
     as.writer.Put(var, field);
