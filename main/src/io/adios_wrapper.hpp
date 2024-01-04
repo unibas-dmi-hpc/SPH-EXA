@@ -107,6 +107,8 @@ struct ADIOS2Settings
     {
     }
 
+    void setCompressor(const std::string& n) { cs = CompressorSettings(n); }
+
     std::string getCompressorSetting(const std::string& key, const std::string defaultValue = "")
     {
         return cs.get(key, defaultValue);
@@ -256,6 +258,29 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
             throw std::runtime_error("Unsupported compressor MGARD. Compile ADIOS2 with MGARD to enable it.");
 #endif
         }
+        else if (as.getCompressorSetting("name") == "bzip2")
+        {
+#ifdef ADIOS2_HAVE_BZIP2
+            var.AddOperation(adios2::ops::LosslessBZIP2,
+                             {{adios2::ops::bzip2::key::blockSize100k,
+                               as.getCompressorSetting("blockSize100k", adios2::ops::bzip2::value::blockSize100k_9)}});
+#else
+            throw std::runtime_error("Unsupported compressor BZIP2. Compile ADIOS2 with BZIP2 to enable it.");
+#endif
+        }
+        else if (as.getCompressorSetting("name") == "lz" || as.getCompressorSetting("name") == "lz4" ||
+                 as.getCompressorSetting("name") == "lz4hc" || as.getCompressorSetting("name") == "zlib" ||
+                 as.getCompressorSetting("name") == "zstd")
+        {
+#ifdef ADIOS2_HAVE_BLOSC2
+            var.AddOperation(adios2::ops::LosslessBlosc,
+                             {{adios2::ops::blosc::key::compressor, as.getCompressorSetting("name", "")},
+                              {adios2::ops::blosc::key::clevel,
+                               as.getCompressorSetting("level", adios2::ops::blosc::value::clevel_9)}});
+#else
+            throw std::runtime_error("Unsupported compressor. Compile ADIOS2 with BLOSC2 to enable it.");
+#endif
+        }
     }
     as.writer.Put(var, field);
 }
@@ -334,15 +359,19 @@ uint64_t ADIOSGetNumSteps(ADIOS2Settings& as)
 
 auto ADIOSGetFileAttributes(ADIOS2Settings& as)
 {
-    const std::map<std::string, adios2::Params> attribs = as.io.AvailableAttributes();
-    std::vector<std::string>                    res;
+    std::map<std::string, adios2::Params> attribs = as.io.AvailableAttributes();
+    // Skip "CompressorSettings" because it's not related to SPH
+    attribs.erase("CompressorSettings");
+    std::vector<std::string> res;
     std::ranges::transform(attribs, std::back_inserter(res), [](const auto& pair) { return pair.first; });
     return res;
 }
 
 uint64_t ADIOSGetFileAttributeSize(ADIOS2Settings& as, const std::string& key)
 {
-    const std::map<std::string, adios2::Params> attribs = as.io.AvailableAttributes();
+    std::map<std::string, adios2::Params> attribs = as.io.AvailableAttributes();
+    // Skip "CompressorSettings" because it's not related to SPH
+    attribs.erase("CompressorSettings");
     return std::stoi(attribs.at(key).at("Elements"));
 }
 
@@ -407,6 +436,18 @@ void readADIOSStepAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
     }
 }
 
+std::string readADIOSFileCompressorSettings(ADIOS2Settings& as)
+{
+
+    auto interpretation_att = as.io.InquireAttribute<std::string>("CompressorSettings");
+    if (interpretation_att)
+    {
+        std::string interpretation = interpretation_att.Data()[0];
+        return interpretation;
+    }
+    return "";
+}
+
 template<class ExtractType>
 void readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, ExtractType* attr, uint64_t size = 1)
 {
@@ -414,7 +455,6 @@ void readADIOSFileAttribute(ADIOS2Settings& as, const std::string& fieldName, Ex
     // Thus if we need another instance to write, has to recreate without the original as.comm.
     // File attribute is a real attribute.
     // Can be read by every rank -- ADIOS will handle the MPI communication.
-
     if (size == 1)
     {
         adios2::Attribute<ExtractType> res = as.io.InquireAttribute<ExtractType>(fieldName);

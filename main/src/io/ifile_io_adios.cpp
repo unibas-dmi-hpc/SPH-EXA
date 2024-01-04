@@ -210,6 +210,7 @@ public:
 
         // Step should >= 1
         if (step <= totalSteps && step > 0) { as_.currStep = step; }
+        as_.setCompressor(fileutils::readADIOSFileCompressorSettings(as_));
 
         // set step to last iteration in file if negative
         if (step < 0)
