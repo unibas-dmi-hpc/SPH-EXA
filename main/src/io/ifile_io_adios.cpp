@@ -93,13 +93,14 @@ public:
 
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ += MPI_Wtime();
-        pathStep_ = path;
+        pathStep_  = path;
+        writeTime_ = 0;
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
         MPI_Barrier(MPI_COMM_WORLD);
-        writeTime_ = -MPI_Wtime();
+        writeTime_ += -MPI_Wtime();
         std::visit([this, &key, size](auto arg) { fileutils::writeADIOSStepAttribute(as_, key, arg, size); }, val);
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
@@ -113,7 +114,7 @@ public:
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
         MPI_Barrier(MPI_COMM_WORLD);
-        writeTime_ = -MPI_Wtime();
+        writeTime_ += -MPI_Wtime();
 
         // If there's a need to change particle numbers, do it here and now!!
         // Directly change it in as_.
@@ -242,6 +243,7 @@ public:
 
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ += MPI_Wtime();
+        readTime_ = 0;
     }
 
     std::vector<std::string> fileAttributes() override { return ADIOSGetFileAttributes(as_); }
@@ -255,7 +257,7 @@ public:
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
         MPI_Barrier(MPI_COMM_WORLD);
-        readTime_ = -MPI_Wtime();
+        readTime_ += -MPI_Wtime();
         std::visit([this, size, &key](auto arg) { fileutils::readADIOSFileAttribute(as_, key, arg, size); }, val);
         MPI_Barrier(MPI_COMM_WORLD);
         readTime_ += MPI_Wtime();
@@ -264,7 +266,7 @@ public:
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
         MPI_Barrier(MPI_COMM_WORLD);
-        readTime_ = -MPI_Wtime();
+        readTime_ += -MPI_Wtime();
         std::visit([this, size, &key](auto arg) { fileutils::readADIOSStepAttribute(as_, key, arg, size); }, val);
         MPI_Barrier(MPI_COMM_WORLD);
         readTime_ += MPI_Wtime();
@@ -273,7 +275,7 @@ public:
     void readField(const std::string& key, FieldType field) override
     {
         MPI_Barrier(MPI_COMM_WORLD);
-        readTime_ = -MPI_Wtime();
+        readTime_ += -MPI_Wtime();
         std::visit([this, &key](auto arg) { fileutils::readADIOSField(as_, key, arg); }, field);
         MPI_Barrier(MPI_COMM_WORLD);
         readTime_ += MPI_Wtime();
