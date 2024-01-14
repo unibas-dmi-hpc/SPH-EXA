@@ -378,7 +378,9 @@ uint64_t ADIOSGetFileAttributeSize(ADIOS2Settings& as, const std::string& key)
 uint64_t ADIOSGetStepAttributeSize(ADIOS2Settings& as, const std::string& key)
 {
     const std::map<std::string, adios2::Params> attribs = as.io.AvailableAttributes();
-    if (attribs.at(key).at("SingleValue") == "true") { return 1; }
+
+    if (std::stoi(attribs.at(key).at("Elements")) > 1) { return std::stoi(attribs.at(key).at("Elements")); }
+    else if (attribs.at(key).at("SingleValue") == "true") { return 1; }
     else { return std::stoi(attribs.at(key).at("Shape")); }
 }
 

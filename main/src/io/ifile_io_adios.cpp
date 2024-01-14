@@ -200,7 +200,6 @@ public:
      */
     void setStep(std::string path, int step, FileMode mode) override
     {
-        std::cout << "start setting step..." << std::endl;
         pathStep_    = path;
         as_.comm     = comm_;
         as_.fileName = path;
@@ -252,7 +251,7 @@ public:
 
     int64_t fileAttributeSize(const std::string& key) override { return ADIOSGetFileAttributeSize(as_, key); }
 
-    int64_t stepAttributeSize(const std::string& key) override { return 1; }
+    int64_t stepAttributeSize(const std::string& key) override { return ADIOSGetStepAttributeSize(as_, key); }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {

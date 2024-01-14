@@ -89,20 +89,20 @@ public:
     template<class Archive>
     void loadOrStore(Archive* ar)
     {
-        std::cout << "start loadorstore" << std::endl;
+
         std::string prefix = "turbulence::";
         ar->stepAttribute(prefix + "variance", &variance, 1);
         ar->stepAttribute(prefix + "decayTime", &decayTime, 1);
         ar->stepAttribute(prefix + "solWeight", &solWeight, 1);
         ar->stepAttribute(prefix + "solWeightNorm", &solWeightNorm, 1);
         ar->stepAttribute(prefix + "numModes", &numModes, 1);
-        std::cout << "start resize nummodes" << std::endl;
+
         resize(numModes);
 
         ar->stepAttribute(prefix + "modes", modes.data(), modes.size());
         ar->stepAttribute(prefix + "amplitudes", amplitudes.data(), amplitudes.size());
         ar->stepAttribute(prefix + "phases", phases.data(), phases.size());
-        std::cout << "start uploadmodes" << std::endl;
+
         uploadModes();
 
         std::stringstream s;
@@ -111,10 +111,12 @@ public:
 
         int64_t rngStateSize = ar->stepAttributeSize("rngEngineState");
         rngStateSize         = (rngStateSize) ? rngStateSize : int64_t(engineState.size());
-        std::cout << "start engineState.resize(rngStateSize) " << std::endl;
+
         engineState.resize(rngStateSize);
-        std::cout << "start ar->stepAttribute(rngEngineState, engineState.data(), rngStateSize); " << std::endl;
-        ar->stepAttribute("rngEngineState", engineState.data(), rngStateSize);
+
+        ar->fileAttribute("rngEngineState", engineState.data(), rngStateSize);
+
+        // ar->stepAttribute("rngEngineState", engineState.data(), rngStateSize);
 
         s = std::stringstream{};
         s << engineState;
