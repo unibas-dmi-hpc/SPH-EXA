@@ -114,10 +114,10 @@ public:
 
         engineState.resize(rngStateSize);
 
-        ar->fileAttribute("rngEngineState", engineState.data(), rngStateSize);
-
-        // ar->stepAttribute("rngEngineState", engineState.data(), rngStateSize);
-
+        // Since ADIOS cannot read a step attrib that doesn't exist in step0 (i.e. in file root)
+        // To keep compatibility I add hard-coded writing for rngEngineState in low-level APIs
+        // But really, it should not be...
+        ar->stepAttribute("rngEngineState", engineState.data(), rngStateSize);
         s = std::stringstream{};
         s << engineState;
         s >> gen;

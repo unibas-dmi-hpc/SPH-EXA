@@ -101,6 +101,7 @@ public:
     {
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += -MPI_Wtime();
+        if (key == "rngEngineState") { return fileAttribute(key, val, size); }
         std::visit([this, &key, size](auto arg) { fileutils::writeADIOSStepAttribute(as_, key, arg, size); }, val);
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
@@ -266,7 +267,15 @@ public:
     {
         MPI_Barrier(MPI_COMM_WORLD);
         readTime_ += -MPI_Wtime();
-        std::visit([this, size, &key](auto arg) { fileutils::readADIOSStepAttribute(as_, key, arg, size); }, val);
+        try
+        {
+            std::visit([this, size, &key](auto arg) { fileutils::readADIOSStepAttribute(as_, key, arg, size); }, val);
+        }
+        catch (const std::invalid_argument& e)
+        {
+            return fileAttribute(key, val, size);
+        }
+
         MPI_Barrier(MPI_COMM_WORLD);
         readTime_ += MPI_Wtime();
     }
