@@ -200,7 +200,7 @@ public:
      */
     void setStep(std::string path, int step, FileMode mode) override
     {
-
+        std::cout << "start setting step..." << std::endl;
         pathStep_    = path;
         as_.comm     = comm_;
         as_.fileName = path;

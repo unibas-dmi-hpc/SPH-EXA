@@ -34,6 +34,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <iostream>
 
 #include "ifile_io_impl.h"
 
