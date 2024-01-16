@@ -59,7 +59,7 @@ propagatorFactory(const std::string& choice, bool avClean, std::ostream& output,
 #ifdef SPH_EXA_HAVE_GRACKLE
     if (choice == "std-cooling")
     {
-        return std::make_unique<HydroGrackleProp<DomainType, ParticleDataType>>(output, rank);
+        return std::make_unique<HydroGrackleProp<DomainType, ParticleDataType>>(output, rank, s);
     }
 #endif
     if (choice == "nbody") { return std::make_unique<NbodyProp<DomainType, ParticleDataType>>(output, rank); }

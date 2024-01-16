@@ -74,8 +74,14 @@ public:
         [[maybe_unused]] std::initializer_list<int> list{(setState(fields, State::dependent), 0)...};
     }
 
-    bool isAllocated(size_t fieldIdx) const { return fieldStates_[fieldIdx] != State::unused; }
-    bool isConserved(size_t fieldIdx) const { return fieldStates_[fieldIdx] == State::conserved; }
+    bool isAllocated(size_t fieldIdx) const
+    {
+        return fieldIdx < fieldStates_.size() && fieldStates_[fieldIdx] != State::unused;
+    }
+    bool isConserved(size_t fieldIdx) const
+    {
+        return fieldIdx < fieldStates_.size() && fieldStates_[fieldIdx] == State::conserved;
+    }
 
     bool isAllocated(const std::string& field) const
     {

@@ -52,8 +52,8 @@ int main()
     Octree<KeyType> octree;
     octree.update(treeLeaves.data(), nNodes(treeLeaves));
 
-    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);
-    int probeRank                   = numRanks / 2;
+    auto assignment = makeSfcAssignment(numRanks, counts, treeLeaves.data());
+    int probeRank   = numRanks / 2;
 
     auto tp0                  = std::chrono::high_resolution_clock::now();
     std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, invThetaMinMac(0.5f));

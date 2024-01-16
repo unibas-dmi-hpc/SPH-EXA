@@ -33,9 +33,9 @@
  */
 
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
-#include <vector>
 
 #include "cstone/domain/domain.hpp"
 
@@ -74,10 +74,8 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    using Real    = double;
-    using KeyType = uint64_t;
-    using Dataset = SimulationData<Real, KeyType, AccType>;
-    using Domain  = cstone::Domain<KeyType, Real, AccType>;
+    using Dataset = SimulationData<AccType>;
+    using Domain  = cstone::Domain<SphTypes::KeyType, SphTypes::CoordinateType, AccType>;
 
     const std::string        initCond     = parser.get("--init");
     const size_t             problemSize  = parser.get("-n", 50);
@@ -118,10 +116,10 @@ int main(int argc, char** argv)
     propagator->addCounters(profEnabled ? pmroot : "", getNumLocalRanks(numRanks));
     propagator->activateFields(simData);
     propagator->load(initCond, fileReader.get());
-    cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, simData, fileReader.get());
+    auto box = simInit->init(rank, numRanks, problemSize, simData, fileReader.get());
 
     auto& d = simData.hydro;
-    transferToDevice(d, 0, d.x.size(), propagator->conservedFields());
+    transferAllocatedToDevice(d, 0, d.x.size(), propagator->conservedFields());
     simData.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
 
     if (parser.exists("--G")) { d.g = parser.get<double>("--G"); }

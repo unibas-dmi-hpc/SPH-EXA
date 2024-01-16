@@ -83,6 +83,9 @@ extern Tout reduceGpu(const Tin* input, size_t numElements, Tout init);
 template<class IndexType>
 extern void sequenceGpu(IndexType* input, size_t numElements, IndexType init);
 
+template<class KeyType>
+extern void sortGpu(KeyType* first, KeyType* last, KeyType* keyBuf);
+
 template<class KeyType, class ValueType>
 extern void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values, KeyType* keyBuf, ValueType* valueBuf);
 

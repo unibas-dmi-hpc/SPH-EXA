@@ -132,13 +132,6 @@ void computeMomentumEnergyStdGpu(size_t startIndex, size_t endIndex, Dataset& d,
     d.minDtCourant = minDt;
 }
 
-template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
-                                          const cstone::Box<double>&);
-template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
-                                          const cstone::Box<double>&);
-template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
-                                          const cstone::Box<float>&);
-template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
-                                          const cstone::Box<float>&);
-
+template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
+                                          const cstone::Box<SphTypes::CoordinateType>&);
 } // namespace sph

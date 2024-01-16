@@ -38,6 +38,7 @@
 #include "cstone/primitives/gather.hpp"
 #include "cstone/sfc/sfc.hpp"
 #include "io/ifile_io.hpp"
+#include "init/settings.hpp"
 
 namespace sphexa
 {
@@ -82,6 +83,86 @@ void readTemplateBlock(const std::string& block, IFileReader* reader, Vector& x,
     reader->readField("z", z.data());
 
     reader->closeStep();
+}
+
+//! @brief read file attributes into an associative container
+void readFileAttributes(InitSettings& settings, const std::string& settingsFile, IFileReader* reader, bool verbose)
+{
+    if (not settingsFile.empty())
+    {
+        reader->setStep(settingsFile, -1, FileMode::independent);
+
+        auto fileAttributes = reader->fileAttributes();
+        for (const auto& attr : fileAttributes)
+        {
+            int64_t sz = reader->fileAttributeSize(attr);
+            if (sz == 1)
+            {
+                bool settingRecognized = settings.count(attr);
+                settings[attr]         = {};
+                reader->fileAttribute(attr, &settings[attr], sz);
+                if (reader->rank() == 0 && verbose)
+                {
+                    if (settingRecognized)
+                    {
+                        std::cout << "Override setting from " << settingsFile << ": " << attr << " = " << settings[attr]
+                                  << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << "Setting from " << settingsFile << ": " << attr << " = " << settings[attr]
+                                  << " not recognized " << std::endl;
+                    }
+                }
+            }
+        }
+        reader->closeStep();
+    }
+}
+
+//! @brief Used to read the default values of dataset attributes
+class BuiltinReader
+{
+public:
+    using FieldType = util::Reduce<std::variant, util::Map<std::add_pointer_t, IO::Types>>;
+
+    explicit BuiltinReader(InitSettings& attrs)
+        : attributes_(attrs)
+    {
+    }
+
+    [[nodiscard]] static int rank() { return -1; }
+
+    void stepAttribute(const std::string& key, FieldType val, int64_t /*size*/)
+    {
+        std::visit([this, &key](auto arg) { attributes_[key] = *arg; }, val);
+    };
+
+private:
+    //! @brief reference to attributes
+    InitSettings& attributes_;
+};
+
+//! @brief build up an associative container with test case settings
+template<class Dataset>
+[[nodiscard]] InitSettings buildSettings(Dataset&& d, const InitSettings& testCaseSettings,
+                                         const std::string& settingsFile, IFileReader* reader)
+{
+    InitSettings settings;
+    // first layer: class member defaults in code
+    BuiltinReader extractor(settings);
+    d.hydro.loadOrStoreAttributes(&extractor);
+
+    // second layer: test-case specific settings
+    for (const auto& kv : testCaseSettings)
+    {
+        settings[kv.first] = kv.second;
+    }
+
+    // third layer: settings override by file given on commandline (highest precedence)
+    readFileAttributes(settings, settingsFile, reader, true);
+
+    return settings;
 }
 
 } // namespace sphexa

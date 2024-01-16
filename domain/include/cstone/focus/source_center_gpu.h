@@ -75,4 +75,11 @@ template<class KeyType, class T>
 extern void computeGeoCentersGpu(
     const KeyType* prefixes, TreeNodeIndex numNodes, Vec3<T>* centers, Vec3<T>* sizes, const Box<T>& box);
 
+template<class KeyType, class T>
+extern void
+setMacGpu(const KeyType* prefixes, TreeNodeIndex numNodes, Vec4<T>* macSpheres, float invTheta, const Box<T>& box);
+
+template<class T>
+extern void moveCenters(const Vec3<T>* src, TreeNodeIndex numNodes, Vec4<T>* dest);
+
 } // namespace cstone

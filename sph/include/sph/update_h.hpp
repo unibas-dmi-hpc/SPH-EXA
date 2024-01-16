@@ -29,6 +29,7 @@ void updateSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d)
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         updateSmoothingLengthGpu(startIndex, endIndex, d.ng0, rawPtr(d.devData.nc), rawPtr(d.devData.h));
+        syncGpu();
     }
     else { updateSmoothingLengthCpu(startIndex, endIndex, d.ng0, rawPtr(d.nc), rawPtr(d.h)); }
 }

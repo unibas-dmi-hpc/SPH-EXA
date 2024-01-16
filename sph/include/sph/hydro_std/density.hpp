@@ -32,56 +32,26 @@
 
 #pragma once
 
-#include <vector>
-
-#include "cstone/findneighbors.hpp"
-
-#include "sph/sph_gpu.hpp"
-#include "density_kern.hpp"
+#include "sph/hydro_ve/xmass.hpp"
 
 namespace sph
 {
-template<class T, class Dataset>
-void computeDensityImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
-{
-    const cstone::LocalIndex* neighbors      = d.neighbors.data();
-    const unsigned*           neighborsCount = d.nc.data();
-
-    const auto* h = d.h.data();
-    const auto* m = d.m.data();
-    const auto* x = d.x.data();
-    const auto* y = d.y.data();
-    const auto* z = d.z.data();
-
-    const auto* wh  = d.wh.data();
-    const auto* whd = d.whd.data();
-
-    auto* rho = d.rho.data();
-
-#pragma omp parallel for schedule(static)
-    for (size_t i = startIndex; i < endIndex; i++)
-    {
-        size_t ni = i - startIndex;
-
-        unsigned ncCapped = std::min(neighborsCount[i] - 1, d.ngmax);
-        rho[i]            = densityJLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, h, m, wh, whd);
-
-#ifndef NDEBUG
-        if (std::isnan(rho[i]))
-            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", i, rho[i], x[i], y[i], z[i], h[i]);
-#endif
-    }
-}
 
 template<class T, class Dataset>
 void computeDensity(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        computeTargetGroups(startIndex, endIndex, d, box);
-        computeDensityGpu(startIndex, endIndex, d, box);
+        swap(d.devData.xm, d.devData.rho);
+        computeXMass(startIndex, endIndex, d, box);
+        swap(d.devData.xm, d.devData.rho);
     }
-    else { computeDensityImpl(startIndex, endIndex, d, box); }
+    else
+    {
+        swap(d.xm, d.rho);
+        computeXMass(startIndex, endIndex, d, box);
+        swap(d.xm, d.rho);
+    }
 }
 
 } // namespace sph

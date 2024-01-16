@@ -103,13 +103,7 @@ void computeAVswitches(size_t startIndex, size_t endIndex, Dataset& d,
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeAVswitches(size_t, size_t, sphexa::ParticlesData<double, unsigned, cstone::GpuTag>& d,
-                                const cstone::Box<double>&);
-template void computeAVswitches(size_t, size_t, sphexa::ParticlesData<double, uint64_t, cstone::GpuTag>& d,
-                                const cstone::Box<double>&);
-template void computeAVswitches(size_t, size_t, sphexa::ParticlesData<float, unsigned, cstone::GpuTag>& d,
-                                const cstone::Box<float>&);
-template void computeAVswitches(size_t, size_t, sphexa::ParticlesData<float, uint64_t, cstone::GpuTag>& d,
-                                const cstone::Box<float>&);
+template void computeAVswitches(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
+                                const cstone::Box<SphTypes::CoordinateType>&);
 
 } // namespace sph::cuda

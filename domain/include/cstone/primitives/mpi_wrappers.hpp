@@ -32,6 +32,8 @@
 #pragma once
 
 #include <mpi.h>
+#include <cassert>
+#include <limits>
 #include <type_traits>
 #include <vector>
 
