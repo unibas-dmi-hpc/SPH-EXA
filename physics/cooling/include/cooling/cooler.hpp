@@ -97,11 +97,11 @@ struct Cooler
     {
         constexpr size_t N = 1000;
         const task<N>    t(first, last);
-        const auto       compute_du = [&](const auto& u_block, auto& du, const block& b)
+        const auto       compute_du = [&](const auto& u_block, const block& b)
         {
             for (size_t i = 0; i < b.len; i++)
             {
-                du[i] += (u_block[i] - u[i + b.first]) / dt;
+                du[i + b.first] += (u_block[i] - u[i + b.first]) / dt;
             }
         };
 
@@ -119,9 +119,9 @@ struct Cooler
 
             cool_particle_arr(dt, rho_copy.data(), u_copy.data(), particle_block, b.len);
 
-            compute_du(u_copy, du_local, b);
+            compute_du(u_copy, b);
 
-            copyFromBlock(du_local, du, b);
+            //copyFromBlock(du_local, du, b);
         }
     }
 
