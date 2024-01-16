@@ -42,6 +42,7 @@ T* rawPtr(std::vector<T, Alloc>& p)
 template<class T, class Alloc>
 const T* rawPtr(const std::vector<T, Alloc>& p)
 {
+    if (p.empty()) return nullptr;
     return p.data();
 }
 

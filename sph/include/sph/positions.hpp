@@ -146,12 +146,11 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
     {
         T     constCv = d.mui.empty() ? idealGasCv(d.muiConst, d.gamma) : -1.0;
         auto* d_mui   = d.mui.empty() ? nullptr : rawPtr(d.devData.mui);
-        auto temp = d.devData.temp.empy() ? nullptr : rawPtr(d.devData.temp);
 
         computePositionsGpu(startIndex, endIndex, d.minDt, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y),
                             rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
                             rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1),
-                            rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), temp,
+                            rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.temp),
                             rawPtr(d.devData.u), rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h),
                             d_mui, d.gamma, constCv, box);
     }
