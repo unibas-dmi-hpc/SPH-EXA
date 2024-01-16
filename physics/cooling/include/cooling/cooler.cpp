@@ -76,24 +76,24 @@ private:
     {
         auto& d   = global_values.data;
         auto  ret = std::tie(
-             m_code_in_ms, l_code_in_kpc, d.use_grackle, d.with_radiative_cooling, d.primordial_chemistry,
-             d.dust_chemistry, d.metal_cooling, d.UVbackground,
-             //!
-             //! d.char *grackle_data_file,
-             d.cmb_temperature_floor, d.Gamma, d.h2_on_dust, d.use_dust_density_field, d.dust_recombination_cooling,
-             d.photoelectric_heating, d.photoelectric_heating_rate, d.use_isrf_field, d.interstellar_radiation_field,
-             d.use_volumetric_heating_rate, d.use_specific_heating_rate, d.three_body_rate, d.cie_cooling,
-             d.h2_optical_depth_approximation, d.ih2co, d.ipiht, d.HydrogenFractionByMass, d.DeuteriumToHydrogenRatio,
-             d.SolarMetalFractionByMass, d.local_dust_to_gas_ratio, d.NumberOfTemperatureBins, d.CaseBRecombination,
-             d.TemperatureStart, d.TemperatureEnd, d.NumberOfDustTemperatureBins, d.DustTemperatureStart,
-             d.DustTemperatureEnd, d.Compton_xray_heating, d.LWbackground_sawtooth_suppression, d.LWbackground_intensity,
-             d.UVbackground_redshift_on, d.UVbackground_redshift_off, d.UVbackground_redshift_fullon,
-             d.UVbackground_redshift_drop, d.cloudy_electron_fraction_factor, d.use_radiative_transfer,
-             d.radiative_transfer_coupled_rate_solver, d.radiative_transfer_intermediate_step,
-             d.radiative_transfer_hydrogen_only, d.self_shielding_method, d.H2_self_shielding, d.H2_custom_shielding,
-             d.h2_charge_exchange_rate, d.h2_dust_rate, d.h2_h_cooling_rate, d.collisional_excitation_rates,
-             d.collisional_ionisation_rates, d.recombination_cooling_rates, d.bremsstrahlung_cooling_rates,
-             d.max_iterations, d.exit_after_iterations_exceeded);
+            m_code_in_ms, l_code_in_kpc, d.use_grackle, d.with_radiative_cooling, d.primordial_chemistry,
+            d.dust_chemistry, d.metal_cooling, d.UVbackground,
+            //!
+            //! d.char *grackle_data_file,
+            d.cmb_temperature_floor, d.Gamma, d.h2_on_dust, d.use_dust_density_field, d.dust_recombination_cooling,
+            d.photoelectric_heating, d.photoelectric_heating_rate, d.use_isrf_field, d.interstellar_radiation_field,
+            d.use_volumetric_heating_rate, d.use_specific_heating_rate, d.three_body_rate, d.cie_cooling,
+            d.h2_optical_depth_approximation, d.ih2co, d.ipiht, d.HydrogenFractionByMass, d.DeuteriumToHydrogenRatio,
+            d.SolarMetalFractionByMass, d.local_dust_to_gas_ratio, d.NumberOfTemperatureBins, d.CaseBRecombination,
+            d.TemperatureStart, d.TemperatureEnd, d.NumberOfDustTemperatureBins, d.DustTemperatureStart,
+            d.DustTemperatureEnd, d.Compton_xray_heating, d.LWbackground_sawtooth_suppression, d.LWbackground_intensity,
+            d.UVbackground_redshift_on, d.UVbackground_redshift_off, d.UVbackground_redshift_fullon,
+            d.UVbackground_redshift_drop, d.cloudy_electron_fraction_factor, d.use_radiative_transfer,
+            d.radiative_transfer_coupled_rate_solver, d.radiative_transfer_intermediate_step,
+            d.radiative_transfer_hydrogen_only, d.self_shielding_method, d.H2_self_shielding, d.H2_custom_shielding,
+            d.h2_charge_exchange_rate, d.h2_dust_rate, d.h2_h_cooling_rate, d.collisional_excitation_rates,
+            d.collisional_ionisation_rates, d.recombination_cooling_rates, d.bremsstrahlung_cooling_rates,
+            d.max_iterations, d.exit_after_iterations_exceeded);
 
         static_assert(std::tuple_size_v<decltype(ret)> == parameterNames.size());
         return ret;
@@ -123,18 +123,18 @@ private:
     }
 
     void cool_particle(T dt, T& rho, T& u, const ParticleType& particle);
-    void cool_particle_arr(T dt, T *rho, T *u, const ParticleType &particle, const size_t len);
+    void cool_particle_arr(T dt, T* rho, T* u, const ParticleType& particle, const size_t len);
 
     T energy_to_temperature(T dt, T rho, T u, const ParticleType& particle);
 
-    T pressure(T rho, T u, const ParticleType& particle);
-    void pressure_arr(T *rho, T *u, const ParticleType &particle, T* p, const size_t len);
+    T    pressure(T rho, T u, const ParticleType& particle);
+    void pressure_arr(T* rho, T* u, const ParticleType& particle, T* p, const size_t len);
 
-    T adiabatic_index(T rho, T u, const ParticleType& particle);
-    void adiabatic_index_arr(T *rho, T *u, const ParticleType &particle, T* gamma, const size_t len);
+    T    adiabatic_index(T rho, T u, const ParticleType& particle);
+    void adiabatic_index_arr(T* rho, T* u, const ParticleType& particle, T* gamma, const size_t len);
 
-    T cooling_time(T rho, T u, const ParticleType& particle);
-    void cooling_time_arr(T *rho, T *u, const ParticleType &particle, T* ct, const size_t len);
+    T    cooling_time(T rho, T u, const ParticleType& particle);
+    void cooling_time_arr(T* rho, T* u, const ParticleType& particle, T* ct, const size_t len);
 };
 
 // Implementation of Cooler
@@ -172,7 +172,7 @@ void Cooler<T>::cool_particle(T dt, T& rho, T& u, const ParticleType& particle)
 }
 
 template<typename T>
-void Cooler<T>::cool_particle_arr(T dt, T *rho, T *u, const ParticleType &particle, const size_t len)
+void Cooler<T>::cool_particle_arr(T dt, T* rho, T* u, const ParticleType& particle, const size_t len)
 {
     impl_ptr->cool_particle_arr(dt, rho, u, particle, len);
 }
@@ -190,7 +190,7 @@ T Cooler<T>::pressure(T rho, T u, const ParticleType& particle)
 }
 
 template<typename T>
-void Cooler<T>::pressure_arr(T *rho, T *u, const ParticleType &particle, T* p, const size_t len)
+void Cooler<T>::pressure_arr(T* rho, T* u, const ParticleType& particle, T* p, const size_t len)
 {
     impl_ptr->pressure_arr(rho, u, particle, p, len);
 }
@@ -201,7 +201,7 @@ T Cooler<T>::adiabatic_index(T rho, T u, const ParticleType& particle)
     return impl_ptr->adiabatic_index(rho, u, particle);
 }
 template<typename T>
-void Cooler<T>::adiabatic_index_arr(T *rho, T *u, const ParticleType &particle, T* gamma, const size_t len)
+void Cooler<T>::adiabatic_index_arr(T* rho, T* u, const ParticleType& particle, T* gamma, const size_t len)
 {
     impl_ptr->adiabatic_index_arr(rho, u, particle, gamma, len);
 }
@@ -213,14 +213,12 @@ T Cooler<T>::cooling_time(T rho, T u, const ParticleType& particle)
 }
 
 template<typename T>
-void Cooler<T>::cooling_time_arr(T *rho, T *u, const ParticleType &particle, T* ct, const size_t len)
+void Cooler<T>::cooling_time_arr(T* rho, T* u, const ParticleType& particle, T* ct, const size_t len)
 {
     impl_ptr->cooling_time_arr(rho, u, particle, ct, len);
 }
 
-
 template struct Cooler<double>;
-//template struct Cooler<float>;
 
 // Implementation of Cooler::Impl
 template<typename T>
@@ -268,51 +266,18 @@ void Cooler<T>::Impl::init(const int comoving_coordinates, std::optional<T> tu)
     }
 }
 
-//template <typename T1, typename ...T>
-//void multiply_in_place(const T1 *factor, std::tuple<T*...> t, const size_t len)
-//{
-//    auto f = [&](auto *arg)
-//    {
-//        for (size_t i = 0; i < len; i++)
-//            arg[i] *= factor[i];
-//    };
-//    util::for_each_tuple(f, t);
-//}
-
-//template <typename T1, typename ...T>
-//void divide_in_place(const T1 *factor, std::tuple<T*...> t, const size_t len)
-//{
-//    auto f = [&](auto *arg)
-//    {
-//        for (size_t i = 0; i < len; i++)
-//            arg[i] /= factor[i];
-//    };
-//    util::for_each_tuple(f, t);
-//}
-
 template<typename T>
-void Cooler<T>::Impl::cool_particle_arr(T dt, T *rho, T *u, const ParticleType &particle, const size_t len)
+void Cooler<T>::Impl::cool_particle_arr(T dt, T* rho, T* u, const ParticleType& particle, const size_t len)
 {
     static_assert(std::is_same_v<T, gr_float>);
 
     cooler_field_data_arr<T> grackle_fields;
-    /*auto getElements = [&]<size_t ...I>(const std::integer_sequence<size_t, I...> &)
-    {
-        return std::tuple(std::get<I>(particle)...);
-    };
 
-    //Multiply the density with the fraction fields to get species density
-    multiply_in_place(rho, getElements(std::make_index_sequence<13>()), len);*/
     grackle_fields.makeGrackleFieldsFromData(rho, u, particle, len);
 
-    auto ret_value = local_solve_chemistry(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data, dt);
-    if (ret_value == 0)
-    {
-        throw std::runtime_error("Grackle: Error in local_solve_chemistry");
-    }
-
-    //Convert species densities back to fractions
-    //divide_in_place(rho, getElements(std::make_index_sequence<13>()), len);
+    auto ret_value = local_solve_chemistry(&global_values.data, &global_values.rates, &global_values.units,
+                                           &grackle_fields.data, dt);
+    if (ret_value == 0) { throw std::runtime_error("Grackle: Error in local_solve_chemistry"); }
 }
 
 template<typename T>
@@ -351,10 +316,10 @@ T Cooler<T>::Impl::pressure(T rho, T u, const ParticleType& particle)
     cooler_field_data_content<T> grackle_fields;
     grackle_fields.assign_field_data(rho, u, particle);
     gr_float pressure(0);
-    auto gr_values = global_values.data;
+    auto     gr_values     = global_values.data;
     gr_values.omp_nthreads = 1;
-    if (0 == local_calculate_pressure(&gr_values, &global_values.rates, &global_values.units,
-                                      &grackle_fields.data, &pressure))
+    if (0 == local_calculate_pressure(&gr_values, &global_values.rates, &global_values.units, &grackle_fields.data,
+                                      &pressure))
     {
         throw std::runtime_error("Grackle: Error in local_calculate_pressure");
     }
@@ -362,27 +327,16 @@ T Cooler<T>::Impl::pressure(T rho, T u, const ParticleType& particle)
 }
 
 template<typename T>
-void Cooler<T>::Impl::pressure_arr(T *rho, T *u, const ParticleType &particle, T* p, const size_t len)
+void Cooler<T>::Impl::pressure_arr(T* rho, T* u, const ParticleType& particle, T* p, const size_t len)
 {
     static_assert(std::is_same_v<T, gr_float>);
 
     cooler_field_data_arr<T> grackle_fields;
-    /*auto getElements = [&]<size_t ...I>(const std::integer_sequence<size_t, I...> &)
-    {
-        return std::tuple(std::get<I>(particle)...);
-    };
 
-    //Multiply the density with the fraction fields to get species density
-    multiply_in_place(rho, getElements(std::make_index_sequence<13>()), len);*/
     grackle_fields.makeGrackleFieldsFromData(rho, u, particle, len);
-    auto ret_value = local_calculate_pressure(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data, p);
-    if (ret_value == 0)
-    {
-        throw std::runtime_error("Grackle: local_calculate_pressure");
-    }
-
-    //Convert species densities back to fractions
-    //divide_in_place(rho, getElements(std::make_index_sequence<13>()), len);
+    auto ret_value = local_calculate_pressure(&global_values.data, &global_values.rates, &global_values.units,
+                                              &grackle_fields.data, p);
+    if (ret_value == 0) { throw std::runtime_error("Grackle: local_calculate_pressure"); }
 }
 
 template<typename T>
@@ -391,36 +345,24 @@ T Cooler<T>::Impl::adiabatic_index(T rho, T u, const ParticleType& particle)
     cooler_field_data_content<T> grackle_fields;
     grackle_fields.assign_field_data(rho, u, particle);
     gr_float gamma(0);
-    auto gr_values = global_values.data;
+    auto     gr_values     = global_values.data;
     gr_values.omp_nthreads = 1;
-    local_calculate_gamma(&gr_values, &global_values.rates, &global_values.units, &grackle_fields.data,
-                          &gamma);
+    local_calculate_gamma(&gr_values, &global_values.rates, &global_values.units, &grackle_fields.data, &gamma);
     return gamma;
 }
 
 template<typename T>
-void Cooler<T>::Impl::adiabatic_index_arr(T *rho, T *u, const ParticleType &particle, T* gamma, const size_t len)
+void Cooler<T>::Impl::adiabatic_index_arr(T* rho, T* u, const ParticleType& particle, T* gamma, const size_t len)
 {
     static_assert(std::is_same_v<T, gr_float>);
 
     cooler_field_data_arr<T> grackle_fields;
-    /*auto getElements = [&]<size_t ...I>(const std::integer_sequence<size_t, I...> &)
-    {
-        return std::tuple(std::get<I>(particle)...);
-    };
 
-    //Multiply the density with the fraction fields to get species density
-    multiply_in_place(rho, getElements(std::make_index_sequence<13>()), len);*/
     grackle_fields.makeGrackleFieldsFromData(rho, u, particle, len);
 
-    auto ret_value = local_calculate_gamma(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data, gamma);
-    if (ret_value == 0)
-    {
-        throw std::runtime_error("Grackle: local_calculate_gamma");
-    }
-
-    //Convert species densities back to fractions
-    //divide_in_place(rho, getElements(std::make_index_sequence<13>()), len);
+    auto ret_value = local_calculate_gamma(&global_values.data, &global_values.rates, &global_values.units,
+                                           &grackle_fields.data, gamma);
+    if (ret_value == 0) { throw std::runtime_error("Grackle: local_calculate_gamma"); }
 }
 
 template<typename T>
@@ -439,28 +381,17 @@ T Cooler<T>::Impl::cooling_time(T rho, T u, const ParticleType& particle)
 }
 
 template<typename T>
-void Cooler<T>::Impl::cooling_time_arr(T *rho, T *u, const ParticleType &particle, T* ct, const size_t len)
+void Cooler<T>::Impl::cooling_time_arr(T* rho, T* u, const ParticleType& particle, T* ct, const size_t len)
 {
     static_assert(std::is_same_v<T, gr_float>);
 
     cooler_field_data_arr<T> grackle_fields;
-    /*auto getElements = [&]<size_t ...I>(const std::integer_sequence<size_t, I...> &)
-    {
-        return std::tuple(std::get<I>(particle)...);
-    };
 
-    //Multiply the density with the fraction fields to get species density
-    multiply_in_place(rho, getElements(std::make_index_sequence<13>()), len);*/
     grackle_fields.makeGrackleFieldsFromData(rho, u, particle, len);
 
-    auto ret_value = local_calculate_cooling_time(&global_values.data, &global_values.rates, &global_values.units, &grackle_fields.data, ct);
-    if (ret_value == 0)
-    {
-        throw std::runtime_error("Grackle: local_calculate_cooling_time");
-    }
-
-    //Convert species densities back to fractions
-    //divide_in_place(rho, getElements(std::make_index_sequence<13>()), len);
+    auto ret_value = local_calculate_cooling_time(&global_values.data, &global_values.rates, &global_values.units,
+                                                  &grackle_fields.data, ct);
+    if (ret_value == 0) { throw std::runtime_error("Grackle: local_calculate_cooling_time"); }
 }
 
 } // namespace cooling

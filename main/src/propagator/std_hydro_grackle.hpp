@@ -76,6 +76,9 @@ class HydroGrackleProp final : public HydroProp<DomainType, DataType>
 
     //! @brief All fields listed in Chemistry data are used. This could be overridden with a sublist if desired
     using CoolingFields = typename util::MakeFieldList<ChemData>::Fields;
+    using FractionFields = FieldList<"HI_fraction", "HII_fraction", "HM_fraction", "HeI_fraction", "HeII_fraction",
+                                     "HeIII_fraction", "H2I_fraction", "H2II_fraction", "DI_fraction", "DII_fraction",
+                                     "HDI_fraction", "e_fraction", "metal_fraction">;
 
 public:
     HydroGrackleProp(std::ostream& output, size_t rank)
@@ -168,9 +171,8 @@ public:
         timer.step("Density");
 
         transferToHost(d, first, last, {"rho", "u"});
-        cooling::multiply_in_place(d.rho.data() + first, cstone::getPointers(get<CoolingFields>(simData.chem), first),
+        cooling::multiply_in_place(d.rho.data() + first, cstone::getPointers(get<FractionFields>(simData.chem), first),
                                    last - first);
-        // coolingFracToDens(simData.chem, first, last);
 
         eos_cooling(first, last, d, simData.chem, cooling_data);
         transferToDevice(d, first, last, {"p", "c"});
@@ -217,30 +219,11 @@ public:
         timer.step("Timestep");
 
         transferToHost(d, first, last, {"du"});
-        auto u_copy = d.u;
-        // std::vector<double> rho_copy{d.rho.begin(), d.rho.end()};
-        timer.step("Copy rho, u");
+
         cooling_data.cool_particles(T(d.minDt), d.rho, d.u,
                                     cstone::getPointers(get<CoolingFields>(simData.chem), 0), d.du, first, last);
-        // cooling_data.cool_particle_arr(T(d.minDt), rho_copy.data() + first, u_copy.data() + first,
-        //                               cstone::getPointers(get<CoolingFields>(simData.chem), first), last - first);
-        /*for (size_t i = first; i < last; i++)
-        {
-            d.du[i] += (u_copy[i] - d.u[i]) / d.minDt;
-        }*/
-        // coolignDensToFrac(simData.chem, first, last);
-        /*#pragma omp parallel for schedule(static)
-                for (size_t i = first; i < last; i++)
-                {
-                    T u_old  = d.u[i];
-                    T u_cool = d.u[i];
-                    T rhoi   = d.rho[i];
-                    cooling_data.cool_particle(T(d.minDt), rhoi, u_cool,
-                                               cstone::getPointers(get<CoolingFields>(simData.chem), i));
-                    const T du = (u_cool - u_old) / d.minDt;
-                    d.du[i] += du;
-                }*/
-        cooling::divide_in_place(d.rho.data() + first, cstone::getPointers(get<CoolingFields>(simData.chem), first),
+
+        cooling::divide_in_place(d.rho.data() + first, cstone::getPointers(get<FractionFields>(simData.chem), first),
                                  last - first);
         transferToDevice(d, first, last, {"du"});
         timer.step("GRACKLE chemistry and cooling");

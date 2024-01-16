@@ -86,53 +86,18 @@ struct Cooler
     //! @brief Init Cooler. Must be called before any other function is used and after parameters are set
     void init(int comoving_coordinates, std::optional<T> time_unit = std::nullopt);
 
-
-
-    // Call the Grackle function f in parallel by dividing the data in bins of size N
-    /* template<size_t N = 100, typename Tvec, typename F, typename... PType>
-     void apply_N(const Tvec& rho, const Tvec& u, const ParticleType& particle, const size_t first, const size_t last,
-                  F&& f, PType*... ptr)
-     {
-         const size_t n_particles = last - first;
-         const size_t mod         = n_particles % N;
-         const size_t ceil_term   = (mod == 0) ? 0 : 1;
-         const size_t n_bins      = n_particles / N + ceil_term;
-         const size_t N_last      = n_particles % n_bins;
-
-         auto movePtr = [](const ParticleType& particle, const size_t diff)
-         {
-             auto f = [&](auto*... args) { return std::make_tuple(args + diff...); };
-             return std::apply(f, particle);
-         };
-
- #pragma omp parallel for
-         for (size_t i = 0; i < n_bins; i++)
-         {
-             const size_t          len     = (i == n_bins - 1) ? N_last : N;
-             const size_t          first_i = first + N * i;
-             const size_t          last_i  = first_i + len;
-             std::array<double, N> rho_copy{rho.begin() + first_i, rho.begin() + last_i};
-             std::array<double, N> u_copy{u.begin() + first_i, u.begin() + last_i};
-             std::array<double, N> return_qty;
-
-             f(rho_copy.data(), u_copy.data(), movePtr(particle, first_i), len, return_qty.data());
-         }
-     }*/
-
     //! @brief Calls the GRACKLE library to integrate the cooling and chemistry fields
     void cool_particle(T dt, T& rho, T& u, const ParticleType& particle);
+    //! @brief The same function, but for arrays. rho, u and elements of particle are pointer to arrays of length len.
     void cool_particle_arr(T dt, T* rho, T* u, const ParticleType& particle, const size_t len);
-
+    //! @brief Calls cool_particle_arr by dividing the data into arrays of size 1000.
     template<typename Tvec, typename Tvec2>
-    void cool_particles(T dt, const Tvec& rho, const Tvec2& u, const ParticleType& particle, Tvec2 &du, const size_t first,
-                        const size_t last)
+    void cool_particles(T dt, const Tvec& rho, const Tvec2& u, const ParticleType& particle, Tvec2& du,
+                        const size_t first, const size_t last)
     {
         constexpr size_t N = 1000;
         const task<N>    t(first, last);
-        //printf("task: first: %d n_bins: %zu N_last: %zu n_part: %zu\n",
-     //          t.first, t.n_bins, t.N_last, last - first);
-        const auto       compute_du =
-            [&](const auto& u_block, auto& du, const block& b)
+        const auto       compute_du = [&](const auto& u_block, auto& du, const block& b)
         {
             for (size_t i = 0; i < b.len; i++)
             {
@@ -140,9 +105,6 @@ struct Cooler
             }
         };
 
-        //std::vector<double> rho_copy(rho.begin(), rho.end());
-        //std::vector<double> u_copy(u.begin(), u.end());
-        //std::vector<double> du_copy(u_copy.size());
 #pragma omp parallel for
         for (size_t i = 0; i < t.n_bins; i++)
         {
@@ -152,23 +114,14 @@ struct Cooler
             const block           b(i, t);
             copyToBlock(rho, rho_copy, b);
             copyToBlock(u, u_copy, b);
-            //printf("copied\n");
 
             auto particle_block = getBlockPointers(particle, b);
-            //printf("copied\n");
 
             cool_particle_arr(dt, rho_copy.data(), u_copy.data(), particle_block, b.len);
-            //cool_particle_arr(dt, rho_copy.data() + first, u_copy.data() + first, particle_block, b.len);
-
-           // printf("copied\n");
 
             compute_du(u_copy, du_local, b);
-            //compute_du(u_copy, du, b);
-            //printf("copied\n");
 
             copyFromBlock(du_local, du, b);
-            //printf("copied\n");
-
         }
     }
 
@@ -184,17 +137,19 @@ struct Cooler
     T    adiabatic_index(T rho, T u, const ParticleType& particle);
     void adiabatic_index_arr(T* rho, T* u, const ParticleType& particle, T* gamma, const size_t len);
 
+    //! @brief Calculate the cooling time
     T    cooling_time(T rho, T u, const ParticleType& particle);
     void cooling_time_arr(T* rho, T* u, const ParticleType& particle, T* ct, const size_t len);
 
+    //! @brief Calculate the minimal cooling time by calling cooling_time_arr by dividing the data in arrays of size 1000
     template<typename Tvec, typename Tvec2>
     double min_cooling_time(const Tvec& rho, const Tvec2& u, const ParticleType& particle, const size_t first,
-                                      const size_t last)
+                            const size_t last)
     {
-        constexpr size_t    N = 1000;
-        const task<N>       t(first, last);
-        double ct_min = std::numeric_limits<double>::infinity();
-#pragma omp parallel for reduction(min: ct_min)
+        constexpr size_t N = 1000;
+        const task<N>    t(first, last);
+        double           ct_min = std::numeric_limits<double>::infinity();
+#pragma omp parallel for reduction(min : ct_min)
         for (size_t i = 0; i < t.n_bins; i++)
         {
             const block           b(i, t);
@@ -207,12 +162,13 @@ struct Cooler
 
             auto particle_block = getBlockPointers(particle, b);
             cooling_time_arr(rho_copy.data(), u_copy.data(), particle_block, ct_ret.data(), b.len);
-            std::transform(ct_ret.begin(), ct_ret.end(), ct_ret.begin(), [](double a) {return std::abs(a);});
+            std::transform(ct_ret.begin(), ct_ret.end(), ct_ret.begin(), [](double a) { return std::abs(a); });
             const double ct = *std::min_element(ct_ret.begin(), ct_ret.end());
-            ct_min = std::min(ct_min, ct);
+            ct_min          = std::min(ct_min, ct);
         }
         return ct_min * ct_crit;
     }
+
     // Parameter for cooling time criterion
     T ct_crit{0.1};
 
