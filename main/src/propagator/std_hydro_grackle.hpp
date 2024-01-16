@@ -86,6 +86,9 @@ public:
     {
         BuiltinWriter attributeSetter(settings);
         cooling_data.loadOrStoreAttributes(&attributeSetter);
+        auto it = settings.find("cooling::m_code_in_ms");
+
+        printf("%lf\n", it->second);
         cooling_data.init(0);
     }
 
@@ -218,8 +221,8 @@ public:
 
         transferToHost(d, first, last, {"du"});
 
-        //cooling_data.cool_particles(T(d.minDt), d.rho, d.u,
-        //                            cstone::getPointers(get<CoolingFields>(simData.chem), 0), d.du, first, last);
+        cooling_data.cool_particles(T(d.minDt), d.rho, d.u,
+                                    cstone::getPointers(get<CoolingFields>(simData.chem), 0), d.du, first, last);
 
         cooling::divide_in_place(d.rho.data() + first, cstone::getPointers(get<FractionFields>(simData.chem), first),
                                  last - first);
