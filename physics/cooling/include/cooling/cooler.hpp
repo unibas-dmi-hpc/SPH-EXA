@@ -101,7 +101,7 @@ struct Cooler
         {
             for (size_t i = 0; i < b.len; i++)
             {
-                du[i] = (u_block[i] - u[i + b.first]) / dt;
+                du[i] += (u_block[i] - u[i + b.first]) / dt;
             }
         };
 
