@@ -88,7 +88,7 @@ public:
         cooling_data.loadOrStoreAttributes(&attributeSetter);
         auto it = settings.find("cooling::m_code_in_ms");
 
-        printf("%lf\n", it->second);
+        printf("cooling::m_code_in_ms %lf\n", it->second);
         cooling_data.init(0);
     }
 
