@@ -146,7 +146,7 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
     {
         T     constCv = d.mui.empty() ? idealGasCv(d.muiConst, d.gamma) : -1.0;
         auto* d_mui   = d.mui.empty() ? nullptr : rawPtr(d.devData.mui);
-        auto *temp = d.devData.empy() ? nullptr : rawPtr(d.devData.temp);
+        auto temp = d.devData.temp.empy() ? nullptr : rawPtr(d.devData.temp);
 
         computePositionsGpu(startIndex, endIndex, d.minDt, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y),
                             rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
