@@ -68,7 +68,5 @@ template void computeEOS_HydroStd(size_t, size_t, double, double, const double*,
 template void computeEOS_HydroStd(size_t, size_t, float, double, const double*, const float*, float*, float*, float*);
 template void computeEOS_HydroStd(size_t, size_t, float, float, const float*, const float*, float*, float*, float*);
 
-
-
 } // namespace cuda
 } // namespace sph
