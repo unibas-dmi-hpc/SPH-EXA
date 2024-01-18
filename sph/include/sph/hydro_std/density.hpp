@@ -45,7 +45,7 @@ void computeDensity(size_t startIndex, size_t endIndex, Dataset& d, const cstone
         swap(d.devData.xm, d.devData.rho);
         computeXMass(startIndex, endIndex, d, box);
         swap(d.devData.xm, d.devData.rho);
-        cuda::convertXMassToDensity(startIndex, endIndex, d.devData.rho.data(), d.devData.m.data());
+        cuda::convertXMassToDensity(startIndex, endIndex, rawPtr(d.devData.rho), rawPtr(d.devData.m));
     }
     else
     {
