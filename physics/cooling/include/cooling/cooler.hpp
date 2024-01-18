@@ -120,8 +120,6 @@ struct Cooler
             cool_particle_arr(dt, rho_copy.data(), u_copy.data(), particle_block, b.len);
 
             compute_du(u_copy, b);
-
-            //copyFromBlock(du_local, du, b);
         }
     }
 
@@ -141,7 +139,8 @@ struct Cooler
     T    cooling_time(T rho, T u, const ParticleType& particle);
     void cooling_time_arr(T* rho, T* u, const ParticleType& particle, T* ct, const size_t len);
 
-    //! @brief Calculate the minimal cooling time by calling cooling_time_arr by dividing the data in arrays of size 1000
+    //! @brief Calculate the minimal cooling time by calling cooling_time_arr by dividing the data in arrays of size
+    //! 1000
     template<typename Tvec, typename Tvec2>
     double min_cooling_time(const Tvec& rho, const Tvec2& u, const ParticleType& particle, const size_t first,
                             const size_t last)
