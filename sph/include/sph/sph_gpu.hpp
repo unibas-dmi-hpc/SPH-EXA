@@ -21,6 +21,9 @@ namespace cuda
 template<class Dataset>
 extern void computeXMass(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
+template <class Trho, class Tm>
+extern void convertXMassToDensity(size_t first, size_t last, Trho *rho, const Tm *m);
+
 template<class Dataset>
 extern void computeVeDefGradh(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 

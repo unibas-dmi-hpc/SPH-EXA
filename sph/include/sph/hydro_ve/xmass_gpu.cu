@@ -151,4 +151,23 @@ void computeTargetGroups(size_t startIndex, size_t endIndex, Dataset& d,
 template void computeTargetGroups(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
                                   const cstone::Box<SphTypes::CoordinateType>&);
 
+template <typename Trho, typename Tm>
+__global__ void cuda_convertXMassToDensity(size_t firstParticle, size_t lastParticle, Trho *rho, const Tm *m)
+{
+    unsigned i = firstParticle + blockDim.x * blockIdx.x + threadIdx.x;
+    if (i >= lastParticle) return;
+    rho[i] = m[i] / rho[i];
+}
+
+template <typename Trho, typename Tm>
+void convertXMassToDensity(size_t firstParticle, size_t lastParticle, Trho *rho, const Tm *m)
+{
+    unsigned numThreads = 256;
+    unsigned numBlocks  = cstone::iceil(lastParticle - firstParticle, numThreads);
+    cuda_convertXMassToDensity<<<numBlocks, numThreads>>>(firstParticle, lastParticle, rho, m);
+    checkGpuErrors(cudaDeviceSynchronize());
+}
+
+template void convertXMassToDensity(size_t, size_t, float *, const float *);
+
 } // namespace sph

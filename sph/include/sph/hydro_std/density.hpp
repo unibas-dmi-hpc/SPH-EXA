@@ -33,7 +33,7 @@
 #pragma once
 
 #include "sph/hydro_ve/xmass.hpp"
-
+#include "sph/sph_gpu.hpp"
 namespace sph
 {
 
@@ -45,12 +45,18 @@ void computeDensity(size_t startIndex, size_t endIndex, Dataset& d, const cstone
         swap(d.devData.xm, d.devData.rho);
         computeXMass(startIndex, endIndex, d, box);
         swap(d.devData.xm, d.devData.rho);
+        convertXMassToDensity(startIndex, endIndex, d.devData.rho, d.devData.m);
     }
     else
     {
         swap(d.xm, d.rho);
         computeXMass(startIndex, endIndex, d, box);
         swap(d.xm, d.rho);
+        //Convert XMass to rho
+        for (size_t i = startIndex; i < endIndex; i++)
+        {
+            d.rho[i] = d.m[i] / d.rho[i];
+        }
     }
 }
 
