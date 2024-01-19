@@ -410,7 +410,6 @@ void readADIOSField(ADIOS2Settings& as, const std::string& fieldName, ExtractTyp
     }
     adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
     variable.SetStepSelection({as.currStep - 1, 1});
-    std::cout << "read offset: " << as.offset << ", numLocalParticles: " << as.numLocalParticles << std::endl;
     variable.SetSelection({{as.offset}, {as.numLocalParticles}});
     as.reader.Get(variable, field, adios2::Mode::Sync);
 }

@@ -101,6 +101,8 @@ public:
         }
         as_.offset = currIndex[as_.rank];
 
+        // std::cout << "rank: " << as_.rank << ", start: " << firstIndex << ", end:" << lastIndex << endl;
+
         // For now, the writer will only append data instead of writing new
         fileutils::initADIOSWriter(as_);
         fileutils::openADIOSStepWrite(as_);
@@ -128,13 +130,12 @@ public:
 
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
-
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += -MPI_Wtime();
 
         // If there's a need to change particle numbers, do it here and now!!
         // Directly change it in as_.
-        std::visit([this, &key](auto arg) { fileutils::writeADIOSField(as_, key, arg); }, field);
+        std::visit([this, &key](auto arg) { fileutils::writeADIOSField(as_, key, arg + firstIndex_); }, field);
 
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
@@ -267,7 +268,10 @@ public:
             as_.numGlobalParticles += currIndex[i];
             currIndex[i] += currIndex[i - 1];
         }
+
         as_.offset = currIndex[as_.rank];
+        std::cout << "read: offset:" << as_.offset << ", rank: " << as_.offset
+                  << ", numLocalParticles: " << as_.numLocalParticles << std::endl;
 
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ += MPI_Wtime();
@@ -313,6 +317,19 @@ public:
         MPI_Barrier(MPI_COMM_WORLD);
         readTime_ += -MPI_Wtime();
         std::visit([this, &key](auto arg) { fileutils::readADIOSField(as_, key, arg); }, field);
+        // std::visit(
+        //     [this, &key](auto arg)
+        //     {
+        //         if (key == "x")
+        //         {
+        //             for (int i = 0; i < 125000; i++)
+        //             {
+        //                 std::cout << arg[i] << ",";
+        //             }
+        //             std::cout << std::endl;
+        //         }
+        //     },
+        //     field);
         MPI_Barrier(MPI_COMM_WORLD);
         readTime_ += MPI_Wtime();
     }

@@ -294,6 +294,19 @@ public:
         readTime_ += -MPI_Wtime();
         auto err = std::visit([this, &key](auto arg) { return fileutils::readH5PartField(h5File_, key, arg); }, field);
         if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
+        // std::visit(
+        //     [this, &key](auto arg)
+        //     {
+        //         if (key == "x")
+        //         {
+        //             for (int i = 0; i < 125000; i++)
+        //             {
+        //                 std::cout << arg[i] << ",";
+        //             }
+        //             std::cout << std::endl;
+        //         }
+        //     },
+        //     field);
         MPI_Barrier(MPI_COMM_WORLD);
         readTime_ += MPI_Wtime();
     }
