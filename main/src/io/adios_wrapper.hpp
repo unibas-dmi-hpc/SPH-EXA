@@ -96,11 +96,12 @@ struct ADIOS2Settings
     std::map<std::string, adios2::Operator> operators;
 
     // Rank-specific settings
-    size_t numLocalParticles = 0;
-    size_t numTotalRanks     = 0;
-    size_t offset            = 0;
-    size_t rank              = 0;
-    size_t currStep          = 0; // Step, not numIteration
+    size_t numLocalParticles  = 0;
+    size_t numGlobalParticles = 0;
+    size_t numTotalRanks      = 0;
+    size_t offset             = 0;
+    size_t rank               = 0;
+    size_t currStep           = 0; // Step, not numIteration
 
     ADIOS2Settings(const std::string& n)
         : cs(n)
@@ -193,10 +194,10 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
     // But given the current I/O APIs, and that numLocalParticles is not fixed,
     // I leave it like this.
     // Consequences are the "step" logic in ADIOS is not fully operating.
-    adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName,                                 // Field name
-                                                      {as.numLocalParticles * as.numTotalRanks}, // Global dimensions
-                                                      {as.offset},            // Starting local offset
-                                                      {as.numLocalParticles}, // Local dimensions (limited to 1 rank)
+    adios2::Variable<T> var = as.io.DefineVariable<T>(fieldName,               // Field name
+                                                      {as.numGlobalParticles}, // Global dimensions
+                                                      {as.offset},             // Starting local offset
+                                                      {as.numLocalParticles},  // Local dimensions (limited to 1 rank)
                                                       adios2::ConstantDims);
     if (as.cs.isSet())
     {
@@ -409,6 +410,7 @@ void readADIOSField(ADIOS2Settings& as, const std::string& fieldName, ExtractTyp
     }
     adios2::Variable<ExtractType> variable = as.io.InquireVariable<ExtractType>(fieldName);
     variable.SetStepSelection({as.currStep - 1, 1});
+    std::cout << "read offset: " << as.offset << ", numLocalParticles: " << as.numLocalParticles << std::endl;
     variable.SetSelection({{as.offset}, {as.numLocalParticles}});
     as.reader.Get(variable, field, adios2::Mode::Sync);
 }

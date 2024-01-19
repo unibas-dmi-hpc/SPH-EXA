@@ -87,6 +87,20 @@ public:
         as_.offset        = firstIndex;
         as_.currStep      = currStep_;
 
+        long long int currIndex[totalRanks_ + 1];
+        currIndex[0] = 0;
+        int ret = MPI_Allgather((void*)&as_.numLocalParticles, 1, MPI_LONG_LONG, (void*)&currIndex[1], 1, MPI_LONG_LONG,
+                                MPI_COMM_WORLD);
+        if (ret != MPI_SUCCESS) { std::cout << "error! " << std::endl; };
+
+        as_.numGlobalParticles = 0;
+        for (int i = 1; i < totalRanks_ + 1; i++)
+        {
+            as_.numGlobalParticles += currIndex[i];
+            currIndex[i] += currIndex[i - 1];
+        }
+        as_.offset = currIndex[as_.rank];
+
         // For now, the writer will only append data instead of writing new
         fileutils::initADIOSWriter(as_);
         fileutils::openADIOSStepWrite(as_);
@@ -114,6 +128,7 @@ public:
 
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
+
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += -MPI_Wtime();
 
@@ -240,6 +255,19 @@ public:
         as_.numTotalRanks     = numRanks;
         as_.offset            = firstIndex_;
         as_.rank              = rank;
+
+        long long int currIndex[numRanks + 1];
+        currIndex[0] = 0;
+        int ret = MPI_Allgather((void*)&as_.numLocalParticles, 1, MPI_LONG_LONG, (void*)&currIndex[1], 1, MPI_LONG_LONG,
+                                MPI_COMM_WORLD);
+        if (ret != MPI_SUCCESS) { std::cout << "error! " << std::endl; };
+        as_.numGlobalParticles = 0;
+        for (int i = 1; i < numRanks + 1; i++)
+        {
+            as_.numGlobalParticles += currIndex[i];
+            currIndex[i] += currIndex[i - 1];
+        }
+        as_.offset = currIndex[as_.rank];
 
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ += MPI_Wtime();
