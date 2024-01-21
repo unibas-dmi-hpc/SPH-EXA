@@ -35,7 +35,7 @@
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
 #include "ryoanji/nbody/traversal_cpu.hpp"
-#include "ryoanji/nbody/traversal_ewald_cpu.hpp"
+#include "ryoanji/nbody/ewald.hpp"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
 #include "ryoanji/nbody/kernel.hpp"
 
@@ -357,7 +357,7 @@ TEST(EwaldGravity, CombineMultipoleTrace)
         gamma[4] = 7 * gamma[3] * invdr2;
         gamma[5] = 8 * gamma[4] * invdr2;
 
-        auto p1 = ewaldEvalMultipoleComplete({0}, dr, gamma, M0);
+        auto p1 = ewaldEvalMultipoleComplete(Vec4{0, 0, 0, 0}, dr, gamma, M0);
 
         ASSERT_NEAR(p0[0], p1[0], 1e-10);
         ASSERT_NEAR(p0[1], p1[1], 1e-10);
@@ -610,16 +610,6 @@ TEST(EwaldGravity, Baseline)
         const T* y = coordinates.y().data();
         const T* z = coordinates.z().data();
 
-        std::vector<T> ax_ref(numParticles, 0);
-        std::vector<T> ay_ref(numParticles, 0);
-        std::vector<T> az_ref(numParticles, 0);
-        std::vector<T> u_ref(numParticles, 0);
-
-        double utot_ref = 0;
-        computeGravity(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(), multipoles.data(),
-                       layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(), masses.data(), box, G, u_ref.data(),
-                       ax_ref.data(), ay_ref.data(), az_ref.data(), &utot_ref);
-
         std::vector<T> ax(numParticles, 0);
         std::vector<T> ay(numParticles, 0);
         std::vector<T> az(numParticles, 0);
@@ -631,17 +621,17 @@ TEST(EwaldGravity, Baseline)
         int    numReplicaShells = 0;
 
         double utot = 0;
-        computeGravityEwald(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(), multipoles.data(),
-                            layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(), masses.data(), box, G, u.data(),
-                            ax.data(), ay.data(), az.data(), &utot, numReplicaShells, lCut, hCut, alpha_scale);
+        computeGravityEwald(makeVec3(centers[0]), multipoles[0], 0, numParticles, x, y, z, masses.data(), box, G,
+                            u.data(), ax.data(), ay.data(), az.data(), &utot, numReplicaShells, lCut, hCut,
+                            alpha_scale);
 
         // relative errors
         for (LocalIndex i = 0; i < numParticles; ++i)
         {
-            EXPECT_NEAR(ax[i], ax_ref[i], 1e-12);
-            EXPECT_NEAR(ay[i], ay_ref[i], 1e-12);
-            EXPECT_NEAR(az[i], az_ref[i], 1e-12);
-            EXPECT_NEAR(u[i], u_ref[i], 1e-12);
+            EXPECT_NEAR(ax[i], 0, 1e-12);
+            EXPECT_NEAR(ay[i], 0, 1e-12);
+            EXPECT_NEAR(az[i], 0, 1e-12);
+            EXPECT_NEAR(u[i], 0, 1e-12);
         }
     }
 }
@@ -708,10 +698,13 @@ TEST(EwaldGravity, UniformGrid)
                 double hCut        = 2.8;
                 double alpha_scale = 2.0;
 
-                computeGravityEwald(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(),
-                                    multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(),
-                                    masses.data(), box, G, u.data(), ax.data(), ay.data(), az.data(), &utot,
-                                    numReplicaShells, lCut, hCut, alpha_scale);
+                computeGravity(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(),
+                               multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(),
+                               masses.data(), box, G, u.data(), ax.data(), ay.data(), az.data(), &utot,
+                               numReplicaShells);
+                computeGravityEwald(makeVec3(centers[0]), multipoles[0], 0, numParticles, x, y, z, masses.data(), box,
+                                    G, u.data(), ax.data(), ay.data(), az.data(), &utot, numReplicaShells, lCut, hCut,
+                                    alpha_scale);
             }
 
             //
@@ -829,10 +822,13 @@ TEST(EwaldGravity, UniformGridCenterParticle)
                 double hCut        = 2.8;
                 double alpha_scale = 2.0;
 
-                computeGravityEwald(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(),
-                                    multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(),
-                                    masses.data(), box, G, u.data(), ax.data(), ay.data(), az.data(), &utot,
-                                    numReplicaShells, lCut, hCut, alpha_scale);
+                computeGravity(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(),
+                               multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(),
+                               masses.data(), box, G, u.data(), ax.data(), ay.data(), az.data(), &utot,
+                               numReplicaShells);
+                computeGravityEwald(makeVec3(centers[0]), multipoles[0], 0, numParticles, x, y, z, masses.data(), box,
+                                    G, u.data(), ax.data(), ay.data(), az.data(), &utot, numReplicaShells, lCut, hCut,
+                                    alpha_scale);
             }
 
             //
@@ -849,10 +845,10 @@ TEST(EwaldGravity, UniformGridCenterParticle)
 
             T amag = std::sqrt(ax[zero] * ax[zero] + ay[zero] * ay[zero] + az[zero] * az[zero]);
 
-            // EXPECT_NEAR(amag, 0, 1e-12);
-            // EXPECT_NEAR(std::abs(ax[0]), 0, 1e-12);
-            // EXPECT_NEAR(std::abs(ay[1]), 0, 1e-12);
-            // EXPECT_NEAR(std::abs(az[2]), 0, 1e-12);
+            EXPECT_NEAR(amag, 0, 5e-2);
+            EXPECT_NEAR(std::abs(ax[zero]), 0, 5e-2);
+            EXPECT_NEAR(std::abs(ay[zero]), 0, 5e-2);
+            EXPECT_NEAR(std::abs(az[zero]), 0, 5e-2);
 
             V(1)
             printf("  %28s | %5.2f %5i %5.2f | %23.15e | %23.15e %23.15e %23.15e %23.15e\n", test_name, theta,
@@ -924,10 +920,9 @@ TEST(EwaldGravity, UniformGridOnlyEwald)
                 double hCut        = 2.8;
                 double alpha_scale = 2.0;
 
-                computeGravityEwald(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(),
-                                    multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(),
-                                    masses.data(), box, G, u.data(), ax.data(), ay.data(), az.data(), &utot,
-                                    numReplicaShells, lCut, hCut, alpha_scale, true);
+                computeGravityEwald(makeVec3(centers[0]), multipoles[0], 0, numParticles, x, y, z, masses.data(), box,
+                                    G, u.data(), ax.data(), ay.data(), az.data(), &utot, numReplicaShells, lCut, hCut,
+                                    alpha_scale);
             }
 
             //
@@ -1044,10 +1039,9 @@ TEST(EwaldGravity, UniformGridCenterParticleOnlyEwald)
                 double hCut        = 2.8;
                 double alpha_scale = 2.0;
 
-                computeGravityEwald(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(),
-                                    multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(),
-                                    masses.data(), box, G, u.data(), ax.data(), ay.data(), az.data(), &utot,
-                                    numReplicaShells, lCut, hCut, alpha_scale, true);
+                computeGravityEwald(makeVec3(centers[0]), multipoles[0], 0, numParticles, x, y, z, masses.data(), box,
+                                    G, u.data(), ax.data(), ay.data(), az.data(), &utot, numReplicaShells, lCut, hCut,
+                                    alpha_scale);
             }
 
             //
@@ -1131,10 +1125,12 @@ TEST(EwaldGravity, SingleParticleChangingGrid)
             double hCut        = 2.8;
             double alpha_scale = 2.0;
 
-            computeGravityEwald(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(),
-                                multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(),
-                                masses.data(), box, G, u.data(), ax.data(), ay.data(), az.data(), &utot,
-                                numReplicaShells, lCut, hCut, alpha_scale);
+            computeGravity(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(), multipoles.data(),
+                           layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(), masses.data(), box, G, u.data(),
+                           ax.data(), ay.data(), az.data(), &utot, numReplicaShells);
+            computeGravityEwald(makeVec3(centers[0]), multipoles[0], 0, numParticles, x, y, z, masses.data(), box, G,
+                                u.data(), ax.data(), ay.data(), az.data(), &utot, numReplicaShells, lCut, hCut,
+                                alpha_scale);
 
             double Uexpected = ExpectedTotalPotentialSingleParticle(1.0, numParticles, box.xmax() - box.xmin(), G);
             double rel_err   = (Uexpected - utot) / utot;
@@ -1164,10 +1160,12 @@ TEST(EwaldGravity, SingleParticleChangingGrid)
             double hCut        = 2.8;
             double alpha_scale = 2.0;
 
-            computeGravityEwald(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(),
-                                multipoles.data(), layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(),
-                                masses.data(), box, G, u1.data(), ax1.data(), ay1.data(), az1.data(), &utot1,
-                                numReplicaShells, lCut, hCut, alpha_scale);
+            computeGravity(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(), multipoles.data(),
+                           layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(), masses.data(), box, G, u1.data(),
+                           ax1.data(), ay1.data(), az1.data(), &utot1, numReplicaShells);
+            computeGravityEwald(makeVec3(centers[0]), multipoles[0], 0, numParticles, x, y, z, masses.data(), box, G,
+                                u1.data(), ax1.data(), ay1.data(), az1.data(), &utot1, numReplicaShells, lCut, hCut,
+                                alpha_scale);
 
             double Uexpected =
                 ExpectedTotalPotentialSingleParticle(sqrt(Lscale), numParticles, box.xmax() - box.xmin(), G);

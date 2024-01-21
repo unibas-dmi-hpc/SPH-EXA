@@ -70,7 +70,7 @@ void syncCoords(size_t rank, size_t numRanks, size_t numParticlesGlobal, Vector&
     std::vector<KeyType> particleKeys(x.size());
     cstone::LocalIndex   newNParticlesAssigned =
         distributor.assign(bufDesc, sorter, scratch1, scratch2, particleKeys.data(), x.data(), y.data(), z.data());
-    size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
+    auto exchangeSize = std::max(cstone::LocalIndex(x.size()), newNParticlesAssigned);
     reallocate(exchangeSize, particleKeys, x, y, z);
     auto [exchangeStart, keyView] = distributor.distribute({bufDesc.start, bufDesc.end, exchangeSize}, sorter, scratch1,
                                                            scratch2, particleKeys.data(), x.data(), y.data(), z.data());

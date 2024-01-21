@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2024 CSCS, ETH Zurich
+ *               2024 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,46 +34,62 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
-#include "cstone/cuda/cuda_utils.cuh"
-
 #include "dataset.hpp"
-#include "ryoanji/nbody/direct.cuh"
-#include "ryoanji/nbody/traversal_cpu.hpp"
+#include "ryoanji/nbody/ewald.cuh"
 
+using namespace cstone;
 using namespace ryoanji;
 
-TEST(DirectSum, MatchCpu)
+TEST(Ewald, MatchCpu)
 {
-    using T          = double;
-    size_t numBodies = 1000;
-    T      boxLength = 3;
-    int    numShells = 1;
+    using T                = double;
+    using KeyType          = uint64_t;
+    using MultipoleType    = CartesianQuadrupole<float>;
+    using SourceCenterType = util::array<T, 4>;
+
+    /// Test input ************************
+    size_t         numBodies        = 100;
+    T              G                = 1.5;
+    double         lCut             = 2.6;
+    double         hCut             = 2.8;
+    double         alpha_scale      = 2.0;
+    int            numReplicaShells = 1;
+    T              coordMax         = 3.0;
+    cstone::Box<T> box(-coordMax, coordMax, cstone::BoundaryType::periodic);
 
     std::vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies), h(numBodies);
-    ryoanji::makeCubeBodies(x.data(), y.data(), z.data(), m.data(), h.data(), numBodies, boxLength);
+    ryoanji::makeCubeBodies(x.data(), y.data(), z.data(), m.data(), h.data(), numBodies, coordMax);
+    ///**************************************
+
+    MultipoleType rootMultipole;
+    auto          centerMass = massCenter<T>(x.data(), y.data(), z.data(), m.data(), 0, numBodies);
+    P2M(x.data(), y.data(), z.data(), m.data(), 0, numBodies, centerMass, rootMultipole);
 
     // upload to device
     thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m, d_h = h;
     thrust::device_vector<T> p(numBodies), ax(numBodies), ay(numBodies), az(numBodies);
 
-    Vec3<T> box{boxLength, boxLength, boxLength};
-    directSum(0, numBodies, numBodies, box, numShells, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h),
-              rawPtr(p), rawPtr(ax), rawPtr(ay), rawPtr(az));
+    T utot = 0;
+    computeGravityEwaldGpu(makeVec3(centerMass), rootMultipole, 0, numBodies, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z),
+                           rawPtr(d_m), box, G, rawPtr(p), rawPtr(ax), rawPtr(ay), rawPtr(az), &utot, numReplicaShells,
+                           lCut, hCut, alpha_scale);
+
+    T              utotRef = 0;
+    std::vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
+    computeGravityEwald(makeVec3(centerMass), rootMultipole, 0, numBodies, x.data(), y.data(), z.data(), m.data(), box,
+                        G, refP.data(), refAx.data(), refAy.data(), refAz.data(), &utotRef, numReplicaShells, lCut,
+                        hCut, alpha_scale);
 
     // download body accelerations
     thrust::host_vector<T> h_p = p, h_ax = ax, h_ay = ay, h_az = az;
 
-    T G = 1.0;
-
-    std::vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
-    directSum(x.data(), y.data(), z.data(), h.data(), m.data(), numBodies, G, box, numShells, refAx.data(),
-              refAy.data(), refAz.data(), refP.data());
+    EXPECT_NEAR(utotRef, utot, 1e-7);
 
     for (int i = 0; i < numBodies; ++i)
     {
+        EXPECT_NEAR(h_p[i], refP[i], 1e-6);
         EXPECT_NEAR(h_ax[i], refAx[i], 1e-6);
         EXPECT_NEAR(h_ay[i], refAy[i], 1e-6);
         EXPECT_NEAR(h_az[i], refAz[i], 1e-6);
-        EXPECT_NEAR(h_p[i], refP[i], 1e-6);
     }
 }
