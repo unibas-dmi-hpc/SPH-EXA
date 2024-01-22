@@ -71,7 +71,7 @@ struct EwaldParameters
 };
 
 template<class T>
-using CartesianQuadrupoleGamma = util::array<T, 6>;
+using CartesianQuadrupoleGamma = util::array<T, 4>;
 
 /*! @brief Evaluate the potential and acceleration of a multipole expansion.
  *
@@ -170,13 +170,13 @@ EwaldParameters<T1, T2> ewaldInitParameters(const CartesianQuadrupole<T2>& Mroot
                 const auto g1 = 2 * M_PI / L * g0;
                 const auto g2 = -2 * M_PI / L * g1;
                 const auto g3 = 2 * M_PI / L * g2;
-                const auto g4 = -2 * M_PI / L * g3;
-                const auto g5 = 2 * M_PI / L * g4;
+                //const auto g4 = -2 * M_PI / L * g3;
+                //const auto g5 = 2 * M_PI / L * g4;
 
-                CartesianQuadrupoleGamma<T2> gamma1{g0, 0.0, g2, 0.0, g4, 0.0};
+                CartesianQuadrupoleGamma<T2> gamma1{g0, 0.0, g2, 0.0}; //, g4, 0.0};
                 const auto                   mfac_cos = ewaldEvalMultipoleComplete({0}, hr, gamma1, Mroot)[0];
 
-                CartesianQuadrupoleGamma<T2> gamma2{0.0, g1, 0.0, g3, 0.0, g5};
+                CartesianQuadrupoleGamma<T2> gamma2{0.0, g1, 0.0, g3}; //, 0.0, g5};
                 const auto                   mfac_sin = ewaldEvalMultipoleComplete({0}, hr, gamma2, Mroot)[0];
 
                 EwaldHSumCoefficients<T1> hsum = {
@@ -257,10 +257,13 @@ Vec4<T1> computeEwaldRealSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params
                     gamma[2] = c0 * (R2a2 / 7.0 - 1.0 / 5.0);
                     c0 *= 2 * alpha2;
                     gamma[3] = c0 * (R2a2 / 9.0 - 1.0 / 7.0);
+#if 0
+                    // Only necessary to support 5th order multipoles
                     c0 *= 2 * alpha2;
                     gamma[4] = c0 * (R2a2 / 11.0 - 1.0 / 9.0);
                     c0 *= 2 * alpha2;
                     gamma[5] = c0 * (R2a2 / 13.0 - 1.0 / 11.0);
+#endif
                 }
                 else
                 {
@@ -283,10 +286,13 @@ Vec4<T1> computeEwaldRealSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params
                     gamma[2] = 3 * gamma[1] * invR2 + alphan * a;
                     alphan *= 2 * alpha2;
                     gamma[3] = 5 * gamma[2] * invR2 + alphan * a;
+#if 0
+                    // Only necessary to support 5th order multipoles
                     alphan *= 2 * alpha2;
                     gamma[4] = 7 * gamma[3] * invR2 + alphan * a;
                     alphan *= 2 * alpha2;
                     gamma[5] = 9 * gamma[4] * invR2 + alphan * a;
+#endif
                 }
 
                 potAcc = ewaldEvalMultipoleComplete(potAcc, R, gamma, Mroot);
@@ -297,7 +303,7 @@ Vec4<T1> computeEwaldRealSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params
     return potAcc;
 }
 
-//! @brief Ewald K-space contribution to the potential and acceleration of a single particle @p r
+//! @brief Ewald K-space contribution to the potential and acceleration of a single particle at r
 template<class T1, class T2>
 Vec4<T1> computeEwaldKSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params)
 {

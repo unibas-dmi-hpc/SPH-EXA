@@ -44,7 +44,7 @@ using namespace ryoanji;
 
 const int TEST_RNG_SEED = 42;
 
-const int verbose = 0;
+const int verbose = 1;
 #define V(level) if ((level) == verbose)
 
 template<class T, class KeyType_>
@@ -283,11 +283,11 @@ TEST(EwaldGravity, BasicTests)
     }
 }
 
-/*! @brief ewaldEvalMultipoleComplete
+/*! @brief CombineMultipoleTrace
  *
  * We currently need the multipoles to include the original trace before it is removed.
  * Test that the code to keep the trace around is working.
- * We can remove this once if we recompute the root-level multipole with the trace
+ * We can remove this if we recompute the root-level multipole with the trace
  * and leave all other multipoles traceless.
  *
  */
@@ -471,7 +471,7 @@ TEST(EwaldGravity, ewaldEvalMultipoleComplete)
         Vec3                        r{0, 0, 0};
         Vec4                        potAcc{2, -10, 50, -100};
         Vec4                        potAccExpect{2, -10, 50, -100};
-        CartesianQuadrupoleGamma<T> gamma{1, 1, 1, 1, 1, 1};
+        CartesianQuadrupoleGamma<T> gamma{1, 1, 1, 1}; // , 1, 1};
         CartesianQuadrupole<T>      multipole{0};
         auto                        potAccNew = ewaldEvalMultipoleComplete(potAcc, r, gamma, multipole);
         for (size_t i = 0; i < potAccNew.size(); ++i)
@@ -581,6 +581,221 @@ TEST(EwaldGravity, ewaldEvalMultipoleComplete)
     }
 }
 
+/*! @brief ewaldInitParameters
+ *
+ */
+TEST(EwaldGravity, ewaldInitParameters)
+{
+    using T             = double;
+    using MultipoleType = ryoanji::CartesianQuadrupole<T>;
+    using Vec3          = ryoanji::Vec3<T>;
+
+    // Check arguments are correctly copied into the parameters structure
+    {
+        MultipoleType M = {1,2,3,4,5,6,7,8};
+        Vec3 Mr = {2,3,4};
+        int numReplicaShells = 3;
+        double L = 100;
+        double lCut = 2.6;
+        double hCut = 2.8;
+        double alpha_scale = 2.0;
+        EwaldParameters<T,T> p = ewaldInitParameters(M,Mr,numReplicaShells,L,lCut,hCut,alpha_scale);
+
+        EXPECT_EQ(p.numReplicaShells, numReplicaShells);
+        EXPECT_EQ(p.numEwaldShells, 3);
+        EXPECT_EQ(p.L, L);
+        EXPECT_EQ(p.lCut, lCut);
+        EXPECT_EQ(p.hCut, hCut);
+        EXPECT_EQ(p.alpha_scale, alpha_scale);
+        EXPECT_EQ(p.Mroot_center[0], Mr[0]);
+        EXPECT_EQ(p.Mroot_center[1], Mr[1]);
+        EXPECT_EQ(p.Mroot_center[2], Mr[2]);
+        EXPECT_NEAR(p.small_R_scale_factor, 3.0e-3, 1e-2);
+    }
+    
+    // Check ewald is effectively disabled (numReplicaShells==0) when lCut,hCut,alpha_scale == 0
+    {
+        MultipoleType M = {1,2,3,4,5,6,7,8};
+        Vec3 Mr = {2,3,4};
+        int numReplicaShells = 1;
+        double L = 100;
+        //double lCut = 0;
+        //double hCut = 0;
+        //double alpha_scale = 0;
+        {
+            EwaldParameters<T,T> p = ewaldInitParameters(M,Mr,numReplicaShells,L,0,0,0);
+
+            EXPECT_EQ(p.numReplicaShells, 0);
+            EXPECT_EQ(p.numEwaldShells, 0);
+            EXPECT_EQ(p.hsum_coeffs.size(), 0);
+        }
+        {
+            EwaldParameters<T,T> p = ewaldInitParameters(M,Mr,numReplicaShells,L,2,0,0);
+
+            EXPECT_EQ(p.numReplicaShells, 1);
+            EXPECT_EQ(p.numEwaldShells, 2);
+            EXPECT_EQ(p.hsum_coeffs.size(), 0);
+        }
+        {
+            EwaldParameters<T,T> p = ewaldInitParameters(M,Mr,numReplicaShells,L,0,1,0);
+
+            EXPECT_EQ(p.numReplicaShells, 1);
+            EXPECT_EQ(p.numEwaldShells, 1);
+            EXPECT_EQ(p.hsum_coeffs.size(), 6);
+        }
+        {
+            EwaldParameters<T,T> p = ewaldInitParameters(M,Mr,numReplicaShells,L,0,0,1);
+
+            EXPECT_EQ(p.numReplicaShells, 1);
+            EXPECT_EQ(p.numEwaldShells, 1);
+            EXPECT_EQ(p.hsum_coeffs.size(), 0);
+        }
+    }
+    
+    // Check ewald hsum coefficients
+    {
+        MultipoleType M = {1,0,0,0,0,0,0,0};
+        Vec3 Mr = {2,3,4};
+        int numReplicaShells = 1;
+        double L = 1;
+        double lCut = 0;
+        double hCut = 1;
+        double alpha_scale = 1;
+        EwaldParameters<T,T> p = ewaldInitParameters(M,Mr,numReplicaShells,L,lCut,hCut,alpha_scale);
+
+        EXPECT_EQ(p.numReplicaShells, 1);
+        EXPECT_EQ(p.numEwaldShells, 1);
+        EXPECT_EQ(p.hsum_coeffs.size(), 6);
+
+        EXPECT_EQ(p.hsum_coeffs[0].hr[0], -1);
+        EXPECT_EQ(p.hsum_coeffs[0].hr[1], 0);
+        EXPECT_EQ(p.hsum_coeffs[0].hr[2], 0);
+        EXPECT_EQ(p.hsum_coeffs[0].hr_scaled[0], -2 * M_PI);
+        EXPECT_EQ(p.hsum_coeffs[0].hr_scaled[1], 0);
+        EXPECT_EQ(p.hsum_coeffs[0].hr_scaled[2], 0);
+        EXPECT_NEAR(p.hsum_coeffs[0].hfac_cos, -exp(-(M_PI*M_PI)) / M_PI, 1e-12);
+        EXPECT_NEAR(p.hsum_coeffs[0].hfac_sin, 0, 1e-12);
+
+        EXPECT_EQ(p.hsum_coeffs[1].hr[0], 0);
+        EXPECT_EQ(p.hsum_coeffs[1].hr[1], -1);
+        EXPECT_EQ(p.hsum_coeffs[1].hr[2], 0);
+        EXPECT_EQ(p.hsum_coeffs[1].hr_scaled[0], 0);
+        EXPECT_EQ(p.hsum_coeffs[1].hr_scaled[1], -2 * M_PI);
+        EXPECT_EQ(p.hsum_coeffs[1].hr_scaled[2], 0);
+        EXPECT_NEAR(p.hsum_coeffs[1].hfac_cos, -exp(-(M_PI*M_PI)) / M_PI, 1e-12);
+        EXPECT_NEAR(p.hsum_coeffs[1].hfac_sin, 0, 1e-12);
+
+        EXPECT_EQ(p.hsum_coeffs[2].hr[0], 0);
+        EXPECT_EQ(p.hsum_coeffs[2].hr[1], 0);
+        EXPECT_EQ(p.hsum_coeffs[2].hr[2], -1);
+        EXPECT_EQ(p.hsum_coeffs[2].hr_scaled[0], 0);
+        EXPECT_EQ(p.hsum_coeffs[2].hr_scaled[1], 0);
+        EXPECT_EQ(p.hsum_coeffs[2].hr_scaled[2], -2 * M_PI);
+        EXPECT_NEAR(p.hsum_coeffs[2].hfac_cos, -exp(-(M_PI*M_PI)) / M_PI, 1e-12);
+        EXPECT_NEAR(p.hsum_coeffs[2].hfac_sin, 0, 1e-12);
+
+        EXPECT_EQ(p.hsum_coeffs[3].hr[0], 0);
+        EXPECT_EQ(p.hsum_coeffs[3].hr[1], 0);
+        EXPECT_EQ(p.hsum_coeffs[3].hr[2], 1);
+        EXPECT_EQ(p.hsum_coeffs[3].hr_scaled[0], 0);
+        EXPECT_EQ(p.hsum_coeffs[3].hr_scaled[1], 0);
+        EXPECT_EQ(p.hsum_coeffs[3].hr_scaled[2], 2 * M_PI);
+        EXPECT_NEAR(p.hsum_coeffs[3].hfac_cos, -exp(-(M_PI*M_PI)) / M_PI, 1e-12);
+        EXPECT_NEAR(p.hsum_coeffs[3].hfac_sin, 0, 1e-12);
+
+        EXPECT_EQ(p.hsum_coeffs[4].hr[0], 0);
+        EXPECT_EQ(p.hsum_coeffs[4].hr[1], 1);
+        EXPECT_EQ(p.hsum_coeffs[4].hr[2], 0);
+        EXPECT_EQ(p.hsum_coeffs[4].hr_scaled[0], 0);
+        EXPECT_EQ(p.hsum_coeffs[4].hr_scaled[1], 2 * M_PI);
+        EXPECT_EQ(p.hsum_coeffs[4].hr_scaled[2], 0);
+        EXPECT_NEAR(p.hsum_coeffs[4].hfac_cos, -exp(-(M_PI*M_PI)) / M_PI, 1e-12);
+        EXPECT_NEAR(p.hsum_coeffs[4].hfac_sin, 0, 1e-12);
+
+        EXPECT_EQ(p.hsum_coeffs[5].hr[0], 1);
+        EXPECT_EQ(p.hsum_coeffs[5].hr[1], 0);
+        EXPECT_EQ(p.hsum_coeffs[5].hr[2], 0);
+        EXPECT_EQ(p.hsum_coeffs[5].hr_scaled[0], 2 * M_PI);
+        EXPECT_EQ(p.hsum_coeffs[5].hr_scaled[1], 0);
+        EXPECT_EQ(p.hsum_coeffs[5].hr_scaled[2], 0);
+        EXPECT_NEAR(p.hsum_coeffs[5].hfac_cos, -exp(-(M_PI*M_PI)) / M_PI, 1e-12);
+        EXPECT_NEAR(p.hsum_coeffs[5].hfac_sin, 0, 1e-12);
+    }
+
+}
+
+/*! @brief computeEwaldRealSpace
+ *
+ */
+TEST(EwaldGravity, computeEwaldRealSpace)
+{
+    using T             = double;
+
+    {
+        EwaldParameters<T,T> p = {
+            .Mroot = {1,2,3,4,5,6},
+            .Mroot_center = {0,0,0},
+            .numReplicaShells = 0,
+            .numEwaldShells = 0,
+            .L = 1,
+            .lCut = 1,
+            .hCut = 1,
+            .alpha_scale = 2.0,
+            .small_R_scale_factor = 3.0e-3
+        };
+        {
+            auto potAcc = computeEwaldRealSpace({0,0,0}, p);
+            EXPECT_NEAR(potAcc[0], 3.0421564975884734, 1e-12);
+            EXPECT_NEAR(potAcc[1], 0, 1e-12);
+            EXPECT_NEAR(potAcc[2], 0, 1e-12);
+            EXPECT_NEAR(potAcc[3], 0, 1e-12);
+        }
+        {
+            auto potAcc = computeEwaldRealSpace({0.1,0.1,0.1}, p);
+            EXPECT_NEAR(potAcc[0],  4.4137760131754487, 1e-12);
+            EXPECT_NEAR(potAcc[1], -6.569290275122496 , 1e-12);
+            EXPECT_NEAR(potAcc[2], -10.989686765376108, 1e-12);
+            EXPECT_NEAR(potAcc[3], -7.4533695731732186, 1e-12);
+        }
+    }
+}
+
+/*! @brief computeEwaldKSpace
+ *
+ */
+TEST(EwaldGravity, computeEwaldKSpace)
+{
+    using T             = double;
+
+    {
+        EwaldParameters<T,T> p = {
+            .Mroot_center = {0,0,0},
+            .hsum_coeffs = {
+                {
+                    .hr_scaled = {1,1,1},
+                    .hfac_cos = .3,
+                    .hfac_sin = .5,
+                }
+            }
+        };
+        {
+            auto potAcc = computeEwaldKSpace({0,0,0}, p);
+            EXPECT_NEAR(potAcc[0], -0.29999999999999999, 1e-12);
+            EXPECT_NEAR(potAcc[1], -0.5, 1e-12);
+            EXPECT_NEAR(potAcc[2], -0.5, 1e-12);
+            EXPECT_NEAR(potAcc[3], -0.5, 1e-12);
+        }
+        {
+            auto potAcc = computeEwaldKSpace({0.1,0.1,0.1}, p);
+            EXPECT_NEAR(potAcc[0], -0.43436105006835157, 1e-12);
+            EXPECT_NEAR(potAcc[1], -0.38901218256440112, 1e-12);
+            EXPECT_NEAR(potAcc[2], -0.38901218256440112, 1e-12);
+            EXPECT_NEAR(potAcc[3], -0.38901218256440112, 1e-12);
+        }
+    }
+}
+
+
 /*! @brief Ewald routines with Ewald cutoffs set to zero and no replicas should
  * reproduce normal gravity result.
  *
@@ -671,7 +886,7 @@ TEST(EwaldGravity, UniformGrid)
     V(1)
     {
         printf("# This checks that the net acceleration and acceleration of all particles remains small\n");
-        printf("# althoug values will still be around 1e-3.\n");
+        printf("# although values will still be around 1e-4 to 1e-3.\n");
         printf("# %28s | %5s %5s %5s %23s %71s | %65s | %65s\n", "Test", "Theta", "nPart", "Mass", "U tot",
                "Net Acceleration", "Potential :: med, 1std, 2std, last", "Accel :: med, 1std, 2std, last");
         printf("# %28s | %5s %5s %5s %23s %71s | %65s | %65s\n", "----", "-----", "-----", "----", "-----",
