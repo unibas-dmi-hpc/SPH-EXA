@@ -36,6 +36,7 @@
 
 #include "ipropagator.hpp"
 #include "nbody.hpp"
+#include "cosmo.hpp"
 #include "std_hydro.hpp"
 #include "ve_hydro.hpp"
 #ifdef SPH_EXA_HAVE_GRACKLE
@@ -63,6 +64,7 @@ propagatorFactory(const std::string& choice, bool avClean, std::ostream& output,
     }
 #endif
     if (choice == "nbody") { return std::make_unique<NbodyProp<DomainType, ParticleDataType>>(output, rank); }
+    if (choice == "cosmo") { return std::make_unique<CosmoProp<DomainType, ParticleDataType>>(output, rank); }
     if (choice == "turbulence")
     {
         if (avClean) { return std::make_unique<TurbVeProp<true, DomainType, ParticleDataType>>(output, rank, s); }

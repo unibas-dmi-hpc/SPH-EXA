@@ -50,7 +50,7 @@ public:
 
     using HydroData = ParticlesData<RealType, KeyType, AccType>;
     using ChemData  = cooling::ChemistryData<T>;
-    using CosmoData = cosmo::CosmologyData<T>;
+    //using CosmoData = cosmo::CosmologyData<T>;
 
     //! @brief spacially distributed data for hydrodynamics and gravity
     HydroData hydro;
@@ -62,7 +62,7 @@ public:
     // NuclearData nuclear;
 
     //! @brief cosmological parameters
-    CosmoData &cosmo;
+    //CosmoData &cosmo;
 
     MPI_Comm comm;
 
