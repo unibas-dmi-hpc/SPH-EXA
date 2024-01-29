@@ -46,13 +46,13 @@ const T* rawPtr(const std::vector<T, Alloc>& p)
 }
 
 template<class T>
-void memcpyH2D(const T* src, size_t n, T* dest);
+void memcpyH2D(const T* src, std::size_t n, T* dest);
 
 template<class T>
-void memcpyD2H(const T* src, size_t n, T* dest);
+void memcpyD2H(const T* src, std::size_t n, T* dest);
 
 template<class T>
-void memcpyD2D(const T* src, size_t n, T* dest);
+void memcpyD2D(const T* src, std::size_t n, T* dest);
 
 void syncGpu();
 

@@ -72,8 +72,8 @@ void syncCoords(size_t rank, size_t numRanks, size_t numParticlesGlobal, Vector&
         distributor.assign(bufDesc, sorter, scratch1, scratch2, particleKeys.data(), x.data(), y.data(), z.data());
     size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
     reallocate(exchangeSize, particleKeys, x, y, z);
-    auto [exchangeStart, keyView] =
-        distributor.distribute(bufDesc, sorter, scratch1, scratch2, particleKeys.data(), x.data(), y.data(), z.data());
+    auto [exchangeStart, keyView] = distributor.distribute({bufDesc.start, bufDesc.end, exchangeSize}, sorter, scratch1,
+                                                           scratch2, particleKeys.data(), x.data(), y.data(), z.data());
 
     scratch1.resize(x.size());
     cstone::gatherArrays(sorter.gatherFunc(), sorter.getMap() + distributor.numSendDown(), distributor.numAssigned(),
