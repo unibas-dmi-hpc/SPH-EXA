@@ -95,6 +95,13 @@ int main(int argc, char** argv)
     const std::string        pmroot       = parser.get("--pmroot", std::string("/sys/cray/pm_counters"));
     std::string              outFile      = parser.get("-o", "dump_" + removeModifiers(initCond));
 
+    // Progress output for autonomy loops
+    const std::string progressFreqStr = parser.get("--progress", maxStepStr);
+    const bool        progressEnabled = parser.exists("--progress");
+
+    std::ofstream progressFile(fs::path(outFile).parent_path() / fs::path("progress.txt"));
+    float         lastInterval = 0;
+
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = (quiet || rank) ? nullOutput : std::cout;
     std::ofstream constantsFile(fs::path(outFile).parent_path() / fs::path("constants.txt"));
@@ -141,6 +148,15 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
+    // if (rank == 0)
+    // {
+    //     progressFile << "Finished time-step,"
+    //                  << "Max time-step,"
+    //                  << "Time-step progress percent,"
+    //                  << "Average time-step time,"
+    //                  << "Total physical time" << std::endl;
+    // }
+
     size_t startIteration = d.iteration;
     for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
     {
@@ -169,12 +185,27 @@ int main(int argc, char** argv)
             if (profEnabled) { propagator->writeMetrics(fileWriter.get(), "profile"); }
         }
 
+        // Progress output for autonomy loops
+        if (isOutputStep(d.iteration, progressFreqStr))
+        {
+            if (rank == 0)
+            {
+                float perc                = d.iteration / std::stof(maxStepStr) * 100;
+                float averageProgressTime = (totalTimer.elapsed() - lastInterval) / std::stof(progressFreqStr);
+                progressFile << "timestep " << d.iteration << " of " << maxStepStr << ","
+                             << " average time per timestep of this interval " << averageProgressTime << " seconds"
+                             << std::endl;
+                lastInterval = totalTimer.elapsed();
+            }
+        }
+
         viz::execute(d, domain.startIndex(), domain.endIndex());
         if (isWallClockReached && ++d.iteration) { break; }
     }
     totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
                     initCond + " up to t = " + std::to_string(d.ttot));
 
+    progressFile.close();
     constantsFile.close();
     viz::finalize();
     return exitSuccess();
@@ -238,5 +269,8 @@ void printHelp(char* name, int rank)
         printf("\t--quiet \t Don't print anything to stdout\n\n");
 
         printf("\t--duration \t Maximum wall-clock run time of the simulation in seconds.[MAX_INT]\n\n");
+
+        printf("\t--progress int(NUM)\t Save the progress of the application in file progress.txt every NUM "
+               "time-steps.\n\n");
     }
 }
