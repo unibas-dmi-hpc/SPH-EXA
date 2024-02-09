@@ -36,6 +36,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <cstdlib>
 
 #include "cstone/domain/domain.hpp"
 
@@ -99,7 +100,9 @@ int main(int argc, char** argv)
     const std::string progressFreqStr = parser.get("--progress", maxStepStr);
     const bool        progressEnabled = parser.exists("--progress");
 
-    std::ofstream progressFile(fs::path(outFile).parent_path() / fs::path("progress.txt"));
+    std::string jobID = getenv("SLURM_JOB_ID");
+    std::string progressFilePath = "progress_" + jobID + ".out";
+    std::ofstream progressFile(fs::path(outFile).parent_path() / fs::path(progressFilePath));
     float         lastInterval = 0;
 
     std::ofstream nullOutput("/dev/null");
@@ -195,6 +198,7 @@ int main(int argc, char** argv)
                 progressFile << "timestep " << d.iteration << " of " << maxStepStr << ","
                              << " average time per timestep of this interval " << averageProgressTime << " seconds"
                              << std::endl;
+		progressFile.flush();
                 lastInterval = totalTimer.elapsed();
             }
         }
