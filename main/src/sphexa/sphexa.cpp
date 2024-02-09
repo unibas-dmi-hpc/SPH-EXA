@@ -101,7 +101,7 @@ int main(int argc, char** argv)
     const bool        progressEnabled = parser.exists("--progress");
 
     std::string   jobID            = getenv("SLURM_JOB_ID");
-    std::string   progressFilePath = "progress_" + jobID + ".out";
+    std::string   progressFilePath = "progress-" + jobID + ".out";
     std::ofstream progressFile(fs::path(outFile).parent_path() / fs::path(progressFilePath));
     float         lastInterval = 0;
 
