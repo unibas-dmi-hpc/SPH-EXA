@@ -1,30 +1,5 @@
-/*
- * MIT License
- *
- * Copyright (c) 2024 CSCS, ETH Zurich
- *               2024 University of Basel
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-
 /*! @file
- * @brief Direct kernel comparison against the CPU
+ * @brief Compare the Ewald GPU kernel against the CPU version
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -34,8 +9,13 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
+#include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/focus/source_center.hpp"
+
 #include "dataset.hpp"
-#include "ryoanji/nbody/ewald.cuh"
+#include "ryoanji/nbody/cartesian_qpole.hpp"
+#include "ryoanji/nbody/ewald.hpp"
+#include "ryoanji/interface/ewald.cuh"
 
 using namespace cstone;
 using namespace ryoanji;
@@ -48,14 +28,11 @@ TEST(Ewald, MatchCpu)
     using SourceCenterType = util::array<T, 4>;
 
     /// Test input ************************
-    size_t         numBodies        = 100;
-    T              G                = 1.5;
-    double         lCut             = 2.6;
-    double         hCut             = 2.8;
-    double         alpha_scale      = 2.0;
-    int            numReplicaShells = 1;
-    T              coordMax         = 3.0;
+    size_t         numBodies = 100;
+    T              G         = 1.5;
+    T              coordMax  = 3.0;
     cstone::Box<T> box(-coordMax, coordMax, cstone::BoundaryType::periodic);
+    EwaldSettings  settings{.numReplicaShells = 1, .lCut = 2.6, .hCut = 2.8, .alpha_scale = 2.0};
 
     std::vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies), h(numBodies);
     ryoanji::makeCubeBodies(x.data(), y.data(), z.data(), m.data(), h.data(), numBodies, coordMax);
@@ -71,14 +48,12 @@ TEST(Ewald, MatchCpu)
 
     T utot = 0;
     computeGravityEwaldGpu(makeVec3(centerMass), rootMultipole, 0, numBodies, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z),
-                           rawPtr(d_m), box, G, rawPtr(p), rawPtr(ax), rawPtr(ay), rawPtr(az), &utot, numReplicaShells,
-                           lCut, hCut, alpha_scale);
+                           rawPtr(d_m), box, G, rawPtr(p), rawPtr(ax), rawPtr(ay), rawPtr(az), &utot, settings);
 
     T              utotRef = 0;
     std::vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
     computeGravityEwald(makeVec3(centerMass), rootMultipole, 0, numBodies, x.data(), y.data(), z.data(), m.data(), box,
-                        G, refP.data(), refAx.data(), refAy.data(), refAz.data(), &utotRef, numReplicaShells, lCut,
-                        hCut, alpha_scale);
+                        G, refP.data(), refAx.data(), refAy.data(), refAz.data(), &utotRef, settings);
 
     // download body accelerations
     thrust::host_vector<T> h_p = p, h_ax = ax, h_ay = ay, h_az = az;

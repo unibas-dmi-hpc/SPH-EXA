@@ -36,7 +36,6 @@
 #include "cstone/util/reallocate.hpp"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
 #include "ryoanji/nbody/direct.cuh"
-#include "ryoanji/nbody/ewald.cuh"
 #include "ryoanji/nbody/upwardpass.cuh"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
 #include "ryoanji/nbody/traversal.cuh"
@@ -130,21 +129,14 @@ public:
                                                            traversalStack_, targets_);
     }
 
-    float compute(LocalIndex first, LocalIndex last, const Tc* x, const Tc* y, const Tc* z, const Tm* m, const Th* h,
-                  Tc G, const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az)
+    float compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const Th* h, Tc G, int numShells,
+                  const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az)
     {
         int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
         int numTargets       = targets_.size() - 1;
         int numBlocks        = cstone::iceil(numTargets, numWarpsPerBlock);
         numBlocks            = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
         LocalIndex poolSize  = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-
-        //! @brief settings for periodic gravity
-        bool   usePbc      = box.boundaryX() == cstone::BoundaryType::periodic;
-        int    numShells   = usePbc ? 1 : 0;
-        double lCut        = 2.6;
-        double hCut        = 2.8;
-        double alpha_scale = 2.0;
 
         resetTraversalCounters<<<1, 1>>>();
 
@@ -155,18 +147,7 @@ public:
             az, (int*)rawPtr(traversalStack_));
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
-        totalPotential *= 0.5f * Tc(G);
-
-        if (usePbc)
-        {
-            MType    rootM = multipoles_[0];
-            Vec4<Tf> rootCenter;
-            checkGpuErrors(cudaMemcpy(rootCenter.data(), centers_, sizeof(Vec4<Tf>), cudaMemcpyDeviceToHost));
-            computeGravityEwaldGpu(makeVec3(rootCenter), rootM, first, last, x, y, z, m, box, G, (Ta*)nullptr, ax, ay,
-                                   az, &totalPotential, numShells, lCut, hCut, alpha_scale);
-        }
-
-        return totalPotential;
+        return 0.5f * Tc(G) * totalPotential;
     }
 
     util::array<uint64_t, 5> readStats() const
@@ -236,12 +217,11 @@ void MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::createGroups(
 }
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
-float MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::compute(LocalIndex first, LocalIndex last, const Tc* x,
-                                                                   const Tc* y, const Tc* z, const Tm* m, const Th* h,
-                                                                   Tc G, const cstone::Box<Tc>& box, Ta* ax, Ta* ay,
-                                                                   Ta* az)
+float MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m,
+                                                                   const Th* h, Tc G, int numShells,
+                                                                   const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az)
 {
-    return impl_->compute(first, last, x, y, z, m, h, G, box, ax, ay, az);
+    return impl_->compute(x, y, z, m, h, G, numShells, box, ax, ay, az);
 }
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>

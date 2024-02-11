@@ -228,7 +228,7 @@ void computeGravity(const TreeNodeIndex* childOffsets, const TreeNodeIndex* inte
         }
     }
 
-    *ugravTot += 0.5 * G * ugravLoc;
+    *ugravTot += 0.5 * ugravLoc;
 }
 
 //! @brief compute direct gravity sum for all particles [0:numParticles]

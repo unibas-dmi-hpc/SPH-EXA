@@ -24,7 +24,8 @@
  */
 
 /*! @file
- * @brief GTest MPI driver
+ * @brief Compute an octree and multipoles on GPUs from a set of particles distributed across ranks
+ *        and compare against a single-node reference computed from the same set.
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
