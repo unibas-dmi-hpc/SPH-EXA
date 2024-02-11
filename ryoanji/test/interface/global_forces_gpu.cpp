@@ -24,7 +24,8 @@
  */
 
 /*! @file
- * @brief GTest MPI driver
+ * @brief Compute an octree, multipoles and forces on GPUs from a set of particles distributed across ranks
+ *        and compare against a single-node reference computed from the same set.
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -130,9 +131,8 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
         multipoleHolder.createGroups(domain.startIndex(), domain.endIndex(), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z),
                                      rawPtr(d_h), domain.focusTree(), domain.layout().data(), domain.box());
-        double bhPotential =
-            multipoleHolder.compute(domain.startIndex(), domain.endIndex(), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z),
-                                    rawPtr(d_m), rawPtr(d_h), G, box, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
+        double bhPotential = multipoleHolder.compute(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h), G,
+                                                     0, box, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
 
         // download BH accelerations for locally present particles
         thrust::host_vector<T> ax(d_ax.begin() + domain.startIndex(), d_ax.begin() + domain.endIndex());

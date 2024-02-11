@@ -35,6 +35,7 @@
 #include "cstone/traversal/macs.hpp"
 #include "cstone/focus/source_center.hpp"
 #include "cartesian_qpole.hpp"
+#include "ewald.h"
 
 namespace ryoanji
 {
@@ -58,7 +59,7 @@ template<class Tc, class Tmm>
 class EwaldParameters
 {
     //! @brief return size of hsum_coeffs for a given value of ceil(hCut)
-    HOST_DEVICE_FUN constexpr static int numHsumCoeffs(int ceilHcut)
+    HOST_DEVICE_FUN constexpr static int hsumCoeffSize(int ceilHcut)
     {
         int numOneDim = (2 * ceilHcut + 1);
         return numOneDim * numOneDim * numOneDim;
@@ -73,7 +74,7 @@ public:
     {
         auto ceilHcut = int(std::ceil(hCut));
         assert(ceilHcut <= maxCeilHcut);
-        return numHsumCoeffs(ceilHcut);
+        return hsumCoeffSize(ceilHcut);
     }
 
     CartesianQuadrupole<Tmm> Mroot;
@@ -86,7 +87,7 @@ public:
     double                   alpha_scale;
     double                   small_R_scale_factor;
 
-    util::array<EwaldHSumCoefficients<Tc>, numHsumCoeffs(maxCeilHcut)> hsum_coeffs;
+    util::array<EwaldHSumCoefficients<Tc>, hsumCoeffSize(maxCeilHcut)> hsum_coeffs;
 };
 
 template<class T>
@@ -148,23 +149,20 @@ HOST_DEVICE_FUN Vec4<Ta> ewaldEvalMultipoleComplete(Vec4<Ta> potAcc, Vec3<Tc> r_
 template<class Tc, class Tmm>
 EwaldParameters<Tc, Tmm> ewaldInitParameters(const CartesianQuadrupole<Tmm>& Mroot, const Vec3<Tc>& Mroot_center,
                                              int numReplicaShells, double L, double lCut, double hCut,
-                                             double alpha_scale)
+                                             double alpha_scale, double smallR)
 {
-    //
     // This will disable Ewald, but still allow a normal gravity calculation using replicas.
-    //
     if (lCut == 0 && hCut == 0 && alpha_scale == 0) { numReplicaShells = 0; }
 
-    EwaldParameters<Tc, Tmm> params = {.Mroot            = Mroot,
-                                       .Mroot_center     = Mroot_center,
-                                       .numReplicaShells = numReplicaShells,
-                                       .numEwaldShells   = std::max(int(ceil(lCut)), numReplicaShells),
-                                       .L                = L,
-                                       .lCut             = lCut,
-                                       .hCut             = hCut,
-                                       .alpha_scale      = alpha_scale,
-                                       //.small_R_scale_factor = 1.2e-3,    // PKDGrav3, ChaNGa
-                                       .small_R_scale_factor = 3.0e-3, // Gasoline
+    EwaldParameters<Tc, Tmm> params = {.Mroot                = Mroot,
+                                       .Mroot_center         = Mroot_center,
+                                       .numReplicaShells     = numReplicaShells,
+                                       .numEwaldShells       = std::max(int(ceil(lCut)), numReplicaShells),
+                                       .L                    = L,
+                                       .lCut                 = lCut,
+                                       .hCut                 = hCut,
+                                       .alpha_scale          = alpha_scale,
+                                       .small_R_scale_factor = smallR,
                                        .hsum_coeffs          = {}};
 
     if (params.numEwaldShells == 0) { return params; }
@@ -383,12 +381,13 @@ template<class MType, class Tc, class Ta, class Tm, class Tu>
 void computeGravityEwald(const cstone::Vec3<Tc>& rootCenter, const MType& Mroot, LocalIndex firstTarget,
                          LocalIndex lastTarget, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                          const cstone::Box<Tc>& box, float G, Tu* ugrav, Ta* ax, Ta* ay, Ta* az, Tu* ugravTot,
-                         int numReplicaShells = 1, double lCut = 2.6, double hCut = 2.8, double alpha_scale = 2.0)
+                         EwaldSettings settings)
 {
     if (box.minExtent() != box.maxExtent()) { throw std::runtime_error("Ewald gravity requires cubic bounding boxes"); }
 
     EwaldParameters<Tc, typename MType::value_type> ewaldParams =
-        ewaldInitParameters(Mroot, rootCenter, numReplicaShells, box.lx(), lCut, hCut, alpha_scale);
+        ewaldInitParameters(Mroot, rootCenter, settings.numReplicaShells, box.lx(), settings.lCut, settings.hCut,
+                            settings.alpha_scale, settings.small_R_scale_factor);
 
     if (ewaldParams.numEwaldShells == 0) { return; }
 

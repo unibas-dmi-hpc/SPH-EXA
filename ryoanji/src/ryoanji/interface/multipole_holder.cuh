@@ -55,8 +55,8 @@ public:
                       const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree,
                       const cstone::LocalIndex* layout, const cstone::Box<Tc>& box);
 
-    float compute(LocalIndex first, LocalIndex last, const Tc* x, const Tc* y, const Tc* z, const Tm* m, const Th* h,
-                  Tc G, const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az);
+    float compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const Th* h, Tc G, int numShells,
+                  const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az);
 
     util::array<uint64_t, 5> readStats() const;
 
