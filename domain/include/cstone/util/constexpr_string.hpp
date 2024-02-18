@@ -33,10 +33,6 @@
 
 #include <algorithm>
 #include <string_view>
-#include <tuple>
-#include <type_traits>
-#include <utility>
-#include <vector>
 
 namespace util
 {
@@ -67,33 +63,6 @@ constexpr StructuralString<N1 + N2 - 1> operator+(const StructuralString<N1>& a,
     std::copy_n(a.value, N1 - 1, value);
     std::copy_n(b.value, N2, value + N1 - 1);
     return StructuralString(value);
-}
-
-template<StructuralString... Fields>
-struct FieldList
-{
-};
-
-template<StructuralString... F1, StructuralString... F2>
-constexpr auto operator+(FieldList<F1...>, FieldList<F2...>)
-{
-    return FieldList<F1..., F2...>{};
-}
-
-template<class VL>
-struct FieldListSize
-{
-};
-
-template<StructuralString... Vs>
-struct FieldListSize<FieldList<Vs...>> : public std::integral_constant<std::size_t, sizeof...(Vs)>
-{
-};
-
-template<StructuralString... Fields>
-constexpr auto make_tuple(FieldList<Fields...>)
-{
-    return std::make_tuple(Fields...);
 }
 
 } // namespace util
