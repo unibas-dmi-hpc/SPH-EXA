@@ -284,6 +284,21 @@ public:
             std::cout << d.fieldNames[indicesDone.back()] << std::endl;
         }
     }
+
+    void saveExtra(IFileWriter* writer, DataType& simData) override
+    {
+        auto& d = simData.hydro;
+        if constexpr (cstone::HaveGpu<Acc>{})
+        {
+            auto               numGroups = d.devData.groupDt.size();
+            std::vector<float> groupDt(numGroups);
+            memcpyD2H(rawPtr(d.devData.groupDt), numGroups, groupDt.data());
+
+            writer->addStep(0, numGroups, "group_dt.h5");
+            writer->writeField("dt", groupDt.data(), 0);
+            writer->closeStep();
+        }
+    }
 };
 
 } // namespace sphexa

@@ -162,6 +162,8 @@ int main(int argc, char** argv)
             propagator->saveFields(fileWriter.get(), domain.startIndex(), domain.endIndex(), simData, box);
             propagator->save(fileWriter.get());
             fileWriter->closeStep();
+
+            propagator->saveExtra(fileWriter.get(), simData);
         }
         if (isOutputStep(d.iteration, profFreqStr) || isOutputTime(d.ttot - d.minDt, d.ttot, profFreqStr) ||
             isWallClockReached)

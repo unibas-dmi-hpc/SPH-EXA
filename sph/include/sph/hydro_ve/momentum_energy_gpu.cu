@@ -61,7 +61,7 @@ __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsi
                                   const T* c23, const T* c33, const T* wh, const T* kx, const T* xm, const T* alpha,
                                   const T* dV11, const T* dV12, const T* dV13, const T* dV22, const T* dV23,
                                   const T* dV33, T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, LocalIndex* nidx,
-                                  TreeNodeIndex* globalPool)
+                                  TreeNodeIndex* globalPool, float* groupDt)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
     unsigned targetIdx   = 0;
@@ -84,18 +84,22 @@ __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsi
         cstone::LocalIndex i         = bodyBegin + laneIdx;
 
         auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
-
-        if (i >= bodyEnd) continue;
-
         unsigned ncCapped = stl::min(ncTrue[0], ngmax);
         T        maxvsignal;
 
-        momentumAndEnergyJLoop<avClean, TravConfig::targetSize>(
-            i, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, vx, vy, vz, h, m, prho, tdpdTrho, c, c11, c12, c13,
-            c22, c23, c33, Atmin, Atmax, ramp, wh, kx, xm, alpha, dV11, dV12, dV13, dV22, dV23, dV33, grad_P_x,
-            grad_P_y, grad_P_z, du, &maxvsignal);
+        if (i < bodyEnd)
+        {
+            momentumAndEnergyJLoop<avClean, TravConfig::targetSize>(
+                i, K, box, neighborsWarp + laneIdx, ncCapped, x, y, z, vx, vy, vz, h, m, prho, tdpdTrho, c, c11, c12,
+                c13, c22, c23, c33, Atmin, Atmax, ramp, wh, kx, xm, alpha, dV11, dV12, dV13, dV22, dV23, dV33, grad_P_x,
+                grad_P_y, grad_P_z, du, &maxvsignal);
+        }
 
-        dt_i = stl::min(dt_i, tsKCourant(maxvsignal, h[i], c[i], Kcour));
+        auto dt_lane      = (i < bodyEnd) ? tsKCourant(maxvsignal, h[i], c[i], Kcour) : INFINITY;
+        auto min_dt_group = cstone::warpMin(dt_lane);
+        if (threadIdx.x == 0) { groupDt[targetIdx] = min_dt_group; }
+
+        dt_i = stl::min(dt_i, dt_lane);
     }
 
     typedef cub::BlockReduce<T, TravConfig::numThreads> BlockReduce;
@@ -115,13 +119,14 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
     unsigned numBodies = endIndex - startIndex;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
 
+    unsigned numGroups = d.devData.targetGroups.size() - 1;
+    reallocate(d.devData.groupDt, numGroups, 1.01);
     auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
 
     float huge = 1e10;
     checkGpuErrors(cudaMemcpyToSymbol(minDt_ve_device, &huge, sizeof(huge)));
     cstone::resetTraversalCounters<<<1, 1>>>();
 
-    unsigned numGroups = d.devData.targetGroups.size() - 1;
     momentumEnergyGpu<avClean><<<numBlocks, TravConfig::numThreads>>>(
         d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups,
         d.treeView.nsView(), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx),
@@ -131,7 +136,7 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
         rawPtr(d.devData.wh), rawPtr(d.devData.kx), rawPtr(d.devData.xm), rawPtr(d.devData.alpha),
         rawPtr(d.devData.dV11), rawPtr(d.devData.dV12), rawPtr(d.devData.dV13), rawPtr(d.devData.dV22),
         rawPtr(d.devData.dV23), rawPtr(d.devData.dV33), rawPtr(d.devData.ax), rawPtr(d.devData.ay),
-        rawPtr(d.devData.az), rawPtr(d.devData.du), nidxPool, traversalPool);
+        rawPtr(d.devData.az), rawPtr(d.devData.du), nidxPool, traversalPool, rawPtr(d.devData.groupDt));
     checkGpuErrors(cudaGetLastError());
 
     float minDt;
