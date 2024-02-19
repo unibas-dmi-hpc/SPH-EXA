@@ -73,6 +73,9 @@ public:
     //! @brief save particle data fields to file
     virtual void saveFields(IFileWriter*, size_t, size_t, ParticleDataType&, const cstone::Box<T>&){};
 
+    //! @brief save extra customizable stuff
+    virtual void saveExtra(IFileWriter*, ParticleDataType&){};
+
     //! @brief save internal state to file
     virtual void save(IFileWriter*){};
 
