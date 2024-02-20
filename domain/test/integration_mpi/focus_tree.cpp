@@ -122,7 +122,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
-    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
+    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal);
 
     int converged = 0;
     while (converged != numRanks)
@@ -156,7 +156,6 @@ TEST(GlobalTreeDomain, randomGaussian)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    globalRandomGaussian<unsigned, double>(rank, nRanks);
     globalRandomGaussian<uint64_t, double>(rank, nRanks);
-    globalRandomGaussian<uint64_t, float>(rank, nRanks);
+    globalRandomGaussian<unsigned, float>(rank, nRanks);
 }

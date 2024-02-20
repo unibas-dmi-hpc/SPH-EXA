@@ -297,9 +297,9 @@ TEST(FocusDomain, reapplySync)
     }
 
     std::vector<Real> property(x.size());
-    for (size_t i = 0; i < x.size(); ++i)
+    for (size_t i = 0; i < domain.nParticles(); ++i)
     {
-        property[i] = numParticlesPerRank * rank + i;
+        property[i] = numParticlesPerRank * rank + domain.startIndex() + i;
     }
 
     std::vector<Real> propertyCpy = property;

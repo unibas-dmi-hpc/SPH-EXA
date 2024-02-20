@@ -31,6 +31,7 @@
 
 #include "cstone/primitives/math.hpp"
 #include "cstone/traversal/collisions_gpu.h"
+#include "cstone/traversal/macs.hpp"
 
 namespace cstone
 {
@@ -112,5 +113,56 @@ FIND_HALOS_GPU(uint32_t, float, float);
 FIND_HALOS_GPU(uint32_t, float, double);
 FIND_HALOS_GPU(uint64_t, float, float);
 FIND_HALOS_GPU(uint64_t, float, double);
+
+template<class T, class KeyType>
+__global__ void markMacsGpuKernel(const KeyType* prefixes,
+                                  const TreeNodeIndex* childOffsets,
+                                  const Vec4<T>* centers,
+                                  const Box<T> box,
+                                  const KeyType* focusNodes,
+                                  TreeNodeIndex numFocusNodes,
+                                  char* markings)
+{
+    unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (tid >= numFocusNodes) { return; }
+
+    KeyType focusStart = focusNodes[0];
+    KeyType focusEnd   = focusNodes[numFocusNodes];
+
+    IBox target    = sfcIBox(sfcKey(focusNodes[tid]), sfcKey(focusNodes[tid + 1]));
+    IBox targetExt = IBox(target.xmin() - 1, target.xmax() + 1, target.ymin() - 1, target.ymax() + 1, target.zmin() - 1,
+                          target.zmax() + 1);
+    if (containedIn(focusStart, focusEnd, targetExt)) { return; }
+
+    auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
+    markMacPerBox(targetCenter, targetSize, prefixes, childOffsets, centers, box, focusStart, focusEnd, markings);
+}
+
+template<class T, class KeyType>
+void markMacsGpu(const KeyType* prefixes,
+                 const TreeNodeIndex* childOffsets,
+                 const Vec4<T>* centers,
+                 const Box<T>& box,
+                 const KeyType* focusNodes,
+                 TreeNodeIndex numFocusNodes,
+                 char* markings)
+{
+    constexpr unsigned numThreads = 128;
+    unsigned numBlocks            = iceil(numFocusNodes, numThreads);
+
+    markMacsGpuKernel<<<numBlocks, numThreads>>>(prefixes, childOffsets, centers, box, focusNodes, numFocusNodes,
+                                                 markings);
+}
+
+#define MARK_MACS_GPU(KeyType, T)                                                                                      \
+    template void markMacsGpu(const KeyType* prefixes, const TreeNodeIndex* childOffsets, const Vec4<T>* centers,      \
+                              const Box<T>& box, const KeyType* focusNodes, TreeNodeIndex numFocusNodes,               \
+                              char* markings)
+
+MARK_MACS_GPU(uint64_t, double);
+MARK_MACS_GPU(uint64_t, float);
+MARK_MACS_GPU(unsigned, double);
+MARK_MACS_GPU(unsigned, float);
 
 } // namespace cstone

@@ -117,6 +117,7 @@ void driveTurbulence(size_t startIndex, size_t endIndex, Dataset& d,
                            rawPtr(d.devData.z), rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az),
                            turb.numModes, rawPtr(turb.d_modes), rawPtr(turb.d_phasesReal), rawPtr(turb.d_phasesImag),
                            rawPtr(turb.d_amplitudes), turb.solWeightNorm);
+        syncGpu();
     }
     else
     {
