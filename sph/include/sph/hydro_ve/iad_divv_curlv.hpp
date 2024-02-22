@@ -69,7 +69,7 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, Dataset& d, con
     bool doGradV = d.dV11.size() == d.x.size();
 
     auto* divv  = d.divv.data();
-    auto* curlv = d.curlv.data();
+    auto* curlv = (d.x.size() == d.curlv.size()) ? d.curlv.data() : nullptr;
 
     const auto* wh  = d.wh.data();
     const auto* whd = d.whd.data();
