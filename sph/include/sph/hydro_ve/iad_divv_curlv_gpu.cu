@@ -96,7 +96,8 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, Dataset& d,
     auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
     cstone::resetTraversalCounters<<<1, 1>>>();
 
-    bool doGradV = d.devData.x.size() == d.devData.dV11.size();
+    bool  doGradV = d.devData.x.size() == d.devData.dV11.size();
+    auto* d_curlv = (d.devData.x.size() == d.devData.curlv.size()) ? rawPtr(d.devData.curlv) : nullptr;
 
     unsigned numGroups = d.devData.targetGroups.size() - 1;
     iadDivvCurlvGpu<<<numBlocks, TravConfig::numThreads>>>(
@@ -104,9 +105,9 @@ void computeIadDivvCurlv(size_t startIndex, size_t endIndex, Dataset& d,
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
         rawPtr(d.devData.h), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx),
         rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
-        rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.divv), rawPtr(d.devData.curlv),
-        rawPtr(d.devData.dV11), rawPtr(d.devData.dV12), rawPtr(d.devData.dV13), rawPtr(d.devData.dV22),
-        rawPtr(d.devData.dV23), rawPtr(d.devData.dV33), nidxPool, traversalPool, doGradV);
+        rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.divv), d_curlv, rawPtr(d.devData.dV11),
+        rawPtr(d.devData.dV12), rawPtr(d.devData.dV13), rawPtr(d.devData.dV22), rawPtr(d.devData.dV23),
+        rawPtr(d.devData.dV33), nidxPool, traversalPool, doGradV);
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
