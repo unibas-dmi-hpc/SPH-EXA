@@ -22,7 +22,7 @@ add_custom_command(TARGET ${testname} PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${PROJECT_SOURCE_DIR}/test/example_data.txt $<TARGET_FILE_DIR:${testname}>/example_data.txt)
 
-set(UNIT_TESTS_GPU block_dt.cu)
+set(UNIT_TESTS_GPU timestep.cu)
 
 if (CMAKE_HIP_COMPILER)
     set_source_files_properties(${UNIT_TESTS_GPU} PROPERTIES LANGUAGE HIP)
