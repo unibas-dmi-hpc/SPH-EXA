@@ -54,4 +54,12 @@ extern void computePositionsGpu(size_t first, size_t last, double dt, double dt_
 template<class Th>
 extern void updateSmoothingLengthGpu(size_t, size_t, unsigned ng0, const unsigned* nc, Th* h);
 
+template<class T>
+extern void groupDivvTimeStep(float Krho, const cstone::LocalIndex* groups, cstone::LocalIndex numGroups, const T* divv,
+                              float* groupDt);
+
+template<class T>
+extern void groupAccTimeStep(float etaAcc, const cstone::LocalIndex* groups, cstone::LocalIndex numGroups, const T* ax,
+                             const T* ay, const T* az, float* groupDt);
+
 } // namespace sph
