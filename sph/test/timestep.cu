@@ -17,7 +17,7 @@
 using namespace cstone;
 using namespace sph;
 
-TEST(BlockDt, Divv)
+TEST(TimestepGpu, Divv)
 {
     using T = double;
     thrust::device_vector<LocalIndex> groups{10, 20, 40};
@@ -35,7 +35,7 @@ TEST(BlockDt, Divv)
     EXPECT_NEAR(probe[1], Krho / 139, 1e-10);
 }
 
-TEST(BlockDt, Acc)
+TEST(TimestepGpu, Acc)
 {
     using T = double;
     thrust::device_vector<LocalIndex> groups{10, 20, 40};

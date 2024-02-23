@@ -4,7 +4,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-// #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/math.hpp"
 #include "sph/sph_gpu.hpp"
 
