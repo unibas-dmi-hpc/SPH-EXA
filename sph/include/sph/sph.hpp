@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sph/find_neighbors.hpp"
+#include "sph/groups.hpp"
 #include "sph/kernels.hpp"
 #include "sph/eos.hpp"
 #include "sph/timestep.hpp"

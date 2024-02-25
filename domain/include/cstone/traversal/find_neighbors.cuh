@@ -36,7 +36,10 @@
 #include "cstone/cuda/gpu_config.cuh"
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/primitives/warpscan.cuh"
+#include "cstone/sfc/box.hpp"
+#include "cstone/findneighbors.hpp"
 #include "cstone/tree/definitions.h"
+#include "cstone/tree/octree.hpp"
 
 namespace cstone
 {
