@@ -18,9 +18,18 @@ namespace sph
 using cstone::GpuConfig;
 using cstone::TravConfig;
 
+/*! @brief Compute groups of SFC-consecutive particles with compact bounding volumes
+ *
+ * @tparam     Dataset
+ * @param[in]  startIndex   first particle index to include in groups
+ * @param[in]  endIndex     last particle index in include in groups
+ * @param[in]  d            Dataset with particle x,y,z,h arrays
+ * @param[in]  box          global coordinate bounding box
+ * @param[out] groups       output particle groups
+ */
 template<class Dataset>
-void computeTargetGroups(size_t startIndex, size_t endIndex, Dataset& d,
-                         const cstone::Box<typename Dataset::RealType>& box)
+void computeSpatialGroups(size_t startIndex, size_t endIndex, Dataset& d,
+                          const cstone::Box<typename Dataset::RealType>& box, TargetGroupData<cstone::GpuTag>& groups)
 {
     thrust::device_vector<util::array<GpuConfig::ThreadMask, TravConfig::nwt>> S;
 
@@ -28,10 +37,15 @@ void computeTargetGroups(size_t startIndex, size_t endIndex, Dataset& d,
     cstone::computeGroupSplits<TravConfig::targetSize>(startIndex, endIndex, rawPtr(d.devData.x), rawPtr(d.devData.y),
                                                        rawPtr(d.devData.z), rawPtr(d.devData.h), d.treeView.leaves,
                                                        d.treeView.tree.numLeafNodes, d.treeView.layout, box, tolFactor,
-                                                       S, d.devData.traversalStack, d.devData.targetGroups);
+                                                       S, d.devData.traversalStack, groups.data);
+
+    groups.firstBody  = startIndex;
+    groups.lastBody   = endIndex;
+    groups.groupStart = rawPtr(groups.data);
+    groups.groupEnd   = rawPtr(groups.data) + 1;
 }
 
-template void computeTargetGroups(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
-                                  const cstone::Box<SphTypes::CoordinateType>&);
+template void computeSpatialGroups(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>&,
+                                   const cstone::Box<SphTypes::CoordinateType>&, TargetGroupData<cstone::GpuTag>&);
 
-}
+} // namespace sph

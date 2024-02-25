@@ -51,18 +51,18 @@ using cstone::TreeNodeIndex;
 static __device__ float minDt_device;
 
 template<class Tc, class Tm, class T, class Tm1, class KeyType>
-__global__ void cudaGradP(Tc K, Tc Kcour, unsigned ngmax, cstone::Box<Tc> box, const cstone::LocalIndex* groups,
-                          cstone::LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x,
-                          const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz, const T* h, const Tm* m,
-                          const T* rho, const T* p, const T* c, const T* c11, const T* c12, const T* c13, const T* c22,
-                          const T* c23, const T* c33, const T* wh, const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z,
-                          Tm1* du, LocalIndex* nidx, TreeNodeIndex* globalPool)
+__global__ void cudaGradP(Tc K, Tc Kcour, unsigned ngmax, cstone::Box<Tc> box, const LocalIndex* grpStart,
+                          const LocalIndex* grpEnd, LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree,
+                          const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz, const T* h,
+                          const Tm* m, const T* rho, const T* p, const T* c, const T* c11, const T* c12, const T* c13,
+                          const T* c22, const T* c23, const T* c33, const T* wh, const T* whd, T* grad_P_x, T* grad_P_y,
+                          T* grad_P_z, Tm1* du, LocalIndex* nidx, TreeNodeIndex* globalPool)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
     unsigned targetIdx   = 0;
     unsigned warpIdxGrid = (blockDim.x * blockIdx.x + threadIdx.x) >> GpuConfig::warpSizeLog2;
 
-    cstone::LocalIndex* neighborsWarp = nidx + ngmax * TravConfig::targetSize * warpIdxGrid;
+    LocalIndex* neighborsWarp = nidx + ngmax * TravConfig::targetSize * warpIdxGrid;
 
     T dt_i = INFINITY;
 
@@ -74,9 +74,9 @@ __global__ void cudaGradP(Tc K, Tc Kcour, unsigned ngmax, cstone::Box<Tc> box, c
 
         if (targetIdx >= numGroups) { break; }
 
-        cstone::LocalIndex bodyBegin = groups[targetIdx];
-        cstone::LocalIndex bodyEnd   = groups[targetIdx + 1];
-        cstone::LocalIndex i         = bodyBegin + laneIdx;
+        LocalIndex bodyBegin = grpStart[targetIdx];
+        LocalIndex bodyEnd   = grpEnd[targetIdx];
+        LocalIndex i         = bodyBegin + laneIdx;
 
         auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
 
@@ -103,10 +103,10 @@ __global__ void cudaGradP(Tc K, Tc Kcour, unsigned ngmax, cstone::Box<Tc> box, c
 }
 
 template<class Dataset>
-void computeMomentumEnergyStdGpu(size_t startIndex, size_t endIndex, Dataset& d,
+void computeMomentumEnergyStdGpu(const TargetGroups& grp, Dataset& d,
                                  const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numBodies = endIndex - startIndex;
+    unsigned numBodies = grp.lastBody - grp.firstBody;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
 
     auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
@@ -116,12 +116,11 @@ void computeMomentumEnergyStdGpu(size_t startIndex, size_t endIndex, Dataset& d,
     checkGpuErrors(cudaMemcpyToSymbol(minDt_device, &huge, sizeof(huge)));
     cstone::resetTraversalCounters<<<1, 1>>>();
 
-    unsigned numGroups = d.devData.targetGroups.size() - 1;
     cudaGradP<<<numBlocks, TravConfig::numThreads>>>(
-        d.K, d.Kcour, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups, d.treeView.nsView(), rawPtr(d.devData.x),
-        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
-        rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho), rawPtr(d.devData.p), rawPtr(d.devData.c),
-        rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
+        d.K, d.Kcour, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView.nsView(),
+        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
+        rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho), rawPtr(d.devData.p),
+        rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
         rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.ax),
         rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.du), nidxPool, traversalPool);
 
@@ -132,6 +131,6 @@ void computeMomentumEnergyStdGpu(size_t startIndex, size_t endIndex, Dataset& d,
     d.minDtCourant = minDt;
 }
 
-template void computeMomentumEnergyStdGpu(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
+template void computeMomentumEnergyStdGpu(const TargetGroups& grp, sphexa::ParticlesData<cstone::GpuTag>& d,
                                           const cstone::Box<SphTypes::CoordinateType>&);
 } // namespace sph
