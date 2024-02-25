@@ -63,7 +63,8 @@ protected:
     using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
         MultipoleType, DomainType, typename DataType::HydroData>;
 
-    MHolder_t mHolder_;
+    MHolder_t            mHolder_;
+    TargetGroupData<Acc> groups_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
      *
@@ -139,9 +140,10 @@ public:
 
         resizeNeighbors(d, domain.nParticles() * d.ngmax);
         findNeighborsSfc(first, last, d, domain.box());
+        computeGroups(first, last, d, domain.box(), groups_);
         timer.step("FindNeighbors");
 
-        computeDensity(first, last, d, domain.box());
+        computeDensity(groups_.view(), d, domain.box());
         timer.step("Density");
         computeEOS_HydroStd(first, last, d);
         timer.step("EquationOfState");
@@ -149,13 +151,13 @@ public:
         domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
 
-        computeIAD(first, last, d, domain.box());
+        computeIAD(groups_.view(), d, domain.box());
         timer.step("IAD");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
 
-        computeMomentumEnergySTD(first, last, d, domain.box());
+        computeMomentumEnergySTD(groups_.view(), d, domain.box());
         timer.step("MomentumEnergyIAD");
 
         if (d.g != 0.0)

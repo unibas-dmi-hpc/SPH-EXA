@@ -32,7 +32,6 @@
 #include <cub/cub.cuh>
 
 #include "cstone/cuda/cuda_utils.cuh"
-#include "cstone/findneighbors.hpp"
 #include "cstone/traversal/find_neighbors.cuh"
 
 #include "sph/sph_gpu.hpp"
@@ -54,7 +53,7 @@ static __device__ float minDt_ve_device;
 
 template<bool avClean, class Tc, class Tm, class T, class Tm1, class KeyType>
 __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsigned ngmax, const cstone::Box<Tc> box,
-                                  const cstone::LocalIndex* groups, cstone::LocalIndex numGroups,
+                                  const LocalIndex* grpStart, const LocalIndex* grpEnd, LocalIndex numGroups,
                                   const cstone::OctreeNsView<Tc, KeyType> tree, const Tc* x, const Tc* y, const Tc* z,
                                   const T* vx, const T* vy, const T* vz, const T* h, const Tm* m, const T* prho,
                                   const T* tdpdTrho, const T* c, const T* c11, const T* c12, const T* c13, const T* c22,
@@ -67,7 +66,7 @@ __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsi
     unsigned targetIdx   = 0;
     unsigned warpIdxGrid = (blockDim.x * blockIdx.x + threadIdx.x) >> GpuConfig::warpSizeLog2;
 
-    cstone::LocalIndex* neighborsWarp = nidx + ngmax * TravConfig::targetSize * warpIdxGrid;
+    LocalIndex* neighborsWarp = nidx + ngmax * TravConfig::targetSize * warpIdxGrid;
 
     T dt_i = INFINITY;
 
@@ -79,9 +78,9 @@ __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsi
 
         if (targetIdx >= numGroups) { break; }
 
-        cstone::LocalIndex bodyBegin = groups[targetIdx];
-        cstone::LocalIndex bodyEnd   = groups[targetIdx + 1];
-        cstone::LocalIndex i         = bodyBegin + laneIdx;
+        LocalIndex bodyBegin = grpStart[targetIdx];
+        LocalIndex bodyEnd   = grpEnd[targetIdx];
+        LocalIndex i         = bodyBegin + laneIdx;
 
         auto ncTrue = traverseNeighbors(bodyBegin, bodyEnd, x, y, z, h, tree, box, neighborsWarp, ngmax, globalPool);
         unsigned ncCapped = stl::min(ncTrue[0], ngmax);
@@ -113,14 +112,13 @@ __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsi
 }
 
 template<bool avClean, class Dataset>
-void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
+void computeMomentumEnergy(const TargetGroups& grp, Dataset& d,
                            const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numBodies = endIndex - startIndex;
+    unsigned numBodies = grp.lastBody - grp.firstBody;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
 
-    unsigned numGroups = d.devData.targetGroups.size() - 1;
-    reallocate(d.devData.groupDt, numGroups, 1.01);
+    reallocate(d.devData.groupDt, grp.numGroups, 1.01);
     auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
 
     float huge = 1e10;
@@ -128,7 +126,7 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     momentumEnergyGpu<avClean><<<numBlocks, TravConfig::numThreads>>>(
-        d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, d.ngmax, box, rawPtr(d.devData.targetGroups), numGroups,
+        d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups,
         d.treeView.nsView(), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx),
         rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.prho),
         rawPtr(d.devData.tdpdTrho), rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12),
@@ -145,7 +143,7 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, Dataset& d,
 }
 
 #define MOM_ENERGY(avc)                                                                                                \
-    template void computeMomentumEnergy<avc>(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag> & d,                \
+    template void computeMomentumEnergy<avc>(const TargetGroups& grp, sphexa::ParticlesData<cstone::GpuTag>& d,        \
                                              const cstone::Box<SphTypes::CoordinateType>&)
 
 MOM_ENERGY(true);

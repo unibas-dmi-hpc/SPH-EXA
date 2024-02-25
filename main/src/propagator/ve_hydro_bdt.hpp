@@ -64,7 +64,8 @@ protected:
     using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
         MultipoleType, DomainType, typename DataType::HydroData>;
 
-    MHolder_t mHolder_;
+    MHolder_t            mHolder_;
+    TargetGroupData<Acc> groups_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
      *
@@ -150,7 +151,7 @@ public:
         else { partialSync(domain, simData); }
     }
 
-    void computeForces(DomainType& domain, DataType& simData)
+    void computeForces(DomainType& domain, DataType& simData) override
     {
         timer.start();
         pmReader.start();
@@ -168,15 +169,16 @@ public:
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
         findNeighborsSfc(first, last, d, domain.box());
+        computeGroups(first, last, d, domain.box(), groups_);
         timer.step("FindNeighbors");
         pmReader.step();
 
-        computeXMass(first, last, d, domain.box());
+        computeXMass(groups_.view(), d, domain.box());
         timer.step("XMass");
         domain.exchangeHalos(std::tie(get<"xm">(d)), get<"keys">(d), haloRecvScratch);
         timer.step("mpi::synchronizeHalos");
 
-        computeVeDefGradh(first, last, d, domain.box());
+        computeVeDefGradh(groups_.view(), d, domain.box());
         timer.step("Normalization & Gradh");
 
         computeEOS(first, last, d);
@@ -185,14 +187,14 @@ public:
         domain.exchangeHalos(get<"vx", "vy", "vz", "prho", "c", "kx">(d), get<"keys">(d), haloRecvScratch);
         timer.step("mpi::synchronizeHalos");
 
-        computeIadDivvCurlv(first, last, d, domain.box());
+        computeIadDivvCurlv(groups_.view(), d, domain.box());
         d.minDtRho = rhoTimestep(first, last, d);
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"keys">(d), haloRecvScratch);
         timer.step("mpi::synchronizeHalos");
 
-        computeAVswitches(first, last, d, domain.box());
+        computeAVswitches(groups_.view(), d, domain.box());
         timer.step("AVswitches");
 
         if (avClean)
@@ -203,7 +205,7 @@ public:
         else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"keys">(d), haloRecvScratch); }
         timer.step("mpi::synchronizeHalos");
 
-        computeMomentumEnergy<avClean>(first, last, d, domain.box());
+        computeMomentumEnergy<avClean>(groups_.view(), d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
 
@@ -218,10 +220,8 @@ public:
         }
     }
 
-    void step(DomainType& domain, DataType& simData) override
+    void integrate(DomainType& domain, DataType& simData) override
     {
-        computeForces(domain, simData);
-
         auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
@@ -277,7 +277,7 @@ public:
         // third output pass: curlv and divv
         d.acquire("divv", "curlv");
         d.devData.acquire("divv", "curlv");
-        if (!indicesDone.empty()) { computeIadDivvCurlv(first, last, d, box); }
+        if (!indicesDone.empty()) { computeIadDivvCurlv(groups_.view(), d, box); }
         output();
         d.release("divv", "curlv");
         d.devData.release("divv", "curlv");

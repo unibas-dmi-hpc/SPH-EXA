@@ -64,7 +64,8 @@ protected:
     using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
         MultipoleType, DomainType, typename DataType::HydroData>;
 
-    MHolder_t mHolder_;
+    MHolder_t            mHolder_;
+    TargetGroupData<Acc> groups_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
      *
@@ -146,17 +147,18 @@ public:
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
         findNeighborsSfc(first, last, d, domain.box());
+        computeGroups(first, last, d, domain.box(), groups_);
         timer.step("FindNeighbors");
         pmReader.step();
 
-        computeXMass(first, last, d, domain.box());
+        computeXMass(groups_.view(), d, domain.box());
         timer.step("XMass");
         domain.exchangeHalos(std::tie(get<"xm">(d)), get<"ax">(d), get<"keys">(d));
         timer.step("mpi::synchronizeHalos");
 
         release(d, "ay");
         acquire(d, "gradh");
-        computeVeDefGradh(first, last, d, domain.box());
+        computeVeDefGradh(groups_.view(), d, domain.box());
         timer.step("Normalization & Gradh");
 
         computeEOS(first, last, d);
@@ -167,14 +169,14 @@ public:
 
         release(d, "gradh", "az");
         acquire(d, "divv", "curlv");
-        computeIadDivvCurlv(first, last, d, domain.box());
+        computeIadDivvCurlv(groups_.view(), d, domain.box());
         d.minDtRho = rhoTimestep(first, last, d);
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"ax">(d), get<"keys">(d));
         timer.step("mpi::synchronizeHalos");
 
-        computeAVswitches(first, last, d, domain.box());
+        computeAVswitches(groups_.view(), d, domain.box());
         timer.step("AVswitches");
 
         if (avClean)
@@ -186,7 +188,7 @@ public:
 
         release(d, "divv", "curlv");
         acquire(d, "ay", "az");
-        computeMomentumEnergy<avClean>(first, last, d, domain.box());
+        computeMomentumEnergy<avClean>(groups_.view(), d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
 
@@ -255,7 +257,7 @@ public:
         release(d, "prho", "c");
         acquire(d, "divv", "curlv");
         // partial recovery of cij in range [first:last] without halos, which are not needed for divv and curlv
-        if (!indicesDone.empty()) { computeIadDivvCurlv(first, last, d, box); }
+        if (!indicesDone.empty()) { computeIadDivvCurlv(groups_.view(), d, box); }
         output();
         release(d, "divv", "curlv");
         acquire(d, "prho", "c");

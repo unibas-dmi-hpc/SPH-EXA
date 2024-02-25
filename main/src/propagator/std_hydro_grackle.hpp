@@ -57,6 +57,7 @@ class HydroGrackleProp final : public HydroProp<DomainType, DataType>
 {
     using Base = HydroProp<DomainType, DataType>;
     using Base::timer;
+    using Base::groups_;
 
     using T        = typename DataType::RealType;
     using KeyType  = typename DataType::KeyType;
@@ -166,9 +167,10 @@ public:
 
         resizeNeighbors(d, domain.nParticles() * d.ngmax);
         findNeighborsSfc(first, last, d, domain.box());
+        computeGroups(first, last, d, domain.box(), groups_);
         timer.step("FindNeighbors");
 
-        computeDensity(first, last, d, domain.box());
+        computeDensity(groups_.view(), d, domain.box());
         timer.step("Density");
 
         transferToHost(d, first, last, {"rho", "u"});
@@ -180,13 +182,13 @@ public:
         domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
 
-        computeIAD(first, last, d, domain.box());
+        computeIAD(groups_.view(), d, domain.box());
         timer.step("IAD");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
 
-        computeMomentumEnergySTD(first, last, d, domain.box());
+        computeMomentumEnergySTD(groups_.view(), d, domain.box());
         timer.step("MomentumEnergyIAD");
 
         if (d.g != 0.0)

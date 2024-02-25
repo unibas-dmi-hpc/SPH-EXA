@@ -91,13 +91,10 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, Dataset& d, con
 }
 
 template<class Tc, class Dataset>
-void computeIadDivvCurlv(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box)
+void computeIadDivvCurlv(const TargetGroups& grp, Dataset& d, const cstone::Box<Tc>& box)
 {
-    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
-    {
-        cuda::computeIadDivvCurlv(startIndex, endIndex, d, box);
-    }
-    else { computeIadDivvCurlvImpl(startIndex, endIndex, d, box); }
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{}) { cuda::computeIadDivvCurlv(grp, d, box); }
+    else { computeIadDivvCurlvImpl(grp.firstBody, grp.lastBody, d, box); }
 }
 
 } // namespace sph

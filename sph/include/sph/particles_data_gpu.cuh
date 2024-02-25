@@ -106,7 +106,6 @@ public:
     DevVector<HydroType> wh, whd;
 
     DevVector<cstone::LocalIndex> traversalStack;
-    DevVector<cstone::LocalIndex> targetGroups;
     DevVector<float>              groupDt;
 
     //! @brief non-stateful variables for statistics
