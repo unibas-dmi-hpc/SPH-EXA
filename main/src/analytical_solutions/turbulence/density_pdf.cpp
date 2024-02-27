@@ -25,6 +25,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <numeric>
 
 #include "density_pdf.hpp"
 #include "io/arg_parser.hpp"
@@ -40,13 +41,12 @@ int main(int argc, char** argv)
     auto [rank, numRanks] = initMpi();
     const ArgParser parser(argc, (const char**)argv);
 
-    const std::string inputFile        = parser.get("--file");
-    const size_t      nBins            = parser.get("-n", 50);
-    const T           referenceDensity = parser.get("--rho0", 1.0);
-    std::string       outputFile       = parser.get("-o", std::string("density_pdf.txt"));
-    const std::string sph_type         = parser.get("--sph", std::string("std"));
-    const T           minValue         = parser.get("--min", -6.0);
-    const T           maxValue         = parser.get("--max", 8.0);
+    const std::string inputFile  = parser.get("--file");
+    const size_t      nBins      = parser.get("-n", 50);
+    std::string       outputFile = parser.get("-o", std::string("density_pdf.txt"));
+    const std::string sph_type   = parser.get("--sph", std::string("std"));
+    const T           minValue   = parser.get("--min", -8.0);
+    const T           maxValue   = parser.get("--max", 6.0);
 
     if (!std::filesystem::exists(inputFile))
     {
@@ -76,8 +76,12 @@ int main(int argc, char** argv)
             rho[i] = rho[i] * m[i] / xm[i];
         }
     }
-
     h5reader->closeStep();
+
+    T localTotalDensity = std::reduce(rho.begin(), rho.end());
+    T referenceDensity;
+    MPI_Allreduce(&localTotalDensity, &referenceDensity, 1, MpiType<T>{}, MPI_SUM, MPI_COMM_WORLD);
+    referenceDensity /= globalNumParticles;
 
     bins = computeProbabilityDistribution(rho, referenceDensity, nBins, minValue, maxValue);
     std::vector<T> reduced_bins(nBins, 0.0);
@@ -91,6 +95,9 @@ int main(int argc, char** argv)
 
         T binSize     = (maxValue - minValue) / nBins;
         T firstMiddle = minValue + 0.5 * binSize;
+
+        // header line containing metadata
+        outFile << nBins << ' ' << binSize << ' ' << referenceDensity << std::endl;
 
         for (size_t i = 0; i < nBins; i++)
         {
