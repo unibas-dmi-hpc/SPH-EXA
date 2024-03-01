@@ -83,7 +83,7 @@ __global__ void veDefGradhGpu(Tc K, unsigned ngmax, const cstone::Box<Tc> box, c
 }
 
 template<class Dataset>
-void computeVeDefGradh(const TargetGroups& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
+void computeVeDefGradh(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numBodies = grp.lastBody - grp.firstBody;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
@@ -100,7 +100,7 @@ void computeVeDefGradh(const TargetGroups& grp, Dataset& d, const cstone::Box<ty
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeVeDefGradh(const TargetGroups&, sphexa::ParticlesData<cstone::GpuTag>& d,
+template void computeVeDefGradh(const GroupView&, sphexa::ParticlesData<cstone::GpuTag>& d,
                                 const cstone::Box<SphTypes::CoordinateType>&);
 
 } // namespace cuda

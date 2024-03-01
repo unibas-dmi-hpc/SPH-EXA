@@ -94,7 +94,7 @@ void computeMomentumEnergyStdImpl(size_t startIndex, size_t endIndex, Dataset& d
 }
 
 template<class T, class Dataset>
-void computeMomentumEnergySTD(const TargetGroups& groups, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergySTD(const GroupView& groups, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{}) { computeMomentumEnergyStdGpu(groups, d, box); }
     else { computeMomentumEnergyStdImpl(groups.firstBody, groups.lastBody, d, box); }

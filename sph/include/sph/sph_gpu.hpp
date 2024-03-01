@@ -9,35 +9,34 @@ namespace sph
 
 template<class Dataset>
 extern void computeSpatialGroups(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&,
-                                 TargetGroupData<cstone::GpuTag>&);
+                                 GroupData<cstone::GpuTag>&);
 
 template<class Dataset>
-extern void computeIADGpu(const TargetGroups&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeIADGpu(const GroupView&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeMomentumEnergyStdGpu(const TargetGroups&, Dataset& d,
-                                        const cstone::Box<typename Dataset::RealType>&);
+extern void computeMomentumEnergyStdGpu(const GroupView&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 namespace cuda
 {
 
 template<class Dataset>
-extern void computeXMass(const TargetGroups&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeXMass(const GroupView&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-void computeDensity(const TargetGroups&, Dataset& d, const cstone::Box<typename Dataset::RealType>& box);
+void computeDensity(const GroupView&, Dataset& d, const cstone::Box<typename Dataset::RealType>& box);
 
 template<class Dataset>
-extern void computeVeDefGradh(const TargetGroups&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeVeDefGradh(const GroupView&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeIadDivvCurlv(const TargetGroups&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeIadDivvCurlv(const GroupView&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeAVswitches(const TargetGroups&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeAVswitches(const GroupView&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<bool avClean, class Dataset>
-extern void computeMomentumEnergy(const TargetGroups&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeMomentumEnergy(const GroupView&, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Tu, class Trho, class Tp, class Tc>
 extern void computeEOS_HydroStd(size_t, size_t, Trho, Tu, const Tu*, const Trho* m, Trho*, Tp*, Tc*);

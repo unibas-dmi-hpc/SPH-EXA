@@ -39,7 +39,7 @@ namespace sph
 {
 
 template<typename Tc, class Dataset>
-void computeDensityImpl(const TargetGroups& groups, Dataset& d, const cstone::Box<Tc>& box)
+void computeDensityImpl(const GroupView& groups, Dataset& d, const cstone::Box<Tc>& box)
 {
     swap(d.xm, d.rho);
     computeXMass(groups, d, box);
@@ -53,7 +53,7 @@ void computeDensityImpl(const TargetGroups& groups, Dataset& d, const cstone::Bo
 }
 
 template<class T, class Dataset>
-void computeDensity(const TargetGroups& groups, Dataset& d, const cstone::Box<T>& box)
+void computeDensity(const GroupView& groups, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

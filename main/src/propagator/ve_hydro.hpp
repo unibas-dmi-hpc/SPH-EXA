@@ -65,7 +65,7 @@ protected:
         MultipoleType, DomainType, typename DataType::HydroData>;
 
     MHolder_t            mHolder_;
-    TargetGroupData<Acc> groups_;
+    GroupData<Acc> groups_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
      *

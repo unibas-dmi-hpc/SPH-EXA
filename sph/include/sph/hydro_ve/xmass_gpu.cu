@@ -101,7 +101,7 @@ __global__ void xmassGpu(Tc K, unsigned ng0, unsigned ngmax, const cstone::Box<T
 }
 
 template<class Dataset>
-void computeXMass(const TargetGroups& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
+void computeXMass(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numBodies = grp.lastBody - grp.firstBody;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
@@ -131,7 +131,7 @@ void computeXMass(const TargetGroups& grp, Dataset& d, const cstone::Box<typenam
     if (convergenceFailure) { throw std::runtime_error("coupled nc/h-updated failed to converge"); }
 }
 
-template void computeXMass(const TargetGroups& grp, sphexa::ParticlesData<cstone::GpuTag>& d,
+template void computeXMass(const GroupView& grp, sphexa::ParticlesData<cstone::GpuTag>& d,
                            const cstone::Box<SphTypes::CoordinateType>&);
 
 template<class Tm, class Trho>
@@ -152,7 +152,7 @@ __global__ void convertXmassToRho(const LocalIndex* grpStart, const LocalIndex* 
 }
 
 template<class Dataset>
-void computeDensity(const TargetGroups& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
+void computeDensity(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
     swap(d.devData.xm, d.devData.rho);
     computeXMass(grp, d, box);
@@ -166,7 +166,7 @@ void computeDensity(const TargetGroups& grp, Dataset& d, const cstone::Box<typen
                                                  rawPtr(d.devData.rho));
 }
 
-template void computeDensity(const TargetGroups&, sphexa::ParticlesData<cstone::GpuTag>& d,
+template void computeDensity(const GroupView&, sphexa::ParticlesData<cstone::GpuTag>& d,
                              const cstone::Box<SphTypes::CoordinateType>&);
 
 } // namespace cuda
