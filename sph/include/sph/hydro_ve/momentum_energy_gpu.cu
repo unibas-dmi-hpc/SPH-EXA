@@ -94,11 +94,14 @@ __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsi
                 grad_P_y, grad_P_z, du, &maxvsignal);
         }
 
-        auto dt_lane      = (i < bodyEnd) ? tsKCourant(maxvsignal, h[i], c[i], Kcour) : INFINITY;
-        auto min_dt_group = cstone::warpMin(dt_lane);
-        if ((threadIdx.x & (GpuConfig::warpSize - 1)) == 0)
+        auto dt_lane = (i < bodyEnd) ? tsKCourant(maxvsignal, h[i], c[i], Kcour) : INFINITY;
+        if (groupDt != nullptr)
         {
-            groupDt[targetIdx] = stl::min(groupDt[targetIdx], min_dt_group);
+            auto min_dt_group = cstone::warpMin(dt_lane);
+            if ((threadIdx.x & (GpuConfig::warpSize - 1)) == 0)
+            {
+                groupDt[targetIdx] = stl::min(groupDt[targetIdx], min_dt_group);
+            }
         }
 
         dt_i = stl::min(dt_i, dt_lane);
