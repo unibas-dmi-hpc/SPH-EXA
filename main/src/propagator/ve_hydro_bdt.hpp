@@ -64,7 +64,7 @@ protected:
     using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
         MultipoleType, DomainType, typename DataType::HydroData>;
 
-    MHolder_t            mHolder_;
+    MHolder_t      mHolder_;
     GroupData<Acc> groups_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
