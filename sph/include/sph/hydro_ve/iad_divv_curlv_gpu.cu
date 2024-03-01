@@ -88,7 +88,7 @@ iadDivvCurlvGpu(Tc K, unsigned ngmax, const cstone::Box<Tc> box, const LocalInde
 }
 
 template<class Dataset>
-void computeIadDivvCurlv(const TargetGroups& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
+void computeIadDivvCurlv(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numBodies = grp.lastBody - grp.firstBody;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
@@ -110,7 +110,7 @@ void computeIadDivvCurlv(const TargetGroups& grp, Dataset& d, const cstone::Box<
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeIadDivvCurlv(const TargetGroups& grp, sphexa::ParticlesData<cstone::GpuTag>& d,
+template void computeIadDivvCurlv(const GroupView& grp, sphexa::ParticlesData<cstone::GpuTag>& d,
                                   const cstone::Box<SphTypes::CoordinateType>&);
 
 } // namespace cuda

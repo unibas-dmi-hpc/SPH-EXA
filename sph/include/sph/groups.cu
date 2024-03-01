@@ -29,7 +29,7 @@ using cstone::TravConfig;
  */
 template<class Dataset>
 void computeSpatialGroups(size_t startIndex, size_t endIndex, Dataset& d,
-                          const cstone::Box<typename Dataset::RealType>& box, TargetGroupData<cstone::GpuTag>& groups)
+                          const cstone::Box<typename Dataset::RealType>& box, GroupData<cstone::GpuTag>& groups)
 {
     thrust::device_vector<util::array<GpuConfig::ThreadMask, TravConfig::nwt>> S;
 
@@ -46,6 +46,6 @@ void computeSpatialGroups(size_t startIndex, size_t endIndex, Dataset& d,
 }
 
 template void computeSpatialGroups(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>&,
-                                   const cstone::Box<SphTypes::CoordinateType>&, TargetGroupData<cstone::GpuTag>&);
+                                   const cstone::Box<SphTypes::CoordinateType>&, GroupData<cstone::GpuTag>&);
 
 } // namespace sph

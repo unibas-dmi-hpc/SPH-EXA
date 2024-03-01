@@ -13,8 +13,7 @@ namespace sph
 using cstone::LocalIndex;
 
 template<class T>
-__global__ void groupDivvKernel(float Krho, const LocalIndex* groups, size_t numSegments, const T* divv,
-                                float* groupDt)
+__global__ void groupDivvKernel(float Krho, const LocalIndex* groups, size_t numSegments, const T* divv, float* groupDt)
 {
     LocalIndex tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -35,8 +34,7 @@ __global__ void groupDivvKernel(float Krho, const LocalIndex* groups, size_t num
 }
 
 template<class T>
-void groupDivvTimeStep(float Krho, const LocalIndex* groups, LocalIndex numGroups, const T* divv,
-                       float* groupDt)
+void groupDivvTimeStep(float Krho, const LocalIndex* groups, LocalIndex numGroups, const T* divv, float* groupDt)
 {
     int numThreads = 256;
     int numBlocks  = cstone::iceil(numGroups, numThreads);

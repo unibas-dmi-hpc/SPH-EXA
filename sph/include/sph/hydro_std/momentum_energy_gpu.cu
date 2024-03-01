@@ -103,8 +103,7 @@ __global__ void cudaGradP(Tc K, Tc Kcour, unsigned ngmax, cstone::Box<Tc> box, c
 }
 
 template<class Dataset>
-void computeMomentumEnergyStdGpu(const TargetGroups& grp, Dataset& d,
-                                 const cstone::Box<typename Dataset::RealType>& box)
+void computeMomentumEnergyStdGpu(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numBodies = grp.lastBody - grp.firstBody;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
@@ -131,6 +130,6 @@ void computeMomentumEnergyStdGpu(const TargetGroups& grp, Dataset& d,
     d.minDtCourant = minDt;
 }
 
-template void computeMomentumEnergyStdGpu(const TargetGroups& grp, sphexa::ParticlesData<cstone::GpuTag>& d,
+template void computeMomentumEnergyStdGpu(const GroupView& grp, sphexa::ParticlesData<cstone::GpuTag>& d,
                                           const cstone::Box<SphTypes::CoordinateType>&);
 } // namespace sph

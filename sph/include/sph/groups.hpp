@@ -13,7 +13,7 @@ namespace sph
 {
 
 //! @brief A view object to describe groups of target particles
-struct TargetGroups
+struct GroupView
 {
     cstone::LocalIndex        firstBody, lastBody;
     cstone::LocalIndex        numGroups;
@@ -23,7 +23,7 @@ struct TargetGroups
 
 //! @brief Describes groups of spatially close particles that can be traversed through octrees in groups
 template<class Accelerator>
-class TargetGroupData
+class GroupData
 {
     using LocalIndex = cstone::LocalIndex;
 
@@ -34,7 +34,7 @@ class TargetGroupData
 public:
     LocalIndex numGroups() const { return data.size() - 1; }
 
-    TargetGroups view() const { return {firstBody, lastBody, numGroups(), groupStart, groupEnd}; }
+    GroupView view() const { return {firstBody, lastBody, numGroups(), groupStart, groupEnd}; }
 
     AccVector<LocalIndex> data;
     LocalIndex            firstBody, lastBody;
@@ -45,7 +45,7 @@ public:
 //! @brief Compute spatial (=SFC-consecutive) groups of particles with compact bounding boxes
 template<typename Tc, class Dataset>
 void computeGroups(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box,
-                   TargetGroupData<typename Dataset::AcceleratorType>& groups)
+                   GroupData<typename Dataset::AcceleratorType>& groups)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {

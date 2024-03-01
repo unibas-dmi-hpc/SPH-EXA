@@ -109,7 +109,7 @@ __global__ void IADGpuKernel(Tc K, unsigned ngmax, cstone::Box<Tc> box, const Lo
 }
 
 template<class Dataset>
-void computeIADGpu(const TargetGroups& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
+void computeIADGpu(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numBodies = grp.lastBody - grp.firstBody;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
@@ -126,7 +126,7 @@ void computeIADGpu(const TargetGroups& grp, Dataset& d, const cstone::Box<typena
     checkGpuErrors(cudaDeviceSynchronize());
 }
 
-template void computeIADGpu(const TargetGroups&, sphexa::ParticlesData<cstone::GpuTag>& d,
+template void computeIADGpu(const GroupView&, sphexa::ParticlesData<cstone::GpuTag>& d,
                             const cstone::Box<SphTypes::CoordinateType>&);
 
 } // namespace sph

@@ -115,8 +115,7 @@ __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsi
 }
 
 template<bool avClean, class Dataset>
-void computeMomentumEnergy(const TargetGroups& grp, Dataset& d,
-                           const cstone::Box<typename Dataset::RealType>& box)
+void computeMomentumEnergy(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numBodies = grp.lastBody - grp.firstBody;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
@@ -146,7 +145,7 @@ void computeMomentumEnergy(const TargetGroups& grp, Dataset& d,
 }
 
 #define MOM_ENERGY(avc)                                                                                                \
-    template void computeMomentumEnergy<avc>(const TargetGroups& grp, sphexa::ParticlesData<cstone::GpuTag>& d,        \
+    template void computeMomentumEnergy<avc>(const GroupView& grp, sphexa::ParticlesData<cstone::GpuTag>& d,           \
                                              const cstone::Box<SphTypes::CoordinateType>&)
 
 MOM_ENERGY(true);

@@ -105,7 +105,7 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, Dataset& d, c
 }
 
 template<bool avClean, class T, class Dataset>
-void computeMomentumEnergy(const TargetGroups& grp, Dataset& d, const cstone::Box<T>& box)
+void computeMomentumEnergy(const GroupView& grp, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
