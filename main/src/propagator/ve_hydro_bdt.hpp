@@ -133,6 +133,7 @@ public:
                         std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d));
         }
         d.treeView = domain.octreeProperties();
+        computeGroups(domain.startIndex(), domain.endIndex(), d, domain.box(), groups_);
     }
 
     void partialSync(DomainType& domain, DataType& simData)
@@ -141,7 +142,7 @@ public:
         domain.exchangeHalos(get<"x", "y", "z", "h">(d), get<"keys">(d), haloRecvScratch);
         if (d.g != 0.0)
         {
-            // update expansion centers
+            // TODO: update expansion centers
         }
     }
 
@@ -169,7 +170,6 @@ public:
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
         findNeighborsSfc(first, last, d, domain.box());
-        computeGroups(first, last, d, domain.box(), groups_);
         timer.step("FindNeighbors");
         pmReader.step();
 

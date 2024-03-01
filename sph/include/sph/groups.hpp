@@ -25,20 +25,24 @@ struct TargetGroups
 template<class Accelerator>
 class TargetGroupData
 {
-    using AccVector = typename cstone::AccelSwitchType<Accelerator, std::vector,
-                                                       thrust::device_vector>::template type<cstone::LocalIndex>;
+    using LocalIndex = cstone::LocalIndex;
+
+    template<class T>
+    using AccVector =
+        typename cstone::AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<T>;
 
 public:
-    cstone::LocalIndex numGroups() const { return data.size() - 1; }
+    LocalIndex numGroups() const { return data.size() - 1; }
 
     TargetGroups view() const { return {firstBody, lastBody, numGroups(), groupStart, groupEnd}; }
 
-    AccVector                 data;
-    cstone::LocalIndex        firstBody, lastBody;
-    const cstone::LocalIndex* groupStart;
-    const cstone::LocalIndex* groupEnd;
+    AccVector<LocalIndex> data;
+    LocalIndex            firstBody, lastBody;
+    const LocalIndex*     groupStart;
+    const LocalIndex*     groupEnd;
 };
 
+//! @brief Compute spatial (=SFC-consecutive) groups of particles with compact bounding boxes
 template<typename Tc, class Dataset>
 void computeGroups(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box,
                    TargetGroupData<typename Dataset::AcceleratorType>& groups)
