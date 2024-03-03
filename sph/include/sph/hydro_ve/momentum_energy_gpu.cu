@@ -118,12 +118,12 @@ __global__ void momentumEnergyGpu(Tc K, Tc Kcour, T Atmin, T Atmax, T ramp, unsi
 }
 
 template<bool avClean, class Dataset>
-void computeMomentumEnergy(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
+void computeMomentumEnergy(const GroupView& grp, float* groupDt, Dataset& d,
+                           const cstone::Box<typename Dataset::RealType>& box)
 {
     unsigned numBodies = grp.lastBody - grp.firstBody;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
 
-    reallocate(d.devData.groupDt, grp.numGroups, 1.01);
     auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
 
     float huge = 1e10;
@@ -139,7 +139,7 @@ void computeMomentumEnergy(const GroupView& grp, Dataset& d, const cstone::Box<t
         rawPtr(d.devData.wh), rawPtr(d.devData.kx), rawPtr(d.devData.xm), rawPtr(d.devData.alpha),
         rawPtr(d.devData.dV11), rawPtr(d.devData.dV12), rawPtr(d.devData.dV13), rawPtr(d.devData.dV22),
         rawPtr(d.devData.dV23), rawPtr(d.devData.dV33), rawPtr(d.devData.ax), rawPtr(d.devData.ay),
-        rawPtr(d.devData.az), rawPtr(d.devData.du), nidxPool, traversalPool, rawPtr(d.devData.groupDt));
+        rawPtr(d.devData.az), rawPtr(d.devData.du), nidxPool, traversalPool, groupDt);
     checkGpuErrors(cudaGetLastError());
 
     float minDt;
@@ -148,7 +148,7 @@ void computeMomentumEnergy(const GroupView& grp, Dataset& d, const cstone::Box<t
 }
 
 #define MOM_ENERGY(avc)                                                                                                \
-    template void computeMomentumEnergy<avc>(const GroupView& grp, sphexa::ParticlesData<cstone::GpuTag>& d,           \
+    template void computeMomentumEnergy<avc>(const GroupView& grp, float*, sphexa::ParticlesData<cstone::GpuTag>& d,   \
                                              const cstone::Box<SphTypes::CoordinateType>&)
 
 MOM_ENERGY(true);
