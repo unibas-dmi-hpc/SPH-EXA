@@ -21,13 +21,14 @@ TEST(TimestepGpu, Divv)
 {
     using T = double;
     thrust::device_vector<LocalIndex> groups{10, 20, 40};
+    GroupView                         grpView{10, 40, 2, rawPtr(groups), rawPtr(groups) + 1};
 
     thrust::device_vector<T> divv(40);
     thrust::sequence(divv.begin(), divv.end(), 100);
     thrust::device_vector<float> groupDt(groups.size() - 1, 1e10f);
 
     float Krho = 0.2;
-    groupDivvTimeStep(Krho, rawPtr(groups), groups.size() - 1, rawPtr(divv), rawPtr(groupDt));
+    groupDivvTimestepGpu(Krho, grpView, rawPtr(divv), rawPtr(groupDt));
 
     thrust::host_vector<float> probe = groupDt;
 
@@ -39,6 +40,7 @@ TEST(TimestepGpu, Acc)
 {
     using T = double;
     thrust::device_vector<LocalIndex> groups{10, 20, 40};
+    GroupView                         grpView{10, 40, 2, rawPtr(groups), rawPtr(groups) + 1};
 
     thrust::device_vector<T> ax(40), ay(40), az(40);
 
@@ -49,7 +51,7 @@ TEST(TimestepGpu, Acc)
     thrust::device_vector<float> groupDt(groups.size() - 1, 1e10f);
 
     float etaAcc = 0.2;
-    groupAccTimeStep(etaAcc, rawPtr(groups), groups.size() - 1, rawPtr(ax), rawPtr(ay), rawPtr(az), rawPtr(groupDt));
+    groupAccTimestepGpu(etaAcc, grpView, rawPtr(ax), rawPtr(ay), rawPtr(az), rawPtr(groupDt));
 
     thrust::host_vector<float> probe = groupDt;
 

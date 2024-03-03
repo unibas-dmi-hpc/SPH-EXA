@@ -13,16 +13,17 @@ namespace sph
 using cstone::LocalIndex;
 
 template<class T>
-__global__ void groupDivvKernel(float Krho, const LocalIndex* groups, size_t numSegments, const T* divv, float* groupDt)
+__global__ void groupDivvKernel(float Krho, const LocalIndex* grpStart, const LocalIndex* grpEnd, LocalIndex numGroups,
+                                const T* divv, float* groupDt)
 {
     LocalIndex tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (tid < numSegments)
+    if (tid < numGroups)
     {
         float localMax = -INFINITY;
 
-        LocalIndex segStart = groups[tid];
-        LocalIndex segEnd   = groups[tid + 1];
+        LocalIndex segStart = grpStart[tid];
+        LocalIndex segEnd   = grpEnd[tid];
 
         for (LocalIndex i = segStart; i < segEnd; ++i)
         {
@@ -34,20 +35,20 @@ __global__ void groupDivvKernel(float Krho, const LocalIndex* groups, size_t num
 }
 
 template<class T>
-void groupDivvTimeStep(float Krho, const LocalIndex* groups, LocalIndex numGroups, const T* divv, float* groupDt)
+void groupDivvTimestepGpu(float Krho, const GroupView& grp, const T* divv, float* groupDt)
 {
     int numThreads = 256;
-    int numBlocks  = cstone::iceil(numGroups, numThreads);
+    int numBlocks  = cstone::iceil(grp.numGroups, numThreads);
 
-    groupDivvKernel<<<numBlocks, numThreads>>>(Krho, groups, numGroups, divv, groupDt);
+    groupDivvKernel<<<numBlocks, numThreads>>>(Krho, grp.groupStart, grp.groupEnd, grp.numGroups, divv, groupDt);
 }
 
-template void groupDivvTimeStep(float, const LocalIndex*, LocalIndex, const float*, float*);
-template void groupDivvTimeStep(float, const LocalIndex*, LocalIndex, const double*, float*);
+template void groupDivvTimestepGpu(float, const GroupView& grp, const float*, float*);
+template void groupDivvTimestepGpu(float, const GroupView& grp, const double*, float*);
 
 template<class T>
-__global__ void groupAccKernel(float etaAcc, const LocalIndex* groups, size_t numGroups, const T* ax, const T* ay,
-                               const T* az, float* groupDt)
+__global__ void groupAccKernel(float etaAcc, const LocalIndex* grpStart, const LocalIndex* grpEnd, LocalIndex numGroups,
+                               const T* ax, const T* ay, const T* az, float* groupDt)
 {
     LocalIndex tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -55,8 +56,8 @@ __global__ void groupAccKernel(float etaAcc, const LocalIndex* groups, size_t nu
     {
         float maxAcc = 0;
 
-        LocalIndex segStart = groups[tid];
-        LocalIndex segEnd   = groups[tid + 1];
+        LocalIndex segStart = grpStart[tid];
+        LocalIndex segEnd   = grpEnd[tid];
 
         for (LocalIndex i = segStart; i < segEnd; ++i)
         {
@@ -68,17 +69,15 @@ __global__ void groupAccKernel(float etaAcc, const LocalIndex* groups, size_t nu
 }
 
 template<class T>
-void groupAccTimeStep(float etaAcc, const cstone::LocalIndex* groups, cstone::LocalIndex numGroups, const T* ax,
-                      const T* ay, const T* az, float* groupDt)
+void groupAccTimestepGpu(float etaAcc, const GroupView& grp, const T* ax, const T* ay, const T* az, float* groupDt)
 {
     int numThreads = 256;
-    int numBlocks  = cstone::iceil(numGroups, numThreads);
+    int numBlocks  = cstone::iceil(grp.numGroups, numThreads);
 
-    groupAccKernel<<<numBlocks, numThreads>>>(etaAcc, groups, numGroups, ax, ay, az, groupDt);
+    groupAccKernel<<<numBlocks, numThreads>>>(etaAcc, grp.groupStart, grp.groupEnd, grp.numGroups, ax, ay, az, groupDt);
 }
 
-template void groupAccTimeStep(float, const LocalIndex*, LocalIndex, const double*, const double*, const double*,
-                               float*);
-template void groupAccTimeStep(float, const LocalIndex*, LocalIndex, const float*, const float*, const float*, float*);
+template void groupAccTimestepGpu(float, const GroupView&, const double*, const double*, const double*, float*);
+template void groupAccTimestepGpu(float, const GroupView&, const float*, const float*, const float*, float*);
 
 } // namespace sph
