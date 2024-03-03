@@ -111,4 +111,46 @@ void computeTimestep(size_t first, size_t last, Dataset& d, Ts... extraTimesteps
     d.minDt    = minDtGlobal;
 }
 
+//! @brief compute Divv-limited timestep for each group when block time-steps are active
+template<class Dataset>
+void groupDivvTimestep(const GroupView& grp, float* groupDt, const Dataset& d)
+{
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        groupDivvTimestepGpu(d.Krho, grp, rawPtr(d.devData.divv), groupDt);
+    }
+}
+
+//! @brief compute acceleration-limited timestep for each group when block time-steps are active
+template<class Dataset>
+void groupAccTimestep(const GroupView& grp, float* groupDt, const Dataset& d)
+{
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        groupAccTimestepGpu(d.etaAcc * std::sqrt(d.eps), grp, rawPtr(d.devData.ax), rawPtr(d.devData.ay),
+                            rawPtr(d.devData.az), groupDt);
+    }
+}
+
+//! @brief Determine timestep rungs
+template<class Dataset>
+void computeGroupTimestep(const GroupView& grp, float* groupDt, Dataset& d)
+{
+    groupAccTimestep(grp, groupDt, d);
+
+    float minGroupDt = 0;
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        minGroupDt = std::get<0>(cstone::MinMaxGpu<float>{}(groupDt, groupDt + grp.numGroups));
+    }
+    float minDtLocal = std::min({minGroupDt, float(d.maxDtIncrease * d.minDt)});
+
+    float minDtGlobal;
+    MPI_Allreduce(&minDtLocal, &minDtGlobal, 1, MpiType<float>{}, MPI_MIN, MPI_COMM_WORLD);
+
+    d.ttot += minDtGlobal;
+    d.minDt_m1 = d.minDt;
+    d.minDt    = minDtGlobal;
+}
+
 } // namespace sph

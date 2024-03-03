@@ -94,6 +94,12 @@ protected:
     ScratchVector haloRecvScratch;
     int           numSubSteps = 4;
 
+    //! @brief Return rung of current block time-step
+    int tsRung(uint64_t iteration) const
+    {
+        return (iteration - 1) % numSubSteps;
+    }
+
 public:
     HydroVeBdtProp(std::ostream& output, size_t rank)
         : Base(output, rank)
@@ -156,7 +162,7 @@ public:
 
     void sync(DomainType& domain, DataType& simData) override
     {
-        if ((simData.hydro.iteration - 1) % numSubSteps == 0) { fullSync(domain, simData); }
+        if (tsRung(simData.hydro.iteration) == 0) { fullSync(domain, simData); }
         else { partialSync(domain, simData); }
     }
 
@@ -196,7 +202,7 @@ public:
         timer.step("mpi::synchronizeHalos");
 
         computeIadDivvCurlv(groups_.view(), d, domain.box());
-        d.minDtRho = rhoTimestep(first, last, d);
+        if (tsRung(simData.hydro.iteration) == 0) { groupDivvTimestep(groups_.view(), rawPtr(groupDt_), d); }
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"keys">(d), haloRecvScratch);
@@ -234,7 +240,7 @@ public:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        computeTimestep(first, last, d);
+        if (tsRung(d.iteration) == 0) { computeGroupTimestep(groups_.view(), rawPtr(groupDt_), d); }
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         updateSmoothingLength(first, last, d);
