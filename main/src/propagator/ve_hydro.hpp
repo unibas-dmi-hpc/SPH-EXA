@@ -188,7 +188,7 @@ public:
 
         release(d, "divv", "curlv");
         acquire(d, "ay", "az");
-        computeMomentumEnergy<avClean>(groups_.view(), d, domain.box());
+        computeMomentumEnergy<avClean>(groups_.view(), nullptr, d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
 

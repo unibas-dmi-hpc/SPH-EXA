@@ -63,9 +63,13 @@ protected:
     using Acc       = typename DataType::AcceleratorType;
     using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
         MultipoleType, DomainType, typename DataType::HydroData>;
+        template<class VType>
+    using AccVector =
+        typename cstone::AccelSwitchType<Acc, std::vector, thrust::device_vector>::template type<VType>;
 
-    MHolder_t      mHolder_;
-    GroupData<Acc> groups_;
+    MHolder_t        mHolder_;
+    GroupData<Acc>   groups_;
+    AccVector<float> groupDt_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
      *
@@ -133,7 +137,11 @@ public:
                         std::tuple_cat(std::tie(get<"m">(d)), get<ConservedFields>(d)), get<DependentFields>(d));
         }
         d.treeView = domain.octreeProperties();
+
         computeGroups(domain.startIndex(), domain.endIndex(), d, domain.box(), groups_);
+
+        reallocate(groupDt_, groups_.numGroups(), 1.01);
+        fill(groupDt_, 0, groupDt_.size(), std::numeric_limits<float>::max());
     }
 
     void partialSync(DomainType& domain, DataType& simData)
@@ -205,7 +213,7 @@ public:
         else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"keys">(d), haloRecvScratch); }
         timer.step("mpi::synchronizeHalos");
 
-        computeMomentumEnergy<avClean>(groups_.view(), d, domain.box());
+        computeMomentumEnergy<avClean>(groups_.view(), rawPtr(groupDt_), d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
 
@@ -263,28 +271,6 @@ public:
         // first output pass: write everything allocated at the end of the step
         output();
 
-        d.release("ax", "ay", "az");
-        d.devData.release("ax", "ay", "az");
-
-        // second output pass: write temporary quantities produced by the EOS
-        d.acquire("rho", "p", "gradh");
-        d.devData.acquire("rho", "p", "gradh");
-        computeEOS(first, last, d);
-        output();
-        d.devData.release("rho", "p", "gradh");
-        d.release("rho", "p", "gradh");
-
-        // third output pass: curlv and divv
-        d.acquire("divv", "curlv");
-        d.devData.acquire("divv", "curlv");
-        if (!indicesDone.empty()) { computeIadDivvCurlv(groups_.view(), d, box); }
-        output();
-        d.release("divv", "curlv");
-        d.devData.release("divv", "curlv");
-
-        d.acquire("ax", "ay", "az");
-        d.devData.acquire("ax", "ay", "az");
-
         if (!indicesDone.empty() && Base::rank_ == 0)
         {
             std::cout << "WARNING: the following fields are not in use and therefore not output: ";
@@ -296,17 +282,16 @@ public:
         }
     }
 
-    void saveExtra(IFileWriter* writer, DataType& simData) override
+    void saveExtra(IFileWriter* writer, DataType& /*simData*/) override
     {
-        auto& d = simData.hydro;
         if constexpr (cstone::HaveGpu<Acc>{})
         {
-            auto               numGroups = d.devData.groupDt.size();
-            std::vector<float> groupDt(numGroups);
-            memcpyD2H(rawPtr(d.devData.groupDt), numGroups, groupDt.data());
+            auto               numGroups = groupDt_.size();
+            std::vector<float> h_groupDt(numGroups);
+            memcpyD2H(rawPtr(groupDt_), numGroups, h_groupDt.data());
 
             writer->addStep(0, numGroups, "group_dt.h5");
-            writer->writeField("dt", groupDt.data(), 0);
+            writer->writeField("dt", h_groupDt.data(), 0);
             writer->closeStep();
         }
     }
