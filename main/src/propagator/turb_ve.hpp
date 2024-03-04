@@ -50,11 +50,13 @@ using namespace sph;
 
 //! @brief VE hydro propagator that adds turbulence stirring to the acceleration prior to position update
 template<bool avClean, class DomainType, class DataType>
-class TurbVeProp final : public HydroVeProp<avClean, DomainType, DataType>
+class TurbVeProp final : public HydroVeBdtProp<avClean, DomainType, DataType>
 {
-    using Base = HydroVeProp<avClean, DomainType, DataType>;
+    using Base = HydroVeBdtProp<avClean, DomainType, DataType>;
     using Base::rank_;
     using Base::timer;
+    using Base::groups_;
+    using Base::groupDt_;
 
     using RealType = typename DataType::RealType;
 
@@ -80,7 +82,7 @@ public:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        computeTimestep(first, last, d);
+        computeGroupTimestep(groups_.view(), rawPtr(groupDt_), d, get<"keys">(d));
         timer.step("Timestep");
 
         computePositions(first, last, d, domain.box());
