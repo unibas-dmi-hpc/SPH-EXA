@@ -4,6 +4,8 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <thrust/transform_reduce.h>
+#include <thrust/execution_policy.h>
 #include "cstone/primitives/math.hpp"
 #include "sph/sph_gpu.hpp"
 
@@ -64,7 +66,7 @@ __global__ void groupAccKernel(float etaAcc, const LocalIndex* grpStart, const L
             maxAcc = max(maxAcc, norm2(cstone::Vec3<T>{ax[i], ay[i], az[i]}));
         }
 
-        groupDt[tid] = min(groupDt[tid], etaAcc / std::sqrt(maxAcc));
+        groupDt[tid] = min(groupDt[tid], etaAcc / std::sqrt(std::sqrt(maxAcc)));
     }
 }
 

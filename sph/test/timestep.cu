@@ -55,6 +55,6 @@ TEST(TimestepGpu, Acc)
 
     thrust::host_vector<float> probe = groupDt;
 
-    EXPECT_NEAR(probe[0], etaAcc / std::sqrt(norm2(Vec3<T>{100 + 19, 200 + 19, 300 + 19})), 1e-10);
-    EXPECT_NEAR(probe[1], etaAcc / std::sqrt(norm2(Vec3<T>{100 + 39, 200 + 39, 300 + 39})), 1e-10);
+    EXPECT_NEAR(probe[0], etaAcc / std::sqrt(std::sqrt(norm2(Vec3<T>{100 + 19, 200 + 19, 300 + 19}))), 1e-9);
+    EXPECT_NEAR(probe[1], etaAcc / std::sqrt(std::sqrt(norm2(Vec3<T>{100 + 39, 200 + 39, 300 + 39}))), 1e-9);
 }
