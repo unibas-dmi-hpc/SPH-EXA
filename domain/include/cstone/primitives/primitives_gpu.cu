@@ -260,6 +260,7 @@ void sortGpu(KeyType* first, KeyType* last, KeyType* keyBuf)
 
 template void sortGpu(uint32_t*, uint32_t*, uint32_t*);
 template void sortGpu(uint64_t*, uint64_t*, uint64_t*);
+template void sortGpu(float*, float*, float*);
 
 template<class KeyType, class ValueType>
 void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values, KeyType* keyBuf, ValueType* valueBuf)
