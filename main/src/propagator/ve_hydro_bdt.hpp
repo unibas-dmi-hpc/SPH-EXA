@@ -63,13 +63,17 @@ protected:
     using Acc       = typename DataType::AcceleratorType;
     using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
         MultipoleType, DomainType, typename DataType::HydroData>;
-        template<class VType>
-    using AccVector =
-        typename cstone::AccelSwitchType<Acc, std::vector, thrust::device_vector>::template type<VType>;
+    template<class VType>
+    using AccVector = typename cstone::AccelSwitchType<Acc, std::vector, thrust::device_vector>::template type<VType>;
 
-    MHolder_t        mHolder_;
-    GroupData<Acc>   groups_;
-    AccVector<float> groupDt_;
+    MHolder_t          mHolder_;
+    GroupData<Acc>     groups_;
+    AccVector<float>   groupDt_;
+    AccVector<uint8_t> groupRungs_;
+
+    //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
+    AccVector<LocalIndex> haloRecvScratch;
+    int                   numSubSteps = 1;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
      *
@@ -87,12 +91,6 @@ protected:
     //! @brief what will be allocated based AV cleaning choice
     using DependentFields =
         std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{}), decltype(DependentFields_{})>;
-
-    using ScratchVector =
-        typename cstone::AccelSwitchType<Acc, std::vector, thrust::device_vector>::template type<cstone::LocalIndex>;
-    //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
-    ScratchVector haloRecvScratch;
-    int           numSubSteps = 4;
 
     //! @brief Return rung of current block time-step
     int tsRung(uint64_t iteration) const
@@ -146,7 +144,7 @@ public:
 
         computeGroups(domain.startIndex(), domain.endIndex(), d, domain.box(), groups_);
 
-        reallocate(groupDt_, groups_.numGroups(), 1.01);
+        reallocate(groups_.numGroups(), groupDt_, groupRungs_);
         fill(groupDt_, 0, groupDt_.size(), std::numeric_limits<float>::max());
     }
 
@@ -219,7 +217,8 @@ public:
         else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"keys">(d), haloRecvScratch); }
         timer.step("mpi::synchronizeHalos");
 
-        computeMomentumEnergy<avClean>(groups_.view(), rawPtr(groupDt_), d, domain.box());
+        float* groupDtUse = (tsRung(simData.hydro.iteration) == 0) ? rawPtr(groupDt_) : nullptr;
+        computeMomentumEnergy<avClean>(groups_.view(), groupDtUse, d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
 
@@ -240,7 +239,7 @@ public:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        if (tsRung(d.iteration) == 0) { computeGroupTimestep(groups_.view(), rawPtr(groupDt_), d); }
+        computeGroupTimestep(groups_.view(), rawPtr(groupDt_), d, get<"keys">(d));
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         updateSmoothingLength(first, last, d);

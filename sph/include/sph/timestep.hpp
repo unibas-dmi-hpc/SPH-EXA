@@ -37,6 +37,7 @@
 #include <vector>
 #include <mpi.h>
 
+#include "cstone/primitives/primitives_gpu.h"
 #include "kernels.hpp"
 
 namespace sph
@@ -133,24 +134,30 @@ void groupAccTimestep(const GroupView& grp, float* groupDt, const Dataset& d)
 }
 
 //! @brief Determine timestep rungs
-template<class Dataset>
-void computeGroupTimestep(const GroupView& grp, float* groupDt, Dataset& d)
+template<class Dataset, class AccVec>
+void computeGroupTimestep(const GroupView& grp, float* groupDt, Dataset& d, AccVec& scratch)
 {
     groupAccTimestep(grp, groupDt, d);
 
-    float minGroupDt = 0;
+    float minGroupDt = 0, dt95percentile = 0;
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        minGroupDt = std::get<0>(cstone::MinMaxGpu<float>{}(groupDt, groupDt + grp.numGroups));
+        size_t oldSize = reallocateBytes(scratch, sizeof(float) * grp.numGroups);
+        cstone::sortGpu(groupDt, groupDt + grp.numGroups, reinterpret_cast<float*>(rawPtr(scratch)));
+
+        memcpyD2H(groupDt, 1, &minGroupDt);
+        memcpyD2H(groupDt + int(0.05 * grp.numGroups), 1, &dt95percentile);
+
+        reallocate(oldSize, scratch);
     }
-    float minDtLocal = std::min({minGroupDt, float(d.maxDtIncrease * d.minDt)});
 
-    float minDtGlobal;
-    MPI_Allreduce(&minDtLocal, &minDtGlobal, 1, MpiType<float>{}, MPI_MIN, MPI_COMM_WORLD);
+    float minDtGlobal[2] = {minGroupDt, dt95percentile};
+    MPI_Allreduce(MPI_IN_PLACE, &minDtGlobal, 2, MpiType<float>{}, MPI_MIN, MPI_COMM_WORLD);
 
-    d.ttot += minDtGlobal;
+    float nextDt = std::min({minDtGlobal[0], float(d.maxDtIncrease * d.minDt)});
+    d.ttot += nextDt;
     d.minDt_m1 = d.minDt;
-    d.minDt    = minDtGlobal;
+    d.minDt    = nextDt;
 }
 
 } // namespace sph
