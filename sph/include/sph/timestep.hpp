@@ -133,28 +133,71 @@ void groupAccTimestep(const GroupView& grp, float* groupDt, const Dataset& d)
     }
 }
 
+//! @brief sort groupDt, keeping track of the ordering
+template<class AccVec>
+void sortGroupDt(float* groupDt, cstone::LocalIndex* groupIndices, cstone::LocalIndex numGroups, AccVec& scratch)
+{
+    using cstone::LocalIndex;
+    size_t oldSize  = reallocateBytes(scratch, (sizeof(float) + sizeof(LocalIndex)) * numGroups);
+    auto*  keyBuf   = reinterpret_cast<float*>(rawPtr(scratch));
+    auto*  valueBuf = reinterpret_cast<LocalIndex*>(keyBuf + numGroups);
+    cstone::sequenceGpu(groupIndices, numGroups, 0u);
+    cstone::sortByKeyGpu(groupDt, groupDt + numGroups, groupIndices, keyBuf, valueBuf);
+    reallocate(oldSize, scratch);
+};
+
+//! @brief return the local minimum timestep and the biggest timestep of the fastest fraction of paritcles
+inline auto timestepRangeGpu(const float* groupDt, cstone::LocalIndex numGroups, float fastFraction)
+{
+    util::array<float, 2> minGroupDt;
+    memcpyD2H(groupDt, 1, minGroupDt.data());
+    memcpyD2H(groupDt + cstone::LocalIndex(fastFraction * numGroups), 1, minGroupDt.data() + 1);
+    return minGroupDt;
+}
+
 //! @brief Determine timestep rungs
 template<class Dataset, class AccVec>
-void computeGroupTimestep(const GroupView& grp, float* groupDt, Dataset& d, AccVec& scratch)
+void computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::LocalIndex* groupIndices, Dataset& d,
+                          AccVec& scratch)
 {
+    using cstone::LocalIndex;
     groupAccTimestep(grp, groupDt, d);
 
-    float minGroupDt = 0, dt95percentile = 0;
+    constexpr int maxNumRungs = 3;
+
+    util::array<float, 2> minGroupDt;
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        size_t oldSize = reallocateBytes(scratch, sizeof(float) * grp.numGroups);
-        cstone::sortGpu(groupDt, groupDt + grp.numGroups, reinterpret_cast<float*>(rawPtr(scratch)));
-
-        memcpyD2H(groupDt, 1, &minGroupDt);
-        memcpyD2H(groupDt + int(0.05 * grp.numGroups), 1, &dt95percentile);
-
-        reallocate(oldSize, scratch);
+        sortGroupDt(groupDt, groupIndices, grp.numGroups, scratch);
+        minGroupDt = timestepRangeGpu(groupDt, grp.numGroups, 0.4);
     }
 
-    float minDtGlobal[2] = {minGroupDt, dt95percentile};
-    MPI_Allreduce(MPI_IN_PLACE, &minDtGlobal, 2, MpiType<float>{}, MPI_MIN, MPI_COMM_WORLD);
+    util::array<float, 2> minGroupDtGlobal;
+    mpiAllreduce(minGroupDt.data(), minGroupDtGlobal.data(), minGroupDt.size(), MPI_MIN);
 
-    float nextDt = std::min({minDtGlobal[0], float(d.maxDtIncrease * d.minDt)});
+    int numRungs = std::min(int(log2(minGroupDtGlobal[1] / minGroupDtGlobal[0])), maxNumRungs);
+    float masterTimestep = minGroupDtGlobal[0] * (1 << numRungs);
+
+    // find ranges of 2*minDt, 4*minDt, 8*minDt
+    // groupDt is sorted, groups belonging to a specific rung will correspond to index ranges
+    util::array<cstone::LocalIndex, maxNumRungs + 1> rungGroupRange{0};
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        for (int rung = 1; rung <= maxNumRungs; ++rung)
+        {
+            float maxRungDt      = (1 << rung) * minGroupDtGlobal[0];
+            rungGroupRange[rung] = cstone::lowerBoundGpu(groupDt, groupDt + grp.numGroups, maxRungDt);
+        }
+    }
+
+    if (grp.firstBody == 0)
+    {
+        std::cout << "grpRatio " << minGroupDtGlobal[1] / minGroupDtGlobal[0] << " " << numRungs << " "
+                  << minGroupDtGlobal[0] << " " << masterTimestep << " " << rungGroupRange[1] << " "
+                  << rungGroupRange[2] << " " << grp.numGroups << std::endl;
+    }
+
+    float nextDt = std::min({minGroupDtGlobal[0], float(d.maxDtIncrease * d.minDt)});
     d.ttot += nextDt;
     d.minDt_m1 = d.minDt;
     d.minDt    = nextDt;
