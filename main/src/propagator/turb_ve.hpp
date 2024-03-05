@@ -55,8 +55,6 @@ class TurbVeProp final : public HydroVeBdtProp<avClean, DomainType, DataType>
     using Base = HydroVeBdtProp<avClean, DomainType, DataType>;
     using Base::rank_;
     using Base::timer;
-    using Base::groups_;
-    using Base::groupDt_;
 
     using RealType = typename DataType::RealType;
 
@@ -82,7 +80,7 @@ public:
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        computeGroupTimestep(groups_.view(), rawPtr(groupDt_), d, get<"keys">(d));
+        Base::computeBlockTimesteps(simData);
         timer.step("Timestep");
 
         computePositions(first, last, d, domain.box());

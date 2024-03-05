@@ -66,10 +66,11 @@ protected:
     template<class VType>
     using AccVector = typename cstone::AccelSwitchType<Acc, std::vector, thrust::device_vector>::template type<VType>;
 
-    MHolder_t          mHolder_;
-    GroupData<Acc>     groups_;
-    AccVector<float>   groupDt_;
-    AccVector<uint8_t> groupRungs_;
+    MHolder_t mHolder_;
+
+    GroupData<Acc>        groups_;
+    AccVector<float>      groupDt_;
+    AccVector<LocalIndex> groupIndices_;
 
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
@@ -144,7 +145,7 @@ public:
 
         computeGroups(domain.startIndex(), domain.endIndex(), d, domain.box(), groups_);
 
-        reallocate(groups_.numGroups(), groupDt_, groupRungs_);
+        reallocate(groups_.numGroups(), groupDt_, groupIndices_);
         fill(groupDt_, 0, groupDt_.size(), std::numeric_limits<float>::max());
     }
 
@@ -233,13 +234,19 @@ public:
         }
     }
 
+    void computeBlockTimesteps(DataType& simData)
+    {
+        auto& d = simData.hydro;
+        computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), d, get<"keys">(d));
+    }
+
     void integrate(DomainType& domain, DataType& simData) override
     {
         auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
-        computeGroupTimestep(groups_.view(), rawPtr(groupDt_), d, get<"keys">(d));
+        computeBlockTimesteps(simData);
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         updateSmoothingLength(first, last, d);
