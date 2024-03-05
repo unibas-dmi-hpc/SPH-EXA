@@ -41,6 +41,7 @@ void computeSpatialGroups(size_t startIndex, size_t endIndex, Dataset& d,
 
     groups.firstBody  = startIndex;
     groups.lastBody   = endIndex;
+    groups.numGroups  = groups.data.size() - 1;
     groups.groupStart = rawPtr(groups.data);
     groups.groupEnd   = rawPtr(groups.data) + 1;
 }

@@ -68,13 +68,20 @@ protected:
 
     MHolder_t mHolder_;
 
+    //! @brief spatial groups
     GroupData<Acc>        groups_;
     AccVector<float>      groupDt_;
     AccVector<LocalIndex> groupIndices_;
 
+    //! brief timestep rungs
+    constexpr static int                    maxNumRungs = 3;
+    std::array<LocalIndex, maxNumRungs + 1> rungRanges_;
+    GroupData<Acc>                          fastGroup_;
+    int                                     numRungs_;
+    int                                     numSubSteps = 1;
+
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
-    int                   numSubSteps = 1;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
      *
@@ -145,7 +152,7 @@ public:
 
         computeGroups(domain.startIndex(), domain.endIndex(), d, domain.box(), groups_);
 
-        reallocate(groups_.numGroups(), groupDt_, groupIndices_);
+        reallocate(groups_.numGroups, groupDt_, groupIndices_);
         fill(groupDt_, 0, groupDt_.size(), std::numeric_limits<float>::max());
     }
 
@@ -232,12 +239,21 @@ public:
             timer.step("Gravity");
             pmReader.step();
         }
+
+        if (tsRung(simData.hydro.iteration) == 0) { groupAccTimestep(groups_.view(), rawPtr(groupDt_), d); }
     }
 
     void computeBlockTimesteps(DataType& simData)
     {
-        auto& d = simData.hydro;
-        computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), d, get<"keys">(d));
+        auto& d   = simData.hydro;
+        numRungs_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), simData.hydro,
+                                         rungRanges_, get<"keys">(d));
+
+        if constexpr (cstone::HaveGpu<Acc>{})
+        {
+            if (numRungs_ > 0)
+                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), rungRanges_[0], rungRanges_[1], fastGroup_);
+        }
     }
 
     void integrate(DomainType& domain, DataType& simData) override

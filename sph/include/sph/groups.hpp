@@ -32,14 +32,13 @@ class GroupData
         typename cstone::AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<T>;
 
 public:
-    LocalIndex numGroups() const { return data.size() - 1; }
-
-    GroupView view() const { return {firstBody, lastBody, numGroups(), groupStart, groupEnd}; }
+    GroupView view() const { return {firstBody, lastBody, numGroups, groupStart, groupEnd}; }
 
     AccVector<LocalIndex> data;
     LocalIndex            firstBody, lastBody;
-    const LocalIndex*     groupStart;
-    const LocalIndex*     groupEnd;
+    LocalIndex            numGroups;
+    LocalIndex*           groupStart;
+    LocalIndex*           groupEnd;
 };
 
 //! @brief Compute spatial (=SFC-consecutive) groups of particles with compact bounding boxes

@@ -149,58 +149,76 @@ void sortGroupDt(float* groupDt, cstone::LocalIndex* groupIndices, cstone::Local
 //! @brief return the local minimum timestep and the biggest timestep of the fastest fraction of paritcles
 inline auto timestepRangeGpu(const float* groupDt, cstone::LocalIndex numGroups, float fastFraction)
 {
-    util::array<float, 2> minGroupDt;
+    std::array<float, 2> minGroupDt;
     memcpyD2H(groupDt, 1, minGroupDt.data());
     memcpyD2H(groupDt + cstone::LocalIndex(fastFraction * numGroups), 1, minGroupDt.data() + 1);
     return minGroupDt;
 }
 
+//! @brief extract the specified subgroup [first:last] indexed through @p index from @p grp into @p outGroup
+template<class Accelerator>
+inline void extractGroupGpu(const GroupView& grp, const cstone::LocalIndex* indices, cstone::LocalIndex first,
+                            cstone::LocalIndex last, GroupData<Accelerator>& out)
+{
+    auto numOutGroups = last - first;
+    reallocate(out.data, 2 * numOutGroups, 1.01);
+
+    out.firstBody  = 0;
+    out.lastBody   = 0;
+    out.numGroups  = numOutGroups;
+    out.groupStart = rawPtr(out.data);
+    out.groupEnd   = rawPtr(out.data) + numOutGroups;
+
+    cstone::gatherGpu(indices + first, numOutGroups, grp.groupStart, out.groupStart);
+    cstone::gatherGpu(indices + first, numOutGroups, grp.groupEnd, out.groupEnd);
+}
+
 //! @brief Determine timestep rungs
-template<class Dataset, class AccVec>
-void computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::LocalIndex* groupIndices, Dataset& d,
-                          AccVec& scratch)
+template<class Dataset, class AccVec, size_t N>
+auto computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::LocalIndex* groupIndices, Dataset& d,
+                          std::array<cstone::LocalIndex, N>& rungRanges, AccVec& scratch)
 {
     using cstone::LocalIndex;
-    groupAccTimestep(grp, groupDt, d);
+    constexpr int maxNumRungs = N - 1;
 
-    constexpr int maxNumRungs = 3;
-
-    util::array<float, 2> minGroupDt;
+    std::array<float, 2> minGroupDt;
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         sortGroupDt(groupDt, groupIndices, grp.numGroups, scratch);
         minGroupDt = timestepRangeGpu(groupDt, grp.numGroups, 0.4);
     }
 
-    util::array<float, 2> minGroupDtGlobal;
-    mpiAllreduce(minGroupDt.data(), minGroupDtGlobal.data(), minGroupDt.size(), MPI_MIN);
+    std::array<float, 2> minDtGlobal;
+    mpiAllreduce(minGroupDt.data(), minDtGlobal.data(), minGroupDt.size(), MPI_MIN);
 
-    int numRungs = std::min(int(log2(minGroupDtGlobal[1] / minGroupDtGlobal[0])), maxNumRungs);
-    float masterTimestep = minGroupDtGlobal[0] * (1 << numRungs);
+    int   numRungs       = std::min(int(log2(minDtGlobal[1] / minDtGlobal[0])), maxNumRungs);
+    float masterTimestep = minDtGlobal[0] * (1 << numRungs);
 
     // find ranges of 2*minDt, 4*minDt, 8*minDt
     // groupDt is sorted, groups belonging to a specific rung will correspond to index ranges
-    util::array<cstone::LocalIndex, maxNumRungs + 1> rungGroupRange{0};
+    rungRanges.front() = 0;
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         for (int rung = 1; rung <= maxNumRungs; ++rung)
         {
-            float maxRungDt      = (1 << rung) * minGroupDtGlobal[0];
-            rungGroupRange[rung] = cstone::lowerBoundGpu(groupDt, groupDt + grp.numGroups, maxRungDt);
+            float maxDtRung  = (1 << rung) * minDtGlobal[0];
+            rungRanges[rung] = cstone::lowerBoundGpu(groupDt, groupDt + grp.numGroups, maxDtRung);
         }
     }
 
     if (grp.firstBody == 0)
     {
-        std::cout << "grpRatio " << minGroupDtGlobal[1] / minGroupDtGlobal[0] << " " << numRungs << " "
-                  << minGroupDtGlobal[0] << " " << masterTimestep << " " << rungGroupRange[1] << " "
-                  << rungGroupRange[2] << " " << grp.numGroups << std::endl;
+        std::cout << "grpRatio " << minDtGlobal[1] / minDtGlobal[0] << " " << numRungs << " " << minDtGlobal[0] << " "
+                  << masterTimestep << " " << rungRanges[1] << " " << rungRanges[2] << " " << rungRanges[3] << " "
+                  << grp.numGroups << std::endl;
     }
 
-    float nextDt = std::min({minGroupDtGlobal[0], float(d.maxDtIncrease * d.minDt)});
+    float nextDt = std::min({minDtGlobal[0], float(d.maxDtIncrease * d.minDt)});
     d.ttot += nextDt;
     d.minDt_m1 = d.minDt;
     d.minDt    = nextDt;
+
+    return numRungs;
 }
 
 } // namespace sph
