@@ -177,6 +177,8 @@ public:
         sync(domain, simData);
         timer.step("domain::sync");
 
+        GroupView activeGroup = groups_.view();
+
         auto& d = simData.hydro;
         d.resize(domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * d.ngmax);
@@ -191,12 +193,12 @@ public:
         timer.step("FindNeighbors");
         pmReader.step();
 
-        computeXMass(groups_.view(), d, domain.box());
+        computeXMass(activeGroup, d, domain.box());
         timer.step("XMass");
         domain.exchangeHalos(std::tie(get<"xm">(d)), get<"keys">(d), haloRecvScratch);
         timer.step("mpi::synchronizeHalos");
 
-        computeVeDefGradh(groups_.view(), d, domain.box());
+        computeVeDefGradh(activeGroup, d, domain.box());
         timer.step("Normalization & Gradh");
 
         computeEOS(first, last, d);
@@ -205,14 +207,14 @@ public:
         domain.exchangeHalos(get<"vx", "vy", "vz", "prho", "c", "kx">(d), get<"keys">(d), haloRecvScratch);
         timer.step("mpi::synchronizeHalos");
 
-        computeIadDivvCurlv(groups_.view(), d, domain.box());
-        if (activeRung(timestep_) == 0) { groupDivvTimestep(groups_.view(), rawPtr(groupDt_), d); }
+        computeIadDivvCurlv(activeGroup, d, domain.box());
+        if (activeRung(timestep_) == 0) { groupDivvTimestep(activeGroup, rawPtr(groupDt_), d); }
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"keys">(d), haloRecvScratch);
         timer.step("mpi::synchronizeHalos");
 
-        computeAVswitches(groups_.view(), d, domain.box());
+        computeAVswitches(activeGroup, d, domain.box());
         timer.step("AVswitches");
 
         if (avClean)
@@ -224,7 +226,7 @@ public:
         timer.step("mpi::synchronizeHalos");
 
         float* groupDtUse = (activeRung(timestep_) == 0) ? rawPtr(groupDt_) : nullptr;
-        computeMomentumEnergy<avClean>(groups_.view(), groupDtUse, d, domain.box());
+        computeMomentumEnergy<avClean>(activeGroup, groupDtUse, d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
 
@@ -238,7 +240,7 @@ public:
             pmReader.step();
         }
 
-        if (activeRung(timestep_) == 0) { groupAccTimestep(groups_.view(), rawPtr(groupDt_), d); }
+        if (activeRung(timestep_) == 0) { groupAccTimestep(activeGroup, rawPtr(groupDt_), d); }
     }
 
     void computeBlockTimesteps(DataType& simData)
