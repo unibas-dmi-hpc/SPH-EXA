@@ -77,8 +77,8 @@ protected:
     constexpr static int                    maxNumRungs = 3;
     std::array<LocalIndex, maxNumRungs + 1> rungRanges_;
     GroupData<Acc>                          fastGroup_;
-    int                                     numRungs_;
-    int                                     numSubSteps = 1;
+    int                                     numRungs_    = 0;
+    int                                     subStepIndex = 0;
 
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
@@ -101,9 +101,10 @@ protected:
         std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{}), decltype(DependentFields_{})>;
 
     //! @brief Return rung of current block time-step
-    int tsRung(uint64_t iteration) const
+    int activeRung() const
     {
-        return (iteration - 1) % numSubSteps;
+        if (subStepIndex == 0 || subStepIndex == numRungs_) { return 0; }
+        else { return cstone::butterfly(subStepIndex); }
     }
 
 public:
@@ -168,7 +169,7 @@ public:
 
     void sync(DomainType& domain, DataType& simData) override
     {
-        if (tsRung(simData.hydro.iteration) == 0) { fullSync(domain, simData); }
+        if (activeRung() == 0) { fullSync(domain, simData); }
         else { partialSync(domain, simData); }
     }
 
@@ -208,7 +209,7 @@ public:
         timer.step("mpi::synchronizeHalos");
 
         computeIadDivvCurlv(groups_.view(), d, domain.box());
-        if (tsRung(simData.hydro.iteration) == 0) { groupDivvTimestep(groups_.view(), rawPtr(groupDt_), d); }
+        if (activeRung() == 0) { groupDivvTimestep(groups_.view(), rawPtr(groupDt_), d); }
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"keys">(d), haloRecvScratch);
@@ -225,7 +226,7 @@ public:
         else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"keys">(d), haloRecvScratch); }
         timer.step("mpi::synchronizeHalos");
 
-        float* groupDtUse = (tsRung(simData.hydro.iteration) == 0) ? rawPtr(groupDt_) : nullptr;
+        float* groupDtUse = (activeRung() == 0) ? rawPtr(groupDt_) : nullptr;
         computeMomentumEnergy<avClean>(groups_.view(), groupDtUse, d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
@@ -240,7 +241,7 @@ public:
             pmReader.step();
         }
 
-        if (tsRung(simData.hydro.iteration) == 0) { groupAccTimestep(groups_.view(), rawPtr(groupDt_), d); }
+        if (activeRung() == 0) { groupAccTimestep(groups_.view(), rawPtr(groupDt_), d); }
     }
 
     void computeBlockTimesteps(DataType& simData)
