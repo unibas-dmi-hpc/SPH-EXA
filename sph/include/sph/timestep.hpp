@@ -173,16 +173,26 @@ inline void extractGroupGpu(const GroupView& grp, const cstone::LocalIndex* indi
     cstone::gatherGpu(indices + first, numOutGroups, grp.groupEnd, out.groupEnd);
 }
 
+struct Timestep
+{
+    static constexpr int maxNumRungs = 3;
+    //! @brief maxDt = minDt * 2^numRungs;
+    float minDt, maxDt;
+    int   numRungs{0};
+    //! @brief 0,...,2^numRungs
+    int substep{0};
+
+    std::array<cstone::LocalIndex, maxNumRungs + 1> rungRanges;
+};
+
 //! @brief Determine timestep rungs
-template<class Dataset, class AccVec, size_t N>
-auto computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::LocalIndex* groupIndices, Dataset& d,
-                          std::array<cstone::LocalIndex, N>& rungRanges, AccVec& scratch)
+template<class AccVec>
+Timestep computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::LocalIndex* groupIndices, AccVec& scratch)
 {
     using cstone::LocalIndex;
-    constexpr int maxNumRungs = N - 1;
 
     std::array<float, 2> minGroupDt;
-    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (IsDeviceVector<AccVec>{})
     {
         sortGroupDt(groupDt, groupIndices, grp.numGroups, scratch);
         minGroupDt = timestepRangeGpu(groupDt, grp.numGroups, 0.4);
@@ -191,15 +201,16 @@ auto computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::LocalInd
     std::array<float, 2> minDtGlobal;
     mpiAllreduce(minGroupDt.data(), minDtGlobal.data(), minGroupDt.size(), MPI_MIN);
 
-    int   numRungs       = std::min(int(log2(minDtGlobal[1] / minDtGlobal[0])), maxNumRungs);
+    int   numRungs       = std::min(int(log2(minDtGlobal[1] / minDtGlobal[0])), Timestep::maxNumRungs);
     float masterTimestep = minDtGlobal[0] * (1 << numRungs);
 
     // find ranges of 2*minDt, 4*minDt, 8*minDt
     // groupDt is sorted, groups belonging to a specific rung will correspond to index ranges
+    std::array<LocalIndex, Timestep::maxNumRungs + 1> rungRanges;
     rungRanges.front() = 0;
-    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    if constexpr (IsDeviceVector<AccVec>{})
     {
-        for (int rung = 1; rung <= maxNumRungs; ++rung)
+        for (int rung = 1; rung <= Timestep::maxNumRungs; ++rung)
         {
             float maxDtRung  = (1 << rung) * minDtGlobal[0];
             rungRanges[rung] = cstone::lowerBoundGpu(groupDt, groupDt + grp.numGroups, maxDtRung);
@@ -213,12 +224,17 @@ auto computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::LocalInd
                   << grp.numGroups << std::endl;
     }
 
-    float nextDt = std::min({minDtGlobal[0], float(d.maxDtIncrease * d.minDt)});
+    return {
+        .minDt = minDtGlobal[0], .maxDt = masterTimestep, .numRungs = numRungs, .substep = 0, .rungRanges = rungRanges};
+}
+
+template<class Dataset>
+void updateTotalTime(float newDt, Dataset& d)
+{
+    float nextDt = std::min({newDt, float(d.maxDtIncrease * d.minDt)});
     d.ttot += nextDt;
     d.minDt_m1 = d.minDt;
     d.minDt    = nextDt;
-
-    return numRungs;
 }
 
 } // namespace sph
