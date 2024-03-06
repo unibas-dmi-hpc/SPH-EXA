@@ -48,9 +48,7 @@ __global__ void cudaEOS_HydroStd(size_t firstParticle, size_t lastParticle, Trho
     unsigned i = firstParticle + blockDim.x * blockIdx.x + threadIdx.x;
     if (i >= lastParticle) return;
 
-    auto rhoi             = m[i] / rho[i]; // undo volume element
-    rho[i]                = rhoi;
-    util::tie(p[i], c[i]) = idealGasEOS(temp[i], rhoi, mui, gamma);
+    util::tie(p[i], c[i]) = idealGasEOS(temp[i], rho[i], mui, gamma);
 }
 
 template<class Tt, class Trho, class Tp, class Tc>
