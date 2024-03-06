@@ -22,6 +22,9 @@ template<class Dataset>
 extern void computeXMass(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
+void computeDensity(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<typename Dataset::RealType>& box);
+
+template<class Dataset>
 extern void computeVeDefGradh(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>

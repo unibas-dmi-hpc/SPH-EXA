@@ -33,25 +33,34 @@
 #pragma once
 
 #include "sph/hydro_ve/xmass.hpp"
+#include "sph/sph_gpu.hpp"
 
 namespace sph
 {
+
+template<typename Tc, class Dataset>
+void computeDensityImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box)
+{
+    swap(d.xm, d.rho);
+    computeXMass(startIndex, endIndex, d, box);
+    swap(d.xm, d.rho);
+    // Convert XMass to density
+#pragma omp parallel for schedule(static)
+    for (size_t i = startIndex; i < endIndex; i++)
+    {
+        d.rho[i] = d.m[i] / d.rho[i];
+    }
+}
 
 template<class T, class Dataset>
 void computeDensity(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        swap(d.devData.xm, d.devData.rho);
-        computeXMass(startIndex, endIndex, d, box);
-        swap(d.devData.xm, d.devData.rho);
+        computeTargetGroups(startIndex, endIndex, d, box);
+        cuda::computeDensity(startIndex, endIndex, d, box);
     }
-    else
-    {
-        swap(d.xm, d.rho);
-        computeXMass(startIndex, endIndex, d, box);
-        swap(d.xm, d.rho);
-    }
+    else { computeDensityImpl(startIndex, endIndex, d, box); }
 }
 
 } // namespace sph
