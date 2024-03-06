@@ -73,12 +73,9 @@ protected:
     AccVector<float>      groupDt_;
     AccVector<LocalIndex> groupIndices_;
 
-    //! brief timestep rungs
-    constexpr static int                    maxNumRungs = 3;
-    std::array<LocalIndex, maxNumRungs + 1> rungRanges_;
-    GroupData<Acc>                          fastGroup_;
-    int                                     numRungs_    = 0;
-    int                                     subStepIndex = 0;
+    //! brief timestep information rungs
+    Timestep       timestep_;
+    GroupData<Acc> fastGroup_;
 
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
@@ -101,10 +98,10 @@ protected:
         std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{}), decltype(DependentFields_{})>;
 
     //! @brief Return rung of current block time-step
-    int activeRung() const
+    static int activeRung(const Timestep& ts)
     {
-        if (subStepIndex == 0 || subStepIndex == numRungs_) { return 0; }
-        else { return cstone::butterfly(subStepIndex); }
+        if (ts.substep == 0 || ts.substep >= (1 << ts.numRungs)) { return 0; }
+        else { return cstone::butterfly(ts.substep); }
     }
 
 public:
@@ -169,7 +166,7 @@ public:
 
     void sync(DomainType& domain, DataType& simData) override
     {
-        if (activeRung() == 0) { fullSync(domain, simData); }
+        if (activeRung(timestep_) == 0) { fullSync(domain, simData); }
         else { partialSync(domain, simData); }
     }
 
@@ -209,7 +206,7 @@ public:
         timer.step("mpi::synchronizeHalos");
 
         computeIadDivvCurlv(groups_.view(), d, domain.box());
-        if (activeRung() == 0) { groupDivvTimestep(groups_.view(), rawPtr(groupDt_), d); }
+        if (activeRung(timestep_) == 0) { groupDivvTimestep(groups_.view(), rawPtr(groupDt_), d); }
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"keys">(d), haloRecvScratch);
@@ -226,7 +223,7 @@ public:
         else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"keys">(d), haloRecvScratch); }
         timer.step("mpi::synchronizeHalos");
 
-        float* groupDtUse = (activeRung() == 0) ? rawPtr(groupDt_) : nullptr;
+        float* groupDtUse = (activeRung(timestep_) == 0) ? rawPtr(groupDt_) : nullptr;
         computeMomentumEnergy<avClean>(groups_.view(), groupDtUse, d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
@@ -241,20 +238,36 @@ public:
             pmReader.step();
         }
 
-        if (activeRung() == 0) { groupAccTimestep(groups_.view(), rawPtr(groupDt_), d); }
+        if (activeRung(timestep_) == 0) { groupAccTimestep(groups_.view(), rawPtr(groupDt_), d); }
     }
 
     void computeBlockTimesteps(DataType& simData)
     {
-        auto& d   = simData.hydro;
-        numRungs_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), simData.hydro,
-                                         rungRanges_, get<"keys">(d));
-
-        if constexpr (cstone::HaveGpu<Acc>{})
+        auto& d = simData.hydro;
+        if (activeRung(timestep_) == 0)
         {
-            if (numRungs_ > 0)
-                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), rungRanges_[0], rungRanges_[1], fastGroup_);
+            timestep_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
         }
+        else
+        {
+            if (Base::rank_ == 0)
+            {
+                std::cout << "Substep/rung " << timestep_.substep << " " << activeRung(timestep_) << std::endl;
+            }
+        }
+
+        timestep_.substep++;
+
+        if (activeRung(timestep_) > 0)
+        {
+            if constexpr (cstone::HaveGpu<Acc>{})
+            {
+                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), timestep_.rungRanges[0],
+                                timestep_.rungRanges[activeRung(timestep_)], fastGroup_);
+            }
+        }
+
+        updateTotalTime(timestep_.minDt, simData.hydro);
     }
 
     void integrate(DomainType& domain, DataType& simData) override
