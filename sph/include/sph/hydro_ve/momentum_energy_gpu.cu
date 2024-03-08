@@ -130,8 +130,6 @@ void computeMomentumEnergy(const GroupView& grp, float* groupDt, Dataset& d,
     checkGpuErrors(cudaMemcpyToSymbol(minDt_ve_device, &huge, sizeof(huge)));
     cstone::resetTraversalCounters<<<1, 1>>>();
 
-    printf("K is %f\n", d.K);
-
     momentumEnergyGpu<avClean><<<numBlocks, TravConfig::numThreads>>>(
         d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups,
         d.treeView.nsView(), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx),

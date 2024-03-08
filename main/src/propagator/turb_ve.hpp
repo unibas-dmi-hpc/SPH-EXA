@@ -55,6 +55,7 @@ class TurbVeProp final : public HydroVeBdtProp<avClean, DomainType, DataType>
     using Base = HydroVeBdtProp<avClean, DomainType, DataType>;
     using Base::rank_;
     using Base::timer;
+    using Base::groups_;
 
     using RealType = typename DataType::RealType;
 
@@ -83,7 +84,7 @@ public:
         Base::computeBlockTimesteps(simData);
         timer.step("Timestep");
 
-        computePositions(first, last, d, domain.box());
+        computePositions(groups_.view(), d, domain.box());
         updateSmoothingLength(first, last, d);
         timer.step("UpdateQuantities");
     }

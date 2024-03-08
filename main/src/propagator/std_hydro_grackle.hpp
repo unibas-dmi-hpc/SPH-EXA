@@ -218,7 +218,7 @@ public:
         transferToDevice(d, first, last, {"du"});
         timer.step("GRACKLE chemistry and cooling");
 
-        computePositions(first, last, d, domain.box());
+        computePositions(groups_.view(), d, domain.box());
         timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d);
         timer.step("UpdateSmoothingLength");

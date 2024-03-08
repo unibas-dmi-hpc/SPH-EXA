@@ -280,7 +280,7 @@ public:
 
         computeBlockTimesteps(simData);
         timer.step("Timestep");
-        computePositions(first, last, d, domain.box());
+        computePositions(groups_.view(), d, domain.box());
         updateSmoothingLength(first, last, d);
         timer.step("UpdateQuantities");
     }
