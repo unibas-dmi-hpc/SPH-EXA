@@ -177,7 +177,7 @@ struct Timestep
 {
     static constexpr int maxNumRungs = 3;
     //! @brief maxDt = minDt * 2^numRungs;
-    float minDt, maxDt;
+    float minDt, ffDt;
     int   numRungs{0};
     //! @brief 0,...,2^numRungs
     int substep{0};
@@ -201,8 +201,7 @@ Timestep computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::Loca
     std::array<float, 2> minDtGlobal;
     mpiAllreduce(minGroupDt.data(), minDtGlobal.data(), minGroupDt.size(), MPI_MIN);
 
-    int   numRungs       = std::min(int(log2(minDtGlobal[1] / minDtGlobal[0])), Timestep::maxNumRungs);
-    float masterTimestep = minDtGlobal[0] * (1 << numRungs);
+    int numRungs = std::min(int(log2(minDtGlobal[1] / minDtGlobal[0])), Timestep::maxNumRungs);
 
     // find ranges of 2*minDt, 4*minDt, 8*minDt
     // groupDt is sorted, groups belonging to a specific rung will correspond to index ranges
@@ -217,15 +216,8 @@ Timestep computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::Loca
         }
     }
 
-    if (grp.firstBody == 0)
-    {
-        std::cout << "grpRatio " << minDtGlobal[1] / minDtGlobal[0] << " " << numRungs << " " << minDtGlobal[0] << " "
-                  << masterTimestep << " " << rungRanges[1] << " " << rungRanges[2] << " " << rungRanges[3] << " "
-                  << grp.numGroups << std::endl;
-    }
-
     return {
-        .minDt = minDtGlobal[0], .maxDt = masterTimestep, .numRungs = numRungs, .substep = 0, .rungRanges = rungRanges};
+        .minDt = minDtGlobal[0], .ffDt = minDtGlobal[1], .numRungs = numRungs, .substep = 0, .rungRanges = rungRanges};
 }
 
 template<class Dataset>

@@ -151,6 +151,18 @@ void updateIntEnergyHost(size_t startIndex, size_t endIndex, Dataset& d)
 }
 
 template<class T, class Dataset>
+void driftPositions(const GroupView& grp, Dataset& d, float dt_forward, float dt_backward)
+{
+    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    {
+        driftPositionsGpu(grp, dt_forward, dt_backward, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y),
+                          rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
+                          rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1), rawPtr(d.devData.ax),
+                          rawPtr(d.devData.ay), rawPtr(d.devData.az));
+    }
+}
+
+template<class T, class Dataset>
 void computePositions(const GroupView& grp, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
