@@ -276,14 +276,12 @@ public:
     {
         computeForces(domain, simData);
 
-        auto&  d     = simData.hydro;
-        size_t first = domain.startIndex();
-        size_t last  = domain.endIndex();
+        auto& d = simData.hydro;
 
         computeBlockTimesteps(simData);
         timer.step("Timestep");
         computePositions(groups_.view(), d, domain.box());
-        updateSmoothingLength(first, last, d);
+        updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateQuantities");
     }
 

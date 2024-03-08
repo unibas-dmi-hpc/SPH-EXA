@@ -60,7 +60,7 @@ extern void computePositionsGpu(const GroupView& grp, double dt, double dt_m1, T
                                 const cstone::Box<Tc>& box);
 
 template<class Th>
-extern void updateSmoothingLengthGpu(size_t, size_t, unsigned ng0, const unsigned* nc, Th* h);
+extern void updateSmoothingLengthGpu(const GroupView&, unsigned ng0, const unsigned* nc, Th* h);
 
 template<class T>
 extern void groupDivvTimestepGpu(float Krho, const GroupView&, const T* divv, float* groupDt);
