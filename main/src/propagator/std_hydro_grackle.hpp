@@ -220,7 +220,7 @@ public:
 
         computePositions(groups_.view(), d, domain.box());
         timer.step("UpdateQuantities");
-        updateSmoothingLength(first, last, d);
+        updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateSmoothingLength");
     }
 };

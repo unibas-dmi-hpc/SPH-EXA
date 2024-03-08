@@ -85,7 +85,7 @@ public:
         timer.step("Timestep");
 
         computePositions(groups_.view(), d, domain.box());
-        updateSmoothingLength(first, last, d);
+        updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateQuantities");
     }
 
