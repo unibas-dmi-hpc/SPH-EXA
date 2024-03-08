@@ -55,6 +55,7 @@ class TurbVeProp final : public HydroVeBdtProp<avClean, DomainType, DataType>
     using Base = HydroVeBdtProp<avClean, DomainType, DataType>;
     using Base::rank_;
     using Base::timer;
+    using Base::groups_;
 
     using RealType = typename DataType::RealType;
 
@@ -80,7 +81,7 @@ public:
         driveTurbulence(first, last, d, turbulenceData);
         timer.step("Turbulence Stirring");
 
-        computePositions(first, last, d, domain.box());
+        computePositions(groups_.view(), d, domain.box());
         updateSmoothingLength(first, last, d);
         timer.step("UpdateQuantities");
     }

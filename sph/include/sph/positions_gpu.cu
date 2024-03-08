@@ -90,67 +90,73 @@ DRIFT_GPU(double, float, float);
 DRIFT_GPU(float, float, float);
 
 template<class Tc, class Tv, class Ta, class Tdu, class Tm1, class Tt, class Thydro>
-__global__ void computePositionsKernel(size_t first, size_t last, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx,
+__global__ void computePositionsKernel(GroupView grp, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx,
                                        Tv* vy, Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az,
                                        Tt* temp, Tt* u, Tdu* du, Tm1* du_m1, Thydro* h, Thydro* mui, Tc gamma,
                                        Tc constCv, const cstone::Box<Tc> box)
 {
-    cstone::LocalIndex i = first + blockDim.x * blockIdx.x + threadIdx.x;
-    if (i >= last) { return; }
+    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid >= grp.numGroups) { return; }
 
-    bool fbcX   = (box.boundaryX() == cstone::BoundaryType::fixed);
-    bool fbcY   = (box.boundaryY() == cstone::BoundaryType::fixed);
-    bool fbcZ   = (box.boundaryZ() == cstone::BoundaryType::fixed);
-    bool anyFBC = fbcX || fbcY || fbcZ;
-
-    if (anyFBC && vx[i] == Tv(0) && vy[i] == Tv(0) && vz[i] == Tv(0))
+    auto bodyBegin = grp.groupStart[tid];
+    auto bodyEnd   = grp.groupEnd[tid];
+    for (auto i = bodyBegin; i < bodyEnd; ++i)
     {
-        if (fbcCheck(x[i], h[i], box.xmax(), box.xmin(), fbcX) || fbcCheck(y[i], h[i], box.ymax(), box.ymin(), fbcY) ||
-            fbcCheck(z[i], h[i], box.zmax(), box.zmin(), fbcZ))
+
+        bool fbcX   = (box.boundaryX() == cstone::BoundaryType::fixed);
+        bool fbcY   = (box.boundaryY() == cstone::BoundaryType::fixed);
+        bool fbcZ   = (box.boundaryZ() == cstone::BoundaryType::fixed);
+        bool anyFBC = fbcX || fbcY || fbcZ;
+
+        if (anyFBC && vx[i] == Tv(0) && vy[i] == Tv(0) && vz[i] == Tv(0))
         {
-            return;
+            if (fbcCheck(x[i], h[i], box.xmax(), box.xmin(), fbcX) ||
+                fbcCheck(y[i], h[i], box.ymax(), box.ymin(), fbcY) ||
+                fbcCheck(z[i], h[i], box.zmax(), box.zmin(), fbcZ))
+            {
+                return;
+            }
         }
-    }
 
-    cstone::Vec3<Tc> A{ax[i], ay[i], az[i]};
-    cstone::Vec3<Tc> X{x[i], y[i], z[i]};
-    cstone::Vec3<Tc> X_m1{x_m1[i], y_m1[i], z_m1[i]};
-    cstone::Vec3<Tc> V;
-    util::tie(X, V, X_m1) = positionUpdate(Tc(dt), Tc(dt_m1), X, A, X_m1, box);
+        cstone::Vec3<Tc> A{ax[i], ay[i], az[i]};
+        cstone::Vec3<Tc> X{x[i], y[i], z[i]};
+        cstone::Vec3<Tc> X_m1{x_m1[i], y_m1[i], z_m1[i]};
+        cstone::Vec3<Tc> V;
+        util::tie(X, V, X_m1) = positionUpdate(Tc(dt), Tc(dt_m1), X, A, X_m1, box);
 
-    util::tie(x[i], y[i], z[i])          = util::tie(X[0], X[1], X[2]);
-    util::tie(x_m1[i], y_m1[i], z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
-    util::tie(vx[i], vy[i], vz[i])       = util::tie(V[0], V[1], V[2]);
+        util::tie(x[i], y[i], z[i])          = util::tie(X[0], X[1], X[2]);
+        util::tie(x_m1[i], y_m1[i], z_m1[i]) = util::tie(X_m1[0], X_m1[1], X_m1[2]);
+        util::tie(vx[i], vy[i], vz[i])       = util::tie(V[0], V[1], V[2]);
 
-    if (temp != nullptr)
-    {
-        Thydro cv    = (constCv < 0) ? idealGasCv(mui[i], gamma) : constCv;
-        auto   u_old = temp[i] * cv;
-        temp[i]      = energyUpdate(u_old, dt, dt_m1, du[i], du_m1[i]) / cv;
-        du_m1[i]     = du[i];
-    }
-    else if (u != nullptr)
-    {
-        u[i]     = energyUpdate(u[i], dt, dt_m1, du[i], du_m1[i]);
-        du_m1[i] = du[i];
+        if (temp != nullptr)
+        {
+            Thydro cv    = (constCv < 0) ? idealGasCv(mui[i], gamma) : constCv;
+            auto   u_old = temp[i] * cv;
+            temp[i]      = energyUpdate(u_old, dt, dt_m1, du[i], du_m1[i]) / cv;
+            du_m1[i]     = du[i];
+        }
+        else if (u != nullptr)
+        {
+            u[i]     = energyUpdate(u[i], dt, dt_m1, du[i], du_m1[i]);
+            du_m1[i] = du[i];
+        }
     }
 }
 
 template<class Tc, class Tv, class Ta, class Tdu, class Tm1, class Tt, class Thydro>
-void computePositionsGpu(size_t first, size_t last, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx, Tv* vy,
-                         Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, Tt* temp, Tt* u, Tdu* du,
-                         Tm1* du_m1, Thydro* h, Thydro* mui, Tc gamma, Tc constCv, const cstone::Box<Tc>& box)
+void computePositionsGpu(const GroupView& grp, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx, Tv* vy,
+                         Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, Tt* temp, Tt* u, Tdu* du, Tm1* du_m1,
+                         Thydro* h, Thydro* mui, Tc gamma, Tc constCv, const cstone::Box<Tc>& box)
 {
-    cstone::LocalIndex numParticles = last - first;
-    unsigned           numThreads   = 256;
-    unsigned           numBlocks    = (numParticles + numThreads - 1) / numThreads;
+    unsigned numThreads = 256;
+    unsigned numBlocks  = (grp.numGroups + numThreads - 1) / numThreads;
 
-    computePositionsKernel<<<numBlocks, numThreads>>>(first, last, dt, dt_m1, x, y, z, vx, vy, vz, x_m1, y_m1, z_m1, ax,
-                                                      ay, az, temp, u, du, du_m1, h, mui, gamma, constCv, box);
+    computePositionsKernel<<<numBlocks, numThreads>>>(grp, dt, dt_m1, x, y, z, vx, vy, vz, x_m1, y_m1, z_m1, ax, ay, az,
+                                                      temp, u, du, du_m1, h, mui, gamma, constCv, box);
 }
 
 #define POS_GPU(Tc, Tv, Ta, Tdu, Tm1, Tt, Thydro)                                                                      \
-    template void computePositionsGpu(size_t first, size_t last, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx, \
+    template void computePositionsGpu(const GroupView& grp, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx,      \
                                       Tv* vy, Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az,         \
                                       Tt* temp, Tt* u, Tdu* du, Tm1* du_m1, Thydro* h, Thydro* mui, Tc gamma,          \
                                       Tc constCv, const cstone::Box<Tc>& box)

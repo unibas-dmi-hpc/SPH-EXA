@@ -151,26 +151,25 @@ void updateIntEnergyHost(size_t startIndex, size_t endIndex, Dataset& d)
 }
 
 template<class T, class Dataset>
-void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
+void computePositions(const GroupView& grp, Dataset& d, const cstone::Box<T>& box)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         T     constCv = d.mui.empty() ? idealGasCv(d.muiConst, d.gamma) : -1.0;
         auto* d_mui   = d.mui.empty() ? nullptr : rawPtr(d.devData.mui);
 
-        computePositionsGpu(startIndex, endIndex, d.minDt, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y),
-                            rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
-                            rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1),
-                            rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.temp),
-                            rawPtr(d.devData.u), rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h),
-                            d_mui, d.gamma, constCv, box);
+        computePositionsGpu(grp, d.minDt, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
+                            rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.x_m1),
+                            rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1), rawPtr(d.devData.ax), rawPtr(d.devData.ay),
+                            rawPtr(d.devData.az), rawPtr(d.devData.temp), rawPtr(d.devData.u), rawPtr(d.devData.du),
+                            rawPtr(d.devData.du_m1), rawPtr(d.devData.h), d_mui, d.gamma, constCv, box);
     }
     else
     {
-        updatePositionsHost(startIndex, endIndex, d, box);
+        updatePositionsHost(grp.firstBody, grp.lastBody, d, box);
 
-        if (!d.temp.empty()) { updateTempHost(startIndex, endIndex, d); }
-        else if (!d.u.empty()) { updateIntEnergyHost(startIndex, endIndex, d); }
+        if (!d.temp.empty()) { updateTempHost(grp.firstBody, grp.lastBody, d); }
+        else if (!d.u.empty()) { updateIntEnergyHost(grp.firstBody, grp.lastBody, d); }
     }
 }
 
