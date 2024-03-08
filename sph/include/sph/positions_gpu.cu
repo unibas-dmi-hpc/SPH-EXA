@@ -35,6 +35,60 @@
 namespace sph
 {
 
+//! Drift back by dt_back, then advance by dt
+template<class Tc, class Thydro, class Tm1>
+__global__ void driftKernel(GroupView grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z, Thydro* vx,
+                            Thydro* vy, Thydro* vz, const Tm1* x_m1, const Tm1* y_m1, const Tm1* z_m1, const Thydro* ax,
+                            const Thydro* ay, const Thydro* az)
+{
+    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid >= grp.numGroups) { return; }
+
+    // drifting must not adjust for PBC because that would require octrees to be rebuilt
+    cstone::Box<Tc> noPbc(0, 1, cstone::BoundaryType::open);
+    auto            bodyBegin = grp.groupStart[tid];
+    auto            bodyEnd   = grp.groupEnd[tid];
+
+    for (auto i = bodyBegin; i < bodyEnd; ++i)
+    {
+        cstone::Vec3<Tc> An{ax[i], ay[i], az[i]};
+        cstone::Vec3<Tc> Xnback{x[i], y[i], z[i]};
+        cstone::Vec3<Tc> dXn{x_m1[i], y_m1[i], z_m1[i]};
+
+        // recover Xn, at which point An was calculated
+        cstone::Vec3<Tc> Xn_recov, ignore;
+        util::tie(Xn_recov, ignore, ignore) = positionUpdate(-dt_back, dt_m1, Xnback, An, dXn, noPbc);
+
+        // drift to new point in time starting from (Xn, An, dXn)
+        cstone::Vec3<Tc> Xnp1, Vnp1;
+        util::tie(Xnp1, Vnp1, ignore) = positionUpdate(dt, dt_m1, Xn_recov, An, dXn, noPbc);
+
+        util::tie(x[i], y[i], z[i])    = util::tie(Xnp1[0], Xnp1[1], Xnp1[2]);
+        util::tie(vx[i], vy[i], vz[i]) = util::tie(Vnp1[0], Vnp1[1], Vnp1[2]);
+    }
+}
+
+template<class Tc, class Thydro, class Tm1>
+void driftPositions(GroupView grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z, Thydro* vx, Thydro* vy,
+                    Thydro* vz, const Tm1* x_m1, const Tm1* y_m1, const Tm1* z_m1, const Thydro* ax, const Thydro* ay,
+                    const Thydro* az)
+{
+    unsigned           numThreads = 256;
+    cstone::LocalIndex numBlocks  = (grp.numGroups + numThreads - 1) / numThreads;
+
+    driftKernel<<<numBlocks, numThreads>>>(grp, dt, dt_back, dt_m1, x, y, z, vx, vy, vz, x_m1, y_m1, z_m1, ax, ay, az);
+}
+
+#define DRIFT_GPU(Tc, Thydro, Tm1)                                                                                     \
+    template void driftPositions(GroupView grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z, Thydro* vx, \
+                                 Thydro* vy, Thydro* vz, const Tm1* x_m1, const Tm1* y_m1, const Tm1* z_m1,            \
+                                 const Thydro* ax, const Thydro* ay, const Thydro* az)
+
+DRIFT_GPU(double, double, double);
+DRIFT_GPU(double, double, float);
+DRIFT_GPU(double, float, float);
+DRIFT_GPU(float, float, float);
+
 template<class Tc, class Tv, class Ta, class Tdu, class Tm1, class Tt, class Thydro>
 __global__ void computePositionsKernel(size_t first, size_t last, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx,
                                        Tv* vy, Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az,
