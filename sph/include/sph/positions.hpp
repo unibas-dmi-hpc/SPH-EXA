@@ -62,20 +62,31 @@ HOST_DEVICE_FUN double energyUpdate(double u_old, double dt, double dt_m1, T1 du
     return u_new;
 }
 
-//! @brief Update positions according to Press (2nd order)
+/*! @brief Update positions according to Press (2nd order)
+ *
+ * @tparam T      float or double
+ * @param dt      time delta from step n to n+1
+ * @param dt_m1   time delta from step n-1 to n
+ * @param Xn      coordinates at step n
+ * @param An      acceleration at step n
+ * @param dXn     X_n - X_n-1
+ * @param box     global coordinate bounding box
+ * @return        tuple(X_n+1, V_n+1, dX_n+1)
+ *
+ * time-reversibility:
+ * positionUpdate(-dt, dt_m1, X_n+1, An, dXn, box) will back-propagate X_n+1 to X_n
+ */
 template<class T>
-HOST_DEVICE_FUN auto positionUpdate(double dt, double dt_m1, cstone::Vec3<T> X, cstone::Vec3<T> A, cstone::Vec3<T> X_m1,
-                                    const cstone::Box<T>& box)
+HOST_DEVICE_FUN auto positionUpdate(double dt, double dt_m1, cstone::Vec3<T> Xn, cstone::Vec3<T> An,
+                                    cstone::Vec3<T> dXn, const cstone::Box<T>& box)
 {
-    double deltaA = dt + T(0.5) * dt_m1;
-    double deltaB = T(0.5) * (dt + dt_m1);
+    auto Vnmhalf = dXn * (T(1) / dt_m1);
+    auto Vn      = Vnmhalf + T(0.5) * dt_m1 * An;
+    auto Vnp1    = Vn + An * dt;
+    auto dXnp1   = (Vn + T(0.5) * An * std::abs(dt)) * dt;
+    auto Xnp1    = cstone::putInBox(Xn + dXnp1, box);
 
-    auto Val = X_m1 * (T(1) / dt_m1);
-    auto V   = Val + A * deltaA;
-    auto dX  = dt * Val + A * deltaB * dt;
-    X        = cstone::putInBox(X + dX, box);
-
-    return util::tuple<cstone::Vec3<T>, cstone::Vec3<T>, cstone::Vec3<T>>{X, V, dX};
+    return util::tuple<cstone::Vec3<T>, cstone::Vec3<T>, cstone::Vec3<T>>{Xnp1, Vnp1, dXnp1};
 }
 
 template<class T, class Dataset>
