@@ -75,7 +75,7 @@ protected:
 
     //! brief timestep information rungs
     Timestep       timestep_;
-    GroupData<Acc> fastGroup_;
+    GroupData<Acc> fastGroup_, slowGroup_;
 
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
@@ -250,22 +250,30 @@ public:
         {
             timestep_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
         }
-        else
+
+        if (Base::rank_ == 0 && activeRung(timestep_) == 0)
         {
-            if (Base::rank_ == 0)
-            {
-                std::cout << "Substep/rung " << timestep_.substep << " " << activeRung(timestep_) << std::endl;
-            }
+            auto ts = timestep_;
+            std::cout << "New TS:  " << ts.ffDt / ts.minDt << " " << ts.numRungs << " " << ts.minDt << " "
+                      << ts.minDt * (1 << ts.numRungs) << " " << ts.rungRanges[1] << " " << ts.rungRanges[2] << " "
+                      << ts.rungRanges[3] << " " << groups_.numGroups << std::endl;
+        }
+        if (Base::rank_ == 0 && activeRung(timestep_) > 0)
+        {
+            std::cout << "Substep " << timestep_.substep << "/" << (1 << timestep_.numRungs) << ", "
+                      << fastGroup_.numGroups << " active groups" << std::endl;
         }
 
-        timestep_.substep++;
+        if (timestep_.numRungs) { timestep_.substep++; }
 
-        if (activeRung(timestep_) > 0)
+        if (activeRung(timestep_) > 0) // if the next step does not start a new hierarchy
         {
             if constexpr (cstone::HaveGpu<Acc>{})
             {
                 extractGroupGpu(groups_.view(), rawPtr(groupIndices_), timestep_.rungRanges[0],
                                 timestep_.rungRanges[activeRung(timestep_)], fastGroup_);
+                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), timestep_.rungRanges[activeRung(timestep_)],
+                                groups_.numGroups, slowGroup_);
             }
         }
 
@@ -280,7 +288,24 @@ public:
 
         computeBlockTimesteps(simData);
         timer.step("Timestep");
-        computePositions(groups_.view(), d, domain.box());
+
+        if (activeRung(timestep_) > 0) // if the next step does not start a new hierarchy
+        {
+            // driftPositions(slowGroup_.view(), d);
+            std::cout << "Integration: drift " << slowGroup_.numGroups << " slow groups back by "
+                      << timestep_.substep - 1 << ", forward by " << timestep_.substep << ", advance "
+                      << fastGroup_.numGroups << " fast groups" << std::endl;
+            computePositions(groups_.view(), d, domain.box());
+        }
+        else
+        {
+            int numBack = std::max(timestep_.substep - 1, 0);
+            std::cout << "Integration: drift " << slowGroup_.numGroups << " slow groups back by "
+                      << numBack << ", forward by " << timestep_.substep << ", advance "
+                      << groups_.numGroups << " groups (all of them)" << std::endl;
+            computePositions(groups_.view(), d, domain.box());
+        }
+
         updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateQuantities");
     }
