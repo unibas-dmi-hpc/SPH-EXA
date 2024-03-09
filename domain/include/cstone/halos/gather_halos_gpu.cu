@@ -121,6 +121,7 @@ void scatterRanges(const IndexType* rangeScan,
     scatterRangesKernel<<<numBlocks, numThreads>>>(rangeScan, rangeOffsets, numRanges, dest, buffer, bufferSize);
 }
 
+template void scatterRanges(const unsigned*, const unsigned*, int, uint8_t*, const uint8_t*, size_t);
 template void scatterRanges(const unsigned*, const unsigned*, int, int*, const int*, size_t);
 template void scatterRanges(const uint64_t*, const uint64_t*, int, int*, const int*, size_t);
 
@@ -132,14 +133,5 @@ template void
 scatterRanges(const unsigned*, const unsigned*, int, util::array<float, 3>*, const util::array<float, 3>*, size_t);
 template void
 scatterRanges(const unsigned*, const unsigned*, int, util::array<float, 4>*, const util::array<float, 4>*, size_t);
-
-template void
-scatterRanges(const uint64_t*, const uint64_t*, int, util::array<float, 1>*, const util::array<float, 1>*, size_t);
-template void
-scatterRanges(const uint64_t*, const uint64_t*, int, util::array<float, 2>*, const util::array<float, 2>*, size_t);
-template void
-scatterRanges(const uint64_t*, const uint64_t*, int, util::array<float, 3>*, const util::array<float, 3>*, size_t);
-template void
-scatterRanges(const uint64_t*, const uint64_t*, int, util::array<float, 4>*, const util::array<float, 4>*, size_t);
 
 } // namespace cstone
