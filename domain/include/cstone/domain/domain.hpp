@@ -430,8 +430,9 @@ private:
      * @param  scratchBuffers   a tuple of references to vectors for scratch usage
      *
      * At least 3 scratch buffers are needed. 2 for send/receive and the last one is used to store the SFC ordering.
-     * An additional requirement is that for each value type (float, double) appearing in the list of conserved
-     * vectors, a scratch buffers with a matching type is needed to allow for vector swaps.
+     * An additional requirement is that for each value type appearing in the list of conserved
+     * vectors, either a scratch buffer with a matching value_type (more efficient due to swaps) or with a value_type
+     * of equal or bigger size (less efficient due an additional copy) is needed.
      */
     template<class KeyVec, class... ConservedVectors, class ScratchBuffers>
     void staticChecks(ScratchBuffers& scratchBuffers)
@@ -440,15 +441,18 @@ private:
         static_assert(std::tuple_size_v<ScratchBuffers> >= 3);
 
         auto tup               = util::discardLastElement(scratchBuffers);
-        constexpr auto indices = std::make_tuple(util::FindIndex<ConservedVectors&, std::decay_t<decltype(tup)>>{}...);
+        constexpr auto matches = std::make_tuple(util::FindIndex<ConservedVectors&, std::decay_t<decltype(tup)>>{}...);
+        constexpr auto smaller =
+            std::make_tuple(util::FindIndex<ConservedVectors&, std::decay_t<decltype(tup)>, SmallerElementSize>{}...);
 
         auto valueTypeCheck = [](auto index)
         {
-            static_assert(
-                index < std::tuple_size_v<std::decay_t<decltype(tup)>>,
-                "one of the conserved fields has a value type that was not found among the available scratch buffers");
+            constexpr int numScratchBuffers = std::tuple_size_v<std::decay_t<decltype(tup)>>;
+            static_assert(get<0>(index) < numScratchBuffers || get<1>(index) < numScratchBuffers,
+                          "one of the conserved fields has a value_type bigger than the value_types of available "
+                          "scratch buffers");
         };
-        util::for_each_tuple(valueTypeCheck, indices);
+        util::for_each_tuple(valueTypeCheck, util::zipTuples(matches, smaller));
     }
 
     template<class Sorter, class KeyVec, class VectorX, class... Vectors1, class... Vectors2>

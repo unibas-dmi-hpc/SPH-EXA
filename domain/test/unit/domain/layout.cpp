@@ -139,3 +139,25 @@ TEST(Layout, computeHaloReceiveList)
 
     EXPECT_EQ(receiveList, reference);
 }
+
+TEST(Layout, gatherArrays)
+{
+    std::vector<LocalIndex> ordering{1, 0, 2, 3};
+    std::vector<float> a{0., 1., 2., 3., 4.};
+    std::vector<unsigned char> b{0, 1, 2, 3, 4};
+
+    std::vector<float> scratch(a.size());
+
+    LocalIndex inOffset = 1;
+    LocalIndex outOffset = 1;
+    gatherArrays(gatherCpu, ordering.data(), ordering.size(), inOffset, outOffset, std::tie(a, b), std::tie(scratch));
+
+    static_assert(not SmallerElementSize<0, std::vector<int>, std::tuple<std::vector<char>, std::vector<int>>>{});
+    static_assert(SmallerElementSize<1, std::vector<int>, std::tuple<std::vector<char>, std::vector<int>>>{});
+
+    std::vector<float> refA{0, 2., 1., 3., 4.};
+    std::vector<unsigned char> refB{0, 2, 1, 3, 4};
+
+    EXPECT_TRUE(std::equal(&refA[outOffset], &refA[a.size()], &a[outOffset]));
+    EXPECT_TRUE(std::equal(&refB[outOffset], &refB[b.size()], &b[outOffset]));
+}

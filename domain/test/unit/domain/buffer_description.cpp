@@ -40,19 +40,16 @@ TEST(BufferDescription, computeByteOffsets1)
     constexpr size_t alignment = 128;
     size_t sendCount           = 1001;
 
-    double* p1 = nullptr;
-    float* p2  = nullptr;
+    float* p1 = nullptr;
+    char* p2  = nullptr;
     long* p3   = nullptr;
-    util::array<size_t, 3> elementSizes{sizeof(*p1), sizeof(*p2), sizeof(*p3)};
 
     auto offsets = computeByteOffsets(sendCount, alignment, p1, p2, p3);
 
     EXPECT_EQ(offsets[0], 0);
-    EXPECT_EQ(offsets[1], round_up(elementSizes[0] * sendCount, alignment));
-    EXPECT_EQ(offsets[2], offsets[1] + round_up(elementSizes[1] * sendCount, alignment));
-    EXPECT_EQ(offsets[3], offsets[2] + round_up(elementSizes[2] * sendCount, alignment));
-
-    EXPECT_EQ(offsets[3], 8064 + 4096 + 8064);
+    EXPECT_EQ(offsets[1], 4096);
+    EXPECT_EQ(offsets[2], 4096 + 1024);
+    EXPECT_EQ(offsets[3], 4096 + 1024 + 8064);
 }
 
 TEST(BufferDescription, computeByteOffsetsPadLast)
@@ -78,7 +75,7 @@ TEST(BufferDescription, packBufferPtrsA1)
 
     size_t bufferSizes = 10;
     auto* p1           = reinterpret_cast<double*>(1024);
-    auto* p2           = reinterpret_cast<float*>(2048);
+    auto* p2           = reinterpret_cast<char*>(2048);
     auto* p3           = reinterpret_cast<util::array<int, 4>*>(4096);
     auto* p4           = reinterpret_cast<int*>(8192);
 
@@ -90,14 +87,14 @@ TEST(BufferDescription, packBufferPtrsA1)
 
     EXPECT_EQ(reinterpret_cast<long>(std::get<1>(packed)[0]), 2048);
     EXPECT_EQ(reinterpret_cast<long>(std::get<1>(packed)[1]), 80);
-    static_assert(std::is_same_v<std::decay_t<decltype(*std::get<1>(packed)[0])>, util::array<float, 1>>);
+    static_assert(std::is_same_v<std::decay_t<decltype(*std::get<1>(packed)[0])>, char>);
 
     EXPECT_EQ(reinterpret_cast<long>(std::get<2>(packed)[0]), 4096);
-    EXPECT_EQ(reinterpret_cast<long>(std::get<2>(packed)[1]), 120);
+    EXPECT_EQ(reinterpret_cast<long>(std::get<2>(packed)[1]), 90);
     static_assert(std::is_same_v<std::decay_t<decltype(*std::get<2>(packed)[0])>, util::array<float, 4>>);
 
     EXPECT_EQ(reinterpret_cast<long>(std::get<3>(packed)[0]), 8192);
-    EXPECT_EQ(reinterpret_cast<long>(std::get<3>(packed)[1]), 280);
+    EXPECT_EQ(reinterpret_cast<long>(std::get<3>(packed)[1]), 250);
     static_assert(std::is_same_v<std::decay_t<decltype(*std::get<3>(packed)[0])>, util::array<float, 1>>);
 }
 
@@ -108,7 +105,7 @@ TEST(BufferDescription, packBufferPtrsA8)
 
     size_t bufferSizes = 5;
     auto* p1           = reinterpret_cast<double*>(1024);
-    auto* p2           = reinterpret_cast<float*>(2048);
+    auto* p2           = reinterpret_cast<uint8_t*>(2048);
     auto* p3           = reinterpret_cast<util::array<int, 4>*>(4096);
     auto* p4           = reinterpret_cast<int*>(8192);
 
@@ -120,13 +117,13 @@ TEST(BufferDescription, packBufferPtrsA8)
 
     EXPECT_EQ(reinterpret_cast<long>(std::get<1>(packed)[0]), 2048);
     EXPECT_EQ(reinterpret_cast<long>(std::get<1>(packed)[1]), 40);
-    static_assert(std::is_same_v<std::decay_t<decltype(*std::get<1>(packed)[0])>, util::array<float, 1>>);
+    static_assert(std::is_same_v<std::decay_t<decltype(*std::get<1>(packed)[0])>, uint8_t>);
 
     EXPECT_EQ(reinterpret_cast<long>(std::get<2>(packed)[0]), 4096);
-    EXPECT_EQ(reinterpret_cast<long>(std::get<2>(packed)[1]), 64); // round up from 60
+    EXPECT_EQ(reinterpret_cast<long>(std::get<2>(packed)[1]), 48); // round up from 45
     static_assert(std::is_same_v<std::decay_t<decltype(*std::get<2>(packed)[0])>, util::array<float, 4>>);
 
     EXPECT_EQ(reinterpret_cast<long>(std::get<3>(packed)[0]), 8192);
-    EXPECT_EQ(reinterpret_cast<long>(std::get<3>(packed)[1]), 144);
+    EXPECT_EQ(reinterpret_cast<long>(std::get<3>(packed)[1]), 128);
     static_assert(std::is_same_v<std::decay_t<decltype(*std::get<3>(packed)[0])>, util::array<float, 1>>);
 }
