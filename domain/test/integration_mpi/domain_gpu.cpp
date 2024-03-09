@@ -95,6 +95,7 @@ void randomGaussianAssignment(int rank, int numRanks)
     std::vector<T> z(numParticles);
     std::vector<T> h(numParticles, 0.0000001);
     std::vector<T> m(numParticles, 1.0 / (numParticles * numRanks));
+    std::vector<uint8_t> rungs(numParticles, rank);
     initCoordinates(x, y, z, box, rank);
 
     thrust::device_vector<KeyType> d_keys;
@@ -104,19 +105,22 @@ void randomGaussianAssignment(int rank, int numRanks)
     thrust::device_vector<T> d_z = z;
     thrust::device_vector<T> d_h = h;
     thrust::device_vector<T> d_m = m;
+    thrust::device_vector<uint8_t> d_rungs = rungs;
 
     Domain<KeyType, T, CpuTag> domainCpu(rank, numRanks, bucketSize, bucketSizeFocus, 1.0, box);
     std::vector<T> hs1, hs2, hs3;
-    domainCpu.sync(keys, x, y, z, h, std::tie(m), std::tie(hs1, hs2, hs3));
+    domainCpu.sync(keys, x, y, z, h, std::tie(m, rungs), std::tie(hs1, hs2, hs3));
 
     Domain<KeyType, T, GpuTag> domainGpu(rank, numRanks, bucketSize, bucketSizeFocus, 1.0, box);
     thrust::device_vector<T> s1, s2, s3;
-    domainGpu.sync(d_keys, d_x, d_y, d_z, d_h, std::tie(d_m), std::tie(s1, s2, s3));
+    domainGpu.sync(d_keys, d_x, d_y, d_z, d_h, std::tie(d_m, d_rungs), std::tie(s1, s2, s3));
 
     std::cout << "numHalos " << domainGpu.nParticlesWithHalos() - domainGpu.nParticles() << " cpu "
               << domainCpu.nParticlesWithHalos() - domainCpu.nParticles() << std::endl;
 
     ASSERT_EQ(domainCpu.nParticles(), domainGpu.nParticles());
+    ASSERT_EQ(domainCpu.startIndex(), domainGpu.startIndex());
+    ASSERT_EQ(domainCpu.endIndex(), domainGpu.endIndex());
     EXPECT_EQ(domainCpu.nParticlesWithHalos(), domainGpu.nParticlesWithHalos());
     EXPECT_EQ(domainCpu.globalTree().treeLeaves().size(), domainGpu.globalTree().treeLeaves().size());
     EXPECT_EQ(d_x.size(), x.size());
@@ -130,6 +134,12 @@ void randomGaussianAssignment(int rank, int numRanks)
         std::vector<T> dl(d_x.size());
         thrust::copy_n(d_x.data(), d_x.size(), dl.data());
         EXPECT_TRUE(std::equal(dl.begin(), dl.end(), x.begin()));
+    }
+    {
+        std::vector<uint8_t> rung_dl(d_rungs.size());
+        thrust::copy_n(d_rungs.data(), d_rungs.size(), rung_dl.data());
+        EXPECT_TRUE(std::equal(rung_dl.begin() + domainGpu.startIndex(), rung_dl.begin() + domainGpu.endIndex(),
+                               rungs.begin() + domainGpu.startIndex()));
     }
 }
 
