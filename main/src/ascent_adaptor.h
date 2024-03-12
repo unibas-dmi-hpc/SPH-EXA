@@ -145,9 +145,20 @@ void Execute(DataType& d, long startIndex, long endIndex)
     addField(mesh, "ranks", ranks.data(), 0, endIndex - startIndex);
 
     addField(mesh, "x", d.x.data(), startIndex, endIndex);
-    // addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
     addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
     // addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
+    // addField(mesh, "z", d.z.data(), startIndex, endIndex);
+    // addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
+    // addField(mesh, "vy", d.vy.data(), startIndex, endIndex);
+    // addField(mesh, "vz", d.vz.data(), startIndex, endIndex);
+    // addField(mesh, "Mass", d.m.data(), startIndex, endIndex);
+    // addField(mesh, "Smoothing Length", d.h.data(), startIndex, endIndex);
+
+    // addField(mesh, "Internal Energy", d.u.data(), startIndex, endIndex);
+    // addField(mesh, "Speed of Sound", d.c.data(), startIndex, endIndex);
+    // addField(mesh, "ax", d.ax.data(), startIndex, endIndex);
+    // addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
+    // addField(mesh, "ax", d.az.data(), startIndex, endIndex);
 
     // for (size_t i = startIndex; i < endIndex; i++)
     // {
