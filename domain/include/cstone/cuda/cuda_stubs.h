@@ -56,16 +56,15 @@ void memcpyD2D(const T* src, std::size_t n, T* dest);
 
 void syncGpu();
 
+#if not(defined(THRUST_MAJOR_VERSION) || defined(USE_CUDA) || defined(__CUDACC__) || defined(__HIPCC__))
+// This must only be added when thrust headers are not available as device_vector is defined
+// in an architecture dependent inline namespace that will clash with this forward declaration
 namespace thrust
 {
-
-template<class T>
-class device_allocator;
-
 template<class T, class Alloc>
 class device_vector;
-
 } // namespace thrust
+#endif
 
 /*! @brief detection trait to determine whether a template parameter is an instance of thrust::device_vector
  *
@@ -75,11 +74,5 @@ class device_vector;
  */
 template<class Vector>
 struct IsDeviceVector : public std::false_type
-{
-};
-
-//! @brief detection of thrust device vectors
-template<class T, class Alloc>
-struct IsDeviceVector<thrust::device_vector<T, Alloc>> : public std::true_type
 {
 };
