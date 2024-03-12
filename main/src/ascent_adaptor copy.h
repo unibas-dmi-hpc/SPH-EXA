@@ -21,6 +21,7 @@ template<class DataType>
 void Initialize([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex)
 {
     conduit::Node ascent_options;
+    // ascent_options["default_dir"] = "/scratch/snx3000/jfavre/DummySPH/datasets";
     ascent_options["mpi_comm"] = MPI_Comm_c2f(MPI_COMM_WORLD);
     a.open(ascent_options);
 
@@ -42,10 +43,12 @@ void Initialize([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex)
     add_scene["action"]      = "add_scenes";
 
     // declare a scene (s1) and pseudocolor plot (p1)
-    conduit::Node& scenes                = add_scene["scenes"];
-    scenes["s1/plots/p1/type"]           = "pseudocolor";
-    scenes["s1/plots/p1/pipeline"]       = "pl1";
-    scenes["s1/plots/p1/field"]          = "x";
+    conduit::Node& scenes          = add_scene["scenes"];
+    scenes["s1/plots/p1/type"]     = "pseudocolor";
+    scenes["s1/plots/p1/pipeline"] = "pl1";
+    scenes["s1/plots/p1/field"]    = "Density";
+    // scenes["s1/plots/p1/points/radius"] = .5;
+    // scenes["s1/plots/p1/points/radius_delta"] = .01;
     scenes["s1/renders/r1/image_prefix"] = "DensityThreshold1.4.%05d";
 
     double vec3[3];
@@ -117,10 +120,10 @@ void addRankBenchmarkField(conduit::Node& mesh, const std::string& name, FieldTy
     mesh["fields/" + name + "/volume_dependent"].set("false");
 }
 
-template<class DataType>
-void Execute(DataType& d, long startIndex, long endIndex)
+template<class DataType, class DomainType, class ParticleDataType>
+void Execute(DataType& d, std::unique_ptr<sphexa::Propagator<DomainType, ParticleDataType>>& p, long startIndex,
+             long endIndex, size_t rank)
 {
-    size_t        rank = 0;
     conduit::Node mesh;
     mesh["state/cycle"].set_external(&d.iteration);
     mesh["state/time"].set_external(&d.ttot);
@@ -145,32 +148,39 @@ void Execute(DataType& d, long startIndex, long endIndex)
     addField(mesh, "ranks", ranks.data(), 0, endIndex - startIndex);
 
     addField(mesh, "x", d.x.data(), startIndex, endIndex);
-    // addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
-    addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
-    // addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
+    addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
+    // addField(mesh, "z", d.z.data(), startIndex, endIndex);
+    // addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
+    // addField(mesh, "vy", d.vy.data(), startIndex, endIndex);
+    // addField(mesh, "vz", d.vz.data(), startIndex, endIndex);
+    // addField(mesh, "Mass", d.m.data(), startIndex, endIndex);
+    // addField(mesh, "Smoothing Length", d.h.data(), startIndex, endIndex);
 
-    // for (size_t i = startIndex; i < endIndex; i++)
-    // {
-    //     std::cout << d.rho[i];
-    // }
+    // addField(mesh, "Internal Energy", d.u.data(), startIndex, endIndex);
+    // addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
+    // addField(mesh, "Speed of Sound", d.c.data(), startIndex, endIndex);
+    // addField(mesh, "ax", d.ax.data(), startIndex, endIndex);
+    // addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
+    // addField(mesh, "ax", d.az.data(), startIndex, endIndex);
+
     /* ===================================================== */
     // Set up another sub-mesh for rank-specific data export
     // Since usually the benchmark value is unique for each rank
     // there's only one coordinate possible
-    // size_t numRanks                    = 1;
-    // mesh["coordsets/rank_coords/type"] = "explicit";
-    // mesh["coordsets/rank_coords/values/x"].set_external(&d.x[0], 1);
-    // mesh["coordsets/rank_coords/values/y"].set_external(&d.y[0], 1);
+    size_t numRanks                    = p->getNumRanks();
+    mesh["coordsets/rank_coords/type"] = "explicit";
+    mesh["coordsets/rank_coords/values/x"].set_external(&d.x[0], 1);
+    mesh["coordsets/rank_coords/values/y"].set_external(&d.y[0], 1);
 
-    // // Set up topology
-    // mesh["topologies/ranks/type"]           = "unstructured";
-    // mesh["topologies/ranks/coordset"]       = "rank_coords";
-    // mesh["topologies/ranks/elements/shape"] = "point";
-    // mesh["topologies/ranks/elements/connectivity"].set_external(&rank, 1);
+    // Set up topology
+    mesh["topologies/ranks/type"]           = "unstructured";
+    mesh["topologies/ranks/coordset"]       = "rank_coords";
+    mesh["topologies/ranks/elements/shape"] = "point";
+    mesh["topologies/ranks/elements/connectivity"].set_external(&rank, 1);
     /* ===================================================== */
 
     // Execution time for 1 iteration in current rank. Differs upon ranks
-    // addRankBenchmarkField(mesh, "rank_time", 0.01);
+    addRankBenchmarkField(mesh, "rank_time", p->getTotalIterationTime());
 
     conduit::Node verify_info;
     if (!conduit::blueprint::mesh::verify(mesh, verify_info))
@@ -178,8 +188,7 @@ void Execute(DataType& d, long startIndex, long endIndex)
         // verify failed, print error message
         CONDUIT_INFO("blueprint verify failed!" + verify_info.to_json());
     }
-    // else
-    //     CONDUIT_INFO("blueprint verify success!");
+    // else CONDUIT_INFO("blueprint verify success!" + verify_info.to_json());
 
     a.publish(mesh);
     a.execute(actions);
