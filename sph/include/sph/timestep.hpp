@@ -182,7 +182,7 @@ struct Timestep
     //! @brief 0,...,2^numRungs
     int substep{0};
 
-    std::array<cstone::LocalIndex, maxNumRungs + 1> rungRanges;
+    std::array<cstone::LocalIndex, maxNumRungs + 2> rungRanges;
 };
 
 //! @brief Determine timestep rungs
@@ -205,8 +205,9 @@ Timestep computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::Loca
 
     // find ranges of 2*minDt, 4*minDt, 8*minDt
     // groupDt is sorted, groups belonging to a specific rung will correspond to index ranges
-    std::array<LocalIndex, Timestep::maxNumRungs + 1> rungRanges;
+    std::array<LocalIndex, Timestep::maxNumRungs + 2> rungRanges;
     rungRanges.front() = 0;
+    rungRanges.back() = grp.numGroups;
     if constexpr (IsDeviceVector<AccVec>{})
     {
         for (int rung = 1; rung <= Timestep::maxNumRungs; ++rung)

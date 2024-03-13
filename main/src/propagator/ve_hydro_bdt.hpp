@@ -74,8 +74,9 @@ protected:
     AccVector<LocalIndex> groupIndices_;
 
     //! brief timestep information rungs
-    Timestep       timestep_;
-    GroupData<Acc> fastGroup_, slowGroup_;
+    Timestep       timestep_, prevTimestep_;
+    //! @brief groups for each rung
+    std::array<GroupData<Acc>, Timestep::maxNumRungs + 1> rungs_;
 
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
@@ -249,6 +250,14 @@ public:
         if (activeRung(timestep_) == 0)
         {
             timestep_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
+            for (int r = 0; r <= timestep_.numRungs; ++r)
+            {
+                if constexpr (cstone::HaveGpu<Acc>{})
+                {
+                    extractGroupGpu(groups_.view(), rawPtr(groupIndices_), timestep_.rungRanges[r],
+                                    timestep_.rungRanges[r + 1], rungs_[r]);
+                }
+            }
         }
 
         if (Base::rank_ == 0 && activeRung(timestep_) == 0)
@@ -260,21 +269,13 @@ public:
         }
         if (Base::rank_ == 0 && activeRung(timestep_) > 0)
         {
-            std::cout << "Substep " << timestep_.substep << "/" << (1 << timestep_.numRungs) << ", "
-                      << fastGroup_.numGroups << " active groups" << std::endl;
-        }
-
-        if (timestep_.numRungs) { timestep_.substep++; }
-
-        if (activeRung(timestep_) > 0) // if the next step does not start a new hierarchy
-        {
-            if constexpr (cstone::HaveGpu<Acc>{})
+            LocalIndex numActiveGroups = 0;
+            for (int i = 0; i < activeRung(timestep_); ++i)
             {
-                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), timestep_.rungRanges[0],
-                                timestep_.rungRanges[activeRung(timestep_)], fastGroup_);
-                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), timestep_.rungRanges[activeRung(timestep_)],
-                                groups_.numGroups, slowGroup_);
+                numActiveGroups += rungs_[i].numGroups;
             }
+            std::cout << "Substep " << timestep_.substep << "/" << (1 << timestep_.numRungs) << ", " << numActiveGroups
+                      << " active groups" << std::endl;
         }
 
         updateTotalTime(timestep_.minDt, simData.hydro);
@@ -289,22 +290,22 @@ public:
         computeBlockTimesteps(simData);
         timer.step("Timestep");
 
-        if (activeRung(timestep_) > 0) // if the next step does not start a new hierarchy
+        if (timestep_.numRungs > 0) // if the next step does not start a new hierarchy
         {
-            // driftPositions(slowGroup_.view(), d);
-            std::cout << "Integration: drift " << slowGroup_.numGroups << " slow groups back by "
-                      << timestep_.substep - 1 << ", forward by " << timestep_.substep << ", advance "
-                      << fastGroup_.numGroups << " fast groups" << std::endl;
-            computePositions(groups_.view(), d, domain.box());
+            auto        bkStep = [](int subStep, int rung) { return subStep % (1 << rung); };
+            std::string driftsBack;
+            for (int i = 1; i <= timestep_.numRungs; ++i)
+            {
+                int bk = bkStep(timestep_.substep, i);
+                driftsBack += std::to_string(bk) + ",";
+            }
+            std::cout << "Integration: drift " << driftsBack << " advance up to "
+                      << cstone::butterfly(timestep_.substep + 1) << std::endl;
         }
-        else
-        {
-            int numBack = std::max(timestep_.substep - 1, 0);
-            std::cout << "Integration: drift " << slowGroup_.numGroups << " slow groups back by "
-                      << numBack << ", forward by " << timestep_.substep << ", advance "
-                      << groups_.numGroups << " groups (all of them)" << std::endl;
-            computePositions(groups_.view(), d, domain.box());
-        }
+        else { std::cout << "Integration: advance " << groups_.numGroups << " groups (all of them)" << std::endl; }
+        computePositions(groups_.view(), d, domain.box());
+
+        if (timestep_.numRungs) { timestep_.substep++; }
 
         updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateQuantities");
