@@ -99,10 +99,10 @@ protected:
         std::conditional_t<avClean, decltype(DependentFields_{} + GradVFields{}), decltype(DependentFields_{})>;
 
     //! @brief Return rung of current block time-step
-    static int activeRung(const Timestep& ts)
+    static int activeRung(int substep, int numRungs)
     {
-        if (ts.substep == 0 || ts.substep >= (1 << ts.numRungs)) { return 0; }
-        else { return cstone::butterfly(ts.substep); }
+        if (substep == 0 || substep >= (1 << numRungs)) { return 0; }
+        else { return cstone::butterfly(substep); }
     }
 
 public:
@@ -167,7 +167,7 @@ public:
 
     void sync(DomainType& domain, DataType& simData) override
     {
-        if (activeRung(timestep_) == 0) { fullSync(domain, simData); }
+        if (activeRung(timestep_.substep, timestep_.numRungs) == 0) { fullSync(domain, simData); }
         else { partialSync(domain, simData); }
     }
 
@@ -178,7 +178,8 @@ public:
         sync(domain, simData);
         timer.step("domain::sync");
 
-        GroupView activeGroup = groups_.view();
+        GroupView activeGroup    = groups_.view();
+        bool      isNewHierarchy = activeRung(timestep_.substep, timestep_.numRungs) == 0;
 
         auto& d = simData.hydro;
         d.resize(domain.nParticlesWithHalos());
@@ -209,7 +210,7 @@ public:
         timer.step("mpi::synchronizeHalos");
 
         computeIadDivvCurlv(activeGroup, d, domain.box());
-        if (activeRung(timestep_) == 0) { groupDivvTimestep(activeGroup, rawPtr(groupDt_), d); }
+        if (isNewHierarchy) { groupDivvTimestep(activeGroup, rawPtr(groupDt_), d); }
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"keys">(d), haloRecvScratch);
@@ -226,7 +227,7 @@ public:
         else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"keys">(d), haloRecvScratch); }
         timer.step("mpi::synchronizeHalos");
 
-        float* groupDtUse = (activeRung(timestep_) == 0) ? rawPtr(groupDt_) : nullptr;
+        float* groupDtUse = isNewHierarchy ? rawPtr(groupDt_) : nullptr;
         computeMomentumEnergy<avClean>(activeGroup, groupDtUse, d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
@@ -241,13 +242,13 @@ public:
             pmReader.step();
         }
 
-        if (activeRung(timestep_) == 0) { groupAccTimestep(activeGroup, rawPtr(groupDt_), d); }
+        if (isNewHierarchy) { groupAccTimestep(activeGroup, rawPtr(groupDt_), d); }
     }
 
     void computeBlockTimesteps(DataType& simData)
     {
         auto& d = simData.hydro;
-        if (activeRung(timestep_) == 0)
+        if (activeRung(timestep_.substep, timestep_.numRungs) == 0)
         {
             timestep_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
             for (int r = 0; r <= timestep_.numRungs; ++r)
@@ -260,17 +261,18 @@ public:
             }
         }
 
-        if (Base::rank_ == 0 && activeRung(timestep_) == 0)
+        int highRung = activeRung(timestep_.substep, timestep_.numRungs);
+        if (Base::rank_ == 0 && highRung == 0)
         {
             auto ts = timestep_;
             std::cout << "New TS:  " << ts.ffDt / ts.minDt << " " << ts.numRungs << " " << ts.minDt << " "
                       << ts.minDt * (1 << ts.numRungs) << " " << ts.rungRanges[1] << " " << ts.rungRanges[2] << " "
                       << ts.rungRanges[3] << " " << groups_.numGroups << std::endl;
         }
-        if (Base::rank_ == 0 && activeRung(timestep_) > 0)
+        if (Base::rank_ == 0 && highRung > 0)
         {
             LocalIndex numActiveGroups = 0;
-            for (int i = 0; i < activeRung(timestep_); ++i)
+            for (int i = 0; i < highRung; ++i)
             {
                 numActiveGroups += rungs_[i].numGroups;
             }
@@ -290,7 +292,7 @@ public:
         computeBlockTimesteps(simData);
         timer.step("Timestep");
 
-        if (timestep_.numRungs > 0) // if the next step does not start a new hierarchy
+        if (timestep_.numRungs > 0)
         {
             auto        bkStep = [](int subStep, int rung) { return subStep % (1 << rung); };
             std::string driftsBack;
@@ -303,11 +305,19 @@ public:
                       << cstone::butterfly(timestep_.substep + 1) << std::endl;
         }
         else { std::cout << "Integration: advance " << groups_.numGroups << " groups (all of them)" << std::endl; }
+
         computePositions(groups_.view(), d, domain.box());
+        updateSmoothingLength(groups_.view(), d);
+
+        if (activeRung(timestep_.substep + 1, timestep_.numRungs) == 0) // if next step starts new hierarchy
+        {
+            for (int r = 0; r <= timestep_.numRungs; ++r)
+            {
+                if constexpr (cstone::HaveGpu<Acc>{}) { storeRungGpu(rungs_[r].view(), r, rawPtr(get<"rung">(d))); }
+            }
+        }
 
         if (timestep_.numRungs) { timestep_.substep++; }
-
-        updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateQuantities");
     }
 
