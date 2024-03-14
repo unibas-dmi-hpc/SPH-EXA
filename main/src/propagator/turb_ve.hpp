@@ -84,7 +84,7 @@ public:
         Base::computeBlockTimesteps(simData);
         timer.step("Timestep");
 
-        computePositions(groups_.view(), d, domain.box());
+        computePositions(groups_.view(), d, domain.box(), d.minDt, d.minDt_m1);
         updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateQuantities");
     }
