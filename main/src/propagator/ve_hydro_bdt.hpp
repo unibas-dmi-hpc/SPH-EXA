@@ -250,6 +250,7 @@ public:
         auto& d = simData.hydro;
         if (activeRung(timestep_.substep, timestep_.numRungs) == 0)
         {
+            prevTimestep_ = timestep_;
             timestep_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
             for (int r = 0; r <= timestep_.numRungs; ++r)
             {
@@ -292,21 +293,17 @@ public:
         computeBlockTimesteps(simData);
         timer.step("Timestep");
 
-        if (timestep_.numRungs > 0)
+        auto        bkStep = [](int subStep, int rung) { return subStep % (1 << rung); };
+        std::string driftsBack;
+        for (int i = 1; i <= timestep_.numRungs; ++i)
         {
-            auto        bkStep = [](int subStep, int rung) { return subStep % (1 << rung); };
-            std::string driftsBack;
-            for (int i = 1; i <= timestep_.numRungs; ++i)
-            {
-                int bk = bkStep(timestep_.substep, i);
-                driftsBack += std::to_string(bk) + ",";
-            }
-            std::cout << "Integration: drift " << driftsBack << " advance up to "
-                      << cstone::butterfly(timestep_.substep + 1) << std::endl;
+            int bk = bkStep(timestep_.substep, i);
+            driftsBack += std::to_string(bk) + ",";
         }
-        else { std::cout << "Integration: advance " << groups_.numGroups << " groups (all of them)" << std::endl; }
+        std::cout << "Integration: drift " << driftsBack << " advance up to rung "
+                  << cstone::butterfly(timestep_.substep + 1) << std::endl;
 
-        computePositions(groups_.view(), d, domain.box());
+        computePositions(groups_.view(), d, domain.box(), d.minDt, d.minDt_m1, nullptr);
         updateSmoothingLength(groups_.view(), d);
 
         if (activeRung(timestep_.substep + 1, timestep_.numRungs) == 0) // if next step starts new hierarchy

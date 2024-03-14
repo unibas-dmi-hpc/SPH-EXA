@@ -150,31 +150,41 @@ void updateIntEnergyHost(size_t startIndex, size_t endIndex, Dataset& d)
     }
 }
 
+/*! @brief drift particles to a certain time within a time-step hierarchy
+ *
+ * @param grp            groups of particles to modify
+ * @param d
+ * @param dt_forward    new delta-t relative to start of current time-step hierarchy
+ * @param dt_backward   current delta-t relative to start of current time-step hierarchy
+ * @param dt_prevRung   minimum time step of the previous hierarchy
+ */
 template<class T, class Dataset>
-void driftPositions(const GroupView& grp, Dataset& d, float dt_forward, float dt_backward)
+void driftPositions(const GroupView& grp, Dataset& d, float dt_forward, float dt_backward, float dt_prevRung)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
-        driftPositionsGpu(grp, dt_forward, dt_backward, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y),
+        driftPositionsGpu(grp, dt_forward, dt_backward, dt_prevRung, rawPtr(d.devData.x), rawPtr(d.devData.y),
                           rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
                           rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1), rawPtr(d.devData.ax),
-                          rawPtr(d.devData.ay), rawPtr(d.devData.az));
+                          rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.rung));
     }
 }
 
 template<class T, class Dataset>
-void computePositions(const GroupView& grp, Dataset& d, const cstone::Box<T>& box)
+void computePositions(const GroupView& grp, Dataset& d, const cstone::Box<T>& box, float dt_forward, float dt_m1,
+                      const uint8_t* rung = nullptr)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         T     constCv = d.mui.empty() ? idealGasCv(d.muiConst, d.gamma) : -1.0;
         auto* d_mui   = d.mui.empty() ? nullptr : rawPtr(d.devData.mui);
 
-        computePositionsGpu(grp, d.minDt, d.minDt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
+        computePositionsGpu(grp, dt_forward, dt_m1, rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
                             rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.x_m1),
                             rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1), rawPtr(d.devData.ax), rawPtr(d.devData.ay),
-                            rawPtr(d.devData.az), rawPtr(d.devData.temp), rawPtr(d.devData.u), rawPtr(d.devData.du),
-                            rawPtr(d.devData.du_m1), rawPtr(d.devData.h), d_mui, d.gamma, constCv, box);
+                            rawPtr(d.devData.az), rung, rawPtr(d.devData.temp), rawPtr(d.devData.u),
+                            rawPtr(d.devData.du), rawPtr(d.devData.du_m1), rawPtr(d.devData.h), d_mui, d.gamma, constCv,
+                            box);
     }
     else
     {

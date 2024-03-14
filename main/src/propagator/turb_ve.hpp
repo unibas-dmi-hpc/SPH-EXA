@@ -81,7 +81,7 @@ public:
         driveTurbulence(first, last, d, turbulenceData);
         timer.step("Turbulence Stirring");
 
-        computePositions(groups_.view(), d, domain.box());
+        computePositions(groups_.view(), d, domain.box(), d.minDt, d.minDt_m1);
         updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateQuantities");
     }

@@ -51,12 +51,12 @@ extern void computeEOS(size_t, size_t, Tm mui, Tu gamma, const Tu*, const Tm*, c
 template<class Tc, class Thydro, class Tm1>
 extern void driftPositionsGpu(const GroupView& grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z,
                               Thydro* vx, Thydro* vy, Thydro* vz, const Tm1* x_m1, const Tm1* y_m1, const Tm1* z_m1,
-                              const Thydro* ax, const Thydro* ay, const Thydro* az);
+                              const Thydro* ax, const Thydro* ay, const Thydro* az, const uint8_t* rung);
 
 template<class Tc, class Tv, class Ta, class Tdu, class Tm1, class Tu, class Thydro>
-extern void computePositionsGpu(const GroupView& grp, double dt, double dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx, Tv* vy,
-                                Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, Tu* temp, Tu* u,
-                                Tdu* du, Tm1* du_m1, Thydro* h, Thydro* mui, Tc gamma, Tc constCv,
+extern void computePositionsGpu(const GroupView& grp, float dt, float dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx, Tv* vy,
+                                Tv* vz, Tm1* x_m1, Tm1* y_m1, Tm1* z_m1, Ta* ax, Ta* ay, Ta* az, const uint8_t* rung,
+                                Tu* temp, Tu* u, Tdu* du, Tm1* du_m1, Thydro* h, Thydro* mui, Tc gamma, Tc constCv,
                                 const cstone::Box<Tc>& box);
 
 template<class Th>
