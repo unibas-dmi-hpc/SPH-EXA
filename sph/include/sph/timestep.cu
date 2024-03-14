@@ -82,4 +82,27 @@ void groupAccTimestepGpu(float etaAcc, const GroupView& grp, const T* ax, const 
 template void groupAccTimestepGpu(float, const GroupView&, const double*, const double*, const double*, float*);
 template void groupAccTimestepGpu(float, const GroupView&, const float*, const float*, const float*, float*);
 
+__global__ void storeRungKernel(const GroupView grp, uint8_t rung, uint8_t* particleRungs)
+{
+    LocalIndex tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (tid < grp.numGroups)
+    {
+        LocalIndex segStart = grp.groupStart[tid];
+        LocalIndex segEnd   = grp.groupEnd[tid];
+
+        for (LocalIndex i = segStart; i < segEnd; ++i)
+        {
+            particleRungs[i] = rung;
+        }
+    }
+}
+
+void storeRungGpu(const GroupView& grp, uint8_t rung, uint8_t* particleRungs)
+{
+    int numThreads = 256;
+    int numBlocks  = cstone::iceil(grp.numGroups, numThreads);
+    storeRungKernel<<<numBlocks, numThreads>>>(grp, rung, particleRungs);
+}
+
 } // namespace sph
