@@ -77,6 +77,8 @@ protected:
     Timestep timestep_, prevTimestep_;
     //! @brief groups for each rung
     std::array<GroupData<Acc>, Timestep::maxNumRungs + 1> rungs_;
+    GroupData<Acc>                                        forceGroup_;
+    GroupView                                             forceGroupView_;
 
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
@@ -160,6 +162,7 @@ public:
         d.treeView = domain.octreeProperties();
 
         computeGroups(domain.startIndex(), domain.endIndex(), d, domain.box(), groups_);
+        forceGroupView_ = groups_.view();
 
         reallocate(groups_.numGroups, groupDt_, groupIndices_);
         fill(groupDt_, 0, groupDt_.size(), std::numeric_limits<float>::max());
@@ -172,6 +175,14 @@ public:
         if (d.g != 0.0)
         {
             // TODO: update expansion centers
+        }
+
+        if constexpr (cstone::HaveGpu<Acc>{})
+        {
+            int highestRung = cstone::butterfly(timestep_.substep);
+            extractGroupGpu(groups_.view(), rawPtr(groupIndices_), timestep_.rungRanges[0],
+                            timestep_.rungRanges[highestRung], forceGroup_);
+            forceGroupView_ = forceGroup_.view();
         }
     }
 
@@ -188,7 +199,7 @@ public:
         sync(domain, simData);
         timer.step("domain::sync");
 
-        GroupView activeGroup    = groups_.view();
+        GroupView activeGroup    = forceGroupView_;
         bool      isNewHierarchy = activeRung(timestep_.substep, timestep_.numRungs) == 0;
 
         auto& d = simData.hydro;
@@ -280,9 +291,18 @@ public:
         if (Base::rank_ == 0 && highRung == 0)
         {
             auto ts = timestep_;
-            std::cout << "New TS:  " << ts.ffDt / ts.minDt << " " << ts.numRungs << " " << ts.minDt << " "
-                      << ts.minDt * (1 << ts.numRungs) << " " << ts.rungRanges[1] << " " << ts.rungRanges[2] << " "
-                      << ts.rungRanges[3] << " " << groups_.numGroups << std::endl;
+
+            util::array<LocalIndex, 4> numRungs = {ts.rungRanges[1], ts.rungRanges[2] - ts.rungRanges[1],
+                                                   ts.rungRanges[3] - ts.rungRanges[2],
+                                                   ts.rungRanges[4] - ts.rungRanges[3]};
+            // clang-format off
+            std::cout << "# New block-TS " << ts.numRungs << " rungs, "
+                      << "R0: " << numRungs[0] << " (" << (100. * numRungs[0] / groups_.numGroups) << "%) "
+                      << "R1: " << numRungs[1] << " (" << (100. * numRungs[1] / groups_.numGroups) << "%) "
+                      << "R2: " << numRungs[2] << " (" << (100. * numRungs[2] / groups_.numGroups) << "%) "
+                      << "R3: " << numRungs[3] << " (" << (100. * numRungs[3] / groups_.numGroups) << "%) "
+                      << "All: " << groups_.numGroups << " (100%)" << std::endl;
+            // clang-format on
         }
         if (Base::rank_ == 0 && highRung > 0)
         {
@@ -291,8 +311,8 @@ public:
             {
                 numActiveGroups += rungs_[i].numGroups;
             }
-            std::cout << "Substep " << timestep_.substep << "/" << (1 << timestep_.numRungs) << ", " << numActiveGroups
-                      << " active groups" << std::endl;
+            std::cout << "# Substep " << timestep_.substep << "/" << (1 << timestep_.numRungs) << ", "
+                      << numActiveGroups << " active groups" << std::endl;
         }
 
         d.ttot += timestep_.minDt;
@@ -318,8 +338,6 @@ public:
             int  bk      = bkStep(timestep_.substep, i);
             bool useRung = timestep_.substep == bk;
             bool advance = i < lowestDriftRung;
-            std::string adv_tag = advance ? " ad -" : " dr -";
-            std::cout << "Rung " << i << adv_tag << bk << " " << bk + 1 << " useRung " << useRung << std::endl;
 
             float          dt      = timestep_.minDt;
             float          dt_back = dt * bk;
