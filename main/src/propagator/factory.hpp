@@ -58,8 +58,8 @@ propagatorFactory(const std::string& choice, bool avClean, std::ostream& output,
     }
     if (choice == "ve-bdt")
     {
-        if (avClean) { return std::make_unique<HydroVeBdtProp<true, DomainType, ParticleDataType>>(output, rank); }
-        else { return std::make_unique<HydroVeBdtProp<false, DomainType, ParticleDataType>>(output, rank); }
+        if (avClean) { return std::make_unique<HydroVeBdtProp<true, DomainType, ParticleDataType>>(output, rank, s); }
+        else { return std::make_unique<HydroVeBdtProp<false, DomainType, ParticleDataType>>(output, rank, s); }
     }
     if (choice == "std") { return std::make_unique<HydroProp<DomainType, ParticleDataType>>(output, rank); }
 #ifdef SPH_EXA_HAVE_GRACKLE

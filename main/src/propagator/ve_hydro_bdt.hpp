@@ -106,10 +106,20 @@ protected:
     }
 
 public:
-    HydroVeBdtProp(std::ostream& output, size_t rank)
+    HydroVeBdtProp(std::ostream& output, size_t rank, const InitSettings& settings)
         : Base(output, rank)
     {
         if (avClean && rank == 0) { std::cout << "AV cleaning is activated" << std::endl; }
+        try
+        {
+            timestep_.minDt     = settings.at("minDt");
+            prevTimestep_.minDt = settings.at("minDt");
+        }
+        catch (const std::out_of_range&)
+        {
+            std::cout << "Init settings miss the following parameter: minDt" << std::endl;
+            throw;
+        }
     }
 
     std::vector<std::string> conservedFields() const override
