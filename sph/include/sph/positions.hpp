@@ -157,16 +157,18 @@ void updateIntEnergyHost(size_t startIndex, size_t endIndex, Dataset& d)
  * @param dt_forward    new delta-t relative to start of current time-step hierarchy
  * @param dt_backward   current delta-t relative to start of current time-step hierarchy
  * @param dt_prevRung   minimum time step of the previous hierarchy
+ * @param rung          rung per particle in before the last integration step
  */
-template<class T, class Dataset>
-void driftPositions(const GroupView& grp, Dataset& d, float dt_forward, float dt_backward, float dt_prevRung)
+template<class Dataset>
+void driftPositions(const GroupView& grp, Dataset& d, float dt_forward, float dt_backward, float dt_prevRung,
+                    const uint8_t* rung)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         driftPositionsGpu(grp, dt_forward, dt_backward, dt_prevRung, rawPtr(d.devData.x), rawPtr(d.devData.y),
                           rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
                           rawPtr(d.devData.x_m1), rawPtr(d.devData.y_m1), rawPtr(d.devData.z_m1), rawPtr(d.devData.ax),
-                          rawPtr(d.devData.ay), rawPtr(d.devData.az), rawPtr(d.devData.rung));
+                          rawPtr(d.devData.ay), rawPtr(d.devData.az), rung);
     }
 }
 
