@@ -63,7 +63,7 @@ class TurbVeProp final : public HydroVeBdtProp<avClean, DomainType, DataType>
 
 public:
     TurbVeProp(std::ostream& output, size_t rank, const InitSettings& settings)
-        : Base(output, rank)
+        : Base(output, rank, settings)
         , turbulenceData(settings, rank == 0)
     {
     }
