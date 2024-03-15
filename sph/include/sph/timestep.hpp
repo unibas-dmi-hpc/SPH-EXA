@@ -221,13 +221,4 @@ Timestep computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::Loca
         .minDt = minDtGlobal[0], .ffDt = minDtGlobal[1], .numRungs = numRungs, .substep = 0, .rungRanges = rungRanges};
 }
 
-template<class Dataset>
-void updateTotalTime(float newDt, Dataset& d)
-{
-    float nextDt = std::min({newDt, float(d.maxDtIncrease * d.minDt)});
-    d.ttot += nextDt;
-    d.minDt_m1 = d.minDt;
-    d.minDt    = nextDt;
-}
-
 } // namespace sph
