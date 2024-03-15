@@ -261,7 +261,11 @@ public:
         if (activeRung(timestep_.substep, timestep_.numRungs) == 0)
         {
             prevTimestep_ = timestep_;
-            timestep_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
+            auto newTs = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
+            newTs.minDt =
+                std::min({newTs.minDt, float(timestep_.minDt * std::pow(d.maxDtIncrease, (1 << timestep_.numRungs)))});
+            timestep_ = newTs;
+
             for (int r = 0; r <= timestep_.numRungs; ++r)
             {
                 if constexpr (cstone::HaveGpu<Acc>{})
@@ -291,7 +295,9 @@ public:
                       << " active groups" << std::endl;
         }
 
-        updateTotalTime(timestep_.minDt, simData.hydro);
+        d.ttot += timestep_.minDt;
+        d.minDt_m1 = d.minDt;
+        d.minDt = timestep_.minDt;
     }
 
     void integrate(DomainType& domain, DataType& simData) override
@@ -305,6 +311,8 @@ public:
 
         auto bkStep          = [](int subStep, int rung) { return subStep % (1 << rung); };
         int  lowestDriftRung = cstone::butterfly(timestep_.substep + 1);
+        bool isLastSubstep   = activeRung(timestep_.substep + 1, timestep_.numRungs) == 0;
+        auto substepBox      = isLastSubstep ? domain.box() : cstone::Box<T>(0, 1, cstone::BoundaryType::open);
         for (int i = 0; i <= timestep_.numRungs; ++i)
         {
             int  bk      = bkStep(timestep_.substep, i);
@@ -318,18 +326,17 @@ public:
             float          dt_m1   = useRung ? prevTimestep_.minDt : dt * (1 << i);
             const uint8_t* rung    = useRung ? rawPtr(get<"rung">(d)) : nullptr;
 
-            //if (advance)
-            //{
-            //    if (bk) { driftPositions(rungs_[i].view(), d, 0, dt_back, dt_m1, rung); }
-            //    computePositions(rungs_[i].view(), d, domain.box(), dt * (1 << i), dt_m1, rung);
-            //}
-            //else { driftPositions(rungs_[i].view(), d, dt_back + dt, dt_back, dt_m1, rung); }
+            if (advance)
+            {
+                if (bk) { driftPositions(rungs_[i].view(), d, 0, dt_back, dt_m1, rung); }
+                computePositions(rungs_[i].view(), d, substepBox, dt * (1 << i), dt_m1, rung);
+            }
+            else { driftPositions(rungs_[i].view(), d, dt_back + dt, dt_back, dt_m1, rung); }
         }
 
-        computePositions(groups_.view(), d, domain.box(), d.minDt, d.minDt_m1, nullptr);
         updateSmoothingLength(groups_.view(), d);
 
-        if (activeRung(timestep_.substep + 1, timestep_.numRungs) == 0) // if next step starts new hierarchy
+        if (isLastSubstep) // if next step starts new hierarchy
         {
             for (int r = 0; r <= timestep_.numRungs; ++r)
             {
