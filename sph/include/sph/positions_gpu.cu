@@ -51,7 +51,7 @@ __global__ void driftKernel(GroupView grp, float dt, float dt_back, float dt_m1,
 
     for (auto i = bodyBegin; i < bodyEnd; ++i)
     {
-        float            dt_m1_rung = dt_m1 * (1 << rung[i]);
+        float            dt_m1_rung = (rung != nullptr) ? dt_m1 * (1 << rung[i]) : dt_m1;
         cstone::Vec3<Tc> An{ax[i], ay[i], az[i]};
         cstone::Vec3<Tc> Xnback{x[i], y[i], z[i]};
         cstone::Vec3<Tc> dXn{x_m1[i], y_m1[i], z_m1[i]};
@@ -70,8 +70,8 @@ __global__ void driftKernel(GroupView grp, float dt, float dt_back, float dt_m1,
 }
 
 template<class Tc, class Thydro, class Tm1>
-void driftPositionsGpu(GroupView grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z, Thydro* vx, Thydro* vy,
-                       Thydro* vz, const Tm1* x_m1, const Tm1* y_m1, const Tm1* z_m1, const Thydro* ax,
+void driftPositionsGpu(const GroupView& grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z, Thydro* vx,
+                       Thydro* vy, Thydro* vz, const Tm1* x_m1, const Tm1* y_m1, const Tm1* z_m1, const Thydro* ax,
                        const Thydro* ay, const Thydro* az, const uint8_t* rung)
 {
     unsigned           numThreads = 256;
@@ -82,7 +82,7 @@ void driftPositionsGpu(GroupView grp, float dt, float dt_back, float dt_m1, Tc* 
 }
 
 #define DRIFT_GPU(Tc, Thydro, Tm1)                                                                                     \
-    template void driftPositionsGpu(GroupView grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z,          \
+    template void driftPositionsGpu(const GroupView& grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z,   \
                                     Thydro* vx, Thydro* vy, Thydro* vz, const Tm1* x_m1, const Tm1* y_m1,              \
                                     const Tm1* z_m1, const Thydro* ax, const Thydro* ay, const Thydro* az,             \
                                     const uint8_t* rung)

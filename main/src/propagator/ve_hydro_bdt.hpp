@@ -74,7 +74,7 @@ protected:
     AccVector<LocalIndex> groupIndices_;
 
     //! brief timestep information rungs
-    Timestep       timestep_, prevTimestep_;
+    Timestep timestep_, prevTimestep_;
     //! @brief groups for each rung
     std::array<GroupData<Acc>, Timestep::maxNumRungs + 1> rungs_;
 
@@ -293,15 +293,28 @@ public:
         computeBlockTimesteps(simData);
         timer.step("Timestep");
 
-        auto        bkStep = [](int subStep, int rung) { return subStep % (1 << rung); };
-        std::string driftsBack;
-        for (int i = 1; i <= timestep_.numRungs; ++i)
+        auto bkStep          = [](int subStep, int rung) { return subStep % (1 << rung); };
+        int  lowestDriftRung = cstone::butterfly(timestep_.substep + 1);
+        for (int i = 0; i <= timestep_.numRungs; ++i)
         {
-            int bk = bkStep(timestep_.substep, i);
-            driftsBack += std::to_string(bk) + ",";
+            int  bk      = bkStep(timestep_.substep, i);
+            bool useRung = timestep_.substep == bk;
+            bool advance = i < lowestDriftRung;
+            std::string adv_tag = advance ? " ad -" : " dr -";
+            std::cout << "Rung " << i << adv_tag << bk << " " << bk + 1 << " useRung " << useRung << std::endl;
+
+            float          dt      = timestep_.minDt;
+            float          dt_back = dt * bk;
+            float          dt_m1   = useRung ? prevTimestep_.minDt : dt * (1 << i);
+            const uint8_t* rung    = useRung ? rawPtr(get<"rung">(d)) : nullptr;
+
+            //if (advance)
+            //{
+            //    if (bk) { driftPositions(rungs_[i].view(), d, 0, dt_back, dt_m1, rung); }
+            //    computePositions(rungs_[i].view(), d, domain.box(), dt * (1 << i), dt_m1, rung);
+            //}
+            //else { driftPositions(rungs_[i].view(), d, dt_back + dt, dt_back, dt_m1, rung); }
         }
-        std::cout << "Integration: drift " << driftsBack << " advance up to rung "
-                  << cstone::butterfly(timestep_.substep + 1) << std::endl;
 
         computePositions(groups_.view(), d, domain.box(), d.minDt, d.minDt_m1, nullptr);
         updateSmoothingLength(groups_.view(), d);
@@ -337,8 +350,7 @@ public:
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
                     std::visit([writer, c = column, key = namesDone[i]](auto field)
-                               { writer->writeField(key, field->data(), c); },
-                               fieldPointers[fidx]);
+                               { writer->writeField(key, field->data(), c); }, fieldPointers[fidx]);
                     indicesDone.erase(indicesDone.begin() + i);
                     namesDone.erase(namesDone.begin() + i);
                 }
