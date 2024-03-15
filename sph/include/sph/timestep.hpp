@@ -212,8 +212,12 @@ Timestep computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::Loca
     {
         for (int rung = 1; rung <= Timestep::maxNumRungs; ++rung)
         {
-            float maxDtRung  = (1 << rung) * minDtGlobal[0];
-            rungRanges[rung] = cstone::lowerBoundGpu(groupDt, groupDt + grp.numGroups, maxDtRung);
+            if (rung > numRungs) { rungRanges[rung] = grp.numGroups; }
+            else
+            {
+                float maxDtRung  = (1 << rung) * minDtGlobal[0];
+                rungRanges[rung] = cstone::lowerBoundGpu(groupDt, groupDt + grp.numGroups, maxDtRung);
+            }
         }
     }
 
