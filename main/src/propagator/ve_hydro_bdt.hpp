@@ -76,9 +76,9 @@ protected:
     //! brief timestep information rungs
     Timestep timestep_, prevTimestep_;
     //! @brief groups for each rung
-    std::array<GroupData<Acc>, Timestep::maxNumRungs + 1> rungs_;
-    GroupData<Acc>                                        forceGroup_;
-    GroupView                                             forceGroupView_;
+    std::array<GroupData<Acc>, Timestep::maxNumRungs> rungs_;
+    GroupData<Acc>                                    forceGroup_;
+    GroupView                                         forceGroupView_;
 
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
@@ -103,7 +103,7 @@ protected:
     //! @brief Return rung of current block time-step
     static int activeRung(int substep, int numRungs)
     {
-        if (substep == 0 || substep >= (1 << numRungs)) { return 0; }
+        if (substep == 0 || substep >= (1 << (numRungs - 1))) { return 0; }
         else { return cstone::butterfly(substep); }
     }
 
@@ -271,13 +271,12 @@ public:
         auto& d = simData.hydro;
         if (activeRung(timestep_.substep, timestep_.numRungs) == 0)
         {
-            prevTimestep_ = timestep_;
-            auto newTs = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
-            newTs.minDt =
-                std::min({newTs.minDt, float(timestep_.minDt * std::pow(d.maxDtIncrease, (1 << timestep_.numRungs)))});
-            timestep_ = newTs;
+            prevTimestep_  = timestep_;
+            float maxIncDt = timestep_.minDt * std::pow(d.maxDtIncrease, (1 << (timestep_.numRungs - 1)));
+            timestep_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
+            timestep_.minDt = std::min({timestep_.minDt, maxIncDt});
 
-            for (int r = 0; r <= timestep_.numRungs; ++r)
+            for (int r = 0; r < timestep_.numRungs; ++r)
             {
                 if constexpr (cstone::HaveGpu<Acc>{})
                 {
@@ -311,13 +310,13 @@ public:
             {
                 numActiveGroups += rungs_[i].numGroups;
             }
-            std::cout << "# Substep " << timestep_.substep << "/" << (1 << timestep_.numRungs) << ", "
+            std::cout << "# Substep " << timestep_.substep << "/" << (1 << (timestep_.numRungs - 1)) << ", "
                       << numActiveGroups << " active groups" << std::endl;
         }
 
         d.ttot += timestep_.minDt;
         d.minDt_m1 = d.minDt;
-        d.minDt = timestep_.minDt;
+        d.minDt    = timestep_.minDt;
     }
 
     void integrate(DomainType& domain, DataType& simData) override
@@ -333,7 +332,7 @@ public:
         int  lowestDriftRung = cstone::butterfly(timestep_.substep + 1);
         bool isLastSubstep   = activeRung(timestep_.substep + 1, timestep_.numRungs) == 0;
         auto substepBox      = isLastSubstep ? domain.box() : cstone::Box<T>(0, 1, cstone::BoundaryType::open);
-        for (int i = 0; i <= timestep_.numRungs; ++i)
+        for (int i = 0; i < timestep_.numRungs; ++i)
         {
             int  bk      = bkStep(timestep_.substep, i);
             bool useRung = timestep_.substep == bk;
@@ -356,13 +355,13 @@ public:
 
         if (isLastSubstep) // if next step starts new hierarchy
         {
-            for (int r = 0; r <= timestep_.numRungs; ++r)
+            for (int r = 0; r < timestep_.numRungs; ++r)
             {
                 if constexpr (cstone::HaveGpu<Acc>{}) { storeRungGpu(rungs_[r].view(), r, rawPtr(get<"rung">(d))); }
             }
         }
 
-        if (timestep_.numRungs) { timestep_.substep++; }
+        timestep_.substep++;
         timer.step("UpdateQuantities");
     }
 

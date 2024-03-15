@@ -175,14 +175,14 @@ inline void extractGroupGpu(const GroupView& grp, const cstone::LocalIndex* indi
 
 struct Timestep
 {
-    static constexpr int maxNumRungs = 3;
+    static constexpr int maxNumRungs = 4;
     //! @brief maxDt = minDt * 2^numRungs;
     float minDt, ffDt;
-    int   numRungs{0};
+    int   numRungs{1};
     //! @brief 0,...,2^numRungs
     int substep{0};
 
-    std::array<cstone::LocalIndex, maxNumRungs + 2> rungRanges;
+    std::array<cstone::LocalIndex, maxNumRungs + 1> rungRanges;
 };
 
 //! @brief Determine timestep rungs
@@ -201,23 +201,18 @@ Timestep computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::Loca
     std::array<float, 2> minDtGlobal;
     mpiAllreduce(minGroupDt.data(), minDtGlobal.data(), minGroupDt.size(), MPI_MIN);
 
-    int numRungs = std::min(int(log2(minDtGlobal[1] / minDtGlobal[0])), Timestep::maxNumRungs);
+    int numRungs = std::min(int(log2(minDtGlobal[1] / minDtGlobal[0])) + 1, Timestep::maxNumRungs);
 
     // find ranges of 2*minDt, 4*minDt, 8*minDt
     // groupDt is sorted, groups belonging to a specific rung will correspond to index ranges
-    std::array<LocalIndex, Timestep::maxNumRungs + 2> rungRanges;
-    rungRanges.front() = 0;
-    rungRanges.back() = grp.numGroups;
+    std::array<LocalIndex, Timestep::maxNumRungs + 1> rungRanges{0};
+    std::fill(rungRanges.begin() + 1, rungRanges.end(), grp.numGroups);
     if constexpr (IsDeviceVector<AccVec>{})
     {
-        for (int rung = 1; rung <= Timestep::maxNumRungs; ++rung)
+        for (int rung = 1; rung < numRungs; ++rung)
         {
-            if (rung > numRungs) { rungRanges[rung] = grp.numGroups; }
-            else
-            {
-                float maxDtRung  = (1 << rung) * minDtGlobal[0];
-                rungRanges[rung] = cstone::lowerBoundGpu(groupDt, groupDt + grp.numGroups, maxDtRung);
-            }
+            float maxDtRung  = (1 << rung) * minDtGlobal[0];
+            rungRanges[rung] = cstone::lowerBoundGpu(groupDt, groupDt + grp.numGroups, maxDtRung);
         }
     }
 
