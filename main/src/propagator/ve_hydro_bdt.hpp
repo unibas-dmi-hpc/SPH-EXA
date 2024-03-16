@@ -192,6 +192,8 @@ public:
         else { partialSync(domain, simData); }
     }
 
+    bool isSynced() override { return activeRung(timestep_.substep, timestep_.numRungs) == 0; }
+
     void computeForces(DomainType& domain, DataType& simData) override
     {
         timer.start();
