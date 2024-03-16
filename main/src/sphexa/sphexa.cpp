@@ -147,7 +147,10 @@ int main(int argc, char** argv)
         propagator->step(domain, simData);
         box = domain.box();
 
-        observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
+        if (propagator->isSynced())
+        {
+            observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
+        }
         propagator->printIterationTimings(domain, simData);
 
         bool isWallClockReached = totalTimer.elapsed() > simDuration;
