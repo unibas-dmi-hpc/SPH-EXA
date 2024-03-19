@@ -77,6 +77,23 @@ public:
             throw std::runtime_error("The following fields for output were not found: " + msg);
         }
     }
+
+    //! @brief record user selection of output fields
+    void setVisFields(std::vector<std::string> visFields)
+    {
+        hydro.setVisFields(visFields);
+        chem.setVisFields(visFields);
+
+        if (!visFields.empty())
+        {
+            std::string msg;
+            for (auto& s : visFields)
+            {
+                msg += s + ", ";
+            }
+            throw std::runtime_error("The following fields for output were not found: " + msg);
+        }
+    }
 };
 
 } // namespace sphexa

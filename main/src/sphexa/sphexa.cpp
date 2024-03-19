@@ -95,6 +95,9 @@ int main(int argc, char** argv)
     const std::string        pmroot       = parser.get("--pmroot", std::string("/sys/cray/pm_counters"));
     std::string              outFile      = parser.get("-o", "dump_" + removeModifiers(initCond));
 
+    //! @brief Optional!! Should only be set up from developer
+    std::vector<std::string> visFields = parser.getCommaList("-v");
+
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = (quiet || rank) ? nullOutput : std::cout;
     std::ofstream constantsFile(fs::path(outFile).parent_path() / fs::path("constants.txt"));
@@ -120,7 +123,9 @@ int main(int argc, char** argv)
 
     auto& d = simData.hydro;
     transferAllocatedToDevice(d, 0, d.x.size(), propagator->conservedFields());
+
     simData.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
+    simData.setVisFields(visFields.empty() ? propagator->conservedFields() : visFields);
 
     if (parser.exists("--G")) { d.g = parser.get<double>("--G"); }
     bool  haveGrav = (d.g != 0.0);
@@ -168,6 +173,8 @@ int main(int argc, char** argv)
         {
             if (profEnabled) { propagator->writeMetrics(fileWriter.get(), "profile"); }
         }
+
+        propagator->visualizeFields(domain.startIndex(), domain.endIndex(), simData, box);
 
         viz::execute(d, domain.startIndex(), domain.endIndex());
         if (isWallClockReached && ++d.iteration) { break; }

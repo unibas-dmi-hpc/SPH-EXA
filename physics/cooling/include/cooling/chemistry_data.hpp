@@ -85,6 +85,9 @@ public:
     //! @brief particle fields selected for file output
     std::vector<int>         outputFieldIndices;
     std::vector<std::string> outputFieldNames;
+    //! @brief particle fields selected for visualization
+    std::vector<int>         visFieldIndices;
+    std::vector<std::string> visFieldNames;
 
     void setOutputFields(std::vector<std::string>& outFields)
     {
@@ -96,6 +99,19 @@ public:
         std::for_each(outputFieldNames.begin(), outputFieldNames.end(), [](auto& f) { f = prefix + f; });
 
         outFields.erase(std::remove_if(outFields.begin(), outFields.end(), hasField), outFields.end());
+    }
+
+    //! @brief mark fields for visualization in-situ
+    void setVisFields(std::vector<std::string>& visFields)
+    {
+        auto hasField = [](const std::string& field)
+        { return cstone::getFieldIndex(field, fieldNames) < fieldNames.size(); };
+
+        std::copy_if(visFields.begin(), visFields.end(), std::back_inserter(visFieldNames), hasField);
+        visFieldIndices = cstone::fieldStringsToInt(visFieldNames, fieldNames);
+        std::for_each(visFieldNames.begin(), visFieldNames.end(), [](auto& f) { f = prefix + f; });
+
+        visFields.erase(std::remove_if(visFields.begin(), visFields.end(), hasField), visFields.end());
     }
 
     template<class Archive>

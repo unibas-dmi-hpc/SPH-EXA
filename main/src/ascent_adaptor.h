@@ -143,9 +143,16 @@ void Execute(DataType& d, long startIndex, long endIndex)
     mesh["topologies/mesh/elements/connectivity"].set_external(conn);
     std::vector<conduit_int64> ranks(endIndex - startIndex, rank);
     addField(mesh, "ranks", ranks.data(), 0, endIndex - startIndex);
-
+    std::cout << "p:" << d.p.size() << std::endl;
+    std::cout << "rho:" << d.rho.size() << std::endl;
     addField(mesh, "x", d.x.data(), startIndex, endIndex);
     addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
+    // std::cout << "rho:" << d.rho.size() << std::endl;
+    // std::cout << "m:" << d.m.size() << std::endl;
+    // std::cout << "h:" << d.h.size() << std::endl;
+    // std::cout << "u:" << d.u.size() << std::endl;
+    // std::cout << "c:" << d.c.size() << std::endl;
+
     // addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
     // addField(mesh, "z", d.z.data(), startIndex, endIndex);
     // addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
@@ -160,10 +167,6 @@ void Execute(DataType& d, long startIndex, long endIndex)
     // addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
     // addField(mesh, "ax", d.az.data(), startIndex, endIndex);
 
-    // for (size_t i = startIndex; i < endIndex; i++)
-    // {
-    //     std::cout << d.rho[i];
-    // }
     /* ===================================================== */
     // Set up another sub-mesh for rank-specific data export
     // Since usually the benchmark value is unique for each rank

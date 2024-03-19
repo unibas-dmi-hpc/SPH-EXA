@@ -284,6 +284,8 @@ public:
             std::cout << d.fieldNames[indicesDone.back()] << std::endl;
         }
     }
+
+    void visualizeFields(size_t first, size_t last, DataType& simData, const cstone::Box<T>& /*box*/) override {}
 };
 
 } // namespace sphexa
