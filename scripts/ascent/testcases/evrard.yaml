@@ -1,0 +1,49 @@
+- 
+  action: add_pipelines
+  pipelines:
+    pl1:
+      # f1:
+      #   type: threshold
+      #   params: 
+      #     field: x
+      #     min_value: -0.5
+      #     max_value: 0.5
+      f1:
+        type: clip
+        params:
+          topology: mesh
+          box:
+            min:
+              x: -1
+              y: 0
+              z: 0
+            max:
+              x: 1
+              y: 1
+              z: 1
+- 
+  action: add_scenes
+  scenes: 
+    s1: 
+      plots: 
+        p1: 
+          field: Pressure
+          type: pseudocolor
+          pipeline: pl1
+          color_table:
+            name: Viridis
+          points:
+            radius: .03
+            radius_delta: 0.01
+          min_value: 0
+          max_value: 0.6
+      renders:
+        r1:
+          world_annotations: "false"
+          camera:
+            look_at: [0, 0, 0]
+            position: [-2.1709899968205337, 1.797907520678797, 1.8029059671481107]
+            up: [0.4479257557058854, 0.8420981185224633, -0.30038854198560727]
+            zoom: 1.5
+          dataset_bounds: [-0.5, 0.5, -0.5, 0.5, -0.5, 0.5]
+          image_prefix: evrard_step%05d

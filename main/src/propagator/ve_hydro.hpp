@@ -285,7 +285,41 @@ public:
         }
     }
 
-    void visualizeFields(size_t first, size_t last, DataType& simData, const cstone::Box<T>& /*box*/) override {}
+    void visualizeFields(size_t first, size_t last, DataType& simData, const cstone::Box<T>& /*box*/) override
+    {
+        auto output = [&](auto& d)
+        {
+            auto fieldPointers = d.data();
+            auto indicesDone   = d.visFieldIndices;
+            auto namesDone     = d.visFieldNames;
+
+            for (int i = int(indicesDone.size()) - 1; i >= 0; --i)
+            {
+                int fidx = indicesDone[i];
+                std::cout << d.fieldNames[fidx] << std::endl;
+                if (d.isAllocated(fidx))
+                {
+                    int column =
+                        std::find(d.visFieldIndices.begin(), d.visFieldIndices.end(), fidx) - d.visFieldIndices.begin();
+                    transferToHost(d, first, last, {d.fieldNames[fidx]});
+                    indicesDone.erase(indicesDone.begin() + i);
+                    namesDone.erase(namesDone.begin() + i);
+                }
+            }
+
+            if (!indicesDone.empty() && Base::rank_ == 0)
+            {
+                std::cout << "WARNING: the following fields are not in use and therefore not visualized: ";
+                for (int fidx = 0; fidx < indicesDone.size() - 1; ++fidx)
+                {
+                    std::cout << d.fieldNames[fidx] << ",";
+                }
+                std::cout << d.fieldNames[indicesDone.back()] << std::endl;
+            }
+        };
+        output(simData.hydro);
+        output(simData.chem);
+    }
 };
 
 } // namespace sphexa

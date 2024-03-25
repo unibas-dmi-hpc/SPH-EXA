@@ -143,17 +143,17 @@ void Execute(DataType& d, long startIndex, long endIndex)
     mesh["topologies/mesh/elements/connectivity"].set_external(conn);
     std::vector<conduit_int64> ranks(endIndex - startIndex, rank);
     addField(mesh, "ranks", ranks.data(), 0, endIndex - startIndex);
-    std::cout << "p:" << d.p.size() << std::endl;
-    std::cout << "rho:" << d.rho.size() << std::endl;
     addField(mesh, "x", d.x.data(), startIndex, endIndex);
+    // For K-H, pressure is not in use thus not generated
     addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
-    // std::cout << "rho:" << d.rho.size() << std::endl;
+    addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
+    std::cout << "rho:" << d.rho.size() << std::endl;
+    // std::cout << "p:" << d.p.size() << std::endl;
     // std::cout << "m:" << d.m.size() << std::endl;
     // std::cout << "h:" << d.h.size() << std::endl;
     // std::cout << "u:" << d.u.size() << std::endl;
     // std::cout << "c:" << d.c.size() << std::endl;
 
-    // addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
     // addField(mesh, "z", d.z.data(), startIndex, endIndex);
     // addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
     // addField(mesh, "vy", d.vy.data(), startIndex, endIndex);

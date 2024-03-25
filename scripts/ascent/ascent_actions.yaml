@@ -1,0 +1,12 @@
+# Trigger actions defined in the associated file "binning_actions.yaml"
+#
+# Written by Jean M. Favre
+# Updated by Yiqing Zhu
+# tested Tue Jun  4 22:00 CEST 2023
+-
+  action: "add_triggers"
+  triggers:
+    t1:
+      params:
+        condition: "cycle() % 10 == 0"
+        actions_file: "testcases/evrard.yaml"
