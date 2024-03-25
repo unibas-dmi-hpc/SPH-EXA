@@ -73,7 +73,7 @@ if (SPH_EXA_WITH_H5PART)
 endif ()
 
 # By default, ADIOS2 should be disabled
-option(SPH_EXA_WITH_ADIOS "Enable ADIOS2 IO" OFF)
+option(SPH_EXA_WITH_ADIOS "Enable ADIOS2 IO" ON)
 if (SPH_EXA_WITH_ADIOS)
     set(adios_components C)
     # MPI should always be found by SPH-EXA itself
