@@ -47,8 +47,8 @@ template<class Dataset>
 class ISimInitializer
 {
 public:
-    virtual cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t, Dataset& d,
-                                                         IFileReader*) const = 0;
+    virtual cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t, Dataset& d, IFileReader*,
+                                                         IFileReader* readerGlassBlock = nullptr) const = 0;
 
     virtual const InitSettings& constants() const = 0;
 

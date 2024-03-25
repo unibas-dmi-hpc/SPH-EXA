@@ -76,9 +76,10 @@ public:
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
-                                                 IFileReader* reader) const override
+                                                 IFileReader* reader,
+                                                 IFileReader* readerGlassBlock = nullptr) const override
     {
-        auto box = Base::init(rank, numRanks, cbrtNumPart, simData, reader);
+        auto box = Base::init(rank, numRanks, cbrtNumPart, simData, reader, readerGlassBlock);
         std::fill(simData.hydro.u.begin(), simData.hydro.u.end(), settings_.at("u0"));
         cooling::initChemistryData(simData.chem, simData.hydro.x.size());
         return box;

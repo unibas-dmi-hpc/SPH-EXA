@@ -88,6 +88,7 @@ int main(int argc, char** argv)
     const bool               quiet        = parser.exists("--quiet");
     const bool               avClean      = parser.exists("--avclean");
     const int                simDuration  = parser.get("--duration", std::numeric_limits<int>::max());
+    const std::string        compression  = parser.get("--compression", std::string(""));
     const std::string        writeFreqStr = parser.get("-w", std::string("0"));
     const bool               writeEnabled = writeFreqStr != "0" || !writeExtra.empty();
     const std::string        profFreqStr  = parser.get("--profile", maxStepStr);
@@ -99,10 +100,12 @@ int main(int argc, char** argv)
     std::ostream& output = (quiet || rank) ? nullOutput : std::cout;
     std::ofstream constantsFile(fs::path(outFile).parent_path() / fs::path("constants.txt"));
 
-    //! @brief evaluate user choice for different kind of actions
-    auto fileWriter  = fileWriterFactory(ascii, MPI_COMM_WORLD);
-    auto fileReader  = fileReaderFactory(ascii, MPI_COMM_WORLD);
-    auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get());
+    //! @brief evaluate user choice for different kind of actions.
+    //! @brief glassBlock and initCond can be in different formats, but glassBlock shouldn't be compressed.
+    auto fileWriter           = fileWriterFactory(ascii, MPI_COMM_WORLD, outFile, compression);
+    auto fileReader           = fileReaderFactory(ascii, MPI_COMM_WORLD, initCond, compression);
+    auto fileReaderGlassBlock = fileReaderFactory(ascii, MPI_COMM_WORLD, glassBlock);
+    auto simInit     = initializerFactory<Dataset>(initCond, glassBlock, fileReader.get(), fileReaderGlassBlock.get());
     auto propagator  = propagatorFactory<Domain, Dataset>(propChoice, avClean, output, rank, simInit->constants());
     auto observables = observablesFactory<Dataset>(simInit->constants(), constantsFile);
 
@@ -116,8 +119,8 @@ int main(int argc, char** argv)
     propagator->addCounters(profEnabled ? pmroot : "", getNumLocalRanks(numRanks));
     propagator->activateFields(simData);
     propagator->load(initCond, fileReader.get());
-    auto box = simInit->init(rank, numRanks, problemSize, simData, fileReader.get());
-
+    auto box = simInit->init(rank, numRanks, problemSize, simData, fileReader.get(), fileReaderGlassBlock.get());
+    std::cout << "Domain synchronized, nLocalParticles " << simData.hydro.x.size() << std::endl;
     auto& d = simData.hydro;
     transferAllocatedToDevice(d, 0, d.x.size(), propagator->conservedFields());
     simData.setOutputFields(outputFields.empty() ? propagator->conservedFields() : outputFields);
@@ -144,6 +147,7 @@ int main(int argc, char** argv)
     size_t startIteration = d.iteration;
     for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
     {
+
         propagator->step(domain, simData);
         box = domain.box();
 

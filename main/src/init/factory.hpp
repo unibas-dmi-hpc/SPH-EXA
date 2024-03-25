@@ -42,7 +42,8 @@ namespace sphexa
 
 template<class Dataset>
 std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCase, std::string glassBlock,
-                                                             IFileReader* reader)
+                                                             IFileReader* reader,
+                                                             IFileReader* readerGlassBlock = nullptr)
 {
     std::string testNamedBase = strBeforeSign(testCase, ":");
     std::string settingsFile  = strAfterSign(testCase, ":");
