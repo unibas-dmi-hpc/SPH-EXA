@@ -72,6 +72,25 @@ if (SPH_EXA_WITH_H5PART)
     endif ()
 endif ()
 
+# By default, ADIOS2 should be disabled
+option(SPH_EXA_WITH_ADIOS "Enable ADIOS2 IO" OFF)
+if (SPH_EXA_WITH_ADIOS)
+    set(adios_components C)
+    # MPI should always be found by SPH-EXA itself
+    if(MPI_FOUND)
+        # Workaround for various MPI implementations forcing the link of C++ bindings
+        add_definitions(-DOMPI_SKIP_MPICXX -DMPICH_SKIP_MPICXX)
+        list(APPEND adios_components MPI)
+    endif()
+    list(APPEND adios_components CXX)
+    find_package(ADIOS2 REQUIRED COMPONENTS ${adios_components})
+    if (ADIOS2_FOUND)
+    else()
+        message(STATUS "No ADIOS2 support")
+        set(SPH_EXA_WITH_ADIOS OFF)
+    endif ()
+endif ()
+
 set(INSITU None CACHE STRING "Enable in-situ support")
 set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent)
 

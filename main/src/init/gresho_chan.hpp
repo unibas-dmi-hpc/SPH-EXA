@@ -126,14 +126,18 @@ public:
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
-                                                 IFileReader* reader) const override
+                                                 IFileReader* reader,
+                                                 IFileReader* readerGlassBlock = nullptr) const override
     {
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
         auto& d       = simData.hydro;
 
         std::vector<T> xBlock, yBlock, zBlock;
-        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
+        if (readerGlassBlock)
+            readTemplateBlock(glassBlock, readerGlassBlock, xBlock, yBlock, zBlock);
+        else
+            readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
         size_t            blockSize          = xBlock.size();
         int               multi1D            = std::rint(cbrtNumPart / std::cbrt(blockSize));
         cstone::Vec3<int> multiplicity       = {9 * multi1D, 9 * multi1D, multi1D};

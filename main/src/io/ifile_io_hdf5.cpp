@@ -34,6 +34,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <iostream>
 
 #include "ifile_io_impl.h"
 
@@ -69,6 +70,8 @@ public:
     void addStep(size_t firstIndex, size_t lastIndex, std::string path) override
     {
         firstIndex_ = firstIndex;
+        MPI_Barrier(MPI_COMM_WORLD);
+        fileInitTime_ = -MPI_Wtime();
 
         if (!h5File_ || path != pathStep_)
         {
@@ -88,12 +91,19 @@ public:
             H5PartSetNumParticles(h5File_, numParticles);
         }
         pathStep_ = path;
+        MPI_Barrier(MPI_COMM_WORLD);
+        fileInitTime_ += MPI_Wtime();
+        writeTime_ = 0;
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
+        MPI_Barrier(MPI_COMM_WORLD);
+        writeTime_ += -MPI_Wtime();
         std::visit([this, &key, size](auto arg) { fileutils::writeH5PartStepAttrib(h5File_, key.c_str(), arg, size); },
                    val);
+        MPI_Barrier(MPI_COMM_WORLD);
+        writeTime_ += MPI_Wtime();
     }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
@@ -104,7 +114,11 @@ public:
 
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
+        MPI_Barrier(MPI_COMM_WORLD);
+        writeTime_ += -MPI_Wtime();
         std::visit([this, &key](auto arg) { fileutils::writeH5PartField(h5File_, key, arg + firstIndex_); }, field);
+        MPI_Barrier(MPI_COMM_WORLD);
+        writeTime_ += MPI_Wtime();
     }
 
     void closeStep() override
@@ -114,11 +128,17 @@ public:
             H5PartCloseFile(h5File_);
             h5File_ = nullptr;
         }
+        if (rank_ == 0)
+        {
+            std::cout << "File init(H5Part)elapse: " << fileInitTime_ << ", writing(H5Part) elapse: " << writeTime_
+                      << std::endl;
+        }
     }
 
 private:
     int      rank_{0}, numRanks_{0};
     MPI_Comm comm_;
+    double   fileInitTime_, writeTime_;
 
     size_t      firstIndex_{0};
     std::string pathStep_;
@@ -179,7 +199,9 @@ public:
     {
         closeStep();
         pathStep_ = path;
-        h5File_   = fileutils::openH5Part(path, H5PART_READ | H5PART_VFD_MPIIO_IND, comm_);
+        MPI_Barrier(MPI_COMM_WORLD);
+        fileInitTime_ = -MPI_Wtime();
+        h5File_       = fileutils::openH5Part(path, H5PART_READ | H5PART_VFD_MPIIO_IND, comm_);
 
         if (H5PartGetNumSteps(h5File_) == 0) { return; }
 
@@ -201,6 +223,9 @@ public:
             H5PartSetView(h5File_, firstIndex_, lastIndex_ - 1);
         }
         else { std::tie(firstIndex_, lastIndex_, localCount_) = std::make_tuple(0, globalCount_, globalCount_); }
+        MPI_Barrier(MPI_COMM_WORLD);
+        fileInitTime_ += MPI_Wtime();
+        readTime_ = 0;
     }
 
     std::vector<std::string> fileAttributes() override
@@ -235,6 +260,8 @@ public:
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += -MPI_Wtime();
         std::visit(
             [this, size, &key](auto arg)
             {
@@ -242,10 +269,14 @@ public:
                 fileutils::readH5PartFileAttribute(arg, size, index, h5File_);
             },
             val);
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += MPI_Wtime();
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += -MPI_Wtime();
         std::visit(
             [this, size, &key](auto arg)
             {
@@ -253,12 +284,31 @@ public:
                 fileutils::readH5PartStepAttribute(arg, size, index, h5File_);
             },
             val);
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += MPI_Wtime();
     }
 
     void readField(const std::string& key, FieldType field) override
     {
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += -MPI_Wtime();
         auto err = std::visit([this, &key](auto arg) { return fileutils::readH5PartField(h5File_, key, arg); }, field);
         if (err != H5PART_SUCCESS) { throw std::runtime_error("Could not read field: " + key); }
+        // std::visit(
+        //     [this, &key](auto arg)
+        //     {
+        //         if (key == "x")
+        //         {
+        //             for (int i = 0; i < 125000; i++)
+        //             {
+        //                 std::cout << arg[i] << ",";
+        //             }
+        //             std::cout << std::endl;
+        //         }
+        //     },
+        //     field);
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += MPI_Wtime();
     }
 
     uint64_t localNumParticles() override { return localCount_; }
@@ -267,6 +317,11 @@ public:
 
     void closeStep() override
     {
+        if (rank_ == 0)
+        {
+            std::cout << "File(H5Part) init elapse: " << fileInitTime_ << ", reading(H5Part) elapse: " << readTime_
+                      << std::endl;
+        }
         if (h5File_)
         {
             H5PartCloseFile(h5File_);
@@ -293,6 +348,8 @@ private:
 
     int      rank_{0};
     MPI_Comm comm_;
+
+    double fileInitTime_, readTime_;
 
     uint64_t    firstIndex_, lastIndex_;
     uint64_t    localCount_;

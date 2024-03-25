@@ -142,7 +142,8 @@ public:
     }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& simData,
-                                                 IFileReader* reader) const override
+                                                 IFileReader* reader,
+                                                 IFileReader* readerGlassBlock = nullptr) const override
     {
         auto& d       = simData.hydro;
         using KeyType = typename Dataset::KeyType;
@@ -158,7 +159,10 @@ public:
         T blobMultiplier = std::cbrt(cubeVolume / densityRatio) / (2. * rSphere);
 
         std::vector<T> xBlock, yBlock, zBlock;
-        readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
+        if (readerGlassBlock)
+            readTemplateBlock(glassBlock, readerGlassBlock, xBlock, yBlock, zBlock);
+        else
+            readTemplateBlock(glassBlock, reader, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
         int               multi1D          = std::rint(cbrtNumPart / std::cbrt(blockSize));
