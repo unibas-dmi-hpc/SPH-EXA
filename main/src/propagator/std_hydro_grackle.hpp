@@ -75,7 +75,7 @@ class HydroGrackleProp final : public HydroProp<DomainType, DataType>
         FieldList<"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "nc">;
 
     //! @brief All fields listed in Chemistry data are used. This could be overridden with a sublist if desired
-    using CoolingFields = typename util::MakeFieldList<ChemData>::Fields;
+    using CoolingFields = typename cooling::Cooler<T>::CoolingFields;
 
 public:
     HydroGrackleProp(std::ostream& output, size_t rank, const InitSettings& settings)
@@ -165,6 +165,7 @@ public:
         timer.step("Density");
 
         transferToHost(d, first, last, {"rho", "u"});
+
         eos_cooling(first, last, d, simData.chem, cooling_data);
         transferToDevice(d, first, last, {"p", "c"});
         timer.step("EquationOfState");
@@ -199,9 +200,7 @@ public:
         // halo exchange for masses, allows for particles with variable masses
         domain.exchangeHalos(std::tie(get<"m">(d)), get<"ax">(d), get<"ay">(d));
         timer.step("domain::sync");
-
         d.resize(domain.nParticlesWithHalos());
-
         computeForces(domain, simData);
 
         size_t first = domain.startIndex();
@@ -212,17 +211,10 @@ public:
         timer.step("Timestep");
 
         transferToHost(d, first, last, {"du"});
-#pragma omp parallel for schedule(static)
-        for (size_t i = first; i < last; i++)
-        {
-            T u_old  = d.u[i];
-            T u_cool = d.u[i];
-            T rhoi   = d.rho[i];
-            cooling_data.cool_particle(T(d.minDt), rhoi, u_cool,
-                                       cstone::getPointers(get<CoolingFields>(simData.chem), i));
-            const T du = (u_cool - u_old) / d.minDt;
-            d.du[i] += du;
-        }
+
+        cooling_data.cool_particles(T(d.minDt), d.rho.data(), d.u.data(),
+                                    cstone::getPointers(get<CoolingFields>(simData.chem), 0), d.du.data(), first, last);
+
         transferToDevice(d, first, last, {"du"});
         timer.step("GRACKLE chemistry and cooling");
 

@@ -227,4 +227,40 @@ bool rebalanceTreeGpu(const KeyType* tree,
 template bool rebalanceTreeGpu(const unsigned*, TreeNodeIndex, TreeNodeIndex, const TreeNodeIndex*, unsigned*);
 template bool rebalanceTreeGpu(const uint64_t*, TreeNodeIndex, TreeNodeIndex, const TreeNodeIndex*, uint64_t*);
 
+template<class KeyType>
+__global__ void countSfcGapsKernel(const KeyType* tree, TreeNodeIndex numNodes, TreeNodeIndex* nodeOps)
+{
+    unsigned i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numNodes) { nodeOps[i] = spanSfcRange(tree[i], tree[i + 1]); }
+}
+
+template<class KeyType>
+void countSfcGapsGpu(const KeyType* tree, TreeNodeIndex numNodes, TreeNodeIndex* nodeOps)
+{
+    constexpr unsigned nThreads = 512;
+    countSfcGapsKernel<<<iceil(numNodes, nThreads), nThreads>>>(tree, numNodes, nodeOps);
+}
+
+template void countSfcGapsGpu(const uint32_t*, TreeNodeIndex, TreeNodeIndex*);
+template void countSfcGapsGpu(const uint64_t*, TreeNodeIndex, TreeNodeIndex*);
+
+template<class KeyType>
+__global__ void
+fillSfcGapsKernel(const KeyType* tree, TreeNodeIndex numNodes, const TreeNodeIndex* nodeOps, KeyType* newTree)
+{
+    unsigned i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numNodes) { spanSfcRange(tree[i], tree[i + 1], newTree + nodeOps[i]); }
+    if (i == numNodes) { newTree[nodeOps[i]] = tree[numNodes]; }
+}
+
+template<class KeyType>
+void fillSfcGapsGpu(const KeyType* tree, TreeNodeIndex numNodes, const TreeNodeIndex* nodeOps, KeyType* newTree)
+{
+    constexpr unsigned nThreads = 128;
+    fillSfcGapsKernel<<<iceil(numNodes + 1, nThreads), nThreads>>>(tree, numNodes, nodeOps, newTree);
+}
+
+template void fillSfcGapsGpu(const uint32_t*, TreeNodeIndex, const TreeNodeIndex*, uint32_t*);
+template void fillSfcGapsGpu(const uint64_t*, TreeNodeIndex, const TreeNodeIndex*, uint64_t*);
+
 } // namespace cstone

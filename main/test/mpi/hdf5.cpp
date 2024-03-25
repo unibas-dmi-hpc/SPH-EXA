@@ -243,9 +243,10 @@ TEST(HDF5IO, turbulenceData)
 
     using Data = sph::TurbulenceData<double, cstone::CpuTag>;
 
-    InitSettings constants{{"solWeight", 0.5},        {"stMaxModes", 100000}, {"Lbox", 1.0},
-                           {"stMachVelocity", 0.3e0}, {"epsilon", 1e-15},     {"rngSeed", 251299},
-                           {"stSpectForm", 1},        {"powerLawExp", 1.6},   {"anglesExp", 2.0}};
+    InitSettings constants{{"solWeight", 0.5},  {"stEnergyPrefac", 5.0e-3}, {"stMaxModes", 100000},
+                           {"Lbox", 1.0},       {"stMachVelocity", 0.3e0},  {"epsilon", 1e-15},
+                           {"rngSeed", 251299}, {"stSpectForm", 1},         {"powerLawExp", 1.6},
+                           {"anglesExp", 2.0}};
 
     Data data(constants, false);
     std::iota(data.phases.begin(), data.phases.end(), 0.0);

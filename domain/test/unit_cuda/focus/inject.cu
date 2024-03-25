@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2021 CSCS, ETH Zurich
- *               2021 University of Basel
+ * Copyright (c) 2024 CSCS, ETH Zurich
+ *               2024 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,36 @@
  * SOFTWARE.
  */
 
-#pragma once
+/*! @file
+ * @brief Cornerstone octree GPU testing
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ *
+ */
 
-#if defined(USE_CUDA) || defined(__CUDACC__) || defined(__HIPCC__)
-#include "cuda_utils.cuh"
-#else
-#include "cuda_stubs.h"
-#endif
+#include <vector>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
+
+#include "gtest/gtest.h"
+
+#include "cstone/focus/inject.hpp"
+
+using namespace cstone;
+
+TEST(FocusGpu, injectKeysGpu)
+{
+    using KeyType = uint64_t;
+
+    OctreeData<KeyType, GpuTag> tree;
+
+    thrust::device_vector<KeyType> leaves        = std::vector<KeyType>{0, 64};
+    thrust::device_vector<KeyType> mandatoryKeys = std::vector<KeyType>{0, 32, 64};
+
+    injectKeysGpu(tree, leaves, mandatoryKeys);
+
+    thrust::host_vector<KeyType> h_leaves = leaves;
+    thrust::host_vector<KeyType> ref      = std::vector<KeyType>{0, 8, 16, 24, 32, 40, 48, 56, 64};
+
+    EXPECT_EQ(h_leaves, ref);
+}

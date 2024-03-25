@@ -100,9 +100,67 @@ TEST(ValueList, nameGet)
     EXPECT_EQ(f_number, 3.14);
 }
 
+TEST(ValueList, fieldListGet)
+{
+    using FieldNames = FieldList<"F0", "F1", "F2">;
+
+    {
+        std::vector<int> vi{1, 2, 3};
+        std::vector<float> vf{1., 2., 3.};
+        std::vector<double> vd{10., 20., 30.};
+
+        auto get_02 = get<FieldList<"F0", "F2">, FieldNames>(std::tie(vi, vf, vd));
+
+        EXPECT_EQ(get<0>(get_02).back(), 3);
+        EXPECT_EQ(get<1>(get_02).back(), 30.);
+
+        EXPECT_EQ(get<0>(get_02).data(), vi.data());
+        EXPECT_EQ(get<1>(get_02).data(), vd.data());
+    }
+
+    {
+        std::vector<int> vi{1, 2, 3};
+        std::vector<float> vf{1., 2., 3.};
+        std::vector<double> vd{10., 20., 30.};
+
+        auto get_rval = get<FieldList<"F0", "F2">, FieldNames>(std::make_tuple(vi, vf, vd));
+        EXPECT_EQ(get<1>(get_rval).back(), 30.);
+        EXPECT_NE(get<1>(get_rval).data(), vd.data());
+    }
+}
+
+namespace util
+{
+namespace vl_detail
+{
+
+template<class T, class IntSeq>
+struct MakeFieldListHelper
+{
+};
+
+template<class T, size_t... Is>
+struct MakeFieldListHelper<T, std::integer_sequence<size_t, Is...>>
+{
+    // +1 to accomodate the '\0' character
+    using type = util::FieldList<util::StructuralString<std::char_traits<char>::length(T::fieldNames[Is]) + 1>(
+        T::fieldNames[Is])...>;
+};
+
+} // namespace vl_detail
+} // namespace util
+
+//! @brief Construct a FieldList type from any type with a constexpr array<const char*, N> fieldNames member
+template<class T>
+struct MakeFieldList
+{
+    inline static constexpr int numFields = T::fieldNames.size();
+    using Fields = typename vl_detail::MakeFieldListHelper<T, std::make_index_sequence<numFields>>::type;
+};
+
 struct Testset
 {
-    inline static constexpr std::array fieldNames{"a", "b", "c"};
+    inline static constexpr auto fieldNames = make_array(FieldList<"a", "b", "c">{});
 };
 
 TEST(ValueList, MakeFieldList)

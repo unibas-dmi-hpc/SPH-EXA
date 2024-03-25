@@ -11,9 +11,11 @@ set(testname component_units_cuda)
 if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     add_library(gpu_unit_obj OBJECT
             domain/domaindecomp_gpu.cu
+            halos/gather_halos_gpu.cu
             primitives/clz.cu
             primitives/primitives_gpu.cu
             primitives/warpscan.cu
+            focus/inject.cu
             sfc/common.cu
             traversal/groups.cu
             tree/btree.cu

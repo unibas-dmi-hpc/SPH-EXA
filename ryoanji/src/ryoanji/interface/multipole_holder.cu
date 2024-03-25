@@ -129,8 +129,8 @@ public:
                                                            traversalStack_, targets_);
     }
 
-    float compute(LocalIndex /*firstBody*/, LocalIndex /*lastBody*/, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
-                  const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az)
+    float compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const Th* h, Tc G, int numShells,
+                  const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az)
     {
         int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
         int numTargets       = targets_.size() - 1;
@@ -143,10 +143,10 @@ public:
         reallocateGeneric(traversalStack_, poolSize, 1.01);
         traverse<<<numBlocks, TravConfig::numThreads>>>(
             rawPtr(targets_), numTargets, 1, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_,
-            centers_, rawPtr(multipoles_), G, (Ta*)nullptr, ax, ay, az, (int*)rawPtr(traversalStack_));
+            centers_, rawPtr(multipoles_), G, numShells, Vec3<Tc>{box.lx(), box.ly(), box.lz()}, (Ta*)nullptr, ax, ay,
+            az, (int*)rawPtr(traversalStack_));
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
-
         return 0.5f * Tc(G) * totalPotential;
     }
 
@@ -217,11 +217,11 @@ void MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::createGroups(
 }
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
-float MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::compute(LocalIndex firstBody, LocalIndex lastBody,
-                                                                   const Tc* x, const Tc* y, const Tc* z, const Tm* m,
-                                                                   const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az)
+float MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType>::compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m,
+                                                                   const Th* h, Tc G, int numShells,
+                                                                   const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az)
 {
-    return impl_->compute(firstBody, lastBody, x, y, z, m, h, G, ax, ay, az);
+    return impl_->compute(x, y, z, m, h, G, numShells, box, ax, ay, az);
 }
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>
@@ -253,7 +253,8 @@ MHOLDER_CART(double, float, float, float, double, uint64_t, float);
 MHOLDER_CART(float, float, float, float, float, uint64_t, float);
 
 #define DIRECT_SUM(T)                                                                                                  \
-    template void directSum(size_t, size_t, size_t, const T*, const T*, const T*, const T*, const T*, T*, T*, T*, T*)
+    template void directSum(size_t, size_t, size_t, Vec3<T>, int, const T*, const T*, const T*, const T*, const T*,    \
+                            T*, T*, T*, T*)
 
 DIRECT_SUM(float);
 DIRECT_SUM(double);

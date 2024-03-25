@@ -51,12 +51,12 @@ public:
                  const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles);
 
-    void createGroups(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Th* h,
+    void createGroups(LocalIndex first, LocalIndex last, const Tc* x, const Tc* y, const Tc* z, const Th* h,
                       const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree,
                       const cstone::LocalIndex* layout, const cstone::Box<Tc>& box);
 
-    float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
-                  const Th* h, Tc G, Ta* ax, Ta* ay, Ta* az);
+    float compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const Th* h, Tc G, int numShells,
+                  const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az);
 
     util::array<uint64_t, 5> readStats() const;
 
@@ -68,7 +68,7 @@ private:
 };
 
 template<class T>
-void directSum(size_t first, size_t last, size_t numBodies, const T* x, const T* y, const T* z, const T* m, const T* h,
-               T* p, T* ax, T* ay, T* az);
+void directSum(size_t first, size_t last, size_t numBodies, Vec3<T> boxL, int numShells, const T* x, const T* y,
+               const T* z, const T* m, const T* h, T* p, T* ax, T* ay, T* az);
 
 } // namespace ryoanji

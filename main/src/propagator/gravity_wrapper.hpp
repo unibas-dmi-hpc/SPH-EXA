@@ -32,8 +32,10 @@
 #pragma once
 
 #include "cstone/domain/domain.hpp"
+#include "ryoanji/interface/ewald.cuh"
 #include "ryoanji/interface/global_multipole.hpp"
 #include "ryoanji/interface/multipole_holder.cuh"
+#include "ryoanji/nbody/ewald.hpp"
 #include "ryoanji/nbody/traversal_cpu.hpp"
 
 namespace sphexa
@@ -66,11 +68,23 @@ public:
         //! the focused octree, structure only
         const auto octree = focusTree.octreeViewAcc();
 
+        const auto& box       = domain.box();
+        bool        usePbc    = box.boundaryX() == cstone::BoundaryType::periodic;
+        int         numShells = usePbc ? ewaldSettings_.numReplicaShells : 0;
+
         d.egrav = 0;
-        ryoanji::computeGravity(octree.childOffsets, octree.internalToLeaf, focusTree.expansionCenters().data(),
+        ryoanji::computeGravity(octree.childOffsets, octree.internalToLeaf, focusTree.expansionCentersAcc().data(),
                                 multipoles_.data(), domain.layout().data(), domain.startCell(), domain.endCell(),
                                 d.x.data(), d.y.data(), d.z.data(), d.h.data(), d.m.data(), domain.box(), d.g,
-                                (Tu*)nullptr, d.ax.data(), d.ay.data(), d.az.data(), &d.egrav);
+                                (Tu*)nullptr, d.ax.data(), d.ay.data(), d.az.data(), &d.egrav, numShells);
+
+        if (usePbc)
+        {
+            ryoanji::computeGravityEwald(makeVec3(focusTree.expansionCentersAcc()[0]), multipoles_.front(),
+                                         domain.startIndex(), domain.endIndex(), d.x.data(), d.y.data(), d.z.data(),
+                                         d.m.data(), box, d.g, (Tu*)nullptr, d.ax.data(), d.ay.data(), d.az.data(),
+                                         &d.egrav, ewaldSettings_);
+        }
     }
 
     util::array<uint64_t, 5> readStats() const { return {0, 0, 0, 0, 0}; }
@@ -78,7 +92,8 @@ public:
     const MType* multipoles() const { return multipoles_.data(); }
 
 private:
-    std::vector<MType> multipoles_;
+    std::vector<MType>     multipoles_;
+    ryoanji::EwaldSettings ewaldSettings_;
 };
 
 template<class MType, class DomainType, class DataType>
@@ -110,14 +125,31 @@ public:
 
     void traverse(DataType& d, const DomainType& domain)
     {
-        d.egrav = mHolder_.compute(domain.startIndex(), domain.endIndex(), rawPtr(d.devData.x), rawPtr(d.devData.y),
-                                   rawPtr(d.devData.z), rawPtr(d.devData.m), rawPtr(d.devData.h), d.g,
-                                   rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az));
+        const auto& box       = domain.box();
+        bool        usePbc    = box.boundaryX() == cstone::BoundaryType::periodic;
+        int         numShells = usePbc ? ewaldSettings_.numReplicaShells : 0;
+
+        d.egrav = mHolder_.compute(rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.m),
+                                   rawPtr(d.devData.h), d.g, numShells, domain.box(), rawPtr(d.devData.ax),
+                                   rawPtr(d.devData.ay), rawPtr(d.devData.az));
 
         auto stats = mHolder_.readStats();
 
         auto maxP2P = stats[1];
         if (maxP2P == 0xFFFFFFFF) { throw std::runtime_error("GPU traversal stack exhausted in Barnes-Hut\n"); }
+
+        if (usePbc)
+        {
+            ryoanji::Vec4<Tf> rootCenter;
+            memcpyD2H(domain.focusTree().expansionCentersAcc().data(), 1, &rootCenter);
+            MType rootM;
+            memcpyD2H(mHolder_.deviceMultipoles(), 1, &rootM);
+
+            computeGravityEwaldGpu(makeVec3(rootCenter), rootM, domain.startIndex(), domain.endIndex(),
+                                   rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.m),
+                                   box, d.g, (Ta*)nullptr, rawPtr(d.devData.ax), rawPtr(d.devData.ay),
+                                   rawPtr(d.devData.az), &d.egrav, ewaldSettings_);
+        }
 
         d.devData.stackUsedGravity = stats[4];
     }
@@ -130,6 +162,7 @@ public:
 private:
     ryoanji::MultipoleHolder<Tc, Th, Tm, Ta, Tf, KeyType, MType> mHolder_;
     std::vector<MType>                                           multipoles_;
+    ryoanji::EwaldSettings                                       ewaldSettings_;
 };
 
 } // namespace sphexa

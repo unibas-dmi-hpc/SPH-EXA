@@ -24,7 +24,8 @@
  */
 
 /*! @file
- * @brief GTest MPI driver
+ * @brief Compute an octree, multipoles and forces on GPUs from a set of particles distributed across ranks
+ *        and compare against a single-node reference computed from the same set.
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -56,6 +57,9 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     T                G               = 1.0;
 
     cstone::Box<T> box{-1, 1};
+    // setting numShells to non-zero won't match the direct sum reference because it only includes the replica shells,
+    // but not the Ewald corrections, whereas the Barnes-Hut implementation contains both
+    int numShells = 0;
 
     // common pool of coordinates, identical on all ranks
     cstone::RandomGaussianCoordinates<T, cstone::SfcKind<KeyType>> coords(numParticles, box);
@@ -109,7 +113,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     const cstone::FocusedOctree<KeyType, T, cstone::GpuTag>& focusTree = domain.focusTree();
     //! the focused octree, structure only
     auto                                         octree  = focusTree.octreeViewAcc();
-    gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
+    gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCentersAcc();
 
     std::vector<MultipoleType> multipoles(octree.numNodes);
     multipoleHolder.upsweep(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), domain.globalTree(), domain.focusTree(),
@@ -127,9 +131,8 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
         multipoleHolder.createGroups(domain.startIndex(), domain.endIndex(), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z),
                                      rawPtr(d_h), domain.focusTree(), domain.layout().data(), domain.box());
-        double bhPotential =
-            multipoleHolder.compute(domain.startIndex(), domain.endIndex(), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z),
-                                    rawPtr(d_m), rawPtr(d_h), G, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
+        double bhPotential = multipoleHolder.compute(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h), G,
+                                                     0, box, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
 
         // download BH accelerations for locally present particles
         thrust::host_vector<T> ax(d_ax.begin() + domain.startIndex(), d_ax.begin() + domain.endIndex());
@@ -147,8 +150,9 @@ static int multipoleHolderTest(int thisRank, int numRanks)
         reallocateDevice(d_azref, numParticles, 1.0);
 
         // reference direct sum calculation with the global set of sources
-        directSum(firstGlobalIdx, lastGlobalIdx, numParticles, rawPtr(d_xref), rawPtr(d_yref), rawPtr(d_zref),
-                  rawPtr(d_mref), rawPtr(d_href), rawPtr(d_potref), rawPtr(d_axref), rawPtr(d_ayref), rawPtr(d_azref));
+        directSum(firstGlobalIdx, lastGlobalIdx, numParticles, {box.lx(), box.ly(), box.lz()}, numShells,
+                  rawPtr(d_xref), rawPtr(d_yref), rawPtr(d_zref), rawPtr(d_mref), rawPtr(d_href), rawPtr(d_potref),
+                  rawPtr(d_axref), rawPtr(d_ayref), rawPtr(d_azref));
 
         // download reference direct sum accelerations due to global source set
         thrust::host_vector<T> pRef(d_potref.begin() + firstGlobalIdx, d_potref.begin() + lastGlobalIdx);

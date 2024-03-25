@@ -81,9 +81,8 @@ public:
         timer.step("Turbulence Stirring");
 
         computePositions(first, last, d, domain.box());
-        timer.step("UpdateQuantities");
         updateSmoothingLength(first, last, d);
-        timer.step("UpdateSmoothingLength");
+        timer.step("UpdateQuantities");
     }
 
     void save(IFileWriter* writer) override { turbulenceData.loadOrStore(writer); }

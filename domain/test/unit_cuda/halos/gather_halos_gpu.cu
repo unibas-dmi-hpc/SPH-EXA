@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 CSCS, ETH Zurich
- *               2022 University of Basel
+ * Copyright (c) 2024 CSCS, ETH Zurich
+ *               2024 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,30 +24,40 @@
  */
 
 /*! @file
- * @brief Tests for tuple gettres
+ * @brief Halo exchange auxiliary functions GPU testing
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ *
  */
-
-#include <array>
 
 #include "gtest/gtest.h"
 
-#include "cstone/fields/field_get.hpp"
+#include <numeric>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
+
+#include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/halos/gather_halos_gpu.h"
 
 using namespace cstone;
 
-TEST(FieldGet, getPointers)
+TEST(Halos, gatherRanges)
 {
-    std::vector<double> vd{1.0, 2.0, 3.0};
-    std::vector<int> vi{1, 2, 3};
+    // list of marked halo cells/ranges
+    std::vector<int> seq(30);
+    std::iota(seq.begin(), seq.end(), 0);
+    thrust::device_vector<int> src = seq;
 
-    int idx = 1;
-    auto e1 = getPointers(std::tie(vd, vi), idx);
+    thrust::device_vector<unsigned> rangeScan    = std::vector<unsigned>{0, 4, 7};
+    thrust::device_vector<unsigned> rangeOffsets = std::vector<unsigned>{4, 12, 22};
+    int totalCount                               = 10;
 
-    *std::get<0>(e1) *= 2;
-    *std::get<1>(e1) *= 3;
+    thrust::device_vector<int> buffer = std::vector<int>(totalCount);
 
-    EXPECT_EQ(vd[idx], 4.0);
-    EXPECT_EQ(vi[idx], 6);
+    gatherRanges(rawPtr(rangeScan), rawPtr(rangeOffsets), rangeScan.size(), rawPtr(src), rawPtr(buffer), totalCount);
+
+    thrust::host_vector<int> h_buffer = buffer;
+    thrust::host_vector<int> ref      = std::vector<int>{4, 5, 6, 7, 12, 13, 14, 22, 23, 24};
+
+    EXPECT_EQ(h_buffer, ref);
 }

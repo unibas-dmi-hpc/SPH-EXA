@@ -65,6 +65,8 @@ constexpr __host__ __device__ tuple<Ts&...> tie(Ts&... args) noexcept
 namespace std
 {
 
+// Thrust tuples in CUDA are now cuda::std tuples for which structured bindings have been added in CUDA 12.4
+#if (CUDART_VERSION < 12040) or defined(__HIPCC__)
 template<size_t N, class... Ts>
 struct tuple_element<N, thrust::tuple<Ts...>>
 {
@@ -76,6 +78,8 @@ struct tuple_size<thrust::tuple<Ts...>>
 {
     static const int value = thrust::tuple_size<thrust::tuple<Ts...>>::value;
 };
+
+#endif
 
 } // namespace std
 

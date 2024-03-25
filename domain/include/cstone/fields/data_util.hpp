@@ -31,10 +31,8 @@
 
 #pragma once
 
+#include <string_view>
 #include <vector>
-#include <variant>
-
-#include "cstone/util/type_list.hpp"
 
 namespace cstone
 {
