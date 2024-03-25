@@ -89,6 +89,7 @@ public:
     template<class Archive>
     void loadOrStore(Archive* ar)
     {
+
         std::string prefix = "turbulence::";
         ar->stepAttribute(prefix + "variance", &variance, 1);
         ar->stepAttribute(prefix + "decayTime", &decayTime, 1);
@@ -112,8 +113,11 @@ public:
         rngStateSize         = (rngStateSize) ? rngStateSize : int64_t(engineState.size());
 
         engineState.resize(rngStateSize);
-        ar->stepAttribute("rngEngineState", engineState.data(), rngStateSize);
 
+        // Since ADIOS cannot read a step attrib that doesn't exist in step0 (i.e. in file root)
+        // To keep compatibility I add hard-coded writing for rngEngineState in low-level APIs
+        // But really, it should not be...
+        ar->stepAttribute("rngEngineState", engineState.data(), rngStateSize);
         s = std::stringstream{};
         s << engineState;
         s >> gen;
@@ -157,8 +161,9 @@ private:
         double powerLawExp = constants.at("powerLawExp");
         double anglesExp   = constants.at("anglesExp");
 
-        double twopi   = 2.0 * M_PI;
-        double energy  = constants.at("stEnergyPrefac") * std::pow(velocity, 3) / Lbox;
+        double twopi = 2.0 * M_PI;
+        // double energy  = constants.at("stEnergyPrefac") * std::pow(velocity, 3) / Lbox;
+        double energy  = 5.0e-3 * std::pow(velocity, 3) / Lbox;
         double stirMin = (1.0 - eps) * twopi / Lbox;
         double stirMax = (3.0 + eps) * twopi / Lbox;
 

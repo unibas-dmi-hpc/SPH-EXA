@@ -87,19 +87,37 @@ public:
         as_.offset        = firstIndex;
         as_.currStep      = currStep_;
 
+        long long int currIndex[totalRanks_ + 1];
+        currIndex[0] = 0;
+        int ret = MPI_Allgather((void*)&as_.numLocalParticles, 1, MPI_LONG_LONG, (void*)&currIndex[1], 1, MPI_LONG_LONG,
+                                MPI_COMM_WORLD);
+        if (ret != MPI_SUCCESS) { std::cout << "error! " << std::endl; };
+
+        as_.numGlobalParticles = 0;
+        for (int i = 1; i < totalRanks_ + 1; i++)
+        {
+            as_.numGlobalParticles += currIndex[i];
+            currIndex[i] += currIndex[i - 1];
+        }
+        as_.offset = currIndex[as_.rank];
+
+        // std::cout << "rank: " << as_.rank << ", start: " << firstIndex << ", end:" << lastIndex << endl;
+
         // For now, the writer will only append data instead of writing new
         fileutils::initADIOSWriter(as_);
         fileutils::openADIOSStepWrite(as_);
 
         MPI_Barrier(MPI_COMM_WORLD);
         fileInitTime_ += MPI_Wtime();
-        pathStep_ = path;
+        pathStep_  = path;
+        writeTime_ = 0;
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
         MPI_Barrier(MPI_COMM_WORLD);
-        writeTime_ = -MPI_Wtime();
+        writeTime_ += -MPI_Wtime();
+        if (key == "rngEngineState") { return fileAttribute(key, val, size); }
         std::visit([this, &key, size](auto arg) { fileutils::writeADIOSStepAttribute(as_, key, arg, size); }, val);
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
@@ -113,11 +131,11 @@ public:
     void writeField(const std::string& key, FieldType field, int = 0) override
     {
         MPI_Barrier(MPI_COMM_WORLD);
-        writeTime_ = -MPI_Wtime();
+        writeTime_ += -MPI_Wtime();
 
         // If there's a need to change particle numbers, do it here and now!!
         // Directly change it in as_.
-        std::visit([this, &key](auto arg) { fileutils::writeADIOSField(as_, key, arg); }, field);
+        std::visit([this, &key](auto arg) { fileutils::writeADIOSField(as_, key, arg + firstIndex_); }, field);
 
         MPI_Barrier(MPI_COMM_WORLD);
         writeTime_ += MPI_Wtime();
@@ -199,10 +217,11 @@ public:
      */
     void setStep(std::string path, int step, FileMode mode) override
     {
-
         pathStep_    = path;
         as_.comm     = comm_;
         as_.fileName = path;
+        MPI_Barrier(MPI_COMM_WORLD);
+        fileInitTime_ = -MPI_Wtime();
         fileutils::initADIOSReader(as_);
         fileutils::openADIOSStepRead(as_);
 
@@ -237,6 +256,26 @@ public:
         as_.numTotalRanks     = numRanks;
         as_.offset            = firstIndex_;
         as_.rank              = rank;
+
+        long long int currIndex[numRanks + 1];
+        currIndex[0] = 0;
+        int ret = MPI_Allgather((void*)&as_.numLocalParticles, 1, MPI_LONG_LONG, (void*)&currIndex[1], 1, MPI_LONG_LONG,
+                                MPI_COMM_WORLD);
+        if (ret != MPI_SUCCESS) { std::cout << "error! " << std::endl; };
+        as_.numGlobalParticles = 0;
+        for (int i = 1; i < numRanks + 1; i++)
+        {
+            as_.numGlobalParticles += currIndex[i];
+            currIndex[i] += currIndex[i - 1];
+        }
+
+        as_.offset = currIndex[as_.rank];
+        std::cout << "read: offset:" << as_.offset << ", rank: " << as_.offset
+                  << ", numLocalParticles: " << as_.numLocalParticles << std::endl;
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        fileInitTime_ += MPI_Wtime();
+        readTime_ = 0;
     }
 
     std::vector<std::string> fileAttributes() override { return ADIOSGetFileAttributes(as_); }
@@ -245,32 +284,76 @@ public:
 
     int64_t fileAttributeSize(const std::string& key) override { return ADIOSGetFileAttributeSize(as_, key); }
 
-    int64_t stepAttributeSize(const std::string& key) override { return 1; }
+    int64_t stepAttributeSize(const std::string& key) override { return ADIOSGetStepAttributeSize(as_, key); }
 
     void fileAttribute(const std::string& key, FieldType val, int64_t size) override
     {
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += -MPI_Wtime();
         std::visit([this, size, &key](auto arg) { fileutils::readADIOSFileAttribute(as_, key, arg, size); }, val);
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += MPI_Wtime();
     }
 
     void stepAttribute(const std::string& key, FieldType val, int64_t size) override
     {
-        std::visit([this, size, &key](auto arg) { fileutils::readADIOSStepAttribute(as_, key, arg, size); }, val);
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += -MPI_Wtime();
+        try
+        {
+            std::visit([this, size, &key](auto arg) { fileutils::readADIOSStepAttribute(as_, key, arg, size); }, val);
+        }
+        catch (const std::invalid_argument& e)
+        {
+            return fileAttribute(key, val, size);
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += MPI_Wtime();
     }
 
     void readField(const std::string& key, FieldType field) override
     {
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += -MPI_Wtime();
         std::visit([this, &key](auto arg) { fileutils::readADIOSField(as_, key, arg); }, field);
+        // std::visit(
+        //     [this, &key](auto arg)
+        //     {
+        //         if (key == "x")
+        //         {
+        //             for (int i = 0; i < 125000; i++)
+        //             {
+        //                 std::cout << arg[i] << ",";
+        //             }
+        //             std::cout << std::endl;
+        //         }
+        //     },
+        //     field);
+        MPI_Barrier(MPI_COMM_WORLD);
+        readTime_ += MPI_Wtime();
     }
 
     uint64_t localNumParticles() override { return localCount_; }
 
     uint64_t globalNumParticles() override { return globalCount_; }
 
-    void closeStep() override { closeADIOSStepRead(as_); }
+    void closeStep() override
+    {
+        if (rank_ == 0)
+        {
+            std::cout << "ADIOS2 Reader -- File init elapse: " << fileInitTime_ << ", reading elapse: " << readTime_
+                      << std::endl;
+        }
+
+        closeADIOSStepRead(as_);
+    }
 
 private:
     int      rank_{0}, numRanks_{0};
     MPI_Comm comm_;
+
+    double fileInitTime_, readTime_;
 
     uint64_t    firstIndex_{0}, lastIndex_{0};
     uint64_t    localCount_;
