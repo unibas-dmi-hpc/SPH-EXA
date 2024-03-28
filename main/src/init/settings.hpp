@@ -46,7 +46,7 @@ inline void writeSettings(const InitSettings& settings, const std::string& path,
 {
     if (std::filesystem::exists(path))
     {
-        throw std::runtime_error("Cannot write settings: file " + path + " already exists\n");
+        // throw std::runtime_error("Cannot write settings: file " + path + " already exists\n");
     }
 
     // Since file attribs do not belong to any step

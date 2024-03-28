@@ -180,7 +180,9 @@ int main(int argc, char** argv)
 
         propagator->visualizeFields(domain.startIndex(), domain.endIndex(), simData, box);
 
+        totalTimer.step("");
         viz::execute(d, domain.startIndex(), domain.endIndex());
+        totalTimer.step("Visualization");
         if (isWallClockReached && ++d.iteration) { break; }
     }
     totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +

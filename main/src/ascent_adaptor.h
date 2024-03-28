@@ -16,6 +16,7 @@ namespace AscentAdaptor
 {
 ascent::Ascent a;
 conduit::Node  actions;
+double         dataTransferTime_, renderingTime_;
 
 template<class DataType>
 void Initialize([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex)
@@ -143,30 +144,74 @@ void Execute(DataType& d, long startIndex, long endIndex)
     mesh["topologies/mesh/elements/connectivity"].set_external(conn);
     std::vector<conduit_int64> ranks(endIndex - startIndex, rank);
     addField(mesh, "ranks", ranks.data(), 0, endIndex - startIndex);
-    addField(mesh, "x", d.x.data(), startIndex, endIndex);
-    // For K-H, pressure is not in use thus not generated
-    addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
-    addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
-    std::cout << "rho:" << d.rho.size() << std::endl;
-    // std::cout << "p:" << d.p.size() << std::endl;
-    // std::cout << "m:" << d.m.size() << std::endl;
-    // std::cout << "h:" << d.h.size() << std::endl;
-    // std::cout << "u:" << d.u.size() << std::endl;
-    // std::cout << "c:" << d.c.size() << std::endl;
+    // For all the fields to be rendered, output them with Conduit
+    // It's the users' problem if they specify a field that cannot be visualized
+    // And we have a dictionary for the namings. For now it's just hardcoded
+    std::map<std::string, std::string> visDictionary = {{"x", "X"},
+                                                        {"y", "Y"},
+                                                        {"z", "Z"},
+                                                        {"vx", "VX"},
+                                                        {"vy", "VY"},
+                                                        {"vz", "VZ"},
+                                                        {"ax", "AX"},
+                                                        {"ay", "AY"},
+                                                        {"az", "AZ"},
+                                                        {"v", "Velocity"},
+                                                        {"p", "Pressure"},
+                                                        {"rho", "Density"},
+                                                        {"prho", "Prho"},
+                                                        {"m", "Mass"},
+                                                        {"u", "Internal Energy"},
+                                                        {"c", "Speed of Sound"},
+                                                        {"h", "Smoothing Length"}};
 
-    // addField(mesh, "z", d.z.data(), startIndex, endIndex);
-    // addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
-    // addField(mesh, "vy", d.vy.data(), startIndex, endIndex);
-    // addField(mesh, "vz", d.vz.data(), startIndex, endIndex);
-    // addField(mesh, "Mass", d.m.data(), startIndex, endIndex);
-    // addField(mesh, "Smoothing Length", d.h.data(), startIndex, endIndex);
+    auto indicesDone   = d.visFieldIndices;
+    auto namesDone     = d.visFieldNames;
+    auto fieldPointers = d.data();
 
-    // addField(mesh, "Internal Energy", d.u.data(), startIndex, endIndex);
-    // addField(mesh, "Speed of Sound", d.c.data(), startIndex, endIndex);
-    // addField(mesh, "ax", d.ax.data(), startIndex, endIndex);
-    // addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
-    // addField(mesh, "ax", d.az.data(), startIndex, endIndex);
+    for (int i = int(indicesDone.size()) - 1; i >= 0; --i)
+    {
+        int fidx = indicesDone[i];
+        if (d.isAllocated(fidx))
+        {
+            int column =
+                std::find(d.visFieldIndices.begin(), d.visFieldIndices.end(), fidx) - d.visFieldIndices.begin();
+            auto temp = fieldPointers[fidx];
 
+            if (auto* ptr = std::get_if<std::vector<float>*>(&fieldPointers[fidx]))
+            {
+                auto dataPtr = (*ptr)->data();
+                addField(mesh, visDictionary[namesDone[i]], dataPtr, startIndex, endIndex);
+            }
+            else if (auto* ptr = std::get_if<std::vector<double>*>(&fieldPointers[fidx]))
+            {
+                auto dataPtr = (*ptr)->data();
+                addField(mesh, visDictionary[namesDone[i]], dataPtr, startIndex, endIndex);
+            }
+            else if (auto* ptr = std::get_if<std::vector<unsigned>*>(&fieldPointers[fidx]))
+            {
+                auto dataPtr = (*ptr)->data();
+                addField(mesh, visDictionary[namesDone[i]], dataPtr, startIndex, endIndex);
+            }
+            else
+            {
+                auto dataPtr = (*ptr)->data();
+                addField(mesh, visDictionary[namesDone[i]], dataPtr, startIndex, endIndex);
+            }
+            indicesDone.erase(indicesDone.begin() + i);
+            namesDone.erase(namesDone.begin() + i);
+        }
+    }
+
+    if (!indicesDone.empty() && rank == 0)
+    {
+        std::cout << "WARNING: the following fields are not in use and therefore not visualized: ";
+        for (int fidx = 0; fidx < indicesDone.size() - 1; ++fidx)
+        {
+            std::cout << d.fieldNames[fidx] << ",";
+        }
+        std::cout << d.fieldNames[indicesDone.back()] << std::endl;
+    }
     /* ===================================================== */
     // Set up another sub-mesh for rank-specific data export
     // Since usually the benchmark value is unique for each rank
@@ -192,9 +237,8 @@ void Execute(DataType& d, long startIndex, long endIndex)
         // verify failed, print error message
         CONDUIT_INFO("blueprint verify failed!" + verify_info.to_json());
     }
-    // else
-    //     CONDUIT_INFO("blueprint verify success!");
 
+    // Start benchmarking from here
     a.publish(mesh);
     a.execute(actions);
 }

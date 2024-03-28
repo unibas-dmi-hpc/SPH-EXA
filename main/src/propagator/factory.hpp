@@ -42,6 +42,8 @@
 #include "std_hydro_grackle.hpp"
 #endif
 #include "turb_ve.hpp"
+#include "insituvis.hpp"
+#include "insituvis_ve.hpp"
 
 namespace sphexa
 {
@@ -68,7 +70,16 @@ propagatorFactory(const std::string& choice, bool avClean, std::ostream& output,
         if (avClean) { return std::make_unique<TurbVeProp<true, DomainType, ParticleDataType>>(output, rank, s); }
         else { return std::make_unique<TurbVeProp<false, DomainType, ParticleDataType>>(output, rank, s); }
     }
-
+    if (choice == "insituvis")
+    {
+        if (avClean) { return std::make_unique<InSituVis<DomainType, ParticleDataType>>(output, rank); }
+        else { return std::make_unique<InSituVis<DomainType, ParticleDataType>>(output, rank); }
+    }
+    if (choice == "insituvis_ve")
+    {
+        if (avClean) { return std::make_unique<InSituVisVe<true, DomainType, ParticleDataType>>(output, rank); }
+        else { return std::make_unique<InSituVisVe<false, DomainType, ParticleDataType>>(output, rank); }
+    }
     throw std::runtime_error("Unknown propagator choice: " + choice);
 }
 
