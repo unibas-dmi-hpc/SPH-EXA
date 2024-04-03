@@ -48,10 +48,11 @@ extern void computeEOS(size_t, size_t, Tm mui, Tu gamma, const Tu*, const Tm*, c
 
 } // namespace cuda
 
-template<class Tc, class Thydro, class Tm1>
+template<class Tc, class Thydro, class Tm1, class Tdu>
 extern void driftPositionsGpu(const GroupView& grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z,
                               Thydro* vx, Thydro* vy, Thydro* vz, const Tm1* x_m1, const Tm1* y_m1, const Tm1* z_m1,
-                              const Thydro* ax, const Thydro* ay, const Thydro* az, const uint8_t* rung);
+                              const Thydro* ax, const Thydro* ay, const Thydro* az, const uint8_t* rung, Tc* temp,
+                              Tc* u, Tdu* du, Tm1* du_m1, Thydro* mui, Tc gamma, Tc constCv);
 
 template<class Tc, class Tv, class Ta, class Tdu, class Tm1, class Tu, class Thydro>
 extern void computePositionsGpu(const GroupView& grp, float dt, float dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx, Tv* vy,

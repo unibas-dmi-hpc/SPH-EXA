@@ -36,10 +36,11 @@ namespace sph
 {
 
 //! Drift back by dt_back, then advance by dt
-template<class Tc, class Thydro, class Tm1>
+template<class Tc, class Thydro, class Tm1, class Tdu>
 __global__ void driftKernel(GroupView grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z, Thydro* vx,
                             Thydro* vy, Thydro* vz, const Tm1* x_m1, const Tm1* y_m1, const Tm1* z_m1, const Thydro* ax,
-                            const Thydro* ay, const Thydro* az, const uint8_t* rung)
+                            const Thydro* ay, const Thydro* az, const uint8_t* rung, Tc* temp, Tc* u, Tdu* du,
+                            Tm1* du_m1, Thydro* mui, Tc gamma, Tc constCv)
 {
     cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= grp.numGroups) { return; }
@@ -66,31 +67,45 @@ __global__ void driftKernel(GroupView grp, float dt, float dt_back, float dt_m1,
 
         util::tie(x[i], y[i], z[i])    = util::tie(Xnp1[0], Xnp1[1], Xnp1[2]);
         util::tie(vx[i], vy[i], vz[i]) = util::tie(Vnp1[0], Vnp1[1], Vnp1[2]);
+
+        if (temp != nullptr)
+        {
+            Thydro cv      = (constCv < 0) ? idealGasCv(mui[i], gamma) : constCv;
+            auto   u_recov = energyUpdate(Tc(temp[i] * cv), -dt_back, dt_m1_rung, du[i], Tdu(du_m1[i]));
+            temp[i]        = energyUpdate(u_recov, dt, dt_m1_rung, du[i], Tdu(du_m1[i])) / cv;
+        }
+        else if (u != nullptr)
+        {
+            auto u_recov = energyUpdate(u[i], -dt_back, dt_m1_rung, du[i], Tdu(du_m1[i]));
+            u[i]         = energyUpdate(u_recov, dt, dt_m1_rung, du[i], Tdu(du_m1[i]));
+        }
     }
 }
 
-template<class Tc, class Thydro, class Tm1>
+template<class Tc, class Thydro, class Tm1, class Tdu>
 void driftPositionsGpu(const GroupView& grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z, Thydro* vx,
                        Thydro* vy, Thydro* vz, const Tm1* x_m1, const Tm1* y_m1, const Tm1* z_m1, const Thydro* ax,
-                       const Thydro* ay, const Thydro* az, const uint8_t* rung)
+                       const Thydro* ay, const Thydro* az, const uint8_t* rung, Tc* temp, Tc* u, Tdu* du, Tm1* du_m1,
+                       Thydro* mui, Tc gamma, Tc constCv)
 {
     unsigned           numThreads = 256;
     cstone::LocalIndex numBlocks  = (grp.numGroups + numThreads - 1) / numThreads;
 
     driftKernel<<<numBlocks, numThreads>>>(grp, dt, dt_back, dt_m1, x, y, z, vx, vy, vz, x_m1, y_m1, z_m1, ax, ay, az,
-                                           rung);
+                                           rung, temp, u, du, du_m1, mui, gamma, constCv);
 }
 
-#define DRIFT_GPU(Tc, Thydro, Tm1)                                                                                     \
+#define DRIFT_GPU(Tc, Thydro, Tm1, Tdu)                                                                                \
     template void driftPositionsGpu(const GroupView& grp, float dt, float dt_back, float dt_m1, Tc* x, Tc* y, Tc* z,   \
                                     Thydro* vx, Thydro* vy, Thydro* vz, const Tm1* x_m1, const Tm1* y_m1,              \
                                     const Tm1* z_m1, const Thydro* ax, const Thydro* ay, const Thydro* az,             \
-                                    const uint8_t* rung)
+                                    const uint8_t* rung, Tc* temp, Tc* u, Tdu* du, Tm1* du_m1, Thydro* mui, Tc gamma,  \
+                                    Tc constCv)
 
-DRIFT_GPU(double, double, double);
-DRIFT_GPU(double, double, float);
-DRIFT_GPU(double, float, float);
-DRIFT_GPU(float, float, float);
+DRIFT_GPU(double, double, double, double);
+DRIFT_GPU(double, double, float, double);
+DRIFT_GPU(double, float, float, double);
+DRIFT_GPU(float, float, float, float);
 
 template<class Tc, class Tv, class Ta, class Tdu, class Tm1, class Tt, class Thydro>
 __global__ void computePositionsKernel(GroupView grp, float dt, float dt_m1, Tc* x, Tc* y, Tc* z, Tv* vx, Tv* vy,
