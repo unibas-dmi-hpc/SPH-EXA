@@ -136,14 +136,10 @@ __global__ void computePositionsKernel(GroupView grp, float dt, float dt_m1, Tc*
         {
             Thydro cv    = (constCv < 0) ? idealGasCv(mui[i], gamma) : constCv;
             auto   u_old = temp[i] * cv;
-            temp[i]      = energyUpdate(u_old, dt, dt_m1_rung, du[i], du_m1[i]) / cv;
-            du_m1[i]     = du[i];
+            temp[i]      = energyUpdate(u_old, dt, dt_m1_rung, du[i], Tdu(du_m1[i])) / cv;
         }
-        else if (u != nullptr)
-        {
-            u[i]     = energyUpdate(u[i], dt, dt_m1_rung, du[i], du_m1[i]);
-            du_m1[i] = du[i];
-        }
+        else if (u != nullptr) { u[i] = energyUpdate(u[i], dt, dt_m1_rung, du[i], Tdu(du_m1[i])); }
+        du_m1[i] = du[i];
     }
 }
 

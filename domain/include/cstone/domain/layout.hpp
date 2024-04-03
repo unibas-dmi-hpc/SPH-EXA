@@ -228,7 +228,7 @@ void gatherArrays(Gather&& gatherFunc,
         {
             constexpr int i = util::FindIndex<VectorRef, std::tuple<Arrays2&...>, SmallerElementSize>{};
             static_assert(i < sizeof...(Arrays2));
-            assert(get<i>(scratchBuffers).size() == array.size());
+            assert(std::get<i>(scratchBuffers).size() == array.size());
 
             auto* scratchSpace =
                 reinterpret_cast<typename std::decay_t<VectorRef>::value_type*>(rawPtr(std::get<i>(scratchBuffers)));

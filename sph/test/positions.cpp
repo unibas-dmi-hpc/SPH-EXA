@@ -46,3 +46,17 @@ TEST(Integrator, timeReversal)
     EXPECT_EQ(Vnp1, Vnp1_ts);
     EXPECT_EQ(dXnp1, dXnp1_ts);
 }
+
+TEST(Integrator, timeEnergyReversal)
+{
+    using T = float;
+
+    T dtn = 0.1, dtnm1 = 0.2;
+    T dU = 2.0, dUm1 = 3.0;
+
+    auto Unp1 = energyUpdate(10.0, dtn, dtnm1, dU, dUm1);
+    EXPECT_NEAR(Unp1, 10.175, 1e-7);
+
+    auto Un = energyUpdate(10.175, -dtn, dtnm1, dU, dUm1);
+    EXPECT_NEAR(Un, 10.0, 1e-7);
+}

@@ -270,8 +270,10 @@ public:
 
     void computeBlockTimesteps(DataType& simData)
     {
-        auto& d = simData.hydro;
-        if (activeRung(timestep_.substep, timestep_.numRungs) == 0)
+        auto& d        = simData.hydro;
+        int   highRung = activeRung(timestep_.substep, timestep_.numRungs);
+
+        if (highRung == 0)
         {
             prevTimestep_  = timestep_;
             float maxIncDt = timestep_.minDt * std::pow(d.maxDtIncrease, (1 << (timestep_.numRungs - 1)));
@@ -288,7 +290,6 @@ public:
             }
         }
 
-        int highRung = activeRung(timestep_.substep, timestep_.numRungs);
         if (Base::rank_ == 0 && highRung == 0)
         {
             auto ts = timestep_;
@@ -330,13 +331,13 @@ public:
         computeBlockTimesteps(simData);
         timer.step("Timestep");
 
-        auto bkStep          = [](int subStep, int rung) { return subStep % (1 << rung); };
+        auto driftBack       = [](int subStep, int rung) { return subStep % (1 << rung); };
         int  lowestDriftRung = cstone::butterfly(timestep_.substep + 1);
         bool isLastSubstep   = activeRung(timestep_.substep + 1, timestep_.numRungs) == 0;
         auto substepBox      = isLastSubstep ? domain.box() : cstone::Box<T>(0, 1, cstone::BoundaryType::open);
         for (int i = 0; i < timestep_.numRungs; ++i)
         {
-            int  bk      = bkStep(timestep_.substep, i);
+            int  bk      = driftBack(timestep_.substep, i);
             bool useRung = timestep_.substep == bk;
             bool advance = i < lowestDriftRung;
 
