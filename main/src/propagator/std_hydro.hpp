@@ -120,11 +120,22 @@ public:
         d.treeView = domain.octreeProperties();
     }
 
-    void computeForces(DomainType& domain, DataType& simData)
+    void computeForces(DomainType& domain, DataType& simData) override
     {
+        timer.start();
+
+        sync(domain, simData);
+        timer.step("domain::sync");
+
+        auto& d = simData.hydro;
+        d.resize(domain.nParticlesWithHalos());
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
-        auto&  d     = simData.hydro;
+
+        // fill mass halos under the assumption that all particles have equal masses
+        transferToHost(d, first, first + 1, {"m"});
+        fill(get<"m">(d), 0, first, d.m[first]);
+        fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
         resizeNeighbors(d, domain.nParticles() * d.ngmax);
         findNeighborsSfc(first, last, d, domain.box());
@@ -156,24 +167,11 @@ public:
         }
     }
 
-    void step(DomainType& domain, DataType& simData) override
+    void integrate(DomainType& domain, DataType& simData) override
     {
-        timer.start();
-
-        sync(domain, simData);
-        timer.step("domain::sync");
-
-        auto& d = simData.hydro;
-        d.resize(domain.nParticlesWithHalos());
+        auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
-
-        // fill mass halos under the assumption that all particles have equal masses
-        transferToHost(d, first, first + 1, {"m"});
-        fill(get<"m">(d), 0, first, d.m[first]);
-        fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
-
-        computeForces(domain, simData);
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
@@ -185,41 +183,8 @@ public:
     void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
                     const cstone::Box<T>& /*box*/) override
     {
-        auto output = [&](auto& d)
-        {
-            auto fieldPointers = d.data();
-            auto indicesDone   = d.outputFieldIndices;
-            auto namesDone     = d.outputFieldNames;
-
-            for (int i = int(indicesDone.size()) - 1; i >= 0; --i)
-            {
-                int fidx = indicesDone[i];
-                if (d.isAllocated(fidx))
-                {
-                    int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
-                                 d.outputFieldIndices.begin();
-                    transferToHost(d, first, last, {d.fieldNames[fidx]});
-                    std::visit([writer, c = column, key = namesDone[i]](auto field)
-                               { writer->writeField(key, field->data(), c); },
-                               fieldPointers[fidx]);
-                    indicesDone.erase(indicesDone.begin() + i);
-                    namesDone.erase(namesDone.begin() + i);
-                }
-            }
-
-            if (!indicesDone.empty() && Base::rank_ == 0)
-            {
-                std::cout << "WARNING: the following fields are not in use and therefore not output: ";
-                for (int fidx = 0; fidx < indicesDone.size() - 1; ++fidx)
-                {
-                    std::cout << d.fieldNames[fidx] << ",";
-                }
-                std::cout << d.fieldNames[indicesDone.back()] << std::endl;
-            }
-        };
-
-        output(simData.hydro);
-        output(simData.chem);
+        Base::outputAllocatedFields(writer, first, last, simData);
+        timer.step("FileOutput");
     }
 };
 

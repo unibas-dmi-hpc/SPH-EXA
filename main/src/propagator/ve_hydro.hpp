@@ -128,7 +128,7 @@ public:
         d.treeView = domain.octreeProperties();
     }
 
-    void computeForces(DomainType& domain, DataType& simData)
+    void computeForces(DomainType& domain, DataType& simData) override
     {
         timer.start();
         pmReader.start();
@@ -154,10 +154,8 @@ public:
         domain.exchangeHalos(std::tie(get<"xm">(d)), get<"ax">(d), get<"keys">(d));
         timer.step("mpi::synchronizeHalos");
 
-        d.release("ay");
-        d.devData.release("ay");
-        d.acquire("gradh");
-        d.devData.acquire("gradh");
+        release(d, "ay");
+        acquire(d, "gradh");
         computeVeDefGradh(first, last, d, domain.box());
         timer.step("Normalization & Gradh");
 
@@ -167,10 +165,8 @@ public:
         domain.exchangeHalos(get<"vx", "vy", "vz", "prho", "c", "kx">(d), get<"ax">(d), get<"keys">(d));
         timer.step("mpi::synchronizeHalos");
 
-        d.release("gradh", "az");
-        d.devData.release("gradh", "az");
-        d.acquire("divv", "curlv");
-        d.devData.acquire("divv", "curlv");
+        release(d, "gradh", "az");
+        acquire(d, "divv", "curlv");
         computeIadDivvCurlv(first, last, d, domain.box());
         d.minDtRho = rhoTimestep(first, last, d);
         timer.step("IadVelocityDivCurl");
@@ -188,10 +184,8 @@ public:
         else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"ax">(d), get<"keys">(d)); }
         timer.step("mpi::synchronizeHalos");
 
-        d.release("divv", "curlv");
-        d.devData.release("divv", "curlv");
-        d.acquire("ay", "az");
-        d.devData.acquire("ay", "az");
+        release(d, "divv", "curlv");
+        acquire(d, "ay", "az");
         computeMomentumEnergy<avClean>(first, last, d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
@@ -207,10 +201,8 @@ public:
         }
     }
 
-    void step(DomainType& domain, DataType& simData) override
+    void integrate(DomainType& domain, DataType& simData) override
     {
-        computeForces(domain, simData);
-
         auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
@@ -241,38 +233,37 @@ public:
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
                     std::visit([writer, c = column, key = namesDone[i]](auto field)
-                               { writer->writeField(key, field->data(), c); },
-                               fieldPointers[fidx]);
+                               { writer->writeField(key, field->data(), c); }, fieldPointers[fidx]);
                     indicesDone.erase(indicesDone.begin() + i);
                     namesDone.erase(namesDone.begin() + i);
                 }
             }
         };
 
-        // first output pass: write everything allocated at the end of the step
+        // first output pass: write everything allocated at the end of computeForces()
         output();
-
-        d.release("ax", "ay", "az");
-        d.devData.release("ax", "ay", "az");
 
         // second output pass: write temporary quantities produced by the EOS
-        d.acquire("rho", "p", "gradh");
-        d.devData.acquire("rho", "p", "gradh");
+        release(d, "c11", "c12", "c13");
+        acquire(d, "rho", "p", "gradh");
         computeEOS(first, last, d);
         output();
-        d.devData.release("rho", "p", "gradh");
-        d.release("rho", "p", "gradh");
+        release(d, "rho", "p", "gradh");
+        acquire(d, "c11", "c12", "c13");
 
-        // third output pass: curlv and divv
-        d.acquire("divv", "curlv");
-        d.devData.acquire("divv", "curlv");
+        // third output pass: recover temporary curlv and divv quantities
+        release(d, "prho", "c");
+        acquire(d, "divv", "curlv");
+        // partial recovery of cij in range [first:last] without halos, which are not needed for divv and curlv
         if (!indicesDone.empty()) { computeIadDivvCurlv(first, last, d, box); }
         output();
-        d.release("divv", "curlv");
-        d.devData.release("divv", "curlv");
+        release(d, "divv", "curlv");
+        acquire(d, "prho", "c");
 
-        d.acquire("ax", "ay", "az");
-        d.devData.acquire("ax", "ay", "az");
+        /* The following data is now lost and no longer available in the integration step
+         *  c11, c12, c12: halos invalidated
+         *  prho, c: destroyed
+         */
 
         if (!indicesDone.empty() && Base::rank_ == 0)
         {
@@ -283,6 +274,7 @@ public:
             }
             std::cout << d.fieldNames[indicesDone.back()] << std::endl;
         }
+        timer.step("FileOutput");
     }
 };
 
