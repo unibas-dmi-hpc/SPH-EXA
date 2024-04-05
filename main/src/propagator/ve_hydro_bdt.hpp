@@ -397,6 +397,23 @@ public:
         // first output pass: write everything allocated at the end of the step
         output();
 
+        // second output pass: write temporary quantities produced by the EOS
+        release(d, "ay", "az");
+        acquire(d, "rho", "p");
+        computeEOS(first, last, d);
+        output();
+        release(d, "rho", "p");
+
+        // third output pass: recover temporary curlv and divv quantities
+        acquire(d, "curlv");
+        if (!indicesDone.empty()) { computeIadDivvCurlv(groups_.view(), d, box); }
+        output();
+        release(d, "curlv");
+        acquire(d, "ay", "az");
+
+        // restore destroyed accelerations
+        computeMomentumEnergy<avClean>(groups_.view(), nullptr, d, box);
+
         if (!indicesDone.empty() && Base::rank_ == 0)
         {
             std::cout << "WARNING: the following fields are not in use and therefore not output: ";
@@ -406,6 +423,7 @@ public:
             }
             std::cout << d.fieldNames[indicesDone.back()] << std::endl;
         }
+        timer.step("FileOutput");
     }
 
     void saveExtra(IFileWriter* writer, DataType& /*simData*/) override
