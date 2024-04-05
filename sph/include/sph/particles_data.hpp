@@ -339,6 +339,20 @@ void resizeNeighbors(Dataset& d, size_t size)
     reallocate(d.neighbors, cstone::HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
 }
 
+template<class Dataset, class... Fs>
+void release(Dataset& d, const Fs&... fs)
+{
+    d.release(fs...);
+    d.devData.release(fs...);
+}
+
+template<class Dataset, class... Fs>
+void acquire(Dataset& d, const Fs&... fs)
+{
+    d.acquire(fs...);
+    d.devData.acquire(fs...);
+}
+
 template<class Dataset, std::enable_if_t<not cstone::HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>
 void transferToDevice(Dataset&, size_t, size_t, const std::vector<std::string>&)
 {

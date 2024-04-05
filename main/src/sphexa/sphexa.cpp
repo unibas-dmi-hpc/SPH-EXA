@@ -59,7 +59,7 @@ using AccType = cstone::CpuTag;
 namespace fs = std::filesystem;
 using namespace sphexa;
 
-bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr);
+bool stopConditionReached(size_t iteration, double time, const std::string& maxStepStr);
 void printHelp(char* binName, int rank);
 int  getNumLocalRanks(int);
 
@@ -142,13 +142,13 @@ int main(int argc, char** argv)
     viz::init_ascent(d, domain.startIndex());
 
     size_t startIteration = d.iteration;
-    for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
+    bool   keepRunning    = true;
+    for (; keepRunning; d.iteration++)
     {
-        propagator->step(domain, simData);
+        propagator->computeForces(domain, simData);
         box = domain.box();
 
         observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
-        propagator->printIterationTimings(domain, simData);
 
         bool isWallClockReached = totalTimer.elapsed() > simDuration;
 
@@ -168,9 +168,12 @@ int main(int argc, char** argv)
         {
             if (profEnabled) { propagator->writeMetrics(fileWriter.get(), "profile"); }
         }
+        keepRunning = not(stopConditionReached(d.iteration, d.ttot, maxStepStr) || isWallClockReached);
 
         viz::execute(d, domain.startIndex(), domain.endIndex());
-        if (isWallClockReached && ++d.iteration) { break; }
+
+        propagator->integrate(domain, simData);
+        propagator->printIterationTimings(domain, simData);
     }
     totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
                     initCond + " up to t = " + std::to_string(d.ttot));
@@ -180,8 +183,8 @@ int main(int argc, char** argv)
     return exitSuccess();
 }
 
-//! @brief decide whether to stop the simulation based on evolved time (not wall-clock) or iteration count
-bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr)
+//! @brief check whether the stop conditions based on evolved time (not wall-clock) or iteration count are reached
+bool stopConditionReached(size_t iteration, double time, const std::string& maxStepStr)
 {
     bool lastIteration = strIsIntegral(maxStepStr) && iteration >= std::stoi(maxStepStr);
     bool simTimeLimit  = !strIsIntegral(maxStepStr) && time > std::stod(maxStepStr);

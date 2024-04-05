@@ -68,8 +68,6 @@ auto restoreData(IFileReader* reader, SimulationData& simData)
     restoreDataset(reader, simData.hydro);
     restoreDataset(reader, simData.chem);
 
-    simData.hydro.iteration++;
-
     return box;
 }
 

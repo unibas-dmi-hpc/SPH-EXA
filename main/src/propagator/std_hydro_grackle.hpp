@@ -151,11 +151,18 @@ public:
         d.treeView = domain.octreeProperties();
     }
 
-    void computeForces(DomainType& domain, DataType& simData)
+    void computeForces(DomainType& domain, DataType& simData) override
     {
+        auto& d = simData.hydro;
+        timer.start();
+
+        sync(domain, simData);
+        // halo exchange for masses, allows for particles with variable masses
+        domain.exchangeHalos(std::tie(get<"m">(d)), get<"ax">(d), get<"ay">(d));
+        timer.step("domain::sync");
+        d.resize(domain.nParticlesWithHalos());
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
-        auto&  d     = simData.hydro;
 
         resizeNeighbors(d, domain.nParticles() * d.ngmax);
         findNeighborsSfc(first, last, d, domain.box());
@@ -191,18 +198,9 @@ public:
         }
     }
 
-    void step(DomainType& domain, DataType& simData) override
+    void integrate(DomainType& domain, DataType& simData) override
     {
-        auto& d = simData.hydro;
-        timer.start();
-
-        sync(domain, simData);
-        // halo exchange for masses, allows for particles with variable masses
-        domain.exchangeHalos(std::tie(get<"m">(d)), get<"ax">(d), get<"ay">(d));
-        timer.step("domain::sync");
-        d.resize(domain.nParticlesWithHalos());
-        computeForces(domain, simData);
-
+        auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
