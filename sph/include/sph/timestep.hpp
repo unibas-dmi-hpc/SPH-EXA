@@ -177,12 +177,20 @@ struct Timestep
 {
     static constexpr int maxNumRungs = 4;
     //! @brief maxDt = minDt * 2^numRungs;
-    float minDt, ffDt;
+    float minDt;
     int   numRungs{1};
     //! @brief 0,...,2^numRungs
     int substep{0};
 
     std::array<cstone::LocalIndex, maxNumRungs + 1> rungRanges;
+
+    template<class Archive>
+    void loadOrStore(Archive* ar, const std::string& prefix)
+    {
+        ar->stepAttribute(prefix + "minDt", &minDt, 1);
+        ar->stepAttribute(prefix + "numRungs", &numRungs, 1);
+        ar->stepAttribute(prefix + "substep", &substep, 1);
+    }
 };
 
 //! @brief Determine timestep rungs
@@ -216,8 +224,7 @@ Timestep computeGroupTimestep(const GroupView& grp, float* groupDt, cstone::Loca
         }
     }
 
-    return {
-        .minDt = minDtGlobal[0], .ffDt = minDtGlobal[1], .numRungs = numRungs, .substep = 0, .rungRanges = rungRanges};
+    return {.minDt = minDtGlobal[0], .numRungs = numRungs, .substep = 0, .rungRanges = rungRanges};
 }
 
 } // namespace sph

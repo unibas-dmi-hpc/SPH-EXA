@@ -146,6 +146,26 @@ public:
         std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
     }
 
+    void save(IFileWriter* writer) override
+    {
+        timestep_.loadOrStore(writer, "ts::");
+        prevTimestep_.loadOrStore(writer, "prevts::");
+    }
+
+    void load(const std::string& initCond, IFileReader* reader) override
+    {
+        int         step = numberAfterSign(initCond, ":");
+        std::string path = removeModifiers(initCond);
+        // The file does not exist, we're starting from scratch. Nothing to do.
+        if (!std::filesystem::exists(path)) { return; }
+
+        reader->setStep(path, step, FileMode::independent);
+        timestep_.loadOrStore(reader, "ts::");
+        prevTimestep_.loadOrStore(reader, "prevts::");
+        reader->closeStep();
+        std::cout << "loaded prevDt " << prevTimestep_.minDt << ", Dt " << timestep_.minDt << std::endl;
+    }
+
     void fullSync(DomainType& domain, DataType& simData)
     {
         auto& d = simData.hydro;
@@ -268,7 +288,7 @@ public:
         if (isNewHierarchy) { groupAccTimestep(activeGroup, rawPtr(groupDt_), d); }
     }
 
-    void computeBlockTimesteps(DataType& simData)
+    void computeRungs(DataType& simData)
     {
         auto& d        = simData.hydro;
         int   highRung = activeRung(timestep_.substep, timestep_.numRungs);
@@ -316,25 +336,19 @@ public:
             std::cout << "# Substep " << timestep_.substep << "/" << (1 << (timestep_.numRungs - 1)) << ", "
                       << numActiveGroups << " active groups" << std::endl;
         }
-
-        d.ttot += timestep_.minDt;
-        d.minDt_m1 = d.minDt;
-        d.minDt    = timestep_.minDt;
     }
 
     void integrate(DomainType& domain, DataType& simData) override
     {
-        auto&  d     = simData.hydro;
-        size_t first = domain.startIndex();
-        size_t last  = domain.endIndex();
-
-        computeBlockTimesteps(simData);
+        computeRungs(simData);
         timer.step("Timestep");
 
-        auto driftBack       = [](int subStep, int rung) { return subStep % (1 << rung); };
-        int  lowestDriftRung = cstone::butterfly(timestep_.substep + 1);
-        bool isLastSubstep   = activeRung(timestep_.substep + 1, timestep_.numRungs) == 0;
-        auto substepBox      = isLastSubstep ? domain.box() : cstone::Box<T>(0, 1, cstone::BoundaryType::open);
+        auto  driftBack       = [](int subStep, int rung) { return subStep % (1 << rung); };
+        auto& d               = simData.hydro;
+        int   lowestDriftRung = cstone::butterfly(timestep_.substep + 1);
+        bool  isLastSubstep   = activeRung(timestep_.substep + 1, timestep_.numRungs) == 0;
+        auto  substepBox      = isLastSubstep ? domain.box() : cstone::Box<T>(0, 1, cstone::BoundaryType::open);
+
         for (int i = 0; i < timestep_.numRungs; ++i)
         {
             int  bk      = driftBack(timestep_.substep, i);
@@ -365,6 +379,9 @@ public:
         }
 
         timestep_.substep++;
+        d.ttot += timestep_.minDt;
+        d.minDt_m1 = d.minDt;
+        d.minDt    = timestep_.minDt;
         timer.step("UpdateQuantities");
     }
 

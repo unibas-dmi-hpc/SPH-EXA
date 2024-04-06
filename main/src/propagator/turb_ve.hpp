@@ -75,24 +75,16 @@ public:
         timer.step("Turbulence Stirring");
     }
 
-    void integrate(DomainType& domain, DataType& simData) override
+    void save(IFileWriter* writer) override
     {
-        auto&  d     = simData.hydro;
-        size_t first = domain.startIndex();
-        size_t last  = domain.endIndex();
-
-        Base::computeBlockTimesteps(simData);
-        timer.step("Timestep");
-
-        computePositions(groups_.view(), d, domain.box(), d.minDt, d.minDt_m1);
-        updateSmoothingLength(groups_.view(), d);
-        timer.step("UpdateQuantities");
+        Base::save(writer);
+        turbulenceData.loadOrStore(writer);
     }
-
-    void save(IFileWriter* writer) override { turbulenceData.loadOrStore(writer); }
 
     void load(const std::string& initCond, IFileReader* reader) override
     {
+        Base::load(initCond, reader);
+
         int         step = numberAfterSign(initCond, ":");
         std::string path = removeModifiers(initCond);
         // The file does not exist, we're starting from scratch. Nothing to do.
