@@ -163,7 +163,9 @@ public:
         timestep_.loadOrStore(reader, "ts::");
         prevTimestep_.loadOrStore(reader, "prevts::");
         reader->closeStep();
-        std::cout << "loaded prevDt " << prevTimestep_.minDt << ", Dt " << timestep_.minDt << std::endl;
+
+        // force creation of a new timestep hierarchy
+        timestep_.substep = 0;
     }
 
     void fullSync(DomainType& domain, DataType& simData)
@@ -441,20 +443,6 @@ public:
             std::cout << d.fieldNames[indicesDone.back()] << std::endl;
         }
         timer.step("FileOutput");
-    }
-
-    void saveExtra(IFileWriter* writer, DataType& /*simData*/) override
-    {
-        if constexpr (cstone::HaveGpu<Acc>{})
-        {
-            auto               numGroups = groupDt_.size();
-            std::vector<float> h_groupDt(numGroups);
-            memcpyD2H(rawPtr(groupDt_), numGroups, h_groupDt.data());
-
-            writer->addStep(0, numGroups, "group_dt.h5");
-            writer->writeField("dt", h_groupDt.data(), 0);
-            writer->closeStep();
-        }
     }
 };
 

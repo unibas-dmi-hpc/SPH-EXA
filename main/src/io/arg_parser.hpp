@@ -94,7 +94,7 @@ bool isExtraOutputStep(size_t step, double t1, double t2, const std::vector<std:
  * @param t1            simulation time at beginning of current step
  * @param t2            simulation time at end of current step
  * @param frequencyStr  frequency time to output the simulation as string
- * @return              true if the interval [t1, t2] contains an integer multiple of the output frequency
+ * @return              true if the interval [t1, t2] contains a positive integer multiple of the output frequency
  */
 bool isOutputTime(double t1, double t2, const std::string& frequencyStr)
 {
@@ -102,7 +102,7 @@ bool isOutputTime(double t1, double t2, const std::string& frequencyStr)
     if (strIsIntegral(frequencyStr) || frequency == 0.0) { return false; }
 
     double closestMultiple = int(t2 / frequency) * frequency;
-    return t1 <= closestMultiple && closestMultiple < t2;
+    return t2 > frequency && t1 <= closestMultiple && closestMultiple < t2;
 }
 
 /*! @brief Evaluate whether the current step should be output (to file) according to iteration frequency
