@@ -396,6 +396,13 @@ public:
     //! @brief return the coordinate bounding box from the previous sync call
     const Box<T>& box() const { return global_.box(); }
 
+    //! @brief update expansion (c.o.m) centers of the focus tree
+    template<class VectorX, class VectorM, class VectorS1, class VectorS2>
+    void updateExpansionCenters(VectorX& x, VectorX& y, VectorX& z, VectorM& m, VectorS1& s1, VectorS2& s2)
+    {
+        focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.octree(), box(), s1, s2);
+    };
+
     OctreeProperties<T, KeyType> octreeProperties() const
     {
         return {focusTree_.octreeViewAcc(), focusTree_.geoCentersAcc().data(), focusTree_.geoSizesAcc().data(),

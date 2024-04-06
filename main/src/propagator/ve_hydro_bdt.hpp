@@ -196,7 +196,8 @@ public:
         domain.exchangeHalos(get<"x", "y", "z", "h">(d), get<"keys">(d), haloRecvScratch);
         if (d.g != 0.0)
         {
-            // TODO: update expansion centers
+            domain.updateExpansionCenters(get<"x">(d), get<"y">(d), get<"z">(d), get<"m">(d), get<"keys">(d),
+                                          haloRecvScratch);
         }
 
         if constexpr (cstone::HaveGpu<Acc>{})
