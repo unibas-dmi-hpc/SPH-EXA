@@ -2,12 +2,6 @@
   action: add_pipelines
   pipelines:
     pl1:
-      # f1:
-      #   type: threshold
-      #   params: 
-      #     field: x
-      #     min_value: -0.5
-      #     max_value: 0.5
       f1:
         type: clip
         params:
@@ -47,3 +41,10 @@
             zoom: 1.5
           dataset_bounds: [-0.5, 0.5, -0.5, 0.5, -0.5, 0.5]
           image_prefix: evrard_step%05d
+- 
+  action: "add_extracts"
+  extracts: 
+    e1: 
+      type: "python"
+      params: 
+        file: "testcases/evrard_vis.py"
