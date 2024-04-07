@@ -35,7 +35,7 @@
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/primitives/warpscan.cuh"
 #include "cstone/sfc/sfc.hpp"
-#include "cstone/tree/definitions.h"
+#include "cstone/traversal/groups.hpp"
 
 namespace cstone
 {

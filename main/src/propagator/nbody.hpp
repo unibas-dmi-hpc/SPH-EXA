@@ -34,6 +34,7 @@
 #include <variant>
 
 #include "cstone/fields/field_get.hpp"
+#include "sph/groups.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/positions.hpp"
 #include "sph/timestep.hpp"

@@ -1,12 +1,15 @@
 #pragma once
 
 #include "cstone/sfc/box.hpp"
+#include "cstone/traversal/groups.hpp"
 #include "cstone/tree/octree.hpp"
-#include "sph/groups.hpp"
 #include "cstone/tree/definitions.h"
 
 namespace sph
 {
+
+using cstone::GroupData;
+using cstone::GroupView;
 
 template<class Dataset>
 extern void computeSpatialGroups(size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&,
