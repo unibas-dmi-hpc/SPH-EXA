@@ -1,3 +1,10 @@
+-
+  action: "add_queries"
+  queries:
+    q1:
+      params:
+        expression: "max(field('Pressure')).value"
+        name: "MaxPressure"
 - 
   action: add_pipelines
   pipelines:
@@ -15,13 +22,18 @@
               x: 1
               y: 1
               z: 1
+      f2:
+        type: "expression"
+        params:
+          expression: "MaxPressure - field('Pressure')"
+          name: "PressureNormalized"
 - 
   action: add_scenes
   scenes: 
     s1: 
       plots: 
         p1: 
-          field: Pressure
+          field: PressureNormalized
           type: pseudocolor
           pipeline: pl1
           color_table:
@@ -30,7 +42,7 @@
             radius: .03
             radius_delta: 0.01
           min_value: 0
-          max_value: 0.6
+          max_value: 1.0
       renders:
         r1:
           world_annotations: "false"
@@ -41,10 +53,10 @@
             zoom: 1.5
           dataset_bounds: [-0.5, 0.5, -0.5, 0.5, -0.5, 0.5]
           image_prefix: evrard_step%05d
-- 
-  action: "add_extracts"
-  extracts: 
-    e1: 
-      type: "python"
-      params: 
-        file: "testcases/evrard_vis.py"
+# - 
+#   action: "add_extracts"
+#   extracts: 
+#     e1: 
+#       type: "python"
+#       params: 
+#         file: "testcases/evrard_vis.py"

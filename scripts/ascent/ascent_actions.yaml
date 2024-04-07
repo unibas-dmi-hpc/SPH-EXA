@@ -9,4 +9,4 @@
     t1:
       params:
         condition: "cycle() % 1 == 0"
-        actions_file: "testcases/sedov.yaml"
+        actions_file: "testcases/evrard.yaml"
