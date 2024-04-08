@@ -126,14 +126,19 @@ public:
         float tolFactor = 2.0f;
         cstone::computeGroupSplits<TravConfig::targetSize>(first, last, x, y, z, h, d_leaves.data(),
                                                            d_leaves.size() - 1, layout, box, tolFactor, S,
-                                                           traversalStack_, targets_);
+                                                           traversalStack_, groups_.data);
+        groups_.firstBody  = first;
+        groups_.lastBody   = last;
+        groups_.numGroups  = groups_.data.size() - 1;
+        groups_.groupStart = rawPtr(groups_.data);
+        groups_.groupEnd   = rawPtr(groups_.data) + 1;
     }
 
     float compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const Th* h, Tc G, int numShells,
                   const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az)
     {
         int numWarpsPerBlock = TravConfig::numThreads / cstone::GpuConfig::warpSize;
-        int numTargets       = targets_.size() - 1;
+        int numTargets       = groups_.numGroups;
         int numBlocks        = cstone::iceil(numTargets, numWarpsPerBlock);
         numBlocks            = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
         LocalIndex poolSize  = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
@@ -142,7 +147,7 @@ public:
 
         reallocateGeneric(traversalStack_, poolSize, 1.01);
         traverse<<<numBlocks, TravConfig::numThreads>>>(
-            rawPtr(targets_), numTargets, 1, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_,
+            groups_.view(), 1, x, y, z, m, h, octree_.childOffsets, octree_.internalToLeaf, layout_,
             centers_, rawPtr(multipoles_), G, numShells, Vec3<Tc>{box.lx(), box.ly(), box.lz()}, (Ta*)nullptr, ax, ay,
             az, (int*)rawPtr(traversalStack_));
         float totalPotential;
@@ -182,11 +187,15 @@ private:
 
     cstone::OctreeView<const KeyType> octree_;
 
+    //! @brief properties of focused octree nodes
     const LocalIndex*            layout_;
     const Vec4<Tf>*              centers_;
     thrust::device_vector<MType> multipoles_;
 
-    thrust::device_vector<LocalIndex> targets_;
+    //! @brief target particle group data
+    cstone::GroupData<cstone::GpuTag> groups_;
+
+    //! @brief temporary memory during traversal
     thrust::device_vector<LocalIndex> traversalStack_;
 };
 
