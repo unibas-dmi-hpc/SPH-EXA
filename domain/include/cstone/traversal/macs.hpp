@@ -44,7 +44,7 @@ namespace cstone
 //! @brief compute 1/theta + s for the minimum distance MAC
 HOST_DEVICE_FUN inline float invThetaMinMac(float theta) { return 1.0f / theta + 0.5f; }
 
-//! @brief compute 1/theta + s for the worst-case vector MAC
+//! @brief compute 1/theta + sqrt(3) for the worst-case vector MAC
 HOST_DEVICE_FUN inline float invThetaVecMac(float theta) { return 1.0f / theta + std::sqrt(3.0f); }
 
 /*! @brief Compute square of the acceptance radius for the minimum distance MAC
