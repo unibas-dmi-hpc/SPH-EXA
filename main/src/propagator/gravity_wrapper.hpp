@@ -151,10 +151,10 @@ public:
             MType rootM;
             memcpyD2H(mHolder_.deviceMultipoles(), 1, &rootM);
 
-            computeGravityEwaldGpu(makeVec3(rootCenter), rootM, domain.startIndex(), domain.endIndex(),
-                                   rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.m),
-                                   box, d.g, (Ta*)nullptr, rawPtr(d.devData.ax), rawPtr(d.devData.ay),
-                                   rawPtr(d.devData.az), &d.egrav, ewaldSettings_);
+            computeGravityEwaldGpu(makeVec3(rootCenter), rootM, grp, rawPtr(d.devData.x), rawPtr(d.devData.y),
+                                   rawPtr(d.devData.z), rawPtr(d.devData.m), box, d.g, (Ta*)nullptr,
+                                   rawPtr(d.devData.ax), rawPtr(d.devData.ay), rawPtr(d.devData.az), &d.egrav,
+                                   ewaldSettings_);
         }
 
         d.devData.stackUsedGravity = stats[4];
