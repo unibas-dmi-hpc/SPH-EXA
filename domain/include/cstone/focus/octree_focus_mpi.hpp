@@ -424,6 +424,16 @@ public:
         updateMacs(box, assignment, invThetaEff);
     }
 
+    //! @brief Compute MAC acceptance radius of each cell based on @p invTheta and previously computed expansion centers
+    void setMacRadius(const Box<RealType>& box, float invTheta)
+    {
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            setMacGpu(rawPtr(octreeAcc_.prefixes), octreeAcc_.numNodes, rawPtr(centersAcc_), invTheta, box);
+        }
+        else { setMac<RealType, KeyType>(treeData_.prefixes, centers_, invTheta, box); }
+    }
+
     /*! @brief Update the MAC criteria based on the vector MAC
      *
      * @param[in] box              global coordinate bounding box
@@ -431,10 +441,10 @@ public:
      */
     void updateMacs(const Box<RealType>& box, const SfcAssignment<KeyType>& assignment, float invTheta)
     {
+        setMacRadius(box, invTheta);
         macs_.resize(treeData_.numNodes);
         if constexpr (HaveGpu<Accelerator>{})
         {
-            setMacGpu(rawPtr(octreeAcc_.prefixes), octreeAcc_.numNodes, rawPtr(centersAcc_), invTheta, box);
             // need to find again assignment start and end indices in focus tree because assignment might have changed
             TreeNodeIndex fAssignStart = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), assignment[myRank_]);
             TreeNodeIndex fAssignEnd   = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), assignment[myRank_ + 1]);
@@ -448,7 +458,6 @@ public:
         }
         else
         {
-            setMac<RealType, KeyType>(treeData_.prefixes, centers_, invTheta, box);
             markMacs(treeData_.data(), centers_.data(), box, assignment[myRank_], assignment[myRank_ + 1],
                      macs_.data());
         }

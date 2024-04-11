@@ -400,7 +400,10 @@ public:
     template<class VectorX, class VectorM, class VectorS1, class VectorS2>
     void updateExpansionCenters(VectorX& x, VectorX& y, VectorX& z, VectorM& m, VectorS1& s1, VectorS2& s2)
     {
-        focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.octree(), box(), s1, s2);
+        auto si = startIndex();
+        focusTree_.updateCenters(rawPtr(x) + si, rawPtr(y) + si, rawPtr(z) + si, rawPtr(m) + si, global_.octree(),
+                                 box(), s1, s2);
+        focusTree_.setMacRadius(box(), 1.0 / theta_);
     };
 
     OctreeProperties<T, KeyType> octreeProperties() const
