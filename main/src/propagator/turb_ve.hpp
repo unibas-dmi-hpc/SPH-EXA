@@ -55,11 +55,8 @@ class TurbVeProp final : public HydroVeBdtProp<avClean, DomainType, DataType>
     using Base = HydroVeBdtProp<avClean, DomainType, DataType>;
     using Base::rank_;
     using Base::timer;
-    using Base::groups_;
 
-    using RealType = typename DataType::RealType;
-
-    sph::TurbulenceData<RealType, typename DataType::AcceleratorType> turbulenceData;
+    sph::TurbulenceData<typename DataType::RealType, typename DataType::AcceleratorType> turbulenceData;
 
 public:
     TurbVeProp(std::ostream& output, size_t rank, const InitSettings& settings)
@@ -71,7 +68,7 @@ public:
     void computeForces(DomainType& domain, DataType& simData) override
     {
         Base::computeForces(domain, simData);
-        driveTurbulence(domain.startIndex(), domain.endIndex(), simData.hydro, turbulenceData);
+        driveTurbulence(Base::forceGroupView_, simData.hydro, turbulenceData);
         timer.step("Turbulence Stirring");
     }
 
