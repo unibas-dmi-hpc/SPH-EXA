@@ -86,13 +86,10 @@ __global__ void AVswitchesGpu(Tc K, unsigned ngmax, const cstone::Box<Tc> box, c
 template<class Dataset>
 void computeAVswitches(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numBodies = grp.lastBody - grp.firstBody;
-    unsigned numBlocks = TravConfig::numBlocks(numBodies);
-
-    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, d.ngmax);
     cstone::resetTraversalCounters<<<1, 1>>>();
 
-    AVswitchesGpu<<<numBlocks, TravConfig::numThreads>>>(
+    AVswitchesGpu<<<TravConfig::numBlocks(), TravConfig::numThreads>>>(
         d.K, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView.nsView(), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
         rawPtr(d.devData.h), rawPtr(d.devData.c), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13),

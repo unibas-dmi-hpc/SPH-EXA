@@ -111,13 +111,10 @@ __global__ void IADGpuKernel(Tc K, unsigned ngmax, cstone::Box<Tc> box, const Lo
 template<class Dataset>
 void computeIADGpu(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numBodies = grp.lastBody - grp.firstBody;
-    unsigned numBlocks = TravConfig::numBlocks(numBodies);
-
-    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, d.ngmax);
     cstone::resetTraversalCounters<<<1, 1>>>();
 
-    IADGpuKernel<<<numBlocks, TravConfig::numThreads>>>(
+    IADGpuKernel<<<TravConfig::numBlocks(), TravConfig::numThreads>>>(
         d.K, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView.nsView(), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho),
         rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.c11), rawPtr(d.devData.c12),

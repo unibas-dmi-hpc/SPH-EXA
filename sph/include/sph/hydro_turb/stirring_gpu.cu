@@ -42,10 +42,10 @@ __global__ void computeStirringKernel(GroupView grp, size_t numDim, const Tc* x,
                                       Ta* ay, Ta* az, size_t numModes, const T* modes, const T* phaseReal,
                                       const T* phaseImag, const T* amplitudes, T solWeightNorm)
 {
-    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
+    auto tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= grp.numGroups) { return; }
 
-    for (cstone::LocalIndex i = grp.groupStart[tid]; i < grp.groupEnd[tid]; ++i)
+    for (auto i = grp.groupStart[tid]; i < grp.groupEnd[tid]; ++i)
     {
         auto [turbAx, turbAy, turbAz] =
             stirParticle<Tc, Ta, T>(numDim, x[i], y[i], z[i], numModes, modes, phaseReal, phaseImag, amplitudes);
@@ -65,6 +65,7 @@ void computeStirringGpu(GroupView grp, size_t numDim, const Tc* x, const Tc* y, 
     unsigned numThreads = 256;
     unsigned numBlocks  = cstone::iceil(grp.numGroups, numThreads);
 
+    if (numBlocks == 0) { return; }
     computeStirringKernel<<<numBlocks, numThreads>>>(grp, numDim, x, y, z, ax, ay, az, numModes, modes, st_aka, st_akb,
                                                      amplitudes, solWeightNorm);
 }

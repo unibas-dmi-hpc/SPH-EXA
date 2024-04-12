@@ -103,13 +103,10 @@ __global__ void xmassGpu(Tc K, unsigned ng0, unsigned ngmax, const cstone::Box<T
 template<class Dataset>
 void computeXMass(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numBodies = grp.lastBody - grp.firstBody;
-    unsigned numBlocks = TravConfig::numBlocks(numBodies);
-
-    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, d.ngmax);
     cstone::resetTraversalCounters<<<1, 1>>>();
 
-    xmassGpu<<<numBlocks, TravConfig::numThreads>>>(
+    xmassGpu<<<TravConfig::numBlocks(), TravConfig::numThreads>>>(
         d.K, d.ng0, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView.nsView(),
         rawPtr(d.devData.nc), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h),
         rawPtr(d.devData.m), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), nidxPool,
@@ -159,7 +156,8 @@ void computeDensity(const GroupView& grp, Dataset& d, const cstone::Box<typename
     swap(d.devData.xm, d.devData.rho);
 
     unsigned numThreads = 256;
-    unsigned numBlocks = (grp.numGroups + numThreads - 1) / numThreads;
+    unsigned numBlocks  = (grp.numGroups + numThreads - 1) / numThreads;
+    if (numBlocks == 0) { return; }
 
     // rho[i] = m[i] / rho[i];
     convertXmassToRho<<<numBlocks, numThreads>>>(grp.groupStart, grp.groupEnd, grp.numGroups, rawPtr(d.devData.m),

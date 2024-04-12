@@ -85,13 +85,10 @@ __global__ void veDefGradhGpu(Tc K, unsigned ngmax, const cstone::Box<Tc> box, c
 template<class Dataset>
 void computeVeDefGradh(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numBodies = grp.lastBody - grp.firstBody;
-    unsigned numBlocks = TravConfig::numBlocks(numBodies);
-
-    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, d.ngmax);
     cstone::resetTraversalCounters<<<1, 1>>>();
 
-    veDefGradhGpu<<<numBlocks, TravConfig::numThreads>>>(
+    veDefGradhGpu<<<TravConfig::numBlocks(), TravConfig::numThreads>>>(
         d.K, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView.nsView(), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.wh),
         rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx), rawPtr(d.devData.gradh), nidxPool,

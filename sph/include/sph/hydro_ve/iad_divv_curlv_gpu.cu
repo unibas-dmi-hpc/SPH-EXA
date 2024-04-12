@@ -90,16 +90,13 @@ iadDivvCurlvGpu(Tc K, unsigned ngmax, const cstone::Box<Tc> box, const LocalInde
 template<class Dataset>
 void computeIadDivvCurlv(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numBodies = grp.lastBody - grp.firstBody;
-    unsigned numBlocks = TravConfig::numBlocks(numBodies);
-
-    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, d.ngmax);
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     bool  doGradV = d.devData.x.size() == d.devData.dV11.size();
     auto* d_curlv = (d.devData.x.size() == d.devData.curlv.size()) ? rawPtr(d.devData.curlv) : nullptr;
 
-    iadDivvCurlvGpu<<<numBlocks, TravConfig::numThreads>>>(
+    iadDivvCurlvGpu<<<TravConfig::numBlocks(), TravConfig::numThreads>>>(
         d.K, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView.nsView(), rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
         rawPtr(d.devData.h), rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.xm), rawPtr(d.devData.kx),

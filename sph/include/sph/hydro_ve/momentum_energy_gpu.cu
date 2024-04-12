@@ -121,16 +121,13 @@ template<bool avClean, class Dataset>
 void computeMomentumEnergy(const GroupView& grp, float* groupDt, Dataset& d,
                            const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numBodies = grp.lastBody - grp.firstBody;
-    unsigned numBlocks = TravConfig::numBlocks(numBodies);
-
-    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, d.ngmax);
 
     float huge = 1e10;
     checkGpuErrors(cudaMemcpyToSymbol(minDt_ve_device, &huge, sizeof(huge)));
     cstone::resetTraversalCounters<<<1, 1>>>();
 
-    momentumEnergyGpu<avClean><<<numBlocks, TravConfig::numThreads>>>(
+    momentumEnergyGpu<avClean><<<TravConfig::numBlocks(), TravConfig::numThreads>>>(
         d.K, d.Kcour, d.Atmin, d.Atmax, d.ramp, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups,
         d.treeView.nsView(), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx),
         rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.prho),

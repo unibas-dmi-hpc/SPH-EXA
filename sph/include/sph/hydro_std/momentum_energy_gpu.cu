@@ -105,17 +105,14 @@ __global__ void cudaGradP(Tc K, Tc Kcour, unsigned ngmax, cstone::Box<Tc> box, c
 template<class Dataset>
 void computeMomentumEnergyStdGpu(const GroupView& grp, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
 {
-    unsigned numBodies = grp.lastBody - grp.firstBody;
-    unsigned numBlocks = TravConfig::numBlocks(numBodies);
-
-    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, numBodies, d.ngmax);
+    auto [traversalPool, nidxPool] = cstone::allocateNcStacks(d.devData.traversalStack, d.ngmax);
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     float huge = 1e10;
     checkGpuErrors(cudaMemcpyToSymbol(minDt_device, &huge, sizeof(huge)));
     cstone::resetTraversalCounters<<<1, 1>>>();
 
-    cudaGradP<<<numBlocks, TravConfig::numThreads>>>(
+    cudaGradP<<<TravConfig::numBlocks(), TravConfig::numThreads>>>(
         d.K, d.Kcour, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView.nsView(),
         rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
         rawPtr(d.devData.vz), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho), rawPtr(d.devData.p),
