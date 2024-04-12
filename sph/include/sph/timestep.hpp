@@ -169,6 +169,7 @@ inline void extractGroupGpu(const GroupView& grp, const cstone::LocalIndex* indi
     out.groupStart = rawPtr(out.data);
     out.groupEnd   = rawPtr(out.data) + numOutGroups;
 
+    if (numOutGroups == 0) { return; }
     cstone::gatherGpu(indices + first, numOutGroups, grp.groupStart, out.groupStart);
     cstone::gatherGpu(indices + first, numOutGroups, grp.groupEnd, out.groupEnd);
 }

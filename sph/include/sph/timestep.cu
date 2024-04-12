@@ -102,6 +102,7 @@ void storeRungGpu(const GroupView& grp, uint8_t rung, uint8_t* particleRungs)
 {
     int numThreads = 256;
     int numBlocks  = cstone::iceil(grp.numGroups, numThreads);
+    if (numBlocks == 0) { return; }
     storeRungKernel<<<numBlocks, numThreads>>>(grp, rung, particleRungs);
 }
 

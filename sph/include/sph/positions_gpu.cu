@@ -91,6 +91,7 @@ void driftPositionsGpu(const GroupView& grp, float dt, float dt_back, float dt_m
     unsigned           numThreads = 256;
     cstone::LocalIndex numBlocks  = (grp.numGroups + numThreads - 1) / numThreads;
 
+    if (numBlocks == 0) { return; }
     driftKernel<<<numBlocks, numThreads>>>(grp, dt, dt_back, dt_m1, x, y, z, vx, vy, vz, x_m1, y_m1, z_m1, ax, ay, az,
                                            rung, temp, u, du, du_m1, mui, gamma, constCv);
 }
@@ -166,6 +167,7 @@ void computePositionsGpu(const GroupView& grp, float dt, float dt_m1, Tc* x, Tc*
     unsigned numThreads = 256;
     unsigned numBlocks  = (grp.numGroups + numThreads - 1) / numThreads;
 
+    if (numBlocks == 0) { return; }
     computePositionsKernel<<<numBlocks, numThreads>>>(grp, dt, dt_m1, x, y, z, vx, vy, vz, x_m1, y_m1, z_m1, ax, ay, az,
                                                       rung, temp, u, du, du_m1, h, mui, gamma, constCv, box);
 }
