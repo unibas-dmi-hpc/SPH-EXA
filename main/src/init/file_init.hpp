@@ -234,6 +234,17 @@ public:
                 std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
             }
         }
+        if (d.isAllocated("rung"))
+        {
+            try
+            {
+                replicateField(reader, "rung", d.rung, T(1));
+            }
+            catch (std::runtime_error&)
+            {
+                std::fill(d.rung.begin(), d.rung.end(), 0);
+            }
+        }
 
         reader->closeStep();
 
