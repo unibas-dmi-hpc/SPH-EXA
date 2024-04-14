@@ -71,6 +71,11 @@ propagatorFactory(const std::string& choice, bool avClean, std::ostream& output,
     if (choice == "nbody") { return std::make_unique<NbodyProp<DomainType, ParticleDataType>>(output, rank); }
     if (choice == "turbulence")
     {
+        if (avClean) { return std::make_unique<TurbVeBdtProp<true, DomainType, ParticleDataType>>(output, rank, s); }
+        else { return std::make_unique<TurbVeBdtProp<false, DomainType, ParticleDataType>>(output, rank, s); }
+    }
+    if (choice == "turbulence-ve")
+    {
         if (avClean) { return std::make_unique<TurbVeProp<true, DomainType, ParticleDataType>>(output, rank, s); }
         else { return std::make_unique<TurbVeProp<false, DomainType, ParticleDataType>>(output, rank, s); }
     }

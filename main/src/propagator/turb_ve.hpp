@@ -50,7 +50,7 @@ using namespace sph;
 
 //! @brief VE hydro propagator that adds turbulence stirring to the acceleration prior to position update
 template<bool avClean, class DomainType, class DataType>
-class TurbVeProp final : public HydroVeBdtProp<avClean, DomainType, DataType>
+class TurbVeBdtProp final : public HydroVeBdtProp<avClean, DomainType, DataType>
 {
     using Base = HydroVeBdtProp<avClean, DomainType, DataType>;
     using Base::rank_;
@@ -59,7 +59,7 @@ class TurbVeProp final : public HydroVeBdtProp<avClean, DomainType, DataType>
     sph::TurbulenceData<typename DataType::RealType, typename DataType::AcceleratorType> turbulenceData;
 
 public:
-    TurbVeProp(std::ostream& output, size_t rank, const InitSettings& settings)
+    TurbVeBdtProp(std::ostream& output, size_t rank, const InitSettings& settings)
         : Base(output, rank, settings)
         , turbulenceData(settings, rank == 0)
     {
@@ -82,6 +82,46 @@ public:
     {
         Base::load(initCond, reader);
 
+        int         step = numberAfterSign(initCond, ":");
+        std::string path = removeModifiers(initCond);
+        // The file does not exist, we're starting from scratch. Nothing to do.
+        if (!std::filesystem::exists(path)) { return; }
+
+        reader->setStep(path, step, FileMode::independent);
+        turbulenceData.loadOrStore(reader);
+
+        if (rank_ == 0) { std::cout << "Restored turbulence state from " << path << ":" << step << std::endl; }
+        reader->closeStep();
+    }
+};
+
+template<bool avClean, class DomainType, class DataType>
+class TurbVeProp final : public HydroVeProp<avClean, DomainType, DataType>
+{
+    using Base = HydroVeProp<avClean, DomainType, DataType>;
+    using Base::rank_;
+    using Base::timer;
+
+    sph::TurbulenceData<typename DataType::RealType, typename DataType::AcceleratorType> turbulenceData;
+
+public:
+    TurbVeProp(std::ostream& output, size_t rank, const InitSettings& settings)
+        : Base(output, rank)
+        , turbulenceData(settings, rank == 0)
+    {
+    }
+
+    void computeForces(DomainType& domain, DataType& simData) override
+    {
+        Base::computeForces(domain, simData);
+        driveTurbulence(Base::groups_.view(), simData.hydro, turbulenceData);
+        timer.step("Turbulence Stirring");
+    }
+
+    void save(IFileWriter* writer) override { turbulenceData.loadOrStore(writer); }
+
+    void load(const std::string& initCond, IFileReader* reader) override
+    {
         int         step = numberAfterSign(initCond, ":");
         std::string path = removeModifiers(initCond);
         // The file does not exist, we're starting from scratch. Nothing to do.
