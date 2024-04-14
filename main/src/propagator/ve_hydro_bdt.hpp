@@ -309,7 +309,7 @@ public:
         if (highRung == 0)
         {
             prevTimestep_  = timestep_;
-            float maxIncDt = timestep_.minDt * std::pow(d.maxDtIncrease, (1 << (timestep_.numRungs - 1)));
+            float maxIncDt = timestep_.minDt * d.maxDtIncrease;
             timestep_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
             timestep_.minDt = std::min({timestep_.minDt, maxIncDt});
 
