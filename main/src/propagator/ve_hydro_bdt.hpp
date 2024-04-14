@@ -164,6 +164,13 @@ public:
         prevTimestep_.loadOrStore(reader, "prevts::");
         reader->closeStep();
 
+        int numSplits = numberAfterSign(initCond, ",");
+        if (numSplits > 0)
+        {
+            timestep_.minDt /= 100 * numSplits;
+            prevTimestep_.minDt /= 100 * numSplits;
+        }
+
         // force creation of a new timestep hierarchy
         timestep_.substep = 0;
     }
