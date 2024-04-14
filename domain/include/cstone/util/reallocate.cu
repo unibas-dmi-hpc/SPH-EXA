@@ -30,6 +30,7 @@
 #include <thrust/copy.h>
 #include <thrust/device_vector.h>
 
+#include "cstone/cuda/errorcheck.cuh"
 #include "cstone/util/array.hpp"
 
 //! @brief resizes a vector with a determined growth rate upon reallocation
@@ -46,6 +47,7 @@ void reallocateDevice(Vector& vector, size_t size, double growthRate)
         newBuffer.reserve(reserve_size);
         newBuffer.resize(size);
         thrust::copy(vector.begin(), vector.end(), newBuffer.begin());
+        checkGpuErrors(cudaDeviceSynchronize()); // temporary fix for ROCm < 6.0
         vector.swap(newBuffer);
     }
     vector.resize(size);
