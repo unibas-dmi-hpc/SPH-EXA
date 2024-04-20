@@ -41,6 +41,7 @@ int main(int argc, char** argv)
     auto [rank, numRanks] = initMpi();
     const ArgParser parser(argc, (const char**)argv);
 
+    // The default pdf range was taken in comparison to Federrath et al. 2021, DOI 10.1038/s41550-020-01282-z
     const std::string inputFile  = parser.get("--file");
     const size_t      nBins      = parser.get("-n", 50);
     std::string       outputFile = parser.get("-o", std::string("density_pdf.txt"));
@@ -89,11 +90,11 @@ int main(int argc, char** argv)
 
     if (rank == 0)
     {
+        T binSize = (maxValue - minValue) / nBins;
         std::for_each(reduced_bins.begin(), reduced_bins.end(),
-                      [globalNumParticles](T& i) { i /= globalNumParticles; });
+                      [globalNumParticles, binSize](T& i) { i /= globalNumParticles * binSize; });
         std::ofstream outFile(std::filesystem::path(outputFile), std::ofstream::out);
 
-        T binSize     = (maxValue - minValue) / nBins;
         T firstMiddle = minValue + 0.5 * binSize;
 
         // header line containing metadata

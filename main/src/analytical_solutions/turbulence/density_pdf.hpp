@@ -41,7 +41,8 @@ std::vector<T> computeProbabilityDistribution(std::vector<T>& data, const T refe
     T binSize = (binEnd - binStart) / binCount;
     for (size_t bin = 0; bin < binCount; bin++)
     {
-        bins[bin] = std::count_if(data.begin(), data.end(), [bin, binStart, binSize](T i)
+        bins[bin] = std::count_if(data.begin(), data.end(),
+                                  [bin, binStart, binSize](T i)
                                   { return i > binSize * bin + binStart && i <= binSize * (bin + 1) + binStart; });
     }
     return bins;
