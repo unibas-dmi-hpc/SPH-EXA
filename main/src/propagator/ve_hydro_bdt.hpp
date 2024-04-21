@@ -76,9 +76,9 @@ protected:
     //! brief timestep information rungs
     Timestep timestep_, prevTimestep_;
     //! @brief groups for each rung
-    std::array<GroupData<Acc>, Timestep::maxNumRungs> rungs_;
-    GroupData<Acc>                                    forceGroup_;
-    GroupView                                         forceGroupView_;
+    std::array<GroupView, Timestep::maxNumRungs> rungs_;
+    GroupData<Acc>                               forceGroup_;
+    GroupView                                    forceGroupView_;
 
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
@@ -207,13 +207,9 @@ public:
                                           haloRecvScratch);
         }
 
-        if constexpr (cstone::HaveGpu<Acc>{})
-        {
-            int highestRung = cstone::butterfly(timestep_.substep);
-            extractGroupGpu(groups_.view(), rawPtr(groupIndices_), timestep_.rungRanges[0],
-                            timestep_.rungRanges[highestRung], forceGroup_);
-            forceGroupView_ = forceGroup_.view();
-        }
+        int highestRung = cstone::butterfly(timestep_.substep);
+        forceGroupView_ =
+            makeSlicedView(forceGroup_.view(), timestep_.rungRanges[0], timestep_.rungRanges[highestRung]);
     }
 
     void sync(DomainType& domain, DataType& simData) override
@@ -313,13 +309,13 @@ public:
             timestep_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
             timestep_.minDt = std::min({timestep_.minDt, maxIncDt});
 
+            if constexpr (cstone::HaveGpu<Acc>{})
+            {
+                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), 0, timestep_.rungRanges.back(), forceGroup_);
+            }
             for (int r = 0; r < timestep_.numRungs; ++r)
             {
-                if constexpr (cstone::HaveGpu<Acc>{})
-                {
-                    extractGroupGpu(groups_.view(), rawPtr(groupIndices_), timestep_.rungRanges[r],
-                                    timestep_.rungRanges[r + 1], rungs_[r]);
-                }
+                rungs_[r] = makeSlicedView(forceGroup_.view(), timestep_.rungRanges[r], timestep_.rungRanges[r + 1]);
             }
         }
 
@@ -375,10 +371,10 @@ public:
 
             if (advance)
             {
-                if (bk) { driftPositions(rungs_[i].view(), d, 0, dt_back, dt_m1, rung); }
-                computePositions(rungs_[i].view(), d, substepBox, dt * (1 << i), dt_m1, rung);
+                if (bk) { driftPositions(rungs_[i], d, 0, dt_back, dt_m1, rung); }
+                computePositions(rungs_[i], d, substepBox, dt * (1 << i), dt_m1, rung);
             }
-            else { driftPositions(rungs_[i].view(), d, dt_back + dt, dt_back, dt_m1, rung); }
+            else { driftPositions(rungs_[i], d, dt_back + dt, dt_back, dt_m1, rung); }
         }
 
         updateSmoothingLength(groups_.view(), d);
@@ -387,7 +383,7 @@ public:
         {
             for (int r = 0; r < timestep_.numRungs; ++r)
             {
-                if constexpr (cstone::HaveGpu<Acc>{}) { storeRungGpu(rungs_[r].view(), r, rawPtr(get<"rung">(d))); }
+                if constexpr (cstone::HaveGpu<Acc>{}) { storeRungGpu(rungs_[r], r, rawPtr(get<"rung">(d))); }
             }
         }
 

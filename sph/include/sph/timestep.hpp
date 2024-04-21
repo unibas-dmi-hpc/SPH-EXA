@@ -174,6 +174,16 @@ inline void extractGroupGpu(const GroupView& grp, const cstone::LocalIndex* indi
     cstone::gatherGpu(indices + first, numOutGroups, grp.groupEnd, out.groupEnd);
 }
 
+//! @brief return a new GroupView that corresponds to a slice [first:last] of the input group @p grp
+inline GroupView makeSlicedView(const GroupView& grp, cstone::LocalIndex first, cstone::LocalIndex last)
+{
+    GroupView ret = grp;
+    ret.numGroups = last - first;
+    ret.groupStart += first;
+    ret.groupEnd += first;
+    return ret;
+}
+
 struct Timestep
 {
     static constexpr int maxNumRungs = 4;
