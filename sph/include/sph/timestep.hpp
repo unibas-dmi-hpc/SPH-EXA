@@ -155,35 +155,6 @@ inline auto timestepRangeGpu(const float* groupDt, cstone::LocalIndex numGroups,
     return minGroupDt;
 }
 
-//! @brief extract the specified subgroup [first:last] indexed through @p index from @p grp into @p outGroup
-template<class Accelerator>
-inline void extractGroupGpu(const GroupView& grp, const cstone::LocalIndex* indices, cstone::LocalIndex first,
-                            cstone::LocalIndex last, GroupData<Accelerator>& out)
-{
-    auto numOutGroups = last - first;
-    reallocate(out.data, 2 * numOutGroups, 1.01);
-
-    out.firstBody  = 0;
-    out.lastBody   = 0;
-    out.numGroups  = numOutGroups;
-    out.groupStart = rawPtr(out.data);
-    out.groupEnd   = rawPtr(out.data) + numOutGroups;
-
-    if (numOutGroups == 0) { return; }
-    cstone::gatherGpu(indices + first, numOutGroups, grp.groupStart, out.groupStart);
-    cstone::gatherGpu(indices + first, numOutGroups, grp.groupEnd, out.groupEnd);
-}
-
-//! @brief return a new GroupView that corresponds to a slice [first:last] of the input group @p grp
-inline GroupView makeSlicedView(const GroupView& grp, cstone::LocalIndex first, cstone::LocalIndex last)
-{
-    GroupView ret = grp;
-    ret.numGroups = last - first;
-    ret.groupStart += first;
-    ret.groupEnd += first;
-    return ret;
-}
-
 struct Timestep
 {
     static constexpr int maxNumRungs = 4;
