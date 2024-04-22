@@ -360,10 +360,12 @@ public:
             bool useRung = timestep_.substep == bk;
             bool advance = i < lowestDriftRung;
 
-            float          dt      = timestep_.minDt;
-            float          dt_back = dt * bk;
-            float          dt_m1   = useRung ? prevTimestep_.minDt : dt * (1 << i);
-            const uint8_t* rung    = useRung ? rawPtr(get<"rung">(d)) : nullptr;
+            float dt      = timestep_.minDt;
+            float dt_back = dt * bk;
+            float dtPrev  = prevTimestep_.minDt;
+            auto dt_m1 = useRung ? util::array<float, Timestep::maxNumRungs>{dtPrev, 2 * dtPrev, 4 * dtPrev, 8 * dtPrev}
+                                 : util::array<float, Timestep::maxNumRungs>{dt * (1 << i)};
+            const uint8_t* rung = useRung ? rawPtr(get<"rung">(d)) : nullptr;
 
             if (advance)
             {

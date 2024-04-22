@@ -158,7 +158,7 @@ public:
         d.minDtCourant = INFINITY;
         computeTimestep(first, last, d);
         timer.step("Timestep");
-        computePositions(groups_.view(), d, domain.box(), d.minDt, d.minDt_m1);
+        computePositions(groups_.view(), d, domain.box(), d.minDt, {float(d.minDt_m1)});
         timer.step("UpdateQuantities");
     }
 

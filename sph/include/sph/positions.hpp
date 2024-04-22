@@ -160,8 +160,8 @@ void updateIntEnergyHost(size_t startIndex, size_t endIndex, Dataset& d)
  * @param rung          rung per particle in before the last integration step
  */
 template<class Dataset>
-void driftPositions(const GroupView& grp, Dataset& d, float dt_forward, float dt_backward, float dt_prevRung,
-                    const uint8_t* rung)
+void driftPositions(const GroupView& grp, Dataset& d, float dt_forward, float dt_backward,
+                    util::array<float, Timestep::maxNumRungs> dt_prevRung, const uint8_t* rung)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
@@ -177,8 +177,8 @@ void driftPositions(const GroupView& grp, Dataset& d, float dt_forward, float dt
 }
 
 template<class T, class Dataset>
-void computePositions(const GroupView& grp, Dataset& d, const cstone::Box<T>& box, float dt_forward, float dt_m1,
-                      const uint8_t* rung = nullptr)
+void computePositions(const GroupView& grp, Dataset& d, const cstone::Box<T>& box, float dt_forward,
+                      util::array<float, Timestep::maxNumRungs> dt_m1, const uint8_t* rung = nullptr)
 {
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
