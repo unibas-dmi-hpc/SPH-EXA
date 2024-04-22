@@ -227,8 +227,6 @@ public:
         sync(domain, simData);
         timer.step("domain::sync");
 
-        bool isNewHierarchy = activeRung(timestep_.substep, timestep_.numRungs) == 0;
-
         auto& d = simData.hydro;
         d.resize(domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * d.ngmax);
@@ -258,7 +256,7 @@ public:
         timer.step("mpi::synchronizeHalos");
 
         computeIadDivvCurlv(activeRungs_, d, domain.box());
-        if (isNewHierarchy) { groupDivvTimestep(activeRungs_, rawPtr(groupDt_), d); }
+        groupDivvTimestep(activeRungs_, rawPtr(groupDt_), d);
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"keys">(d), haloRecvScratch);
@@ -275,15 +273,14 @@ public:
         else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"keys">(d), haloRecvScratch); }
         timer.step("mpi::synchronizeHalos");
 
-        float* groupDtUse = isNewHierarchy ? rawPtr(groupDt_) : nullptr;
-        computeMomentumEnergy<avClean>(activeRungs_, groupDtUse, d, domain.box());
+        computeMomentumEnergy<avClean>(activeRungs_, rawPtr(groupDt_), d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
 
         if (d.g != 0.0)
         {
-            GroupView gravGroup = activeRungs_;
-            if (isNewHierarchy) { gravGroup = mHolder_.computeSpatialGroups(d, domain); }
+            bool isNewHierarchy = activeRung(timestep_.substep, timestep_.numRungs) == 0;
+            GroupView gravGroup = isNewHierarchy ? mHolder_.computeSpatialGroups(d, domain) : activeRungs_;
 
             mHolder_.upsweep(d, domain);
             timer.step("Upsweep");
@@ -292,8 +289,7 @@ public:
             timer.step("Gravity");
             pmReader.step();
         }
-
-        if (isNewHierarchy) { groupAccTimestep(activeRungs_, rawPtr(groupDt_), d); }
+        groupAccTimestep(activeRungs_, rawPtr(groupDt_), d);
     }
 
     void computeRungs(DataType& simData)
