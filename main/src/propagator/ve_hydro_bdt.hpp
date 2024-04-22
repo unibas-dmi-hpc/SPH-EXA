@@ -68,17 +68,18 @@ protected:
 
     MHolder_t mHolder_;
 
-    //! @brief spatial groups
+    //! @brief groups sorted by ascending SFC keys
     GroupData<Acc>        groups_;
     AccVector<float>      groupDt_;
     AccVector<LocalIndex> groupIndices_;
 
+    //! @brief groups sorted by ascending time-step
+    GroupData<Acc>                               tsGroups_;
+    std::array<GroupView, Timestep::maxNumRungs> rungs_;
+    GroupView                                    activeRungs_;
+
     //! brief timestep information rungs
     Timestep timestep_, prevTimestep_;
-    //! @brief groups for each rung
-    std::array<GroupView, Timestep::maxNumRungs> rungs_;
-    GroupData<Acc>                               forceGroup_;
-    GroupView                                    forceGroupView_;
 
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
@@ -191,7 +192,7 @@ public:
         d.treeView = domain.octreeProperties();
 
         computeGroups(domain.startIndex(), domain.endIndex(), d, domain.box(), groups_);
-        forceGroupView_ = groups_.view();
+        activeRungs_ = groups_.view();
 
         reallocate(groups_.numGroups, groupDt_, groupIndices_);
         fill(groupDt_, 0, groupDt_.size(), std::numeric_limits<float>::max());
@@ -208,8 +209,7 @@ public:
         }
 
         int highestRung = cstone::butterfly(timestep_.substep);
-        forceGroupView_ =
-            makeSlicedView(forceGroup_.view(), timestep_.rungRanges[0], timestep_.rungRanges[highestRung]);
+        activeRungs_    = makeSlicedView(tsGroups_.view(), timestep_.rungRanges[0], timestep_.rungRanges[highestRung]);
     }
 
     void sync(DomainType& domain, DataType& simData) override
@@ -227,8 +227,7 @@ public:
         sync(domain, simData);
         timer.step("domain::sync");
 
-        GroupView activeGroup    = forceGroupView_;
-        bool      isNewHierarchy = activeRung(timestep_.substep, timestep_.numRungs) == 0;
+        bool isNewHierarchy = activeRung(timestep_.substep, timestep_.numRungs) == 0;
 
         auto& d = simData.hydro;
         d.resize(domain.nParticlesWithHalos());
@@ -244,12 +243,12 @@ public:
         timer.step("FindNeighbors");
         pmReader.step();
 
-        computeXMass(activeGroup, d, domain.box());
+        computeXMass(activeRungs_, d, domain.box());
         timer.step("XMass");
         domain.exchangeHalos(std::tie(get<"xm">(d)), get<"keys">(d), haloRecvScratch);
         timer.step("mpi::synchronizeHalos");
 
-        computeVeDefGradh(activeGroup, d, domain.box());
+        computeVeDefGradh(activeRungs_, d, domain.box());
         timer.step("Normalization & Gradh");
 
         computeEOS(first, last, d);
@@ -258,14 +257,14 @@ public:
         domain.exchangeHalos(get<"vx", "vy", "vz", "prho", "c", "kx">(d), get<"keys">(d), haloRecvScratch);
         timer.step("mpi::synchronizeHalos");
 
-        computeIadDivvCurlv(activeGroup, d, domain.box());
-        if (isNewHierarchy) { groupDivvTimestep(activeGroup, rawPtr(groupDt_), d); }
+        computeIadDivvCurlv(activeRungs_, d, domain.box());
+        if (isNewHierarchy) { groupDivvTimestep(activeRungs_, rawPtr(groupDt_), d); }
         timer.step("IadVelocityDivCurl");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33", "divv">(d), get<"keys">(d), haloRecvScratch);
         timer.step("mpi::synchronizeHalos");
 
-        computeAVswitches(activeGroup, d, domain.box());
+        computeAVswitches(activeRungs_, d, domain.box());
         timer.step("AVswitches");
 
         if (avClean)
@@ -277,13 +276,13 @@ public:
         timer.step("mpi::synchronizeHalos");
 
         float* groupDtUse = isNewHierarchy ? rawPtr(groupDt_) : nullptr;
-        computeMomentumEnergy<avClean>(activeGroup, groupDtUse, d, domain.box());
+        computeMomentumEnergy<avClean>(activeRungs_, groupDtUse, d, domain.box());
         timer.step("MomentumAndEnergy");
         pmReader.step();
 
         if (d.g != 0.0)
         {
-            GroupView gravGroup = activeGroup;
+            GroupView gravGroup = activeRungs_;
             if (isNewHierarchy) { gravGroup = mHolder_.computeSpatialGroups(d, domain); }
 
             mHolder_.upsweep(d, domain);
@@ -294,7 +293,7 @@ public:
             pmReader.step();
         }
 
-        if (isNewHierarchy) { groupAccTimestep(activeGroup, rawPtr(groupDt_), d); }
+        if (isNewHierarchy) { groupAccTimestep(activeRungs_, rawPtr(groupDt_), d); }
     }
 
     void computeRungs(DataType& simData)
@@ -311,11 +310,11 @@ public:
 
             if constexpr (cstone::HaveGpu<Acc>{})
             {
-                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), 0, timestep_.rungRanges.back(), forceGroup_);
+                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), 0, timestep_.rungRanges.back(), tsGroups_);
             }
             for (int r = 0; r < timestep_.numRungs; ++r)
             {
-                rungs_[r] = makeSlicedView(forceGroup_.view(), timestep_.rungRanges[r], timestep_.rungRanges[r + 1]);
+                rungs_[r] = makeSlicedView(tsGroups_.view(), timestep_.rungRanges[r], timestep_.rungRanges[r + 1]);
             }
         }
 

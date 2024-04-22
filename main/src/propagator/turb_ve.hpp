@@ -68,7 +68,7 @@ public:
     void computeForces(DomainType& domain, DataType& simData) override
     {
         Base::computeForces(domain, simData);
-        driveTurbulence(Base::forceGroupView_, simData.hydro, turbulenceData);
+        driveTurbulence(Base::activeRungs_, simData.hydro, turbulenceData);
         timer.step("Turbulence Stirring");
     }
 
