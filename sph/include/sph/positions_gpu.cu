@@ -31,6 +31,7 @@
 #include "eos.hpp"
 #include "positions.hpp"
 #include "sph_gpu.hpp"
+#include "timestep.h"
 
 namespace sph
 {

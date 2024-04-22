@@ -37,7 +37,7 @@
 #include "sph/groups.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/positions.hpp"
-#include "sph/timestep.hpp"
+#include "sph/ts_global.hpp"
 
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"

@@ -37,6 +37,7 @@
 #include "cstone/fields/field_get.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/sph.hpp"
+#include "sph/ts_rungs.hpp"
 
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"
@@ -301,7 +302,7 @@ public:
         {
             prevTimestep_  = timestep_;
             float maxIncDt = timestep_.minDt * d.maxDtIncrease;
-            timestep_ = computeGroupTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
+            timestep_ = computeRungTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
             timestep_.minDt = std::min({timestep_.minDt, maxIncDt});
 
             if constexpr (cstone::HaveGpu<Acc>{})
