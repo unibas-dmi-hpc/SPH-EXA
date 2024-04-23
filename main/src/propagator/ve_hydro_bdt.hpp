@@ -351,41 +351,20 @@ public:
             bool useRung = timestep_.substep == bk;
             bool advance = i < lowestDriftRung;
 
-            float dt      = timestep_.minDt;
-            float dt_back = dt * bk;
-            //float dtPrev  = prevTimestep_.minDt;
-            //auto dt_m1 = useRung ? util::array<float, Timestep::maxNumRungs>{dtPrev, 2 * dtPrev, 4 * dtPrev, 8 * dtPrev}
-            //                     : util::array<float, Timestep::maxNumRungs>{dt * (1 << i)};
-            auto dt_m1 = useRung ? prevTimestep_.dt_m1 : util::array<float, Timestep::maxNumRungs>{timestep_.dt_m1[i]};
+            float dt    = timestep_.minDt;
+            auto  dt_m1 = useRung ? prevTimestep_.dt_m1 : util::array<float, Timestep::maxNumRungs>{timestep_.dt_m1[i]};
             const uint8_t* rung = useRung ? rawPtr(get<"rung">(d)) : nullptr;
-
-            //auto fpnear = [](float a, float b)
-            //{
-            //    bool ret = a == b || std::abs((a - b)/b) < 1e-6;
-            //    if (!ret) std::cout << " " << a << " " << b << std::endl;
-            //    return ret;
-            //};
-            //assert(fpnear(dt_back, timestep_.dt_drift[i]));
-            //if (useRung)
-            //{
-            //    for (int j = 0; j < prevTimestep_.numRungs; ++j)
-            //    {
-            //        assert(fpnear(dt_m1[j], prevTimestep_.dt_m1[j]));
-            //    }
-            //}
-            //else
-            //    assert(fpnear(dt_m1[0], timestep_.dt_m1[i]));
 
             if (advance)
             {
-                if (bk) { driftPositions(rungs_[i], d, 0, dt_back, dt_m1, rung); }
-                computePositions(rungs_[i], d, substepBox, dt * (1 << i), dt_m1, rung);
-                timestep_.dt_m1[i] = timestep_.dt_drift[i] + dt;
+                if (bk) { driftPositions(rungs_[i], d, 0, timestep_.dt_drift[i], dt_m1, rung); }
+                computePositions(rungs_[i], d, substepBox, timestep_.dt_drift[i] + dt, dt_m1, rung);
+                timestep_.dt_m1[i]    = timestep_.dt_drift[i] + dt;
                 timestep_.dt_drift[i] = 0;
             }
             else
             {
-                driftPositions(rungs_[i], d, dt_back + dt, dt_back, dt_m1, rung);
+                driftPositions(rungs_[i], d, timestep_.dt_drift[i] + dt, timestep_.dt_drift[i], dt_m1, rung);
                 timestep_.dt_drift[i] += dt;
             }
         }
