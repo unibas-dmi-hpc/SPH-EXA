@@ -116,8 +116,7 @@ public:
         if (avClean && rank == 0) { std::cout << "AV cleaning is activated" << std::endl; }
         try
         {
-            timestep_.minDt     = settings.at("minDt");
-            prevTimestep_.minDt = settings.at("minDt");
+            timestep_.minDt = settings.at("minDt");
         }
         catch (const std::out_of_range&)
         {
@@ -148,11 +147,7 @@ public:
         std::apply([&d](auto... f) { d.devData.setDependent(f.value...); }, make_tuple(DependentFields{}));
     }
 
-    void save(IFileWriter* writer) override
-    {
-        timestep_.loadOrStore(writer, "ts::");
-        prevTimestep_.loadOrStore(writer, "prevts::");
-    }
+    void save(IFileWriter* writer) override { timestep_.loadOrStore(writer, "ts::"); }
 
     void load(const std::string& initCond, IFileReader* reader) override
     {
@@ -163,15 +158,10 @@ public:
 
         reader->setStep(path, step, FileMode::independent);
         timestep_.loadOrStore(reader, "ts::");
-        prevTimestep_.loadOrStore(reader, "prevts::");
         reader->closeStep();
 
         int numSplits = numberAfterSign(initCond, ",");
-        if (numSplits > 0)
-        {
-            timestep_.minDt /= 100 * numSplits;
-            prevTimestep_.minDt /= 100 * numSplits;
-        }
+        if (numSplits > 0) { timestep_.minDt /= 100 * numSplits; }
 
         // force creation of a new timestep hierarchy
         timestep_.substep = 0;
