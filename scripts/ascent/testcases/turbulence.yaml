@@ -1,0 +1,44 @@
+# Add a pipeline to compute radius. Origin: 0, 0, 0
+-
+  action: "add_pipelines"
+  pipelines:
+    pl1:
+      f1:
+        type: "composite_vector"
+        params:
+          field1: VX
+          field2: VY
+          field3: VZ
+          output_name: "point3D"
+      f2:
+        type: "vector_magnitude"
+        params:
+          field: "point3D"
+          output_name: "ModularVel"
+      f3:
+        type: "threshold"
+        params:
+          field: Z
+          min_value: "-0.005"
+          max_value: "0.005"
+- 
+  action: add_scenes
+  scenes: 
+    s1: 
+      plots: 
+        p1: 
+          field: ModularVel
+          type: pseudocolor
+          pipeline: pl1
+          color_table:
+            name: Viridis
+          points:
+            radius: .001
+      renders:
+        r1:
+          camera:
+            look_at: [0, 0, 0]
+            position: [0.5, 0.5, 2]
+            zoom: 1
+          dataset_bounds: [-0.5, 0.5, -0.5, 0.5, -0.5, 0.5]
+          image_prefix: turbulence_step%05d

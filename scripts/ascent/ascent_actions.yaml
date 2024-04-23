@@ -6,4 +6,4 @@
     t1:
       params:
         condition: "cycle() % 10 == 0"
-        actions_file: "testcases/evrard.yaml"
+        actions_file: "testcases/turbulence.yaml"
