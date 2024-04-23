@@ -17,13 +17,13 @@ namespace sph
 struct Timestep
 {
     static constexpr int maxNumRungs = 4;
-    //! @brief maxDt = minDt * 2^numRungs;
+
     float minDt;
     int   numRungs{1};
-    //! @brief 0,...,2^numRungs
-    int substep{0};
+    int   substep{0};
 
     std::array<cstone::LocalIndex, maxNumRungs + 1> rungRanges;
+    util::array<float, maxNumRungs>                 dt_m1, dt_drift;
 
     template<class Archive>
     void loadOrStore(Archive* ar, const std::string& prefix)
@@ -31,6 +31,7 @@ struct Timestep
         ar->stepAttribute(prefix + "minDt", &minDt, 1);
         ar->stepAttribute(prefix + "numRungs", &numRungs, 1);
         ar->stepAttribute(prefix + "substep", &substep, 1);
+        ar->stepAttribute(prefix + "dt_m1", dt_m1.data(), dt_m1.size());
     }
 };
 
