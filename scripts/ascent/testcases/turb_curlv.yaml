@@ -4,18 +4,27 @@
   pipelines:
     pl1:
       f1:
+        type: "threshold"
+        params:
+          field: Z
+          # min_value: "-0.0005"
+          # max_value: "0.0005"
+          min_value: "-0.05"
+          max_value: "0.05"
+      f2:
         type: "composite_vector"
         params:
           field1: VX
           field2: VY
           field3: VZ
           output_name: "VectorVel"
-      f2:
+      f3:
         type: "vector_magnitude"
         params:
           field: "VectorVel"
           output_name: "ModularVel"
-      f3:
+    pl2:
+      f4:
         type: "threshold"
         params:
           field: Z
@@ -23,11 +32,22 @@
           max_value: "0.0005"
           # min_value: "-0.05"
           # max_value: "0.05"
-      f4:
-        type: "expression"
-        params:
-          expression: "np.log(field('CurlV')*field('CurlV'))"
-          name: "PressureNormalized"
+      # f5:
+      #   type: "expression"
+      #   params:
+      #     expression: "field('CurlV')*field('CurlV')"
+      #     name: "CurlVSquare"
+      # f6: 
+      #   type: "log"
+      #   params: 
+      #     field: "CurlVSquare"
+      #     output_name: "LogCurlVSquare"
+      # f7:
+      #   type: "threshold"
+      #   params:
+      #     field: Z
+      #     min_value: "-0.05"
+      #     max_value: "0.05"
 
 - 
   action: add_scenes
@@ -40,6 +60,7 @@
           pipeline: pl1
           color_table:
             name: Viridis
+            annotation: "false"
           points:
             radius: .001
       renders:
@@ -55,7 +76,7 @@
         p1: 
           field: CurlV
           type: pseudocolor
-          pipeline: pl1
+          pipeline: pl2
           color_table:
             name: Viridis
           points:
@@ -67,8 +88,16 @@
             look_at: [0, 0, 0]
             position: [0, 0, 1]
           dataset_bounds: [-0.5, 0.5, -0.5, 0.5, -0.5, 0.5]
-          image_prefix: turbulence_CurlV_step%05d
+          image_prefix: turbulence_LogCurlV_step%05d
 
--
-  action: "save_session"
-  file_name: "turbulence_session"
+- 
+  action: "add_extracts"
+  extracts: 
+    e1: 
+      type: "flatten"
+      pipeline: "pl2"
+      params: 
+        protocol: csv
+        path: "curlv.csv"
+- 
+  action: "execute"
