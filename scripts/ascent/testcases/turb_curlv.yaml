@@ -23,6 +23,11 @@
           max_value: "0.0005"
           # min_value: "-0.05"
           # max_value: "0.05"
+      f4:
+        type: "expression"
+        params:
+          expression: "np.log(field('CurlV')*field('CurlV'))"
+          name: "PressureNormalized"
 
 - 
   action: add_scenes
