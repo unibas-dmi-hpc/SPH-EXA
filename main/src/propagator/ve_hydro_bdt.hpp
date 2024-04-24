@@ -347,8 +347,7 @@ public:
 
         for (int i = 0; i < timestep_.numRungs; ++i)
         {
-            int  bk      = driftBack(timestep_.substep, i);
-            bool useRung = timestep_.substep == bk;
+            bool useRung = timestep_.substep == driftBack(timestep_.substep, i); // if drift back to start of hierarchy
             bool advance = i < lowestDriftRung;
 
             float dt    = timestep_.minDt;
@@ -357,7 +356,7 @@ public:
 
             if (advance)
             {
-                if (bk) { driftPositions(rungs_[i], d, 0, timestep_.dt_drift[i], dt_m1, rung); }
+                if (timestep_.dt_drift[i] > 0) { driftPositions(rungs_[i], d, 0, timestep_.dt_drift[i], dt_m1, rung); }
                 computePositions(rungs_[i], d, substepBox, timestep_.dt_drift[i] + dt, dt_m1, rung);
                 timestep_.dt_m1[i]    = timestep_.dt_drift[i] + dt;
                 timestep_.dt_drift[i] = 0;
