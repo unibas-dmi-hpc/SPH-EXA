@@ -160,6 +160,7 @@ void Execute(DataType& d, long startIndex, long endIndex)
                                                         {"p", "Pressure"},
                                                         {"rho", "Density"},
                                                         {"prho", "Prho"},
+                                                        {"curlv", "CurlV"},
                                                         {"m", "Mass"},
                                                         {"u", "Internal Energy"},
                                                         {"c", "Speed of Sound"},

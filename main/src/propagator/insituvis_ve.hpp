@@ -70,11 +70,11 @@ protected:
      *
      * x, y, z, h and m are automatically considered conserved and must not be specified in this list
      */
-    using ConservedFields = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha", "prho">;
+    using ConservedFields = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha">;
 
     //! @brief list of dependent fields, these may be used as scratch space during domain sync
-    using DependentFields_ =
-        FieldList<"ax", "ay", "az", "c", "du", "c11", "c12", "c13", "c22", "c23", "c33", "xm", "kx", "nc">;
+    using DependentFields_ = FieldList<"curlv", "ax", "ay", "az", "prho", "c", "du", "c11", "c12", "c13", "c22", "c23",
+                                       "c33", "xm", "kx", "nc">;
 
     //! @brief velocity gradient fields will only be allocated when avClean is true
     using GradVFields = FieldList<"dV11", "dV12", "dV13", "dV22", "dV23", "dV33">;
@@ -169,8 +169,8 @@ public:
 
         d.release("gradh", "az");
         d.devData.release("gradh", "az");
-        d.acquire("divv", "curlv");
-        d.devData.acquire("divv", "curlv");
+        d.acquire("divv");
+        d.devData.acquire("divv");
         computeIadDivvCurlv(first, last, d, domain.box());
         d.minDtRho = rhoTimestep(first, last, d);
         timer.step("IadVelocityDivCurl");
@@ -188,8 +188,8 @@ public:
         else { domain.exchangeHalos(std::tie(get<"alpha">(d)), get<"ax">(d), get<"keys">(d)); }
         timer.step("mpi::synchronizeHalos");
 
-        d.release("divv", "curlv");
-        d.devData.release("divv", "curlv");
+        d.release("divv");
+        d.devData.release("divv");
         d.acquire("ay", "az");
         d.devData.acquire("ay", "az");
         computeMomentumEnergy<avClean>(first, last, d, domain.box());
@@ -264,12 +264,12 @@ public:
         d.release("rho", "p", "gradh");
 
         // third output pass: curlv and divv
-        d.acquire("divv", "curlv");
-        d.devData.acquire("divv", "curlv");
+        d.acquire("divv");
+        d.devData.acquire("divv");
         if (!indicesDone.empty()) { computeIadDivvCurlv(first, last, d, box); }
         output();
-        d.release("divv", "curlv");
-        d.devData.release("divv", "curlv");
+        d.release("divv");
+        d.devData.release("divv");
 
         d.acquire("ax", "ay", "az");
         d.devData.acquire("ax", "ay", "az");
