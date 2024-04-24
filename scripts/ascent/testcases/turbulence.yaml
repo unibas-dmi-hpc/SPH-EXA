@@ -19,10 +19,10 @@
         type: "threshold"
         params:
           field: Z
-          min_value: "-0.0005"
-          max_value: "0.0005"
-          # min_value: "-0.05"
-          # max_value: "0.05"
+          # min_value: "-0.0005"
+          # max_value: "0.0005"
+          min_value: "-0.05"
+          max_value: "0.05"
 
 - 
   action: add_scenes

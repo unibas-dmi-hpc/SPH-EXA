@@ -5,5 +5,5 @@
   triggers:
     t1:
       params:
-        condition: "cycle() % 10 == 0"
+        condition: "cycle() % 1 == 0"
         actions_file: "testcases/turbulence.yaml"
