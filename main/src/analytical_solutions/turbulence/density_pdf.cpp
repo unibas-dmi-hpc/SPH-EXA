@@ -44,6 +44,7 @@ int main(int argc, char** argv)
     // The default pdf range was taken in comparison to Federrath et al. 2021, DOI 10.1038/s41550-020-01282-z
     const std::string inputFile  = parser.get("--file");
     const size_t      nBins      = parser.get("-n", 50);
+    const int         step       = parser.get("-s", -1);
     std::string       outputFile = parser.get("-o", std::string("density_pdf.txt"));
     const std::string sph_type   = parser.get("--sph", std::string("std"));
     const T           minValue   = parser.get("--min", -8.0);
@@ -55,13 +56,20 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    auto h5reader = fileReaderFactory(false, MPI_COMM_WORLD);
-    h5reader->setStep(inputFile, -1, FileMode::collective);
-
-    const size_t   localNumParticles  = h5reader->localNumParticles();
-    const size_t   globalNumParticles = h5reader->globalNumParticles();
-    std::vector<T> rho(localNumParticles);
+    std::vector<T> rho;
     std::vector<T> bins;
+
+    auto h5reader = fileReaderFactory(false, MPI_COMM_WORLD);
+    h5reader->setStep(inputFile, step, FileMode::collective);
+
+    const size_t localNumParticles  = h5reader->localNumParticles();
+    const size_t globalNumParticles = h5reader->globalNumParticles();
+
+    rho.resize(localNumParticles);
+    if (rho.size() != localNumParticles)
+    {
+        throw new std::runtime_error("rho length doesn't match local count: " + rho.size() + localNumParticles);
+    }
 
     if (sph_type == "std") { h5reader->readField("rho", rho.data()); }
     else
@@ -79,10 +87,16 @@ int main(int argc, char** argv)
     }
     h5reader->closeStep();
 
-    T localTotalDensity = std::reduce(rho.begin(), rho.end());
+    T localTotalDensity = std::reduce(rho.begin(), rho.end(), 0);
     T referenceDensity;
     MPI_Allreduce(&localTotalDensity, &referenceDensity, 1, MpiType<T>{}, MPI_SUM, MPI_COMM_WORLD);
     referenceDensity /= globalNumParticles;
+
+    if (rank == 0)
+    {
+        printf("starting PDF calculation with %lu global, %lu local particles and reference density %f\n",
+               globalNumParticles, localNumParticles, referenceDensity);
+    }
 
     bins = computeProbabilityDistribution(rho, referenceDensity, nBins, minValue, maxValue);
     std::vector<T> reduced_bins(nBins, 0.0);
