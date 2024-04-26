@@ -118,7 +118,7 @@ Timestep computeRungTimestep(const GroupView& grp, float* groupDt, cstone::Local
         }
     }
 
-    Timestep ret{.minDt = minDtGlobal[0], .numRungs = numRungs, .substep = 0, .rungRanges = rungRanges};
+    Timestep ret{.nextDt = minDtGlobal[0], .numRungs = numRungs, .substep = 0, .rungRanges = rungRanges};
     std::fill(ret.dt_drift.begin(), ret.dt_drift.end(), 0);
     return ret;
 }

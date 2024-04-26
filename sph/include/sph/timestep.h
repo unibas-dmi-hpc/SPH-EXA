@@ -18,7 +18,7 @@ struct Timestep
 {
     static constexpr int maxNumRungs = 4;
 
-    float minDt;
+    float nextDt;
     int   numRungs{1};
     int   substep{0};
 
@@ -28,9 +28,7 @@ struct Timestep
     template<class Archive>
     void loadOrStore(Archive* ar, const std::string& prefix)
     {
-        ar->stepAttribute(prefix + "minDt", &minDt, 1);
         ar->stepAttribute(prefix + "numRungs", &numRungs, 1);
-        ar->stepAttribute(prefix + "substep", &substep, 1);
         ar->stepAttribute(prefix + "dt_m1", dt_m1.data(), dt_m1.size());
     }
 };

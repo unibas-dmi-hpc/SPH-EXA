@@ -116,7 +116,7 @@ public:
         if (avClean && rank == 0) { std::cout << "AV cleaning is activated" << std::endl; }
         try
         {
-            timestep_.minDt = settings.at("minDt");
+            timestep_.nextDt = settings.at("minDt");
             timestep_.dt_m1[0] = settings.at("minDt");
         }
         catch (const std::out_of_range&)
@@ -162,7 +162,7 @@ public:
         reader->closeStep();
 
         int numSplits = numberAfterSign(initCond, ",");
-        if (numSplits > 0) { timestep_.minDt /= 100 * numSplits; }
+        if (numSplits > 0) { timestep_.nextDt /= 100 * numSplits; }
 
         // force creation of a new timestep hierarchy
         timestep_.substep = 0;
@@ -292,9 +292,9 @@ public:
         if (highRung == 0)
         {
             prevTimestep_  = timestep_;
-            float maxIncDt = timestep_.minDt * d.maxDtIncrease;
+            float maxIncDt = timestep_.nextDt * d.maxDtIncrease;
             timestep_ = computeRungTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
-            timestep_.minDt = std::min({timestep_.minDt, maxIncDt});
+            timestep_.nextDt = std::min({timestep_.nextDt, maxIncDt});
 
             if constexpr (cstone::HaveGpu<Acc>{})
             {
@@ -350,7 +350,7 @@ public:
             bool useRung = timestep_.substep == driftBack(timestep_.substep, i); // if drift back to start of hierarchy
             bool advance = i < lowestDriftRung;
 
-            float dt    = timestep_.minDt;
+            float dt    = timestep_.nextDt;
             auto  dt_m1 = useRung ? prevTimestep_.dt_m1 : util::array<float, Timestep::maxNumRungs>{timestep_.dt_m1[i]};
             const uint8_t* rung = useRung ? rawPtr(get<"rung">(d)) : nullptr;
 
@@ -379,9 +379,9 @@ public:
         }
 
         timestep_.substep++;
-        d.ttot += timestep_.minDt;
+        d.ttot += timestep_.nextDt;
         d.minDt_m1 = d.minDt;
-        d.minDt    = timestep_.minDt;
+        d.minDt    = timestep_.nextDt;
         timer.step("UpdateQuantities");
     }
 
