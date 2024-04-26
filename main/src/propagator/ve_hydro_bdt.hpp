@@ -291,9 +291,9 @@ public:
 
         if (highRung == 0)
         {
-            prevTimestep_  = timestep_;
-            float maxIncDt = timestep_.nextDt * d.maxDtIncrease;
-            timestep_ = rungTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), maxIncDt, get<"keys">(d));
+            prevTimestep_ = timestep_;
+            float maxDt   = timestep_.nextDt * d.maxDtIncrease;
+            timestep_ = rungTimestep(rawPtr(groupDt_), rawPtr(groupIndices_), groups_.numGroups, maxDt, get<"keys">(d));
 
             if constexpr (cstone::HaveGpu<Acc>{})
             {
@@ -306,7 +306,18 @@ public:
         }
         else
         {
-            timestep_.nextDt = minimumGroupDt<cstone::HaveGpu<Acc>{}>(timestep_, rawPtr(groupDt_), groups_.numGroups);
+            auto [dt, rungRanges] = minimumGroupDt(timestep_, rawPtr(groupDt_), rawPtr(groupIndices_),
+                                                   timestep_.rungRanges[highRung], get<"keys">(d));
+            timestep_.nextDt      = dt;
+
+            if (highRung > 1)
+            {
+                for (int rung = 1; rung < highRung; ++rung)
+                {
+                    std::cout << "  rung " << rung << ": " << timestep_.rungRanges[rung] << " -> " << rungRanges[rung]
+                              << std::endl;
+                }
+            }
         }
     }
 
