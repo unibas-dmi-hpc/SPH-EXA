@@ -89,7 +89,8 @@ inline auto timestepRangeGpu(const float* groupDt, cstone::LocalIndex numGroups,
 
 //! @brief Determine timestep rungs
 template<class AccVec>
-Timestep computeRungTimestep(const GroupView& grp, float* groupDt, cstone::LocalIndex* groupIndices, AccVec& scratch)
+Timestep rungTimestep(const GroupView& grp, float* groupDt, cstone::LocalIndex* groupIndices, float maxDt,
+                      AccVec& scratch)
 {
     using cstone::LocalIndex;
 
@@ -118,9 +119,33 @@ Timestep computeRungTimestep(const GroupView& grp, float* groupDt, cstone::Local
         }
     }
 
-    Timestep ret{.nextDt = minDtGlobal[0], .numRungs = numRungs, .substep = 0, .rungRanges = rungRanges};
+    minDtGlobal[0]   = std::min(maxDt, minDtGlobal[0]);
+    float    totalDt = minDtGlobal[0] * (1 << numRungs);
+    Timestep ret{.nextDt = minDtGlobal[0], .totDt = totalDt, .numRungs = numRungs, .rungRanges = rungRanges};
     std::fill(ret.dt_drift.begin(), ret.dt_drift.end(), 0);
     return ret;
+}
+
+template<bool haveGpu>
+float minimumGroupDt(Timestep ts, const float* groupDt, cstone::LocalIndex numGroups)
+{
+    float minDt = INFINITY;
+    if constexpr (haveGpu) { minDt = get<0>(cstone::MinMaxGpu<float>{}(groupDt, groupDt + numGroups)); }
+    else
+    {
+#pragma omp parallel for reduction(min : minDt)
+        for (size_t i = 0; i < numGroups; ++i)
+        {
+            minDt = std::max(groupDt[i], minDt);
+        }
+    }
+    float minDtGlobal;
+    mpiAllreduce(&minDt, &minDtGlobal, 1, MPI_MIN);
+
+    float timeLeft     = ts.totDt - ts.elapsedDt;
+    int   substepsLeft = (1 << ts.numRungs) - ts.substep;
+
+    return std::min(minDtGlobal, timeLeft / substepsLeft);
 }
 
 } // namespace sph

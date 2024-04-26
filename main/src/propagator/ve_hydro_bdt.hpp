@@ -293,8 +293,7 @@ public:
         {
             prevTimestep_  = timestep_;
             float maxIncDt = timestep_.nextDt * d.maxDtIncrease;
-            timestep_ = computeRungTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), get<"keys">(d));
-            timestep_.nextDt = std::min({timestep_.nextDt, maxIncDt});
+            timestep_ = rungTimestep(groups_.view(), rawPtr(groupDt_), rawPtr(groupIndices_), maxIncDt, get<"keys">(d));
 
             if constexpr (cstone::HaveGpu<Acc>{})
             {
@@ -305,38 +304,16 @@ public:
                 rungs_[r] = makeSlicedView(tsGroups_.view(), timestep_.rungRanges[r], timestep_.rungRanges[r + 1]);
             }
         }
-
-        if (Base::rank_ == 0 && highRung == 0)
+        else
         {
-            auto ts = timestep_;
-
-            util::array<LocalIndex, 4> numRungs = {ts.rungRanges[1], ts.rungRanges[2] - ts.rungRanges[1],
-                                                   ts.rungRanges[3] - ts.rungRanges[2],
-                                                   ts.rungRanges[4] - ts.rungRanges[3]};
-            // clang-format off
-            std::cout << "# New block-TS " << ts.numRungs << " rungs, "
-                      << "R0: " << numRungs[0] << " (" << (100. * numRungs[0] / groups_.numGroups) << "%) "
-                      << "R1: " << numRungs[1] << " (" << (100. * numRungs[1] / groups_.numGroups) << "%) "
-                      << "R2: " << numRungs[2] << " (" << (100. * numRungs[2] / groups_.numGroups) << "%) "
-                      << "R3: " << numRungs[3] << " (" << (100. * numRungs[3] / groups_.numGroups) << "%) "
-                      << "All: " << groups_.numGroups << " (100%)" << std::endl;
-            // clang-format on
-        }
-        if (Base::rank_ == 0 && highRung > 0)
-        {
-            LocalIndex numActiveGroups = 0;
-            for (int i = 0; i < highRung; ++i)
-            {
-                numActiveGroups += rungs_[i].numGroups;
-            }
-            std::cout << "# Substep " << timestep_.substep << "/" << (1 << (timestep_.numRungs - 1)) << ", "
-                      << numActiveGroups << " active groups" << std::endl;
+            timestep_.nextDt = minimumGroupDt<cstone::HaveGpu<Acc>{}>(timestep_, rawPtr(groupDt_), groups_.numGroups);
         }
     }
 
     void integrate(DomainType& domain, DataType& simData) override
     {
         computeRungs(simData);
+        printTimestepStats(timestep_);
         timer.step("Timestep");
 
         auto  driftBack       = [](int subStep, int rung) { return subStep % (1 << rung); };
@@ -379,6 +356,8 @@ public:
         }
 
         timestep_.substep++;
+        timestep_.elapsedDt += timestep_.nextDt;
+
         d.ttot += timestep_.nextDt;
         d.minDt_m1 = d.minDt;
         d.minDt    = timestep_.nextDt;
@@ -441,6 +420,36 @@ public:
             std::cout << d.fieldNames[indicesDone.back()] << std::endl;
         }
         timer.step("FileOutput");
+    }
+
+private:
+    void printTimestepStats(Timestep ts)
+    {
+        int highRung = activeRung(timestep_.substep, timestep_.numRungs);
+        if (Base::rank_ == 0 && highRung == 0)
+        {
+            util::array<LocalIndex, 4> numRungs = {ts.rungRanges[1], ts.rungRanges[2] - ts.rungRanges[1],
+                                                   ts.rungRanges[3] - ts.rungRanges[2],
+                                                   ts.rungRanges[4] - ts.rungRanges[3]};
+            // clang-format off
+            std::cout << "# New block-TS " << ts.numRungs << " rungs, "
+                      << "R0: " << numRungs[0] << " (" << (100. * numRungs[0] / groups_.numGroups) << "%) "
+                      << "R1: " << numRungs[1] << " (" << (100. * numRungs[1] / groups_.numGroups) << "%) "
+                      << "R2: " << numRungs[2] << " (" << (100. * numRungs[2] / groups_.numGroups) << "%) "
+                      << "R3: " << numRungs[3] << " (" << (100. * numRungs[3] / groups_.numGroups) << "%) "
+                      << "All: " << groups_.numGroups << " (100%)" << std::endl;
+            // clang-format on
+        }
+        if (Base::rank_ == 0 && highRung > 0)
+        {
+            LocalIndex numActiveGroups = 0;
+            for (int i = 0; i < highRung; ++i)
+            {
+                numActiveGroups += rungs_[i].numGroups;
+            }
+            std::cout << "# Substep " << timestep_.substep << "/" << (1 << (timestep_.numRungs - 1)) << ", "
+                      << numActiveGroups << " active groups" << std::endl;
+        }
     }
 };
 

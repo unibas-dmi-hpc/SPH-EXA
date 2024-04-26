@@ -18,7 +18,7 @@ struct Timestep
 {
     static constexpr int maxNumRungs = 4;
 
-    float nextDt;
+    float nextDt, elapsedDt{0}, totDt;
     int   numRungs{1};
     int   substep{0};
 
