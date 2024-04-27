@@ -294,30 +294,21 @@ public:
             prevTimestep_ = timestep_;
             float maxDt   = timestep_.nextDt * d.maxDtIncrease;
             timestep_ = rungTimestep(rawPtr(groupDt_), rawPtr(groupIndices_), groups_.numGroups, maxDt, get<"keys">(d));
-
-            if constexpr (cstone::HaveGpu<Acc>{})
-            {
-                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), 0, timestep_.rungRanges.back(), tsGroups_);
-            }
         }
         else
         {
             auto [dt, rungRanges] = minimumGroupDt(timestep_, rawPtr(groupDt_), rawPtr(groupIndices_),
                                                    timestep_.rungRanges[highRung], get<"keys">(d));
             timestep_.nextDt      = dt;
+            std::copy(rungRanges.begin(), rungRanges.begin() + highRung, timestep_.rungRanges.begin());
+        }
 
-            if (highRung > 1)
+        if (highRung == 0 || highRung > 1)
+        {
+            if (highRung > 1) { swap(groups_, tsGroups_); }
+            if constexpr (cstone::HaveGpu<Acc>{})
             {
-                for (int r = 1; r < highRung; ++r)
-                {
-                    timestep_.rungRanges[r] = rungRanges[r];
-                }
-                if constexpr (cstone::HaveGpu<Acc>{})
-                {
-                    GroupData<Acc> tmp;
-                    extractGroupGpu(tsGroups_.view(), rawPtr(groupIndices_), 0, timestep_.rungRanges.back(), tmp);
-                    swap(tmp, tsGroups_);
-                }
+                extractGroupGpu(groups_.view(), rawPtr(groupIndices_), 0, timestep_.rungRanges.back(), tsGroups_);
             }
         }
 
@@ -363,7 +354,7 @@ public:
             }
         }
 
-        updateSmoothingLength(groups_.view(), d);
+        updateSmoothingLength(tsGroups_.view(), d);
 
         timestep_.substep++;
         timestep_.elapsedDt += timestep_.nextDt;
