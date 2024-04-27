@@ -27,7 +27,6 @@
  * @brief Min-reduction to determine global timestep
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Aurelien Cavelan
  */
 
 #pragma once

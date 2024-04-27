@@ -427,29 +427,31 @@ private:
     void printTimestepStats(Timestep ts)
     {
         int highRung = activeRung(timestep_.substep, timestep_.numRungs);
-        if (Base::rank_ == 0 && highRung == 0)
+        if (Base::rank_ == 0)
         {
             util::array<LocalIndex, 4> numRungs = {ts.rungRanges[1], ts.rungRanges[2] - ts.rungRanges[1],
                                                    ts.rungRanges[3] - ts.rungRanges[2],
                                                    ts.rungRanges[4] - ts.rungRanges[3]};
-            // clang-format off
-            std::cout << "# New block-TS " << ts.numRungs << " rungs, "
-                      << "R0: " << numRungs[0] << " (" << (100. * numRungs[0] / groups_.numGroups) << "%) "
-                      << "R1: " << numRungs[1] << " (" << (100. * numRungs[1] / groups_.numGroups) << "%) "
-                      << "R2: " << numRungs[2] << " (" << (100. * numRungs[2] / groups_.numGroups) << "%) "
-                      << "R3: " << numRungs[3] << " (" << (100. * numRungs[3] / groups_.numGroups) << "%) "
-                      << "All: " << groups_.numGroups << " (100%)" << std::endl;
-            // clang-format on
-        }
-        if (Base::rank_ == 0 && highRung > 0)
-        {
+
             LocalIndex numActiveGroups = 0;
             for (int i = 0; i < highRung; ++i)
             {
                 numActiveGroups += rungs_[i].numGroups;
             }
-            std::cout << "# Substep " << timestep_.substep << "/" << (1 << (timestep_.numRungs - 1)) << ", "
-                      << numActiveGroups << " active groups" << std::endl;
+            if (highRung == 0) { std::cout << "# New block-TS " << ts.numRungs << " rungs, "; }
+            else
+            {
+                std::cout << "# Substep " << timestep_.substep << "/" << (1 << (timestep_.numRungs - 1)) << ", "
+                          << numActiveGroups << " active groups, ";
+            }
+
+            // clang-format off
+            std::cout << "R0: " << numRungs[0] << " (" << (100. * numRungs[0] / groups_.numGroups) << "%) "
+                      << "R1: " << numRungs[1] << " (" << (100. * numRungs[1] / groups_.numGroups) << "%) "
+                      << "R2: " << numRungs[2] << " (" << (100. * numRungs[2] / groups_.numGroups) << "%) "
+                      << "R3: " << numRungs[3] << " (" << (100. * numRungs[3] / groups_.numGroups) << "%) "
+                      << "All: " << groups_.numGroups << " (100%)" << std::endl;
+            // clang-format on
         }
     }
 };
