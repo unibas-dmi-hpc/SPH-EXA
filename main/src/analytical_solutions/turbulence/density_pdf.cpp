@@ -91,7 +91,13 @@ int main(int argc, char** argv)
     }
     h5reader->closeStep();
 
-    T localTotalDensity = std::reduce(rho.begin(), rho.end(), 0);
+    T localTotalDensity = 0.0;
+#pragma omp parallel for reduction(+ : localTotalDensity)
+    for (size_t i = 0; i < localNumParticles; ++i)
+    {
+        localTotalDensity += rho[i];
+    }
+
     T referenceDensity;
     MPI_Allreduce(&localTotalDensity, &referenceDensity, 1, MpiType<T>{}, MPI_SUM, MPI_COMM_WORLD);
     referenceDensity /= globalNumParticles;
