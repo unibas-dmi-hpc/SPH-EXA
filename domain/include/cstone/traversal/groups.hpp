@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/tree/accel_switch.hpp"
 #include "cstone/tree/definitions.h"
@@ -30,6 +32,8 @@ class GroupData
     using AccVector = typename AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<T>;
 
 public:
+    GroupData()                 = default;
+    GroupData(const GroupView&) = delete;
     GroupView view() const { return {firstBody, lastBody, numGroups, groupStart, groupEnd}; }
 
     AccVector<LocalIndex> data;
@@ -37,6 +41,17 @@ public:
     LocalIndex numGroups;
     LocalIndex* groupStart;
     LocalIndex* groupEnd;
+
+private:
+    friend void swap(GroupData& lhs, GroupData& rhs)
+    {
+        swap(lhs.data, rhs.data);
+        std::swap(lhs.firstBody, rhs.firstBody);
+        std::swap(lhs.lastBody, rhs.lastBody);
+        std::swap(lhs.numGroups, rhs.numGroups);
+        std::swap(lhs.groupStart, rhs.groupStart);
+        std::swap(lhs.groupEnd, rhs.groupEnd);
+    }
 };
 
 } // namespace cstone

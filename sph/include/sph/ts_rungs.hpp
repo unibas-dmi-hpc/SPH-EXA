@@ -130,6 +130,7 @@ auto minimumGroupDt(Timestep ts, float* groupDt, LocalIndex* groupIndices, Local
     if constexpr (IsDeviceVector<AccVec>{})
     {
         sortGroupDt(groupDt, groupIndices, numGroups, scratch);
+        cstone::sequenceGpu(groupIndices + numGroups, ts.rungRanges.back() - numGroups, numGroups);
         minGroupDt = timestepRangeGpu(groupDt, numGroups, 0.4);
     }
 

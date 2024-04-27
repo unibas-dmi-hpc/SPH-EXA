@@ -312,10 +312,19 @@ public:
 
             if (highRung > 1)
             {
-                for (int rung = 1; rung < highRung; ++rung)
+                for (int r = 1; r < highRung; ++r)
                 {
-                    std::cout << "  rung " << rung << ": " << timestep_.rungRanges[rung] << " -> " << rungRanges[rung]
-                              << std::endl;
+                    timestep_.rungRanges[r] = rungRanges[r];
+                }
+                if constexpr (cstone::HaveGpu<Acc>{})
+                {
+                    GroupData<Acc> tmp;
+                    extractGroupGpu(tsGroups_.view(), rawPtr(groupIndices_), 0, timestep_.rungRanges.back(), tmp);
+                    swap(tmp, tsGroups_);
+                }
+                for (int r = 0; r < timestep_.numRungs; ++r)
+                {
+                    rungs_[r] = makeSlicedView(tsGroups_.view(), timestep_.rungRanges[r], timestep_.rungRanges[r + 1]);
                 }
             }
         }
