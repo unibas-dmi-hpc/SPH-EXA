@@ -116,7 +116,6 @@ public:
         if (avClean && rank == 0) { std::cout << "AV cleaning is activated" << std::endl; }
         try
         {
-            timestep_.nextDt = settings.at("minDt");
             timestep_.dt_m1[0] = settings.at("minDt");
         }
         catch (const std::out_of_range&)
@@ -162,10 +161,7 @@ public:
         reader->closeStep();
 
         int numSplits = numberAfterSign(initCond, ",");
-        if (numSplits > 0) { timestep_.nextDt /= 100 * numSplits; }
-
-        // force creation of a new timestep hierarchy
-        timestep_.substep = 0;
+        if (numSplits > 0) { timestep_.dt_m1[0] /= 100 * numSplits; }
     }
 
     void fullSync(DomainType& domain, DataType& simData)
@@ -292,7 +288,7 @@ public:
         if (highRung == 0)
         {
             prevTimestep_ = timestep_;
-            float maxDt   = timestep_.nextDt * d.maxDtIncrease;
+            float maxDt   = timestep_.dt_m1[0] * d.maxDtIncrease;
             timestep_ = rungTimestep(rawPtr(groupDt_), rawPtr(groupIndices_), groups_.numGroups, maxDt, get<"keys">(d));
         }
         else
