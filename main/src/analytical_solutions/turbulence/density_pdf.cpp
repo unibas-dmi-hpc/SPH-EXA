@@ -72,7 +72,8 @@ int main(int argc, char** argv)
     rho.resize(localNumParticles);
     if (rho.size() != localNumParticles)
     {
-        throw new std::runtime_error("rho length doesn't match local count: " + rho.size() + localNumParticles);
+        throw new std::runtime_error("rho length doesn't match local count: " + std::to_string(rho.size()) + "\t" +
+                                     std::to_string(localNumParticles));
     }
 
     if (sph_type == "std") { h5reader->readField("rho", rho.data()); }
