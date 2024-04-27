@@ -81,6 +81,8 @@ protected:
 
     //! brief timestep information rungs
     Timestep timestep_, prevTimestep_;
+    //! number of initial steps to disable block time-steps
+    int safetySteps{0};
 
     //! @brief no dependent fields can be temporarily reused as scratch space for halo exchanges
     AccVector<LocalIndex> haloRecvScratch;
@@ -162,6 +164,7 @@ public:
 
         int numSplits = numberAfterSign(initCond, ",");
         if (numSplits > 0) { timestep_.dt_m1[0] /= 100 * numSplits; }
+        if (numSplits > 0) { safetySteps = 1000; }
     }
 
     void fullSync(DomainType& domain, DataType& simData)
@@ -290,6 +293,13 @@ public:
             prevTimestep_ = timestep_;
             float maxDt   = timestep_.dt_m1[0] * d.maxDtIncrease;
             timestep_ = rungTimestep(rawPtr(groupDt_), rawPtr(groupIndices_), groups_.numGroups, maxDt, get<"keys">(d));
+
+            if (safetySteps > 0)
+            {
+                timestep_.numRungs = 1;
+                std::fill(timestep_.rungRanges.begin() + 1, timestep_.rungRanges.end(), groups_.numGroups);
+                safetySteps--;
+            }
         }
         else
         {
