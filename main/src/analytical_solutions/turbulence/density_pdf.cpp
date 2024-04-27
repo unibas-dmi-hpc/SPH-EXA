@@ -99,7 +99,8 @@ int main(int argc, char** argv)
         localTotalDensity += rho[i];
     }
 
-    printf("rank %i, local average  density: %f ", rank, localTotalDensity / localNumParticles);
+    MPI_Barrier(MPI_COMM_WORLD);
+    printf("rank %i, local average  density: %f \n", rank, localTotalDensity / localNumParticles);
     T referenceDensity = 0.0;
     MPI_Allreduce(&localTotalDensity, &referenceDensity, 1, MpiType<T>{}, MPI_SUM, MPI_COMM_WORLD);
     referenceDensity /= globalNumParticles;
