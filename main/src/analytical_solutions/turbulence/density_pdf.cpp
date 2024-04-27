@@ -64,6 +64,10 @@ int main(int argc, char** argv)
 
     const size_t localNumParticles  = h5reader->localNumParticles();
     const size_t globalNumParticles = h5reader->globalNumParticles();
+    if (rank == 0)
+    {
+        printf("Density-PDF: local particles: %lu \t global particles: %lu\n", localNumParticles, globalNumParticles);
+    }
 
     rho.resize(localNumParticles);
     if (rho.size() != localNumParticles)
@@ -92,11 +96,7 @@ int main(int argc, char** argv)
     MPI_Allreduce(&localTotalDensity, &referenceDensity, 1, MpiType<T>{}, MPI_SUM, MPI_COMM_WORLD);
     referenceDensity /= globalNumParticles;
 
-    if (rank == 0)
-    {
-        printf("starting PDF calculation with %lu global, %lu local particles and reference density %f\n",
-               globalNumParticles, localNumParticles, referenceDensity);
-    }
+    if (rank == 0) { printf("starting PDF calculation with reference density %f\n", referenceDensity); }
 
     bins = computeProbabilityDistribution(rho, referenceDensity, nBins, minValue, maxValue);
     std::vector<T> reduced_bins(nBins, 0.0);
