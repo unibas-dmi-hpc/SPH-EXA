@@ -299,10 +299,6 @@ public:
             {
                 extractGroupGpu(groups_.view(), rawPtr(groupIndices_), 0, timestep_.rungRanges.back(), tsGroups_);
             }
-            for (int r = 0; r < timestep_.numRungs; ++r)
-            {
-                rungs_[r] = makeSlicedView(tsGroups_.view(), timestep_.rungRanges[r], timestep_.rungRanges[r + 1]);
-            }
         }
         else
         {
@@ -322,11 +318,12 @@ public:
                     extractGroupGpu(tsGroups_.view(), rawPtr(groupIndices_), 0, timestep_.rungRanges.back(), tmp);
                     swap(tmp, tsGroups_);
                 }
-                for (int r = 0; r < timestep_.numRungs; ++r)
-                {
-                    rungs_[r] = makeSlicedView(tsGroups_.view(), timestep_.rungRanges[r], timestep_.rungRanges[r + 1]);
-                }
             }
+        }
+
+        for (int r = 0; r < timestep_.numRungs; ++r)
+        {
+            rungs_[r] = makeSlicedView(tsGroups_.view(), timestep_.rungRanges[r], timestep_.rungRanges[r + 1]);
         }
     }
 
