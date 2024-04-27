@@ -338,9 +338,9 @@ public:
             bool useRung = timestep_.substep == driftBack(timestep_.substep, i); // if drift back to start of hierarchy
             bool advance = i < lowestDriftRung;
 
-            float dt    = timestep_.nextDt;
-            auto  dt_m1 = useRung ? prevTimestep_.dt_m1 : util::array<float, Timestep::maxNumRungs>{timestep_.dt_m1[i]};
-            const uint8_t* rung = useRung ? rawPtr(get<"rung">(d)) : nullptr;
+            float          dt    = timestep_.nextDt;
+            auto           dt_m1 = useRung ? prevTimestep_.dt_m1 : timestep_.dt_m1;
+            const uint8_t* rung  = rawPtr(get<"rung">(d));
 
             if (advance)
             {
@@ -348,6 +348,7 @@ public:
                 computePositions(rungs_[i], d, substepBox, timestep_.dt_drift[i] + dt, dt_m1, rung);
                 timestep_.dt_m1[i]    = timestep_.dt_drift[i] + dt;
                 timestep_.dt_drift[i] = 0;
+                if constexpr (cstone::HaveGpu<Acc>{}) { storeRungGpu(rungs_[i], i, rawPtr(get<"rung">(d))); }
             }
             else
             {
@@ -357,14 +358,6 @@ public:
         }
 
         updateSmoothingLength(groups_.view(), d);
-
-        if (isLastSubstep) // if next step starts new hierarchy
-        {
-            for (int r = 0; r < timestep_.numRungs; ++r)
-            {
-                if constexpr (cstone::HaveGpu<Acc>{}) { storeRungGpu(rungs_[r], r, rawPtr(get<"rung">(d))); }
-            }
-        }
 
         timestep_.substep++;
         timestep_.elapsedDt += timestep_.nextDt;
