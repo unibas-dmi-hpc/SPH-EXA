@@ -87,21 +87,30 @@ inline auto timestepRangeGpu(const float* groupDt, cstone::LocalIndex numGroups,
     return minGroupDt;
 }
 
-//! @brief Determine timestep rungs
 template<class AccVec>
-Timestep rungTimestep(float* groupDt, LocalIndex* groupIndices, LocalIndex numGroups, float maxDt, AccVec& scratch)
+auto computeMinTimestep(float* groupDt, LocalIndex* groupIndices, LocalIndex numGroups, LocalIndex numGroupsTot,
+                        AccVec& scratch)
 {
+    float                fastFraction = 0.4;
     std::array<float, 2> minGroupDt;
     if constexpr (IsDeviceVector<AccVec>{})
     {
         sortGroupDt(groupDt, groupIndices, numGroups, scratch);
-        minGroupDt = timestepRangeGpu(groupDt, numGroups, 0.4);
+        cstone::sequenceGpu(groupIndices + numGroups, numGroupsTot - numGroups, numGroups);
+        minGroupDt = timestepRangeGpu(groupDt, numGroups, fastFraction);
     }
 
     std::array<float, 2> minDtGlobal;
     mpiAllreduce(minGroupDt.data(), minDtGlobal.data(), minGroupDt.size(), MPI_MIN);
+    return minDtGlobal;
+}
 
-    int numRungs = std::min(int(log2(minDtGlobal[1] / minDtGlobal[0])) + 1, Timestep::maxNumRungs);
+//! @brief Determine timestep rungs
+template<class AccVec>
+Timestep rungTimestep(float* groupDt, LocalIndex* groupIndices, LocalIndex numGroups, float maxDt, AccVec& scratch)
+{
+    auto minDtGlobal = computeMinTimestep(groupDt, groupIndices, numGroups, numGroups, scratch);
+    int  numRungs    = std::min(int(log2(minDtGlobal[1] / minDtGlobal[0])) + 1, Timestep::maxNumRungs);
 
     // find ranges of 2*minDt, 4*minDt, 8*minDt
     // groupDt is sorted, groups belonging to a specific rung will correspond to index ranges
@@ -126,16 +135,7 @@ Timestep rungTimestep(float* groupDt, LocalIndex* groupIndices, LocalIndex numGr
 template<class AccVec>
 auto minimumGroupDt(Timestep ts, float* groupDt, LocalIndex* groupIndices, LocalIndex numGroups, AccVec& scratch)
 {
-    std::array<float, 2> minGroupDt;
-    if constexpr (IsDeviceVector<AccVec>{})
-    {
-        sortGroupDt(groupDt, groupIndices, numGroups, scratch);
-        cstone::sequenceGpu(groupIndices + numGroups, ts.rungRanges.back() - numGroups, numGroups);
-        minGroupDt = timestepRangeGpu(groupDt, numGroups, 0.4);
-    }
-
-    std::array<float, 2> minDtGlobal;
-    mpiAllreduce(minGroupDt.data(), minDtGlobal.data(), minGroupDt.size(), MPI_MIN);
+    auto minDtGlobal = computeMinTimestep(groupDt, groupIndices, numGroups, ts.rungRanges.back(), scratch);
 
     std::array<LocalIndex, Timestep::maxNumRungs + 1> rungRanges{0};
     std::fill(rungRanges.begin() + 1, rungRanges.end(), numGroups);
