@@ -70,11 +70,6 @@ int main(int argc, char** argv)
     }
 
     rho.resize(localNumParticles);
-    if (rho.size() != localNumParticles)
-    {
-        throw std::runtime_error("rho length doesn't match local count: " + std::to_string(rho.size()) + "\t" +
-                                 std::to_string(localNumParticles));
-    }
 
     if (sph_type == "std") { h5reader->readField("rho", rho.data()); }
     else
@@ -90,6 +85,13 @@ int main(int argc, char** argv)
             rho[i] = rho[i] * m[i] / xm[i];
         }
     }
+    rho.shrink_to_fit();
+    if (rho.size() != localNumParticles)
+    {
+        throw std::runtime_error("rho length doesn't match local count: " + std::to_string(rho.size()) + "\t" +
+                                 std::to_string(localNumParticles));
+    }
+
     h5reader->closeStep();
 
     T localTotalDensity = 0.0;
