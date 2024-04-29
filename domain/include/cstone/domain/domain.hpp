@@ -234,7 +234,7 @@ public:
         reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
                         focusTree_.leafCountsAcc(), focusTree_.assignment(), {rawPtr(layoutAcc_), layoutAcc_.size()},
-                        box(), rawPtr(h), std::get<0>(scratch));
+                        box(), rawPtr(h), haloSearchExt_, std::get<0>(scratch));
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
         updateLayout(sorter, exchangeStart, keyView, particleKeys, std::tie(h),
@@ -264,7 +264,10 @@ public:
         gatherArrays(sorter.gatherFunc(), sorter.getMap() + global_.numSendDown(), global_.numAssigned(), exchangeStart,
                      0, std::tie(x, y, z, h, m), util::reverse(scratch));
 
-        float invThetaEff      = invThetaVecMac(theta_);
+        // invThetaEff needs to be more strict than the worst case vec mac, because if the tree is reused multiple
+        // times, an expansion center might have moved outside the cell, which can mark remote cells as halos on ranks
+        // that won't be found by findPeers
+        float invThetaEff      = invThetaVecMac(theta_) * haloSearchExt_;
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
 
         if (firstCall_)
@@ -285,6 +288,8 @@ public:
                 reps++;
             }
         }
+        // update the tree using expansion centers from the previous iteration, but 5% stricter to account for
+        // possibility of the exp. center having moved closer to the source after timestep integration
         focusTree_.updateMacs(box(), global_.assignment(), 1.05 / theta_);
         focusTree_.updateTree(peers, global_.assignment());
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
@@ -300,7 +305,7 @@ public:
         reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, 1.01);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
                         focusTree_.leafCountsAcc(), focusTree_.assignment(), {rawPtr(layoutAcc_), layoutAcc_.size()},
-                        box(), rawPtr(h), std::get<0>(scratch));
+                        box(), rawPtr(h), haloSearchExt_, std::get<0>(scratch));
         focusTree_.addMacs(halos_.haloFlags());
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
 
@@ -395,6 +400,9 @@ public:
     gsl::span<const LocalIndex> layout() const { return {rawPtr(layoutAcc_), layoutAcc_.size()}; }
     //! @brief return the coordinate bounding box from the previous sync call
     const Box<T>& box() const { return global_.box(); }
+
+    void setHaloFactor(float factor) { haloSearchExt_ = factor; }
+    float getHaloFactor() const { return haloSearchExt_; }
 
     //! @brief update expansion (c.o.m) centers of the focus tree
     template<class VectorX, class VectorM, class VectorS1, class VectorS2>
@@ -635,6 +643,9 @@ private:
 
     //! @brief MAC parameter for focus resolution and gravity treewalk
     float theta_;
+
+    //! @brief Extra search factor for halo discovery, allowing multiple time integration steps between sync() calls
+    float haloSearchExt_{1.0};
 
     /*! @brief description of particle buffers, storing start and end indices of assigned particles and total size
      *

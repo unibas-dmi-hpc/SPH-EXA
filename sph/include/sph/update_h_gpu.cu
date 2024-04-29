@@ -28,34 +28,34 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include "cstone/primitives/math.hpp"
+#include "cstone/cuda/gpu_config.cuh"
 #include "sph/sph_gpu.hpp"
 #include "sph/kernels.hpp"
 
 namespace sph
 {
+using cstone::LocalIndex;
 
 template<class Th>
 __global__ void updateSmoothingLengthGpuKernel(GroupView grp, unsigned ng0, const unsigned* nc, Th* h)
 {
-    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid >= grp.numGroups) { return; }
+    LocalIndex laneIdx = threadIdx.x & (cstone::GpuConfig::warpSize - 1);
+    LocalIndex warpIdx = (blockDim.x * blockIdx.x + threadIdx.x) >> cstone::GpuConfig::warpSizeLog2;
+    if (warpIdx >= grp.numGroups) { return; }
 
-    auto bodyBegin = grp.groupStart[tid];
-    auto bodyEnd   = grp.groupEnd[tid];
+    LocalIndex i = grp.groupStart[warpIdx] + laneIdx;
+    if (i >= grp.groupEnd[warpIdx]) { return; }
 
-    for (auto i = bodyBegin; i < bodyEnd; ++i)
-    {
-        h[i] = updateH(ng0, nc[i], h[i]);
-    }
+    h[i] = updateH(ng0, nc[i], h[i]);
 }
 
 template<class Th>
 void updateSmoothingLengthGpu(const GroupView& grp, unsigned ng0, const unsigned* nc, Th* h)
 {
-    unsigned numThreads = 256;
-    unsigned numBlocks  = cstone::iceil(grp.numGroups, 256);
-
+    unsigned numThreads       = 256;
+    unsigned numWarpsPerBlock = numThreads / cstone::GpuConfig::warpSize;
+    unsigned numBlocks        = (grp.numGroups + numWarpsPerBlock - 1) / numWarpsPerBlock;
+    if (numBlocks == 0) { return; }
     updateSmoothingLengthGpuKernel<<<numBlocks, numThreads>>>(grp, ng0, nc, h);
 }
 
