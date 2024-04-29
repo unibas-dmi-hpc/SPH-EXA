@@ -108,7 +108,8 @@ HOST_DEVICE_FUN unsigned findNeighbors(LocalIndex i,
     auto zi = z[i];
     auto hi = h[i];
 
-    auto radiusSq = Th(4.0) * hi * hi;
+    auto radiusSq     = Th(4.0) * hi * hi;
+    auto cellRadiusSq = radiusSq * tree.searchExtFactor * tree.searchExtFactor;
     Vec3<Tc> particle{xi, yi, zi};
     unsigned numNeighbors = 0;
 
@@ -116,19 +117,11 @@ HOST_DEVICE_FUN unsigned findNeighbors(LocalIndex i,
     bool anyPbc = box.boundaryX() == pbc || box.boundaryY() == pbc || box.boundaryZ() == pbc;
     bool usePbc = anyPbc && !insideBox(particle, {Tc(2) * hi, Tc(2) * hi, Tc(2) * hi}, box);
 
-    auto overlapsPbc = [particle, radiusSq, centers = tree.centers, sizes = tree.sizes, &box](TreeNodeIndex idx)
-    {
-        auto nodeCenter = centers[idx];
-        auto nodeSize   = sizes[idx];
-        return norm2(minDistance(particle, nodeCenter, nodeSize, box)) < radiusSq;
-    };
+    auto overlapsPbc = [particle, cellRadiusSq, centers = tree.centers, sizes = tree.sizes, &box](TreeNodeIndex idx)
+    { return norm2(minDistance(particle, centers[idx], sizes[idx], box)) < cellRadiusSq; };
 
-    auto overlaps = [particle, radiusSq, centers = tree.centers, sizes = tree.sizes](TreeNodeIndex idx)
-    {
-        auto nodeCenter = centers[idx];
-        auto nodeSize   = sizes[idx];
-        return norm2(minDistance(particle, nodeCenter, nodeSize)) < radiusSq;
-    };
+    auto overlaps = [particle, cellRadiusSq, centers = tree.centers, sizes = tree.sizes](TreeNodeIndex idx)
+    { return norm2(minDistance(particle, centers[idx], sizes[idx])) < cellRadiusSq; };
 
     auto searchBoxPbc =
         [i, particle, radiusSq, &tree, x, y, z, ngmax, neighbors, &numNeighbors, &box](TreeNodeIndex idx)

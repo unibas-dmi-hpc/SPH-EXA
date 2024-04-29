@@ -199,6 +199,9 @@ public:
                                           haloRecvScratch);
         }
 
+        //! @brief increase tree-cell search radius for each substep to account for particles drifting out of cells
+        d.treeView.searchExtFactor *= 1.012;
+
         int highestRung = cstone::butterfly(timestep_.substep);
         activeRungs_    = makeSlicedView(tsGroups_.view(), timestep_.rungRanges[0], timestep_.rungRanges[highestRung]);
     }
