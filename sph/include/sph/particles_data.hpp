@@ -302,14 +302,25 @@ public:
 
     void resize(size_t size)
     {
-        double growthRate = 1.05;
+        double growthRate = 1.01;
         auto   data_      = data();
+
+        auto deallocateVector = [size](auto* devVectorPtr)
+        {
+            using DevVector = std::decay_t<decltype(*devVectorPtr)>;
+            if (devVectorPtr->capacity() < size) { *devVectorPtr = DevVector{}; }
+        };
+
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (this->isAllocated(i) && not this->isConserved(i)) { std::visit(deallocateVector, data_[i]); }
+        }
 
         for (size_t i = 0; i < data_.size(); ++i)
         {
             if (this->isAllocated(i))
             {
-                std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
+                std::visit([size, growthRate](auto* arg) { reallocate(*arg, size, growthRate); }, data_[i]);
             }
         }
 

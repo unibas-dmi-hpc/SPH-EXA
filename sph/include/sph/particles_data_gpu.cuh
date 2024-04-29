@@ -161,7 +161,7 @@ public:
 
         for (size_t i = 0; i < data_.size(); ++i)
         {
-            if (this->isAllocated(i)) { std::visit(deallocateVector, data_[i]); }
+            if (this->isAllocated(i) && not this->isConserved(i)) { std::visit(deallocateVector, data_[i]); }
         }
 
         for (size_t i = 0; i < data_.size(); ++i)
