@@ -232,8 +232,8 @@ public:
     FieldVector<uint8_t>   rung;                               // rung per particle of previous timestep
 
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
-    std::vector<cstone::LocalIndex>             neighbors;
-    cstone::OctreeProperties<RealType, KeyType> treeView;
+    std::vector<cstone::LocalIndex>         neighbors;
+    cstone::OctreeNsView<RealType, KeyType> treeView;
 
     DeviceData_t<AccType> devData;
 

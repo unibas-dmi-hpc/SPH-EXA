@@ -36,7 +36,7 @@ void computeSpatialGroups(size_t startIndex, size_t endIndex, Dataset& d,
     float tolFactor = 2.0f;
     cstone::computeGroupSplits<TravConfig::targetSize>(startIndex, endIndex, rawPtr(d.devData.x), rawPtr(d.devData.y),
                                                        rawPtr(d.devData.z), rawPtr(d.devData.h), d.treeView.leaves,
-                                                       d.treeView.tree.numLeafNodes, d.treeView.layout, box, tolFactor,
+                                                       d.treeView.numLeafNodes, d.treeView.layout, box, tolFactor,
                                                        S, d.devData.traversalStack, groups.data);
 
     groups.firstBody  = startIndex;
