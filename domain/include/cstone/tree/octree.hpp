@@ -295,42 +295,24 @@ struct OctreeView
 template<class T, class KeyType>
 struct OctreeNsView
 {
+    TreeNodeIndex numLeafNodes;
     //! @brief see OctreeData
     const KeyType* prefixes;
     const TreeNodeIndex* childOffsets;
     const TreeNodeIndex* internalToLeaf;
     const TreeNodeIndex* levelRange;
+    const KeyType* leaves;
 
     //! @brief index of first particle for each leaf node
     const LocalIndex* layout;
     //! @brief geometrical node centers and sizes
     const Vec3<T>* centers;
     const Vec3<T>* sizes;
-};
 
-/*! @brief Contains a view to octree data as well as associated node properties
- *
- * This container is used in both CPU and GPU contexts
- */
-template<class T, class KeyType>
-struct OctreeProperties
-{
-    OctreeNsView<T, KeyType> nsView() const
-    {
-        return {tree.prefixes, tree.childOffsets, tree.internalToLeaf, tree.levelRange, layout, centers, sizes};
-    }
-
-    //! @brief data view of the fully linked octree
-    OctreeView<const KeyType> tree;
-
-    //! @brief geometrical node centers and sizes of the fully linked tree
-    const Vec3<T>* centers;
-    const Vec3<T>* sizes;
-
-    //! @brief cornerstone leaf cell array
-    const KeyType* leaves;
-    //! @brief index of first particle for each leaf node
-    const LocalIndex* layout;
+    /*! @ brief Factor to enlarge target bounding boxes to compensate for slightly outdated trees
+     *          Default for fully converged trees: 1.0, >1.0 otherwise
+     */
+    float searchExtFactor{1.0};
 };
 
 template<class KeyType, class Accelerator>

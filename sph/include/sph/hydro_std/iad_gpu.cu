@@ -115,7 +115,7 @@ void computeIADGpu(const GroupView& grp, Dataset& d, const cstone::Box<typename 
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     IADGpuKernel<<<TravConfig::numBlocks(), TravConfig::numThreads>>>(
-        d.K, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView.nsView(), rawPtr(d.devData.x),
+        d.K, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView, rawPtr(d.devData.x),
         rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.h), rawPtr(d.devData.m), rawPtr(d.devData.rho),
         rawPtr(d.devData.wh), rawPtr(d.devData.whd), rawPtr(d.devData.c11), rawPtr(d.devData.c12),
         rawPtr(d.devData.c13), rawPtr(d.devData.c22), rawPtr(d.devData.c23), rawPtr(d.devData.c33), nidxPool,

@@ -37,6 +37,7 @@
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/findneighbors.hpp"
+#include "cstone/primitives/math.hpp"
 
 #include "cstone/traversal/find_neighbors.cuh"
 
@@ -63,7 +64,7 @@ __global__ void findNeighborsKernel(const T* x,
     cstone::LocalIndex id  = firstId + tid;
     if (id >= lastId) { return; }
 
-    findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + tid * ngmax, neighborsCount + id);
+    neighborsCount[id] = findNeighbors(id, x, y, z, h, treeView, box, ngmax, neighbors + tid * ngmax);
 }
 
 /*! @brief Neighbor search for bodies within the specified range
@@ -210,10 +211,12 @@ void benchmarkGpu()
     gsl::span<const KeyType> nodeKeys(octree.prefixes.data(), octree.numNodes);
     nodeFpCenters<KeyType>(nodeKeys, centers.data(), sizes.data(), box);
 
-    OctreeNsView<T, KeyType> nsView{octree.prefixes.data(),
+    OctreeNsView<T, KeyType> nsView{octree.numLeafNodes,
+                                    octree.prefixes.data(),
                                     octree.childOffsets.data(),
                                     octree.internalToLeaf.data(),
                                     octree.levelRange.data(),
+                                    nullptr,
                                     layout.data(),
                                     centers.data(),
                                     sizes.data()};
@@ -250,15 +253,12 @@ void benchmarkGpu()
     thrust::device_vector<Vec3<T>> d_centers              = centers;
     thrust::device_vector<Vec3<T>> d_sizes                = sizes;
 
-    OctreeNsView<T, KeyType> nsViewGpu{rawPtr(d_prefixes),   rawPtr(d_childOffsets), rawPtr(d_internalToLeaf),
-                                       rawPtr(d_levelRange), rawPtr(d_layout),       rawPtr(d_centers),
-                                       rawPtr(d_sizes)};
+    OctreeNsView<T, KeyType> nsViewGpu{octree.numLeafNodes,      rawPtr(d_prefixes),   rawPtr(d_childOffsets),
+                                       rawPtr(d_internalToLeaf), rawPtr(d_levelRange), nullptr,
+                                       rawPtr(d_layout),         rawPtr(d_centers),    rawPtr(d_sizes)};
 
     thrust::device_vector<LocalIndex> d_neighbors(neighborsGPU.size());
     thrust::device_vector<unsigned> d_neighborsCount(neighborsCountGPU.size());
-
-    thrust::device_vector<KeyType> d_codes(coords.particleKeys().begin(), coords.particleKeys().end());
-    const auto* deviceKeys = (const KeyType*)(rawPtr(d_codes));
 
     auto findNeighborsLambda = [&]()
     {

@@ -406,10 +406,18 @@ public:
         focusTree_.setMacRadius(box(), 1.0 / theta_);
     };
 
-    OctreeProperties<T, KeyType> octreeProperties() const
+    OctreeNsView<T, KeyType> octreeProperties() const
     {
-        return {focusTree_.octreeViewAcc(), focusTree_.geoCentersAcc().data(), focusTree_.geoSizesAcc().data(),
-                focusTree_.treeLeavesAcc().data(), rawPtr(layoutAcc_)};
+        auto ft = focusTree_.octreeViewAcc();
+        return {ft.numLeafNodes,
+                ft.prefixes,
+                ft.childOffsets,
+                ft.internalToLeaf,
+                ft.levelRange,
+                focusTree_.treeLeavesAcc().data(),
+                rawPtr(layoutAcc_),
+                focusTree_.geoCentersAcc().data(),
+                focusTree_.geoSizesAcc().data()};
     }
 
 private:

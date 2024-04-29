@@ -131,7 +131,7 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     std::vector<cstone::LocalIndex> neighbors(localCount * ngmax);
     std::vector<unsigned> neighborsCount(localCount);
     findNeighbors(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), box,
-                  domain.octreeProperties().nsView(), ngmax, neighbors.data(), neighborsCount.data());
+                  domain.octreeProperties(), ngmax, neighbors.data(), neighborsCount.data());
 
     uint64_t neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
     MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<uint64_t>{}, MPI_SUM, MPI_COMM_WORLD);

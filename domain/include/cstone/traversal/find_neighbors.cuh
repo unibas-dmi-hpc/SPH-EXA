@@ -408,8 +408,8 @@ warpBbox(const util::array<Vec4<Tc>, TravConfig::nwt>& pos_i)
     Xmin = {warpMin(Xmin[0]), warpMin(Xmin[1]), warpMin(Xmin[2])};
     Xmax = {warpMax(Xmax[0]), warpMax(Xmax[1]), warpMax(Xmax[2])};
 
-    const Vec3<Tc> targetCenter = (Xmax + Xmin) * Tc(0.5);
-    const Vec3<Tc> targetSize   = (Xmax - Xmin) * Tc(0.5);
+    Vec3<Tc> targetCenter = (Xmax + Xmin) * Tc(0.5);
+    Vec3<Tc> targetSize   = (Xmax - Xmin) * Tc(0.5);
 
     return thrust::make_tuple(targetCenter, targetSize);
 }
@@ -458,7 +458,8 @@ __device__ util::array<unsigned, TravConfig::nwt> traverseNeighbors(cstone::Loca
     int* cellQueue = globalPool + TravConfig::memPerWarp * ((blockIdx.x * numWarpsPerBlock) + warpIdx);
 
     util::array<Vec4<Tc>, TravConfig::nwt> pos_i = loadTarget(bodyBegin, bodyEnd, laneIdx, x, y, z, h);
-    const auto [targetCenter, targetSize]        = warpBbox(pos_i);
+    auto [targetCenter, targetSize]              = warpBbox(pos_i);
+    targetSize *= Tc(tree.searchExtFactor);
 
 #pragma unroll
     for (int k = 0; k < TravConfig::nwt; ++k)
