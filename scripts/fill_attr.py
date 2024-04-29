@@ -697,6 +697,8 @@ if __name__ == "__main__":
 
     # python ./fill_attr.py ./3000c.h5 "/scratch/snx3000/yzhu/filled" 0 serial
 
+    # python ./trim.py ./turb_3000/turb_3k.h5 "/scratch/snx3000/yzhu/insitu_test/rho" 0 serial
+
     # Test data
     # input_path = "/home/appcell/unibas-sphexa/sphexa-vis/output/develop/res.h5"
     # output_initial = "/home/appcell/unibas-sphexa/sphexa-vis/output/develop/rescopy"
