@@ -208,6 +208,7 @@ public:
 
     void sync(DomainType& domain, DataType& simData) override
     {
+        domain.setHaloFactor(1.1);
         if (activeRung(timestep_.substep, timestep_.numRungs) == 0) { fullSync(domain, simData); }
         else { partialSync(domain, simData); }
     }
