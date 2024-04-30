@@ -28,32 +28,35 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include "cstone/primitives/math.hpp"
+#include "cstone/cuda/gpu_config.cuh"
 #include "cstone/traversal/groups.hpp"
 
 #include "sph/hydro_turb/stirring.hpp"
 
 namespace sph
 {
+using cstone::GpuConfig;
 using cstone::GroupView;
+using cstone::LocalIndex;
 
 template<class Tc, class Ta, class T>
 __global__ void computeStirringKernel(GroupView grp, size_t numDim, const Tc* x, const Tc* y, const Tc* z, Ta* ax,
                                       Ta* ay, Ta* az, size_t numModes, const T* modes, const T* phaseReal,
                                       const T* phaseImag, const T* amplitudes, T solWeightNorm)
 {
-    auto tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid >= grp.numGroups) { return; }
+    LocalIndex laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
+    LocalIndex warpIdx = (blockDim.x * blockIdx.x + threadIdx.x) >> GpuConfig::warpSizeLog2;
+    if (warpIdx >= grp.numGroups) { return; }
 
-    for (auto i = grp.groupStart[tid]; i < grp.groupEnd[tid]; ++i)
-    {
-        auto [turbAx, turbAy, turbAz] =
-            stirParticle<Tc, Ta, T>(numDim, x[i], y[i], z[i], numModes, modes, phaseReal, phaseImag, amplitudes);
+    LocalIndex i = grp.groupStart[warpIdx] + laneIdx;
+    if (i >= grp.groupEnd[warpIdx]) { return; }
 
-        ax[i] += solWeightNorm * turbAx;
-        ay[i] += solWeightNorm * turbAy;
-        az[i] += solWeightNorm * turbAz;
-    }
+    auto [turbAx, turbAy, turbAz] =
+        stirParticle<Tc, Ta, T>(numDim, x[i], y[i], z[i], numModes, modes, phaseReal, phaseImag, amplitudes);
+
+    ax[i] += solWeightNorm * turbAx;
+    ay[i] += solWeightNorm * turbAy;
+    az[i] += solWeightNorm * turbAz;
 }
 
 //! @brief Add stirring accelerations on the GPU, see CPU version for documentation
@@ -62,8 +65,9 @@ void computeStirringGpu(GroupView grp, size_t numDim, const Tc* x, const Tc* y, 
                         size_t numModes, const T* modes, const T* st_aka, const T* st_akb, const T* amplitudes,
                         T solWeightNorm)
 {
-    unsigned numThreads = 256;
-    unsigned numBlocks  = cstone::iceil(grp.numGroups, numThreads);
+    unsigned numThreads       = 256;
+    unsigned numWarpsPerBlock = numThreads / GpuConfig::warpSize;
+    unsigned numBlocks        = (grp.numGroups + numWarpsPerBlock - 1) / numWarpsPerBlock;
 
     if (numBlocks == 0) { return; }
     computeStirringKernel<<<numBlocks, numThreads>>>(grp, numDim, x, y, z, ax, ay, az, numModes, modes, st_aka, st_akb,
