@@ -4,8 +4,7 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <thrust/transform_reduce.h>
-#include <thrust/execution_policy.h>
+#include "cstone/cuda/gpu_config.cuh"
 #include "cstone/primitives/math.hpp"
 #include "sph/sph_gpu.hpp"
 
@@ -84,24 +83,21 @@ template void groupAccTimestepGpu(float, const GroupView&, const float*, const f
 
 __global__ void storeRungKernel(const GroupView grp, uint8_t rung, uint8_t* particleRungs)
 {
-    LocalIndex tid = blockIdx.x * blockDim.x + threadIdx.x;
+    LocalIndex laneIdx = threadIdx.x & (cstone::GpuConfig::warpSize - 1);
+    LocalIndex warpIdx = (blockDim.x * blockIdx.x + threadIdx.x) >> cstone::GpuConfig::warpSizeLog2;
+    if (warpIdx >= grp.numGroups) { return; }
 
-    if (tid < grp.numGroups)
-    {
-        LocalIndex segStart = grp.groupStart[tid];
-        LocalIndex segEnd   = grp.groupEnd[tid];
+    LocalIndex i = grp.groupStart[warpIdx] + laneIdx;
+    if (i >= grp.groupEnd[warpIdx]) { return; }
 
-        for (LocalIndex i = segStart; i < segEnd; ++i)
-        {
-            particleRungs[i] = rung;
-        }
-    }
+    particleRungs[i] = rung;
 }
 
 void storeRungGpu(const GroupView& grp, uint8_t rung, uint8_t* particleRungs)
 {
-    int numThreads = 256;
-    int numBlocks  = cstone::iceil(grp.numGroups, numThreads);
+    unsigned numThreads       = 256;
+    unsigned numWarpsPerBlock = numThreads / cstone::GpuConfig::warpSize;
+    unsigned numBlocks        = (grp.numGroups + numWarpsPerBlock - 1) / numWarpsPerBlock;
     if (numBlocks == 0) { return; }
     storeRungKernel<<<numBlocks, numThreads>>>(grp, rung, particleRungs);
 }
