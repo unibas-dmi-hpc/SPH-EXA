@@ -49,43 +49,42 @@ __global__ void driftKernel(GroupView grp, float dt, float dt_back, util::array<
                             const Tm1* z_m1, const Thydro* ax, const Thydro* ay, const Thydro* az, const uint8_t* rung,
                             Tc* temp, Tc* u, Tdu* du, Tm1* du_m1, Thydro* mui, Tc gamma, Tc constCv)
 {
-    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid >= grp.numGroups) { return; }
+    LocalIndex laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
+    LocalIndex warpIdx = (blockDim.x * blockIdx.x + threadIdx.x) >> GpuConfig::warpSizeLog2;
+    if (warpIdx >= grp.numGroups) { return; }
+
+    LocalIndex i = grp.groupStart[warpIdx] + laneIdx;
+    if (i >= grp.groupEnd[warpIdx]) { return; }
 
     // drifting must not adjust for PBC because that would require octrees to be rebuilt
     cstone::Box<Tc> noPbc(0, 1, cstone::BoundaryType::open);
-    auto            bodyBegin = grp.groupStart[tid];
-    auto            bodyEnd   = grp.groupEnd[tid];
 
-    for (auto i = bodyBegin; i < bodyEnd; ++i)
+    float            dt_m1_rung = (rung != nullptr) ? dt_m1[rung[i]] : dt_m1[0];
+    cstone::Vec3<Tc> An{ax[i], ay[i], az[i]};
+    cstone::Vec3<Tc> Xnback{x[i], y[i], z[i]};
+    cstone::Vec3<Tc> dXn{x_m1[i], y_m1[i], z_m1[i]};
+
+    // recover Xn, at which point An was calculated
+    cstone::Vec3<Tc> Xn_recov, ignore;
+    util::tie(Xn_recov, ignore, ignore) = positionUpdate(-dt_back, dt_m1_rung, Xnback, An, dXn, noPbc);
+
+    // drift to new point in time starting from (Xn, An, dXn)
+    cstone::Vec3<Tc> Xnp1, Vnp1;
+    util::tie(Xnp1, Vnp1, ignore) = positionUpdate(dt, dt_m1_rung, Xn_recov, An, dXn, noPbc);
+
+    util::tie(x[i], y[i], z[i])    = util::tie(Xnp1[0], Xnp1[1], Xnp1[2]);
+    util::tie(vx[i], vy[i], vz[i]) = util::tie(Vnp1[0], Vnp1[1], Vnp1[2]);
+
+    if (temp != nullptr)
     {
-        float            dt_m1_rung = (rung != nullptr) ? dt_m1[rung[i]] : dt_m1[0];
-        cstone::Vec3<Tc> An{ax[i], ay[i], az[i]};
-        cstone::Vec3<Tc> Xnback{x[i], y[i], z[i]};
-        cstone::Vec3<Tc> dXn{x_m1[i], y_m1[i], z_m1[i]};
-
-        // recover Xn, at which point An was calculated
-        cstone::Vec3<Tc> Xn_recov, ignore;
-        util::tie(Xn_recov, ignore, ignore) = positionUpdate(-dt_back, dt_m1_rung, Xnback, An, dXn, noPbc);
-
-        // drift to new point in time starting from (Xn, An, dXn)
-        cstone::Vec3<Tc> Xnp1, Vnp1;
-        util::tie(Xnp1, Vnp1, ignore) = positionUpdate(dt, dt_m1_rung, Xn_recov, An, dXn, noPbc);
-
-        util::tie(x[i], y[i], z[i])    = util::tie(Xnp1[0], Xnp1[1], Xnp1[2]);
-        util::tie(vx[i], vy[i], vz[i]) = util::tie(Vnp1[0], Vnp1[1], Vnp1[2]);
-
-        if (temp != nullptr)
-        {
-            Thydro cv      = (constCv < 0) ? idealGasCv(mui[i], gamma) : constCv;
-            auto   u_recov = energyUpdate(Tc(temp[i] * cv), -dt_back, dt_m1_rung, du[i], Tdu(du_m1[i]));
-            temp[i]        = energyUpdate(u_recov, dt, dt_m1_rung, du[i], Tdu(du_m1[i])) / cv;
-        }
-        else if (u != nullptr)
-        {
-            auto u_recov = energyUpdate(u[i], -dt_back, dt_m1_rung, du[i], Tdu(du_m1[i]));
-            u[i]         = energyUpdate(u_recov, dt, dt_m1_rung, du[i], Tdu(du_m1[i]));
-        }
+        Thydro cv      = (constCv < 0) ? idealGasCv(mui[i], gamma) : constCv;
+        auto   u_recov = energyUpdate(Tc(temp[i] * cv), -dt_back, dt_m1_rung, du[i], Tdu(du_m1[i]));
+        temp[i]        = energyUpdate(u_recov, dt, dt_m1_rung, du[i], Tdu(du_m1[i])) / cv;
+    }
+    else if (u != nullptr)
+    {
+        auto u_recov = energyUpdate(u[i], -dt_back, dt_m1_rung, du[i], Tdu(du_m1[i]));
+        u[i]         = energyUpdate(u_recov, dt, dt_m1_rung, du[i], Tdu(du_m1[i]));
     }
 }
 
@@ -95,8 +94,9 @@ void driftPositionsGpu(const GroupView& grp, float dt, float dt_back, util::arra
                        const Tm1* z_m1, const Thydro* ax, const Thydro* ay, const Thydro* az, const uint8_t* rung,
                        Tc* temp, Tc* u, Tdu* du, Tm1* du_m1, Thydro* mui, Tc gamma, Tc constCv)
 {
-    unsigned           numThreads = 256;
-    cstone::LocalIndex numBlocks  = (grp.numGroups + numThreads - 1) / numThreads;
+    unsigned numThreads       = 256;
+    unsigned numWarpsPerBlock = numThreads / GpuConfig::warpSize;
+    unsigned numBlocks        = (grp.numGroups + numWarpsPerBlock - 1) / numWarpsPerBlock;
 
     if (numBlocks == 0) { return; }
     driftKernel<<<numBlocks, numThreads>>>(grp, dt, dt_back, dt_m1, x, y, z, vx, vy, vz, x_m1, y_m1, z_m1, ax, ay, az,
@@ -123,7 +123,6 @@ __global__ void computePositionsKernel(GroupView grp, float dt, util::array<floa
 {
     LocalIndex laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     LocalIndex warpIdx = (blockDim.x * blockIdx.x + threadIdx.x) >> GpuConfig::warpSizeLog2;
-
     if (warpIdx >= grp.numGroups) { return; }
 
     LocalIndex i = grp.groupStart[warpIdx] + laneIdx;
