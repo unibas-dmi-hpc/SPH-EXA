@@ -27,10 +27,10 @@
 #include <math.h>
 
 template<class T>
-std::vector<T> computeProbabilityDistribution(std::vector<T>& data, const T referenceValue, size_t binCount, T binStart,
+std::vector<double> computeProbabilityDistribution(std::vector<T>& data, const double referenceValue, size_t binCount, T binStart,
                                               T binEnd)
 {
-    std::vector<T> bins(binCount);
+    std::vector<double> bins(binCount);
 
 #pragma omp for schedule(static)
     for (size_t i = 0; i < data.size(); ++i)

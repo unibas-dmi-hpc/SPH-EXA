@@ -57,7 +57,7 @@ int main(int argc, char** argv)
     }
 
     std::vector<T> rho;
-    std::vector<T> bins;
+    std::vector<double> bins;
 
     auto h5reader = fileReaderFactory(false, MPI_COMM_WORLD);
     h5reader->setStep(inputFile, step, FileMode::collective);
@@ -94,30 +94,29 @@ int main(int argc, char** argv)
 
     h5reader->closeStep();
 
-    T localTotalDensity = 0.0;
+    double localTotalDensity = 0.0;
 #pragma omp parallel for reduction(+ : localTotalDensity)
     for (size_t i = 0; i < localNumParticles; ++i)
     {
         localTotalDensity += rho[i];
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
     printf("rank %i, local average  density: %f \n", rank, localTotalDensity / localNumParticles);
-    T referenceDensity = 0.0;
-    MPI_Allreduce(&localTotalDensity, &referenceDensity, 1, MpiType<T>{}, MPI_SUM, MPI_COMM_WORLD);
+    double referenceDensity = 0.0;
+    MPI_Allreduce(&localTotalDensity, &referenceDensity, 1, MpiType<double>{}, MPI_SUM, MPI_COMM_WORLD);
     referenceDensity /= globalNumParticles;
 
     if (rank == 0) { printf("starting PDF calculation with reference density %f\n", referenceDensity); }
 
     bins = computeProbabilityDistribution(rho, referenceDensity, nBins, minValue, maxValue);
-    std::vector<T> reduced_bins(nBins, 0.0);
-    MPI_Reduce(bins.data(), reduced_bins.data(), nBins, MpiType<T>{}, MPI_SUM, 0, MPI_COMM_WORLD);
+    std::vector<double> reduced_bins(nBins, 0.0);
+    MPI_Reduce(bins.data(), reduced_bins.data(), nBins, MpiType<double>{}, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (rank == 0)
     {
         T binSize = (maxValue - minValue) / nBins;
         std::for_each(reduced_bins.begin(), reduced_bins.end(),
-                      [globalNumParticles, binSize](T& i) { i /= globalNumParticles * binSize; });
+                      [globalNumParticles, binSize](double& i) { i /= globalNumParticles * binSize; });
         std::ofstream outFile(std::filesystem::path(outputFile), std::ofstream::out);
 
         T firstMiddle = minValue + 0.5 * binSize;
