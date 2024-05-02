@@ -151,11 +151,18 @@ public:
         d.treeView = domain.octreeProperties();
     }
 
-    void computeForces(DomainType& domain, DataType& simData)
+    void computeForces(DomainType& domain, DataType& simData) override
     {
+        auto& d = simData.hydro;
+        timer.start();
+
+        sync(domain, simData);
+        // halo exchange for masses, allows for particles with variable masses
+        domain.exchangeHalos(std::tie(get<"m">(d)), get<"ax">(d), get<"ay">(d));
+        timer.step("domain::sync");
+        d.resize(domain.nParticlesWithHalos());
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
-        auto&  d     = simData.hydro;
 
         resizeNeighbors(d, domain.nParticles() * d.ngmax);
         findNeighborsSfc(first, last, d, domain.box());
@@ -165,6 +172,7 @@ public:
         timer.step("Density");
 
         transferToHost(d, first, last, {"rho", "u"});
+
         eos_cooling(first, last, d, simData.chem, cooling_data);
         transferToDevice(d, first, last, {"p", "c"});
         timer.step("EquationOfState");
@@ -190,20 +198,9 @@ public:
         }
     }
 
-    void step(DomainType& domain, DataType& simData) override
+    void integrate(DomainType& domain, DataType& simData) override
     {
-        auto& d = simData.hydro;
-        timer.start();
-
-        sync(domain, simData);
-        // halo exchange for masses, allows for particles with variable masses
-        domain.exchangeHalos(std::tie(get<"m">(d)), get<"ax">(d), get<"ay">(d));
-        timer.step("domain::sync");
-
-        d.resize(domain.nParticlesWithHalos());
-
-        computeForces(domain, simData);
-
+        auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
@@ -212,17 +209,10 @@ public:
         timer.step("Timestep");
 
         transferToHost(d, first, last, {"du"});
-#pragma omp parallel for schedule(static)
-        for (size_t i = first; i < last; i++)
-        {
-            T u_old  = d.u[i];
-            T u_cool = d.u[i];
-            T rhoi   = d.rho[i];
-            cooling_data.cool_particle(T(d.minDt), rhoi, u_cool,
-                                       cstone::getPointers(get<CoolingFields>(simData.chem), i));
-            const T du = (u_cool - u_old) / d.minDt;
-            d.du[i] += du;
-        }
+
+        cooling_data.cool_particles(T(d.minDt), d.rho.data(), d.u.data(),
+                                    cstone::getPointers(get<CoolingFields>(simData.chem), 0), d.du.data(), first, last);
+
         transferToDevice(d, first, last, {"du"});
         timer.step("GRACKLE chemistry and cooling");
 

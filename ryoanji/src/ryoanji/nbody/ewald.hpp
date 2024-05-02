@@ -35,7 +35,7 @@
 #include "cstone/traversal/macs.hpp"
 #include "cstone/focus/source_center.hpp"
 #include "cartesian_qpole.hpp"
-#include <algorithm>
+#include "ewald.h"
 
 namespace ryoanji
 {
@@ -55,19 +55,39 @@ struct EwaldHSumCoefficients
 /*! @brief Parameters used by the real- and k-space routines.
  *
  */
-template<class T1, class T2>
-struct EwaldParameters
+template<class Tc, class Tmm>
+class EwaldParameters
 {
-    CartesianQuadrupole<T2>                Mroot;
-    Vec3<T1>                               Mroot_center;
-    int                                    numReplicaShells;
-    int                                    numEwaldShells;
-    double                                 L;
-    double                                 lCut;
-    double                                 hCut;
-    double                                 alpha_scale;
-    double                                 small_R_scale_factor;
-    std::vector<EwaldHSumCoefficients<T1>> hsum_coeffs;
+    //! @brief return size of hsum_coeffs for a given value of ceil(hCut)
+    HOST_DEVICE_FUN constexpr static int hsumCoeffSize(int ceilHcut)
+    {
+        int numOneDim = (2 * ceilHcut + 1);
+        return numOneDim * numOneDim * numOneDim;
+    }
+
+    //! @brief max supported value of ceil(hCut)
+    constexpr static inline int maxCeilHcut = 3;
+
+public:
+    //! @brief return number of hsum_coeffs
+    HOST_DEVICE_FUN int numHsumCoeffs() const
+    {
+        auto ceilHcut = int(std::ceil(hCut));
+        assert(ceilHcut <= maxCeilHcut);
+        return hsumCoeffSize(ceilHcut);
+    }
+
+    CartesianQuadrupole<Tmm> Mroot;
+    Vec3<Tc>                 Mroot_center;
+    int                      numReplicaShells;
+    int                      numEwaldShells;
+    double                   L;
+    double                   lCut;
+    double                   hCut;
+    double                   alpha_scale;
+    double                   small_R_scale_factor;
+
+    util::array<EwaldHSumCoefficients<Tc>, hsumCoeffSize(maxCeilHcut)> hsum_coeffs;
 };
 
 template<class T>
@@ -77,42 +97,43 @@ using CartesianQuadrupoleGamma = util::array<T, 6>;
  *
  * @tparam        T1         float or double
  * @tparam        T2         float or double
- * @param[in]     rx         target x coordinate relative to multipole center
- * @param[in]     ry         target y coordinate relative to multipole center
- * @param[in]     rz         target z coordinate relative to multipole center
+ * @param[in]     r          target x,y,z coordinates relative to multipole center
  * @param[in]     gamma      multipole evaluation coefficients
  * @param[in]     multipole  multipole source
  * @return                   tupole(u,ax,ay,az)
  *
  */
-template<class T1, class T2>
-Vec4<T1> ewaldEvalMultipoleComplete(Vec4<T1> potAcc, Vec3<T1> r, const CartesianQuadrupoleGamma<T2>& gamma,
-                                    const CartesianQuadrupole<T2>& multipole)
+template<class Ta, class Tc, class Tmm>
+HOST_DEVICE_FUN Vec4<Ta> ewaldEvalMultipoleComplete(Vec4<Ta> potAcc, Vec3<Tc> r_tc,
+                                                    const CartesianQuadrupoleGamma<Tmm>& gamma,
+                                                    const CartesianQuadrupole<Tmm>&      multipole)
 {
-    const T2 M   = multipole[Cqi::mass];
-    const T2 qxx = (multipole[Cqi::qxx] + multipole[Cqi::trace]) / T2(3.0);
-    const T2 qyy = (multipole[Cqi::qyy] + multipole[Cqi::trace]) / T2(3.0);
-    const T2 qzz = (multipole[Cqi::qzz] + multipole[Cqi::trace]) / T2(3.0);
-    const T2 qxy = (multipole[Cqi::qxy]) / T2(3.0);
-    const T2 qxz = (multipole[Cqi::qxz]) / T2(3.0);
-    const T2 qyz = (multipole[Cqi::qyz]) / T2(3.0);
+    const Vec3<Ta> r{Ta(r_tc[0]), Ta(r_tc[1]), Ta(r_tc[2])};
 
-    Vec3<T2> Qr{r[0] * qxx + r[1] * qxy + r[2] * qxz, r[0] * qxy + r[1] * qyy + r[2] * qyz,
-                r[0] * qxz + r[1] * qyz + r[2] * qzz};
+    const Tmm M   = multipole[Cqi::mass];
+    const Tmm qxx = (multipole[Cqi::qxx] + multipole[Cqi::trace]) / Tmm(3);
+    const Tmm qyy = (multipole[Cqi::qyy] + multipole[Cqi::trace]) / Tmm(3);
+    const Tmm qzz = (multipole[Cqi::qzz] + multipole[Cqi::trace]) / Tmm(3);
+    const Tmm qxy = (multipole[Cqi::qxy]) / Tmm(3);
+    const Tmm qxz = (multipole[Cqi::qxz]) / Tmm(3);
+    const Tmm qyz = (multipole[Cqi::qyz]) / Tmm(3);
 
-    const T2 rQr = 0.5 * dot(r, Qr);
-    const T2 Qtr = 0.5 * multipole[Cqi::trace];
+    Vec3<Ta> Qr{Ta(r[0] * qxx + r[1] * qxy + r[2] * qxz), Ta(r[0] * qxy + r[1] * qyy + r[2] * qyz),
+                Ta(r[0] * qxz + r[1] * qyz + r[2] * qzz)};
 
-    auto ugrav = -gamma[0] * M + gamma[1] * Qtr - gamma[2] * rQr;
+    Ta rQr = 0.5 * dot(r, Qr);
+    Ta Qtr = 0.5 * multipole[Cqi::trace];
 
-    auto a = +gamma[2] * Qr - r * (+gamma[1] * M - gamma[2] * Qtr + gamma[3] * rQr);
+    Ta       ugrav = -gamma[0] * M + gamma[1] * Qtr - gamma[2] * rQr;
+    Vec3<Ta> a     = gamma[2] * Qr - r * (+gamma[1] * M - gamma[2] * Qtr + gamma[3] * rQr);
 
-    return potAcc + Vec4<T1>{ugrav, a[0], a[1], a[2]};
+    return potAcc + Vec4<Ta>{ugrav, a[0], a[1], a[2]};
 }
 
 /*! @brief Compute Ewald coefficients for k-space summation.
  *
- * @tparam        T2                float or double
+ * @tparam        Tc                float or double, real-space coordinates
+ * @tparam        Tmm               float or double, multipole moments
  * @param[in]     Mroot             top-level box multipole
  * @param[in]     Mroot_center      center of the multipole expansion
  * @param[in]     numReplicaShells  number of replica shells by tree gravity
@@ -125,27 +146,24 @@ Vec4<T1> ewaldEvalMultipoleComplete(Vec4<T1> potAcc, Vec3<T1> r, const Cartesian
  * Evaluates the monopole of the given multipole expansion at the position
  * (rx,ry,rz) relative to the multipole center.
  */
-template<class T1, class T2>
-EwaldParameters<T1, T2> ewaldInitParameters(const CartesianQuadrupole<T2>& Mroot, const Vec3<T1>& Mroot_center,
-                                            int numReplicaShells, double L, double lCut, double hCut,
-                                            double alpha_scale)
+template<class Tc, class Tmm>
+EwaldParameters<Tc, Tmm> ewaldInitParameters(const CartesianQuadrupole<Tmm>& Mroot, const Vec3<Tc>& Mroot_center,
+                                             int numReplicaShells, double L, double lCut, double hCut,
+                                             double alpha_scale, double smallR)
 {
-    //
     // This will disable Ewald, but still allow a normal gravity calculation using replicas.
-    //
     if (lCut == 0 && hCut == 0 && alpha_scale == 0) { numReplicaShells = 0; }
 
-    EwaldParameters<T1, T2> params = {.Mroot            = Mroot,
-                                      .Mroot_center     = Mroot_center,
-                                      .numReplicaShells = numReplicaShells,
-                                      .numEwaldShells   = std::max(int(ceil(lCut)), numReplicaShells),
-                                      .L                = L,
-                                      .lCut             = lCut,
-                                      .hCut             = hCut,
-                                      .alpha_scale      = alpha_scale,
-                                      //.small_R_scale_factor = 1.2e-3,    // PKDGrav3, ChaNGa
-                                      .small_R_scale_factor = 3.0e-3, // Gasoline
-                                      .hsum_coeffs          = {}};
+    EwaldParameters<Tc, Tmm> params = {.Mroot                = Mroot,
+                                       .Mroot_center         = Mroot_center,
+                                       .numReplicaShells     = numReplicaShells,
+                                       .numEwaldShells       = std::max(int(ceil(lCut)), numReplicaShells),
+                                       .L                    = L,
+                                       .lCut                 = lCut,
+                                       .hCut                 = hCut,
+                                       .alpha_scale          = alpha_scale,
+                                       .small_R_scale_factor = smallR,
+                                       .hsum_coeffs          = {}};
 
     if (params.numEwaldShells == 0) { return params; }
 
@@ -154,39 +172,40 @@ EwaldParameters<T1, T2> ewaldInitParameters(const CartesianQuadrupole<T2>& Mroot
     const auto k4    = M_PI * M_PI / (alpha * alpha * L * L);
     const auto hCut2 = hCut * hCut;
 
+    int pushBackCnt = 0;
     for (auto hx = -hReps; hx <= hReps; hx++)
     {
         for (auto hy = -hReps; hy <= hReps; hy++)
         {
             for (auto hz = -hReps; hz <= hReps; hz++)
             {
-                Vec3<T1> hr = {T1(hx), T1(hy), T1(hz)};
+                Vec3<Tc> hr = {Tc(hx), Tc(hy), Tc(hz)};
 
                 const auto h2 = norm2(hr);
                 if (h2 == 0) continue;
                 if (h2 > hCut2) continue;
 
-                const auto g0 = exp(-k4 * h2) / (M_PI * h2 * L);
-                const auto g1 = 2 * M_PI / L * g0;
-                const auto g2 = -2 * M_PI / L * g1;
-                const auto g3 = 2 * M_PI / L * g2;
-                const auto g4 = -2 * M_PI / L * g3;
-                const auto g5 = 2 * M_PI / L * g4;
+                const Tmm g0 = exp(-k4 * h2) / (M_PI * h2 * L);
+                const Tmm g1 = 2 * M_PI / L * g0;
+                const Tmm g2 = -2 * M_PI / L * g1;
+                const Tmm g3 = 2 * M_PI / L * g2;
+                const Tmm g4 = -2 * M_PI / L * g3;
+                const Tmm g5 = 2 * M_PI / L * g4;
 
-                CartesianQuadrupoleGamma<T2> gamma1{g0, 0.0, g2, 0.0, g4, 0.0};
-                const auto                   mfac_cos = ewaldEvalMultipoleComplete({0}, hr, gamma1, Mroot)[0];
+                CartesianQuadrupoleGamma<Tmm> gamma1{g0, 0.0, g2, 0.0, g4, 0.0};
+                const auto mfac_cos = ewaldEvalMultipoleComplete(Vec4<Tmm>{0, 0, 0, 0}, hr, gamma1, Mroot)[0];
 
-                CartesianQuadrupoleGamma<T2> gamma2{0.0, g1, 0.0, g3, 0.0, g5};
-                const auto                   mfac_sin = ewaldEvalMultipoleComplete({0}, hr, gamma2, Mroot)[0];
+                CartesianQuadrupoleGamma<Tmm> gamma2{0.0, g1, 0.0, g3, 0.0, g5};
+                const auto mfac_sin = ewaldEvalMultipoleComplete(Vec4<Tmm>{0, 0, 0, 0}, hr, gamma2, Mroot)[0];
 
-                EwaldHSumCoefficients<T1> hsum = {
+                EwaldHSumCoefficients<Tc> hsum = {
                     .hr        = hr,
                     .hr_scaled = 2 * M_PI / L * hr,
                     .hfac_cos  = mfac_cos,
                     .hfac_sin  = mfac_sin,
                 };
 
-                params.hsum_coeffs.push_back(hsum);
+                params.hsum_coeffs[pushBackCnt++] = hsum;
             }
         }
     }
@@ -194,23 +213,31 @@ EwaldParameters<T1, T2> ewaldInitParameters(const CartesianQuadrupole<T2>& Mroot
     return params;
 }
 
+template<class Tc, class Tmm>
+EwaldParameters<Tc, Tmm> ewaldInitParameters(const SphericalMultipole<Tmm, 4>& /*Mroot*/,
+                                             const Vec3<Tc>& /*Mroot_center*/, int /*numReplicaShells*/, double /*L*/,
+                                             double /*lCut*/, double /*hCut*/, double /*alpha_scale*/)
+{
+    throw std::runtime_error("Ewald periodic gravity correction not implemented for spherical multipoles\n");
+}
+
 //! @brief real space Ewald contribution to the potential and acceleration of a single particle @p r
 template<class T1, class T2>
-Vec4<T1> computeEwaldRealSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params)
+HOST_DEVICE_FUN Vec4<T1> computeEwaldRealSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params)
 {
-    const auto lCut             = params.lCut;
-    const auto alpha_scale      = params.alpha_scale;
-    const auto L                = params.L;
     const auto Mroot            = params.Mroot;
-    const auto numEwaldShells   = params.numEwaldShells;
-    const auto numReplicaShells = params.numReplicaShells;
+    const T1   lCut             = params.lCut;
+    const T1   alpha_scale      = params.alpha_scale;
+    const T1   L                = params.L;
+    const int  numEwaldShells   = params.numEwaldShells;
+    const int  numReplicaShells = params.numReplicaShells;
 
-    const auto lCut2    = lCut * lCut * L * L;
-    const auto alpha    = alpha_scale / L;
-    const auto alpha2   = alpha * alpha;
-    const auto k1       = M_PI / (alpha2 * L * L * L);
-    const auto ka       = 2.0 * alpha / sqrt(M_PI);
-    const auto small_R2 = params.small_R_scale_factor * L * L;
+    const T1 lCut2    = lCut * lCut * L * L;
+    const T1 alpha    = alpha_scale / L;
+    const T1 alpha2   = alpha * alpha;
+    const T1 k1       = M_PI / (alpha2 * L * L * L);
+    const T1 ka       = 2.0 * alpha / sqrt(M_PI);
+    const T1 small_R2 = params.small_R_scale_factor * L * L;
 
     Vec4<T1> potAcc{k1 * Mroot[Cqi::mass], 0, 0, 0};
 
@@ -299,13 +326,15 @@ Vec4<T1> computeEwaldRealSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params
 
 //! @brief Ewald K-space contribution to the potential and acceleration of a single particle @p r
 template<class T1, class T2>
-Vec4<T1> computeEwaldKSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params)
+HOST_DEVICE_FUN Vec4<T1> computeEwaldKSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params)
 {
     Vec4<T1> potAcc = Vec4<T1>{0, 0, 0, 0};
     Vec3<T1> dr     = r - params.Mroot_center;
 
-    for (auto hd : params.hsum_coeffs)
+    for (int i = 0; i < params.numHsumCoeffs(); ++i)
     {
+        const auto& hd = params.hsum_coeffs[i];
+
         auto hdotx   = dot(hd.hr_scaled, dr);
         auto c       = std::cos(hdotx);
         auto s       = std::sin(hdotx);
@@ -321,25 +350,21 @@ Vec4<T1> computeEwaldKSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params)
     return potAcc;
 }
 
-/*! @brief computes a gravitational correction using Ewald summation
- *
- * only computes total gravitational energy, no potential per particle
+/*! @brief CPU driver for gravitational corrections using Ewald summation
  *
  * @tparam KeyType               unsigned 32- or 64-bit integer type
- * @tparam T1                    float or double
- * @tparam T2                    float or double
- * @param[in]    childOffsets    child node index of each node
- * @param[in]    internalToLeaf  map to convert an octree node index into a cstone leaf index
+ * @tparam Tc                    float or double
+ * @tparam Ta                    float or double
+ * @param[in]    rootCenter      location of root cell center of mass
  * @param[in]    multipoles      array of length @p octree.numTreeNodes() with the multipole moments for all nodes
  * @param[in]    layout          array of length @p octree.numLeafNodes()+1, layout[i] is the start offset
  *                               into the x,y,z,m arrays for the leaf node with index i. The last element
  *                               is equal to the length of the x,y,z,m arrays.
- * @param[in]    firstLeafIndex
- * @param[in]    lastLeafIndex
+ * @param[in]    firstTarget
+ * @param[in]    lastTarget
  * @param[in]    x               x-coordinates
  * @param[in]    y               y-coordinates
  * @param[in]    z               z-coordinates
- * @param[in]    h               smoothing lengths
  * @param[in]    m               masses
  * @param[in]    G               gravitational constant
  * @param[inout] ugrav           location to add potential per particle to, can be nullptr
@@ -352,51 +377,39 @@ Vec4<T1> computeEwaldKSpace(Vec3<T1> r, const EwaldParameters<T1, T2>& params)
  * @param[in]    hCut              see @a ewaldInitParameters
  * @param[in]    alpha_scale       see @a ewaldInitParameters
  */
-template<class MType, class T1, class T2, class Tm>
-void computeGravityEwald(const TreeNodeIndex* childOffsets, const TreeNodeIndex* internalToLeaf,
-                         const cstone::SourceCenterType<T1>* macSpheres, MType* multipoles, const LocalIndex* layout,
-                         TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex, const T1* x, const T1* y,
-                         const T1* z, const T2* h, const Tm* m, const cstone::Box<T1>& box, float G, T1* ugrav, T1* ax,
-                         T1* ay, T1* az, T1* ugravTot, int numReplicaShells = 1, double lCut = 2.6, double hCut = 2.8,
-                         double alpha_scale = 2.0, bool only_ewald = false)
+template<class MType, class Tc, class Ta, class Tm, class Tu>
+void computeGravityEwald(const cstone::Vec3<Tc>& rootCenter, const MType& Mroot, LocalIndex firstTarget,
+                         LocalIndex lastTarget, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
+                         const cstone::Box<Tc>& box, float G, Tu* ugrav, Ta* ax, Ta* ay, Ta* az, Tu* ugravTot,
+                         EwaldSettings settings)
 {
-    LocalIndex firstTarget = layout[firstLeafIndex];
-    LocalIndex lastTarget  = layout[lastLeafIndex];
-
     if (box.minExtent() != box.maxExtent()) { throw std::runtime_error("Ewald gravity requires cubic bounding boxes"); }
 
-    T1 Udirect = 0;
-    if (!only_ewald)
-    {
-        computeGravity(childOffsets, internalToLeaf, macSpheres, multipoles, layout, firstLeafIndex, lastLeafIndex, x,
-                       y, z, h, m, box, G, ugrav, ax, ay, az, &Udirect, numReplicaShells);
-    }
-    *ugravTot += Udirect;
-
-    EwaldParameters<T1, T2> ewaldParams = ewaldInitParameters(multipoles[0], makeVec3(macSpheres[0]), numReplicaShells,
-                                                              box.lx(), lCut, hCut, alpha_scale);
+    EwaldParameters<Tc, typename MType::value_type> ewaldParams =
+        ewaldInitParameters(Mroot, rootCenter, settings.numReplicaShells, box.lx(), settings.lCut, settings.hCut,
+                            settings.alpha_scale, settings.small_R_scale_factor);
 
     if (ewaldParams.numEwaldShells == 0) { return; }
 
-    T1 Uewald = 0;
+    Tu Uewald = 0;
 #pragma omp parallel for reduction(+ : Uewald)
     for (LocalIndex i = firstTarget; i < lastTarget; i++)
     {
-        Vec3<T1> target{x[i], y[i], z[i]};
-        Vec4<T1> potAcc{0, 0, 0, 0};
+        Vec3<Tc> target{x[i], y[i], z[i]};
+        Vec4<Tc> potAcc{0, 0, 0, 0};
 
         potAcc += computeEwaldRealSpace(target, ewaldParams);
         potAcc += computeEwaldKSpace(target, ewaldParams);
 
         if (ugrav) { ugrav[i] += G * potAcc[0] * m[i]; }
 
-        Uewald += G * potAcc[0] * m[i];
+        Uewald += potAcc[0] * m[i];
         ax[i] += G * potAcc[1];
         ay[i] += G * potAcc[2];
         az[i] += G * potAcc[3];
     }
 
-    *ugravTot += 0.5 * Uewald;
+    *ugravTot += 0.5 * G * Uewald;
 }
 
 } // namespace ryoanji

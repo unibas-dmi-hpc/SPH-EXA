@@ -27,5 +27,6 @@
 
 #if defined(USE_CUDA) || defined(__CUDACC__) || defined(__HIPCC__)
 #include "cuda_utils.cuh"
-#endif
+#else
 #include "cuda_stubs.h"
+#endif

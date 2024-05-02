@@ -67,18 +67,21 @@ public:
     {
     }
 
-    void step(DomainType& domain, DataType& simData) override
+    void computeForces(DomainType& domain, DataType& simData) override
     {
         Base::computeForces(domain, simData);
+        driveTurbulence(domain.startIndex(), domain.endIndex(), simData.hydro, turbulenceData);
+        timer.step("Turbulence Stirring");
+    }
 
+    void integrate(DomainType& domain, DataType& simData) override
+    {
         auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
-        driveTurbulence(first, last, d, turbulenceData);
-        timer.step("Turbulence Stirring");
 
         computePositions(first, last, d, domain.box());
         updateSmoothingLength(first, last, d);

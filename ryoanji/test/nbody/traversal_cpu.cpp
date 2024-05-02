@@ -47,10 +47,11 @@ TEST(Gravity, TreeWalk)
     using KeyType       = uint64_t;
     using MultipoleType = ryoanji::CartesianQuadrupole<T>;
 
-    float          theta      = 0.6;
+    float          theta      = 0.5;
     float          G          = 1.0;
     unsigned       bucketSize = 64;
     cstone::Box<T> box(-1, 1);
+    int            numShells    = 1;
     LocalIndex     numParticles = 10000;
 
     RandomCoordinates<T, SfcKind<KeyType>> coordinates(numParticles, box);
@@ -103,7 +104,7 @@ TEST(Gravity, TreeWalk)
     double egravTot = 0;
     computeGravity(octree.childOffsets.data(), octree.internalToLeaf.data(), centers.data(), multipoles.data(),
                    layout.data(), 0, octree.numLeafNodes, x, y, z, h.data(), masses.data(), box, G, (T*)nullptr,
-                   ax.data(), ay.data(), az.data(), &egravTot);
+                   ax.data(), ay.data(), az.data(), &egravTot, numShells);
     auto   t1      = std::chrono::high_resolution_clock::now();
     double elapsed = std::chrono::duration<double>(t1 - t0).count();
 
@@ -117,8 +118,8 @@ TEST(Gravity, TreeWalk)
     std::vector<T> potentialReference(numParticles, 0);
 
     t0 = std::chrono::high_resolution_clock::now();
-    directSum(x, y, z, h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(), Az.data(),
-              potentialReference.data());
+    directSum(x, y, z, h.data(), masses.data(), numParticles, G, {box.lx(), box.ly(), box.lz()}, numShells, Ax.data(),
+              Ay.data(), Az.data(), potentialReference.data());
     t1      = std::chrono::high_resolution_clock::now();
     elapsed = std::chrono::duration<double>(t1 - t0).count();
 

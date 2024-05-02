@@ -29,6 +29,8 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <thrust/transform.h>
+
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/findneighbors.hpp"
 #include "cstone/traversal/find_neighbors.cuh"
@@ -133,6 +135,23 @@ void computeXMass(size_t startIndex, size_t endIndex, Dataset& d, const cstone::
 
 template void computeXMass(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
                            const cstone::Box<SphTypes::CoordinateType>&);
+
+template<class Dataset>
+void computeDensity(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<typename Dataset::RealType>& box)
+{
+    swap(d.devData.xm, d.devData.rho);
+    computeXMass(startIndex, endIndex, d, box);
+    swap(d.devData.xm, d.devData.rho);
+
+    // rho[i] = m[i] / rho[i];
+    thrust::transform(d.devData.m.begin() + startIndex, d.devData.m.begin() + endIndex,
+                      d.devData.rho.begin() + startIndex, d.devData.rho.begin() + startIndex,
+                      thrust::divides<typename decltype(d.devData.m)::value_type>{});
+}
+
+template void computeDensity(size_t, size_t, sphexa::ParticlesData<cstone::GpuTag>& d,
+                             const cstone::Box<SphTypes::CoordinateType>&);
+
 } // namespace cuda
 
 template<class Dataset>

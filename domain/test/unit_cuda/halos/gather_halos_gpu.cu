@@ -1,8 +1,8 @@
 /*
  * MIT License
  *
- * Copyright (c) 2022 CSCS, ETH Zurich
- *               2022 University of Basel
+ * Copyright (c) 2024 CSCS, ETH Zurich
+ *               2024 University of Basel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,43 +24,40 @@
  */
 
 /*! @file
- * @brief Density i-loop OpenMP driver
+ * @brief Halo exchange auxiliary functions GPU testing
  *
- * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ *
  */
 
-#pragma once
+#include "gtest/gtest.h"
 
-#include "sph/hydro_ve/xmass.hpp"
-#include "sph/sph_gpu.hpp"
+#include <numeric>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
-namespace sph
+#include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/halos/gather_halos_gpu.h"
+
+using namespace cstone;
+
+TEST(Halos, gatherRanges)
 {
+    // list of marked halo cells/ranges
+    std::vector<int> seq(30);
+    std::iota(seq.begin(), seq.end(), 0);
+    thrust::device_vector<int> src = seq;
 
-template<typename Tc, class Dataset>
-void computeDensityImpl(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<Tc>& box)
-{
-    swap(d.xm, d.rho);
-    computeXMass(startIndex, endIndex, d, box);
-    swap(d.xm, d.rho);
-    // Convert XMass to density
-#pragma omp parallel for schedule(static)
-    for (size_t i = startIndex; i < endIndex; i++)
-    {
-        d.rho[i] = d.m[i] / d.rho[i];
-    }
+    thrust::device_vector<unsigned> rangeScan    = std::vector<unsigned>{0, 4, 7};
+    thrust::device_vector<unsigned> rangeOffsets = std::vector<unsigned>{4, 12, 22};
+    int totalCount                               = 10;
+
+    thrust::device_vector<int> buffer = std::vector<int>(totalCount);
+
+    gatherRanges(rawPtr(rangeScan), rawPtr(rangeOffsets), rangeScan.size(), rawPtr(src), rawPtr(buffer), totalCount);
+
+    thrust::host_vector<int> h_buffer = buffer;
+    thrust::host_vector<int> ref      = std::vector<int>{4, 5, 6, 7, 12, 13, 14, 22, 23, 24};
+
+    EXPECT_EQ(h_buffer, ref);
 }
-
-template<class T, class Dataset>
-void computeDensity(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
-{
-    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
-    {
-        computeTargetGroups(startIndex, endIndex, d, box);
-        cuda::computeDensity(startIndex, endIndex, d, box);
-    }
-    else { computeDensityImpl(startIndex, endIndex, d, box); }
-}
-
-} // namespace sph

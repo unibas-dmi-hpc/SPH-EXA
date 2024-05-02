@@ -64,8 +64,11 @@ public:
     //! @brief synchronize computational domain
     virtual void sync(DomainType& domain, ParticleDataType& d) = 0;
 
-    //! @brief advance one time-step
-    virtual void step(DomainType& domain, ParticleDataType& d) = 0;
+    //! @brief synchronize domain and compute forces
+    virtual void computeForces(DomainType& domain, ParticleDataType& d) = 0;
+
+    //! @brief integrate and/or drift particles in time
+    virtual void integrate(DomainType& domain, ParticleDataType& d) = 0;
 
     //! @brief save particle data fields to file
     virtual void saveFields(IFileWriter*, size_t, size_t, ParticleDataType&, const cstone::Box<T>&){};
@@ -105,7 +108,7 @@ public:
             << box.ymax() << " " << box.zmin() << " " << box.zmax() << std::endl;
         out << "### Check ### Total Neighbors: " << totalNeighbors
             << ", Avg neighbor count per particle: " << totalNeighbors / totalParticleCount << std::endl;
-        out << "### Check ### Total time: " << d.ttot << ", current time-step: " << d.minDt << std::endl;
+        out << "### Check ### Total time: " << d.ttot - d.minDt << ", current time-step: " << d.minDt << std::endl;
         out << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", kinetic: " << d.ecin;
         out << ", gravitational: " << d.egrav;
         out << ")" << std::endl;
@@ -119,6 +122,44 @@ public:
     }
 
 protected:
+    static void outputAllocatedFields(IFileWriter* writer, size_t first, size_t last, ParticleDataType& simData)
+    {
+        auto output = [](size_t first, size_t last, auto& d, IFileWriter* writer)
+        {
+            auto fieldPointers = d.data();
+            auto indicesDone   = d.outputFieldIndices;
+            auto namesDone     = d.outputFieldNames;
+
+            for (int i = int(indicesDone.size()) - 1; i >= 0; --i)
+            {
+                int fidx = indicesDone[i];
+                if (d.isAllocated(fidx))
+                {
+                    int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
+                                 d.outputFieldIndices.begin();
+                    transferToHost(d, first, last, {d.fieldNames[fidx]});
+                    std::visit([writer, c = column, key = namesDone[i]](auto field)
+                               { writer->writeField(key, field->data(), c); }, fieldPointers[fidx]);
+                    indicesDone.erase(indicesDone.begin() + i);
+                    namesDone.erase(namesDone.begin() + i);
+                }
+            }
+
+            if (!indicesDone.empty() && writer->rank() == 0)
+            {
+                std::cout << "WARNING: the following fields are not in use and therefore not output: ";
+                for (int fidx = 0; fidx < indicesDone.size() - 1; ++fidx)
+                {
+                    std::cout << d.fieldNames[fidx] << ",";
+                }
+                std::cout << d.fieldNames[indicesDone.back()] << std::endl;
+            }
+        };
+
+        output(first, last, simData.hydro, writer);
+        output(first, last, simData.chem, writer);
+    }
+
     std::ostream& out;
     Timer         timer;
     PmReader      pmReader;
