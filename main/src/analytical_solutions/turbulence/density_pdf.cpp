@@ -56,7 +56,7 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    std::vector<T> rho;
+    std::vector<T>      rho;
     std::vector<double> bins;
 
     auto h5reader = fileReaderFactory(false, MPI_COMM_WORLD);

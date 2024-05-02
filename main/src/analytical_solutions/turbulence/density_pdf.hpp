@@ -27,8 +27,8 @@
 #include <math.h>
 
 template<class T>
-std::vector<double> computeProbabilityDistribution(std::vector<T>& data, const double referenceValue, size_t binCount, T binStart,
-                                              T binEnd)
+std::vector<double> computeProbabilityDistribution(std::vector<T>& data, const double referenceValue, size_t binCount,
+                                                   T binStart, T binEnd)
 {
     std::vector<double> bins(binCount);
 
@@ -41,8 +41,7 @@ std::vector<double> computeProbabilityDistribution(std::vector<T>& data, const d
     T binSize = (binEnd - binStart) / binCount;
     for (size_t bin = 0; bin < binCount; bin++)
     {
-        bins[bin] = std::count_if(data.begin(), data.end(),
-                                  [bin, binStart, binSize](T i)
+        bins[bin] = std::count_if(data.begin(), data.end(), [bin, binStart, binSize](T i)
                                   { return i > binSize * bin + binStart && i <= binSize * (bin + 1) + binStart; });
     }
     return bins;
