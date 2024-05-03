@@ -208,7 +208,7 @@ public:
 
     void sync(DomainType& domain, DataType& simData) override
     {
-        domain.setHaloFactor(1.1);
+        domain.setHaloFactor(1.0 + float(timestep_.numRungs) / 40);
         if (activeRung(timestep_.substep, timestep_.numRungs) == 0) { fullSync(domain, simData); }
         else { partialSync(domain, simData); }
     }
@@ -364,7 +364,7 @@ public:
             }
         }
 
-        updateSmoothingLength(tsGroups_.view(), d);
+        updateSmoothingLength(activeRungs_, d);
 
         timestep_.substep++;
         timestep_.elapsedDt += timestep_.nextDt;
