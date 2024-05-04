@@ -6,6 +6,7 @@ set(UNIT_TESTS
         domain/layout.cpp
         fields/field_get.cpp
         focus/octree_focus.cpp
+        focus/rebalance.cpp
         focus/source_center.cpp
         neighbors/findneighbors.cpp
         primitives/clz.cpp
