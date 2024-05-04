@@ -321,7 +321,7 @@ public:
             }
         } while (fail);
 
-        // diagnostics(keyView.size(), peers);
+        diagnostics(keyView.size(), peers);
 
         updateLayout(sorter, exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), particleProperties,
                      scratch);
@@ -609,8 +609,8 @@ private:
         auto focusTree       = focusTree_.treeLeaves();
         auto globalTree      = global_.treeLeaves();
 
-        TreeNodeIndex numFocusPeers    = 0;
-        TreeNodeIndex numFocusTruePeer = 0;
+        TreeNodeIndex numFocusPeers    = 0; // number of focusTree nodes associated with a peer
+        TreeNodeIndex numFocusTruePeer = 0; // ... of which don't exist in the global tree
         for (int i = 0; i < numRanks_; ++i)
         {
             if (i != myRank_)
@@ -620,7 +620,7 @@ private:
                 {
                     KeyType fnstart  = focusTree[fi];
                     KeyType fnend    = focusTree[fi + 1];
-                    TreeNodeIndex gi = findNodeAbove(globalTree, fnstart);
+                    TreeNodeIndex gi = findNodeAbove(globalTree.data(), globalTree.size(), fnstart);
                     if (!(gi < nNodes(globalTree) && globalTree[gi] == fnstart && globalTree[gi + 1] <= fnend))
                     {
                         numFocusTruePeer++;
@@ -628,6 +628,9 @@ private:
                 }
             }
         }
+
+        auto truePeers = oneSidedPeers<KeyType>({global_.assignment().data(), size_t(numRanks_ + 1)}, numRanks_,
+                                                myRank_, globalTree, focusTree);
 
         int numFlags = std::count(halos_.haloFlags().cbegin(), halos_.haloFlags().cend(), 1);
         for (int i = 0; i < numRanks_; ++i)
@@ -638,11 +641,18 @@ private:
                           << " focus h/true/peers/loc/tot: " << numFlags << "/" << numFocusTruePeer << "/"
                           << numFocusPeers << "/" << focusAssignment[myRank_].count() << "/"
                           << halos_.haloFlags().size() << " peers: [" << peers.size() << "] ";
-                if (numRanks_ <= 32)
+                if (numRanks_ <= 64)
                 {
                     for (auto r : peers)
                     {
-                        std::cout << r << " ";
+                        bool isOnesided = std::count(truePeers.begin(), truePeers.end(), r) == 1;
+                        if (isOnesided) { std::cout << r << " "; }
+                        else { std::cout << "*" << r << " "; }
+                    }
+                    for (auto r : truePeers)
+                    {
+                        bool isTwosided = std::count(peers.begin(), peers.end(), r) == 1;
+                        if (not isTwosided) { std::cout << "!" << r << " "; }
                     }
                 }
                 std::cout << std::endl;
