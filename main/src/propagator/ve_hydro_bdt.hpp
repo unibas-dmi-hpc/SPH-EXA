@@ -212,7 +212,9 @@ public:
 
     void sync(DomainType& domain, DataType& simData) override
     {
+        domain.setTreeConv(true);
         domain.setHaloFactor(1.0 + float(timestep_.numRungs) / 40);
+
         if (activeRung(timestep_.substep, timestep_.numRungs) == 0) { fullSync(domain, simData); }
         else { partialSync(domain, simData); }
     }
