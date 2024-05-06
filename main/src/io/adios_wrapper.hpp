@@ -269,7 +269,7 @@ void writeADIOSField(ADIOS2Settings& as, const std::string& fieldName, const T* 
             throw std::runtime_error("Unsupported compressor BZIP2. Compile ADIOS2 with BZIP2 to enable it.");
 #endif
         }
-        else if (as.getCompressorSetting("name") == "lz" || as.getCompressorSetting("name") == "lz4" ||
+        else if (as.getCompressorSetting("name") == "blosclz" || as.getCompressorSetting("name") == "lz4" ||
                  as.getCompressorSetting("name") == "lz4hc" || as.getCompressorSetting("name") == "zlib" ||
                  as.getCompressorSetting("name") == "zstd")
         {
