@@ -94,10 +94,17 @@
   action: "add_extracts"
   extracts: 
     e1: 
-      type: "flatten"
-      pipeline: "pl2"
+      type: "relay"
+      pipeline: "pl1"
       params: 
-        protocol: csv
-        path: "curlv.csv"
+        protocol: json
+        path: "curlv.json"
+        fields:
+         - X
+         - Y
+         - Z
+         - ModularVel
+         - CurlV
+
 - 
   action: "execute"

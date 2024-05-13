@@ -1,12 +1,5 @@
 # Add a pipeline to compute radius. Origin: 0, 0, 0
 -
-  action: "add_queries"
-  queries:
-    q1:
-      params:
-        expression: "max(field('Pressure')).value"
-        name: "MaxPressure"
--
   action: "add_pipelines"
   pipelines:
     pl1:
@@ -46,11 +39,11 @@
         params:
           field: "point3D"
           output_name: "Radius"
-      f3:
-        type: "expression"
-        params:
-          expression: "MaxPressure - field('Pressure')"
-          name: "PressureNormalized"
+      # f3:
+      #   type: "expression"
+      #   params:
+      #     expression: "max(field('Pressure')).value - field('Pressure')"
+      #     name: "PressureNormalized"
 -
   action: "add_queries"
   queries:
@@ -64,11 +57,11 @@
       params:
         expression: "binning('Density', 'avg', [axis('Radius',num_bins=256,max_val=1.0)])"
         name: "RadialDensity"
-    q5:
-      pipeline: "pl2"
-      params:
-        expression: "binning('PressureNormalized', 'avg', [axis('Radius',num_bins=256,max_val=1.0)])"
-        name: "RadialPressureNormalized"
+    # q5:
+    #   pipeline: "pl2"
+    #   params:
+    #     expression: "binning('PressureNormalized', 'avg', [axis('Radius',num_bins=256,max_val=1.0)])"
+    #     name: "RadialPressureNormalized"
 -
   action: "save_session"
   file_name: "sedov_session"
