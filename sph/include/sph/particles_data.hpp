@@ -302,8 +302,7 @@ public:
 
     void resize(size_t size)
     {
-        double growthRate = 1.01;
-        auto   data_      = data();
+        auto data_ = data();
 
         auto deallocateVector = [size](auto* devVectorPtr)
         {
@@ -320,16 +319,18 @@ public:
         {
             if (this->isAllocated(i))
             {
-                std::visit([size, growthRate](auto* arg) { reallocate(*arg, size, growthRate); }, data_[i]);
+                std::visit([size, gr = allocGrowthRate_](auto* arg) { reallocate(*arg, size, gr); }, data_[i]);
             }
         }
 
-        devData.resize(size);
+        devData.resize(size, allocGrowthRate_);
     }
 
     //! @brief particle fields selected for file output
     std::vector<int>         outputFieldIndices;
     std::vector<std::string> outputFieldNames;
+
+    float getAllocGrowthRate() const { return allocGrowthRate_; }
 
 private:
     void createTables()
@@ -340,13 +341,16 @@ private:
         whd     = sph::tabulateFunction<H, lt::kTableSize>(sph::getSphKernelDerivative(kernelChoice, sincIndex), 0, 2);
         devData.uploadTables(wh, whd);
     }
+
+    //! @brief buffer growth factor when reallocating
+    float allocGrowthRate_{1.05};
 };
 
 //! @brief resizes the neighbors list, only used in the CPU version
 template<class Dataset>
 void resizeNeighbors(Dataset& d, size_t size)
 {
-    double growthRate = 1.05;
+    auto growthRate = d.getAllocGrowthRate();
     //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
     reallocate(d.neighbors, cstone::HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
 }

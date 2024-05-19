@@ -230,8 +230,8 @@ public:
         auto octreeView            = focusTree_.octreeViewAcc();
         const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
 
-        reallocateDestructive(layout_, octreeView.numLeafNodes + 1, 1.01);
-        reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, 1.01);
+        reallocateDestructive(layout_, octreeView.numLeafNodes + 1, allocGrowthRate_);
+        reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, allocGrowthRate_);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
                         focusTree_.leafCountsAcc(), focusTree_.assignment(), {rawPtr(layoutAcc_), layoutAcc_.size()},
                         box(), rawPtr(h), haloSearchExt_, std::get<0>(scratch));
@@ -301,8 +301,8 @@ public:
         auto octreeView            = focusTree_.octreeViewAcc();
         const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
 
-        reallocateDestructive(layout_, octreeView.numLeafNodes + 1, 1.01);
-        reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, 1.01);
+        reallocateDestructive(layout_, octreeView.numLeafNodes + 1, allocGrowthRate_);
+        reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, allocGrowthRate_);
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
                         focusTree_.leafCountsAcc(), focusTree_.assignment(), {rawPtr(layoutAcc_), layoutAcc_.size()},
                         box(), rawPtr(h), haloSearchExt_, std::get<0>(scratch));
@@ -336,7 +336,7 @@ public:
 
         LocalIndex exSize =
             domain_exchange::exchangeBufferSize(prevBufDesc_, global_.numPresent(), global_.numAssigned());
-        lowMemReallocate(exSize, 1.01, arrays, {});
+        lowMemReallocate(exSize, allocGrowthRate_, arrays, {});
 
         BufferDescription exDesc{prevBufDesc_.start, prevBufDesc_.end, exSize};
         auto envelope    = domain_exchange::assignedEnvelope(exDesc, global_.numPresent(), global_.numAssigned());
@@ -362,10 +362,9 @@ public:
                        [shift](auto i) { return i - shift; });
 
         std::apply([exDesc, o = prevOrd.data(), &sendBuffer, &receiveBuffer, this](auto&... a)
-                   { global_.redoExchange(exDesc, o, sendBuffer, receiveBuffer, rawPtr(a)...); },
-                   arrays);
+                   { global_.redoExchange(exDesc, o, sendBuffer, receiveBuffer, rawPtr(a)...); }, arrays);
 
-        lowMemReallocate(bufDesc_.size, 1.01, arrays, std::tie(sendBuffer, receiveBuffer));
+        lowMemReallocate(bufDesc_.size, allocGrowthRate_, arrays, std::tie(sendBuffer, receiveBuffer));
         gatherArrays(gatherCpu, ord + global_.numSendDown(), global_.numAssigned(), envelope[0], bufDesc_.start, arrays,
                      std::tie(sendBuffer, receiveBuffer));
     }
@@ -402,7 +401,7 @@ public:
     const Box<T>& box() const { return global_.box(); }
 
     void setHaloFactor(float factor) { haloSearchExt_ = factor; }
-    float getHaloFactor() const { return haloSearchExt_; }
+    void setGrowthAllocRate(float factor) { allocGrowthRate_ = factor; }
 
     //! @brief update expansion (c.o.m) centers of the focus tree
     template<class VectorX, class VectorM, class VectorS1, class VectorS2>
@@ -497,7 +496,7 @@ private:
         // Global tree build and assignment
         auto exchangeSize = global_.assign(bufDesc_, sorter, std::get<0>(scratchBuffers), std::get<1>(scratchBuffers),
                                            rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
-        lowMemReallocate(exchangeSize, 1.01, distributedArrays, scratchBuffers);
+        lowMemReallocate(exchangeSize, allocGrowthRate_, distributedArrays, scratchBuffers);
 
         return std::apply(
             [exchangeSize, &sorter, &scratchBuffers, this](auto&... arrays)
@@ -540,18 +539,19 @@ private:
         auto myRange = focusTree_.assignment()[myRank_];
         BufferDescription newBufDesc{layout_[myRange.start()], layout_[myRange.end()], layout_.back()};
 
-        lowMemReallocate(newBufDesc.size, 1.01, std::tuple_cat(orderedBuffers, unorderedBuffers), scratchBuffers);
+        lowMemReallocate(newBufDesc.size, allocGrowthRate_, std::tuple_cat(orderedBuffers, unorderedBuffers),
+                         scratchBuffers);
 
         // re-locate particle SFC keys
         if constexpr (IsDeviceVector<KeyVec>{})
         {
             memcpyH2D(layout_.data(), layout_.size(), rawPtr(layoutAcc_));
             auto& swapSpace = std::get<0>(scratchBuffers);
-            size_t origSize = reallocateBytes(swapSpace, keyView.size() * sizeof(KeyType));
+            size_t origSize = reallocateBytes(swapSpace, keyView.size() * sizeof(KeyType), allocGrowthRate_);
 
             auto* swapPtr = reinterpret_cast<KeyType*>(rawPtr(swapSpace));
             memcpyD2D(keyView.data(), keyView.size(), swapPtr);
-            reallocateDestructive(keys, newBufDesc.size, 1.01);
+            reallocateDestructive(keys, newBufDesc.size, allocGrowthRate_);
             memcpyD2D(swapPtr, keyView.size(), rawPtr(keys) + newBufDesc.start);
 
             reallocate(swapSpace, origSize, 1.0);
@@ -559,7 +559,7 @@ private:
         else
         {
             omp_copy(layout_.begin(), layout_.end(), layoutAcc_.begin());
-            reallocate(swapKeys_, newBufDesc.size, 1.01);
+            reallocate(swapKeys_, newBufDesc.size, allocGrowthRate_);
             omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);
             swap(keys, swapKeys_);
         }
@@ -646,6 +646,8 @@ private:
 
     //! @brief Extra search factor for halo discovery, allowing multiple time integration steps between sync() calls
     float haloSearchExt_{1.0};
+    //! @brief buffer growth rate when reallocating
+    float allocGrowthRate_{1.05};
 
     /*! @brief description of particle buffers, storing start and end indices of assigned particles and total size
      *

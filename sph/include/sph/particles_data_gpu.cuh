@@ -148,10 +148,9 @@ public:
                           dataTuple());
     }
 
-    void resize(size_t size)
+    void resize(size_t size, float growthRate)
     {
-        double growthRate = 1.01;
-        auto   data_      = data();
+        auto data_ = data();
 
         auto deallocateVector = [size](auto* devVectorPtr)
         {

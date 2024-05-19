@@ -92,7 +92,7 @@ void exchangeAllToAll(int thisRank, int numRanks)
     LocalIndex numPartPresent  = sends.count(thisRank);
     LocalIndex numPartAssigned = numPartPresent * numRanks;
     bufDesc.size               = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
-    reallocate(bufDesc.size, x, y);
+    reallocate(bufDesc.size, 1.01, x, y);
 
     ExchangeLog log;
     exchangeParticles(0, log, sends, thisRank, bufDesc, numPartAssigned, ordering.data(), x.data(), y.data());
@@ -167,7 +167,7 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     LocalIndex numPartPresent  = sends.count(thisRank);
     LocalIndex numPartAssigned = gridSize;
     bufDesc.size               = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
-    reallocate(bufDesc.size, x, y, testArray, uint8Array);
+    reallocate(bufDesc.size, 1.01, x, y, testArray, uint8Array);
 
     ExchangeLog log;
     exchangeParticles(0, log, sends, thisRank, bufDesc, gridSize, ordering.data(), x.data(), y.data(),
