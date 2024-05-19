@@ -81,7 +81,7 @@ public:
     void setMapFromCodes(KeyType* first, KeyType* last, KeyType* keyBuf, IndexType* valueBuf)
     {
         mapSize_ = std::size_t(last - first);
-        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
+        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType), growthRate_);
         sequenceGpu(ordering(), mapSize_, LocalIndex(0));
         sortByKeyGpu(first, last, ordering(), keyBuf, valueBuf);
     }
@@ -89,17 +89,17 @@ public:
     template<class KeyType, class KeyBuf, class ValueBuf>
     void setMapFromCodes(KeyType* first, KeyType* last, KeyBuf& keyBuf, ValueBuf& valueBuf)
     {
-        mapSize_ = std::size_t(last - first);
-        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
+        mapSize_         = std::size_t(last - first);
+        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType), growthRate_);
         sequenceGpu(ordering(), mapSize_, LocalIndex(0));
 
-        auto s1 = reallocateBytes(keyBuf, mapSize_ * sizeof(KeyType));
-        auto s2 = reallocateBytes(valueBuf, mapSize_ * sizeof(IndexType));
+        auto s1 = reallocateBytes(keyBuf, mapSize_ * sizeof(KeyType), growthRate_);
+        auto s2 = reallocateBytes(valueBuf, mapSize_ * sizeof(IndexType), growthRate_);
 
         setMapFromCodes(first, last, (KeyType*)rawPtr(keyBuf), (IndexType*)rawPtr(valueBuf));
 
-        reallocateDevice(keyBuf, s1, 1.01);
-        reallocateDevice(valueBuf, s2, 1.01);
+        reallocateDevice(keyBuf, s1, 1.0);
+        reallocateDevice(valueBuf, s2, 1.0);
     }
 
     auto gatherFunc() const { return gatherGpuL; }
@@ -111,6 +111,7 @@ private:
     //! @brief reference to (non-owning) buffer for ordering
     BufferType& buffer_;
     std::size_t mapSize_{0};
+    float growthRate_ = 1.05;
 };
 
 } // namespace cstone

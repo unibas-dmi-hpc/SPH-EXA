@@ -121,7 +121,7 @@ void randomGaussianAssignment(int rank, int numRanks)
     ASSERT_EQ(exchangeSizeCpu, bufDesc.size);
     EXPECT_EQ(assignment.treeLeaves().size(), assignmentGpu.treeLeaves().size());
 
-    reallocate(exchangeSizeCpu, keys, x, y, z);
+    reallocate(exchangeSizeCpu, 1.01, keys, x, y, z);
 
     reallocateDevice(d_keys, bufDesc.size, 1.01);
     reallocateDevice(d_x, bufDesc.size, 1.01);

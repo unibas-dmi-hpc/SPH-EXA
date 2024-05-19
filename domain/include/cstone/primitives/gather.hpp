@@ -146,7 +146,7 @@ public:
     void setMapFromCodes(KeyType* first, KeyType* last)
     {
         mapSize_ = std::size_t(last - first);
-        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
+        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType), 1.05);
         std::iota(ordering(), ordering() + mapSize_, 0);
         sort_by_key(first, last, ordering());
     }

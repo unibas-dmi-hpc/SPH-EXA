@@ -195,7 +195,7 @@ struct CombinedUpdate
         memcpyD2H(nodeOps.data() + nodeOps.size() - 1, 1, &newNumLeafNodes);
 
         auto& newLeaves = tree.prefixes;
-        reallocateDestructive(newLeaves, newNumLeafNodes + 1, 1.01);
+        reallocateDestructive(newLeaves, newNumLeafNodes + 1, 1.05);
         rebalanceTreeGpu(rawPtr(leaves), nNodes(leaves), newNumLeafNodes, nodeOps.data(), rawPtr(newLeaves));
         swap(newLeaves, leaves);
 
