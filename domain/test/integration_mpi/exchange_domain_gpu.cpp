@@ -96,7 +96,7 @@ void exchangeAllToAll(int thisRank, int numRanks)
 
     thrust::device_vector<double> sendScratch, receiveScratch;
 
-    reallocate(std::max(numParticlesThisRank, int(x.size())), x, y);
+    reallocate(std::max(numParticlesThisRank, int(x.size())), 1.01, x, y);
 
     thrust::device_vector<LocalIndex> d_ordering = ordering;
     thrust::device_vector<T> d_x                 = x;
@@ -113,7 +113,7 @@ void exchangeAllToAll(int thisRank, int numRanks)
     exchangeParticlesGpu(0, log, sends, thisRank, bufDesc, numParticlesThisRank, sendScratch, receiveScratch,
                          rawPtr(d_ordering), rawPtr(d_x), rawPtr(d_y));
 
-    reallocate(bufDesc.size, x, y);
+    reallocate(bufDesc.size, 1.01, x, y);
     thrust::copy(d_x.begin(), d_x.end(), x.begin());
     thrust::copy(d_y.begin(), d_y.end(), y.begin());
 
@@ -194,13 +194,13 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     reallocateDevice(d_y, bufDesc.size, 1.0);
     reallocateDevice(d_testArray, bufDesc.size, 1.0);
     reallocateDevice(d_uint8Array, bufDesc.size, 1.0);
-    reallocate(bufDesc.size * 10, sendScratch, receiveScratch);
+    reallocate(bufDesc.size * 10, 1.01, sendScratch, receiveScratch);
 
     ExchangeLog log;
     exchangeParticlesGpu(0, log, sends, thisRank, bufDesc, gridSize, sendScratch, receiveScratch, rawPtr(d_ordering),
                          rawPtr(d_x), rawPtr(d_y), rawPtr(d_uint8Array), rawPtr(d_testArray));
 
-    reallocate(bufDesc.size, x, y, testArray, uint8Array);
+    reallocate(bufDesc.size, 1.01, x, y, testArray, uint8Array);
     thrust::copy(d_x.begin(), d_x.end(), x.begin());
     thrust::copy(d_y.begin(), d_y.end(), y.begin());
     thrust::copy(d_testArray.begin(), d_testArray.end(), testArray.begin());

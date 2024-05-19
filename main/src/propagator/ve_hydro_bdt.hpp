@@ -185,7 +185,7 @@ public:
         computeGroups(domain.startIndex(), domain.endIndex(), d, domain.box(), groups_);
         activeRungs_ = groups_.view();
 
-        reallocate(groups_.numGroups, groupDt_, groupIndices_);
+        reallocate(groups_.numGroups, d.getAllocGrowthRate(), groupDt_, groupIndices_);
         fill(groupDt_, 0, groupDt_.size(), std::numeric_limits<float>::max());
     }
 

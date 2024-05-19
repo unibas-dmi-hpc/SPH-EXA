@@ -69,12 +69,12 @@ template<class AccVec>
 void sortGroupDt(float* groupDt, cstone::LocalIndex* groupIndices, cstone::LocalIndex numGroups, AccVec& scratch)
 {
     using cstone::LocalIndex;
-    size_t oldSize  = reallocateBytes(scratch, (sizeof(float) + sizeof(LocalIndex)) * numGroups);
+    size_t oldSize  = reallocateBytes(scratch, (sizeof(float) + sizeof(LocalIndex)) * numGroups, 1.05);
     auto*  keyBuf   = reinterpret_cast<float*>(rawPtr(scratch));
     auto*  valueBuf = reinterpret_cast<LocalIndex*>(keyBuf + numGroups);
     cstone::sequenceGpu(groupIndices, numGroups, 0u);
     cstone::sortByKeyGpu(groupDt, groupDt + numGroups, groupIndices, keyBuf, valueBuf);
-    reallocate(oldSize, scratch);
+    reallocate(oldSize, 1.0, scratch);
 };
 
 //! @brief return the local minimum timestep and the biggest timestep of the fastest fraction of particles

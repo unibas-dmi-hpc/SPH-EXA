@@ -185,7 +185,7 @@ public:
         leafCounts_.resize(nNodes(leaves_));
         if constexpr (HaveGpu<Accelerator>{})
         {
-            reallocateDestructive(leafCountsAcc_, nNodes(leavesAcc_), 1.01);
+            reallocateDestructive(leafCountsAcc_, nNodes(leavesAcc_), allocGrowthRate_);
             TreeNodeIndex numLeafNodes = treeData_.numLeafNodes;
 
             computeNodeCountsGpu(rawPtr(leavesAcc_), rawPtr(leafCountsAcc_), numLeafNodes, particleKeys.begin(),
@@ -234,7 +234,7 @@ public:
             memcpyH2D(leafCounts_.data(), assignment_[myRank_].start(), rawPtr(leafCountsAcc_));
             memcpyH2D(leafCounts_.data() + assignment_[myRank_].end(), leafCounts_.size() - assignment_[myRank_].end(),
                       rawPtr(leafCountsAcc_) + assignment_[myRank_].end());
-            reallocateDestructive(countsAcc_, counts_.size(), 1.01);
+            reallocateDestructive(countsAcc_, counts_.size(), allocGrowthRate_);
             memcpyH2D(counts_.data(), counts_.size(), rawPtr(countsAcc_));
         }
 
@@ -338,13 +338,13 @@ public:
 
         globalCenters_.resize(globalTree.numTreeNodes());
         centers_.resize(numNodes);
-        reallocateDestructive(centersAcc_, centers_.size(), 1.01);
+        reallocateDestructive(centersAcc_, centers_.size(), allocGrowthRate_);
 
         if constexpr (HaveGpu<Accelerator>{})
         {
             static_assert(IsDeviceVector<std::decay_t<DevVec1>>{} && IsDeviceVector<std::decay_t<DevVec2>>{});
             size_t bytesLayout = (octree.numLeafNodes + 1) * sizeof(LocalIndex);
-            size_t osz1        = reallocateBytes(scratch1, bytesLayout);
+            size_t osz1        = reallocateBytes(scratch1, bytesLayout, allocGrowthRate_);
             auto* d_layout     = reinterpret_cast<LocalIndex*>(rawPtr(scratch1));
 
             fillGpu(d_layout, d_layout + octree.numLeafNodes + 1, LocalIndex(0));
@@ -393,7 +393,7 @@ public:
 
         if constexpr (HaveGpu<Accelerator>{})
         {
-            reallocate(centersAcc_, octreeAcc_.numNodes, 1.01);
+            reallocate(centersAcc_, octreeAcc_.numNodes, allocGrowthRate_);
             memcpyH2D(centers_.data(), centers_.size(), rawPtr(centersAcc_));
         }
     }
@@ -409,7 +409,7 @@ public:
     {
         if constexpr (HaveGpu<Accelerator>{})
         {
-            reallocate(centersAcc_, octreeAcc_.numNodes, 1.01);
+            reallocate(centersAcc_, octreeAcc_.numNodes, allocGrowthRate_);
             moveCenters(rawPtr(geoCentersAcc_), octreeAcc_.numNodes, rawPtr(centersAcc_));
         }
         else
@@ -464,7 +464,7 @@ public:
             TreeNodeIndex fAssignStart = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), assignment[myRank_]);
             TreeNodeIndex fAssignEnd   = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), assignment[myRank_ + 1]);
 
-            reallocate(macsAcc_, octreeAcc_.numNodes, 1.01);
+            reallocate(macsAcc_, octreeAcc_.numNodes, allocGrowthRate_);
             fillGpu(rawPtr(macsAcc_), rawPtr(macsAcc_) + macsAcc_.size(), char(0));
             markMacsGpu(rawPtr(octreeAcc_.prefixes), rawPtr(octreeAcc_.childOffsets), rawPtr(centersAcc_), box,
                         rawPtr(leavesAcc_) + fAssignStart, fAssignEnd - fAssignStart, rawPtr(macsAcc_));
@@ -482,8 +482,8 @@ public:
 
     void updateGeoCenters(const Box<RealType>& box)
     {
-        reallocate(geoCentersAcc_, treeData_.numNodes, 1.01);
-        reallocate(geoSizesAcc_, treeData_.numNodes, 1.01);
+        reallocate(geoCentersAcc_, treeData_.numNodes, allocGrowthRate_);
+        reallocate(geoSizesAcc_, treeData_.numNodes, allocGrowthRate_);
 
         if constexpr (HaveGpu<Accelerator>{})
         {
@@ -577,7 +577,7 @@ private:
             TreeNodeIndex numNodes     = treeData_.numNodes;
 
             octreeAcc_.resize(numLeafNodes);
-            reallocateDestructive(leavesAcc_, numLeafNodes + 1, 1.01);
+            reallocateDestructive(leavesAcc_, numLeafNodes + 1, allocGrowthRate_);
 
             memcpyH2D(treeData_.prefixes.data(), numNodes, rawPtr(octreeAcc_.prefixes));
             memcpyH2D(treeData_.childOffsets.data(), numNodes, rawPtr(octreeAcc_.childOffsets));
@@ -598,7 +598,7 @@ private:
             TreeNodeIndex numNodes     = octreeAcc_.numNodes;
 
             treeData_.resize(numLeafNodes);
-            reallocateDestructive(leaves_, numLeafNodes + 1, 1.01);
+            reallocateDestructive(leaves_, numLeafNodes + 1, allocGrowthRate_);
 
             memcpyD2H(rawPtr(octreeAcc_.prefixes), numNodes, treeData_.prefixes.data());
             memcpyD2H(rawPtr(octreeAcc_.childOffsets), numNodes, treeData_.childOffsets.data());
@@ -627,6 +627,9 @@ private:
     int numRanks_;
     //! @brief bucket size (ncrit) inside the focus are
     unsigned bucketSize_;
+
+    //! @brief allocation growth rate for focus tree arrays with length ~ numFocusNodes
+    float allocGrowthRate_{1.05};
 
     //! @brief list of peer ranks from last call to updateTree()
     std::vector<int> peers_;

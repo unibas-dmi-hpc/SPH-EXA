@@ -131,9 +131,10 @@ int main(int argc, char** argv)
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
     uint64_t bucketSizeFocus = 64;
-    // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
+    // ~100 global nodes per rank to decompose the domain with +-1% accuracy
     uint64_t bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
     Domain   domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
+    domain.setGrowthAllocRate(simData.hydro.getAllocGrowthRate());
 
     propagator->sync(domain, simData);
     if (rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;

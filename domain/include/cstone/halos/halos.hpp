@@ -152,14 +152,15 @@ public:
         TreeNodeIndex numNodesSearch = lastNode - firstNode;
         TreeNodeIndex numLeafNodes   = counts.size();
 
-        reallocate(numLeafNodes, haloFlags_);
+        float growthRate = 1.05;
+        reallocate(numLeafNodes, growthRate, haloFlags_);
 
         if constexpr (HaveGpu<Accelerator>{})
         {
             // round up to multiple of 128 such that the radii pointer will be aligned
             size_t flagBytes  = round_up((numLeafNodes + 1) * sizeof(int), 128);
             size_t radiiBytes = numLeafNodes * sizeof(float);
-            size_t origSize   = reallocateBytes(scratch, flagBytes + radiiBytes);
+            size_t origSize   = reallocateBytes(scratch, flagBytes + radiiBytes, growthRate);
 
             auto* d_flags = reinterpret_cast<int*>(rawPtr(scratch));
             auto* d_radii = reinterpret_cast<float*>(rawPtr(scratch)) + flagBytes / sizeof(float);
