@@ -326,6 +326,33 @@ public:
         devData.resize(size, allocGrowthRate_);
     }
 
+    size_t size()
+    {
+        auto data_ = data();
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (this->isAllocated(i))
+            {
+                return std::visit([](auto* arg) { return arg->size(); }, data_[i]);
+            }
+        }
+        return 0;
+    }
+
+    //! @brief resize GPU arrays if in use, CPU arrays otherwise
+    void resizeAcc(size_t size)
+    {
+        if (cstone::HaveGpu<AccType>{}) { devData.resize(size, allocGrowthRate_); }
+        else { resize(size); }
+    }
+
+    //! @brief return the size of GPU arrays if in use, CPU arrays otherwise
+    size_t accSize()
+    {
+        if (cstone::HaveGpu<AccType>{}) { return devData.size(); }
+        else { return size(); }
+    }
+
     //! @brief particle fields selected for file output
     std::vector<int>         outputFieldIndices;
     std::vector<std::string> outputFieldNames;
