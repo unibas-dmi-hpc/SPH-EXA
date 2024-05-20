@@ -37,14 +37,18 @@
 template<class Vector>
 void reallocateDevice(Vector& vector, size_t size, double growthRate)
 {
-    size_t current_capacity = vector.capacity();
+    constexpr size_t valueTypeSize   = sizeof(typename Vector::value_type);
+    //! @brief rounding up all GPU buffers to multiples of 64 KB avoids performance issues with GPU-direct MPI
+    constexpr size_t pageSize    = 1 << 16;
+    constexpr size_t pageSize_vt = pageSize / valueTypeSize;
 
-    if (size > current_capacity)
+    if (size > vector.capacity())
     {
-        size_t reserve_size = double(size) * growthRate;
+        size_t reserve_size         = double(size) * growthRate;
+        size_t reserve_size_rounded = ((reserve_size + pageSize_vt - 1) / pageSize_vt) * pageSize_vt;
 
         Vector newBuffer;
-        newBuffer.reserve(reserve_size);
+        newBuffer.reserve(reserve_size_rounded);
         newBuffer.resize(size);
         thrust::copy(vector.begin(), vector.end(), newBuffer.begin());
         checkGpuErrors(cudaDeviceSynchronize()); // temporary fix for ROCm < 6.0
