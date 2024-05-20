@@ -172,6 +172,19 @@ public:
         }
     }
 
+    size_t size()
+    {
+        auto data_ = data();
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (this->isAllocated(i))
+            {
+                return std::visit([](auto* arg) { return arg->size(); }, data_[i]);
+            }
+        }
+        return 0;
+    }
+
     DeviceParticlesData()
     {
         for (int i = 0; i < NST; ++i)
