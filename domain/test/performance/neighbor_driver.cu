@@ -141,7 +141,7 @@ auto findNeighborsBT(size_t firstBody,
 {
     unsigned numBodies = lastBody - firstBody;
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
-    unsigned poolSize  = TravConfig::poolSize(numBodies);
+    unsigned poolSize  = TravConfig::poolSize();
     thrust::device_vector<int> globalPool(poolSize);
 
     printf("launching %d blocks\n", numBlocks);

@@ -71,11 +71,10 @@ struct TravConfig
     }
 
     //! @brief compute storage needed for traversal stack
-    static unsigned poolSize(unsigned numBodies)
+    static unsigned poolSize()
     {
-        unsigned blocks_          = numBlocks(numBodies);
         unsigned numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
-        return TravConfig::memPerWarp * numWarpsPerBlock * blocks_;
+        return TravConfig::memPerWarp * numWarpsPerBlock * maxNumActiveBlocks;
     }
 };
 
@@ -513,7 +512,7 @@ template<class DeviceVector>
 std::tuple<TreeNodeIndex*, LocalIndex*> allocateNcStacks(DeviceVector& stack, unsigned numBodies, unsigned ngmax)
 {
     unsigned numBlocks = TravConfig::numBlocks(numBodies);
-    unsigned poolSize  = TravConfig::poolSize(numBodies);
+    unsigned poolSize  = TravConfig::poolSize();
     unsigned nidxSize  = ngmax * numBlocks * TravConfig::numThreads;
 
     static_assert(sizeof(LocalIndex) == sizeof(typename DeviceVector::value_type));
