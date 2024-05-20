@@ -137,7 +137,7 @@ public:
         timer.step("domain::sync");
 
         auto& d = simData.hydro;
-        d.resize(domain.nParticlesWithHalos());
+        d.resizeAcc(domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * d.ngmax);
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
@@ -220,10 +220,11 @@ public:
     void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
                     const cstone::Box<T>& box) override
     {
-        auto& d             = simData.hydro;
-        auto  fieldPointers = d.data();
-        auto  indicesDone   = d.outputFieldIndices;
-        auto  namesDone     = d.outputFieldNames;
+        auto& d = simData.hydro;
+        d.resize(d.accSize());
+        auto fieldPointers = d.data();
+        auto indicesDone   = d.outputFieldIndices;
+        auto namesDone     = d.outputFieldNames;
 
         auto output = [&]()
         {
