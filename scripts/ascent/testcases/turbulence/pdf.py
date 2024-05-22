@@ -35,7 +35,7 @@ def plot_radial_density(curr_key, radial_density):
     curr_data = radial_density[curr_key]['attrs']['value']['value']
 
     # create the coordinate axis using bin centers
-    x_axis = radial_density[curr_key]['attrs']['bin_axes']['value']['Radius']
+    x_axis = radial_density[curr_key]['attrs']['bin_axes']['value']['Density']
     x_min = x_axis['min_val']
     x_max = x_axis['max_val']
     x_bins = x_axis['num_bins']
@@ -48,8 +48,8 @@ def plot_radial_density(curr_key, radial_density):
 
     # plot the curve from the last cycle
     plt.plot(x_vals, curr_data)
-    plt.xlabel('Radial distance')
-    plt.ylabel('Density')
+    plt.xlabel('Density')
+    plt.ylabel('Frequency')
     plt.savefig("turbulence_pdf_step{:05d}.png".format(curr_key))
     plt.clf()
 
