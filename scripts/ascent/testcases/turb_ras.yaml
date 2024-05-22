@@ -23,17 +23,19 @@
     #   params:
     #     expression: "binning('PressureNormalized', 'avg', [axis('Radius',num_bins=256,max_val=1.0)])"
     #     name: "RadialPressureNormalized"
--
-  action: "save_session"
-  file_name: "turb_session"
-# - 
-#   action: "add_extracts"
-#   extracts: 
-#     e1: 
-#       type: "python"
-#       pipeline: "pl1"
-#       params: 
-#         file: "testcases/sedov_vis.py"
-#         fields: X
-# - 
-#   action: "execute"
+# -
+#   action: "save_session"
+#   file_name: "turb_session"
+- 
+  action: "add_extracts"
+  extracts: 
+    e1: 
+      type: "relay"
+      pipeline: "pl1"
+      params: 
+        protocol: hdf5
+        path: "res2.h5"
+        fields:
+          - vx_binned
+- 
+  action: "execute"
