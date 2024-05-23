@@ -272,6 +272,7 @@ public:
             // first rough convergence to avoid computing expansion centers of large nodes with a lot of particles
             focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts(),
                                 1.0, std::get<0>(scratch));
+            focusTree_.updateMinMac(box(), global_.assignment(), 1.0);
             int converged = 0, reps = 0;
             while (converged != numRanks_ || reps < 2)
             {

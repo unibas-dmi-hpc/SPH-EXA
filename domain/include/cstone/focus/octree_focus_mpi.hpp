@@ -73,6 +73,7 @@ public:
         , treelets_(numRanks_)
         , counts_{bucketSize + 1}
         , macs_{1}
+        , centers_(1)
     {
         if constexpr (HaveGpu<Accelerator>{})
         {
@@ -84,8 +85,10 @@ public:
 
             reallocate(countsAcc_, counts_.size(), 1.0);
             memcpyH2D(counts_.data(), counts_.size(), rawPtr(countsAcc_));
+
             reallocate(macsAcc_, macs_.size(), 1.0);
-            memcpyH2D(macs_.data(), macs_.size(), rawPtr(macsAcc_));
+            reallocate(geoCentersAcc_, centers_.size(), 1.0);
+            reallocate(centersAcc_, centers_.size(), 1.0);
         }
 
         leaves_ = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
@@ -397,9 +400,10 @@ public:
 
     /*! @brief Update the MAC criteria based on a min distance MAC
      *
-     * @tparam    T                float or double
-     * @param[in] box              global coordinate bounding box
-     * @param[in] assignment       assignment of the global leaf tree to ranks
+     * @tparam    T            float or double
+     * @param[in] box          global coordinate bounding box
+     * @param[in] assignment   assignment of the global leaf tree to ranks
+     * @param[in] invTheta     inverse effective opening angle, 1/theta + 0.5
      */
     void updateMinMac(const Box<RealType>& box, const SfcAssignment<KeyType>& assignment, float invThetaEff)
     {
@@ -434,10 +438,21 @@ public:
         else { setMac<RealType, KeyType>(treeData_.prefixes, centers_, invTheta, box); }
     }
 
-    /*! @brief Update the MAC criteria based on the vector MAC
+    /*! @brief Update the MAC criteria based on given expansion centers and effective inverse theta
      *
-     * @param[in] box              global coordinate bounding box
-     * @param[in] assignment       assignment of the global leaf tree to ranks
+     * @param[in] box          global coordinate bounding box
+     * @param[in] assignment   assignment of the global leaf tree to ranks
+     * @param[in] invTheta     inverse effective opening angle, 1/theta + x
+     *
+     * Inputs per tree cell:  centers_/centersAcc_  ->  Outputs per tree cell:  macs_/macsAcc_
+     *
+     * MAC accepted if d > l * invTheta + ||center - geocenter||
+     * Based on the provided expansion centers and values of invTheta, different MAC criteria can be implemented:
+     *
+     * centers_ = center of mass, invTheta = 1/theta        -> "Vector MAC"
+     * centers_ = geo centers, invTheta = 1/theta + sqrt(3) -> Worst case vector MAC with center of mass in cell corner
+     * centers_ = geo centers, invTheta = 1/theta + 0.5     -> Identical to MinMac along the axes through the center,
+     *                                                         slightly less restrictive in the diagonal directions
      */
     void updateMacs(const Box<RealType>& box, const SfcAssignment<KeyType>& assignment, float invTheta)
     {
@@ -492,10 +507,10 @@ public:
         int converged = 0;
         while (converged != numRanks_)
         {
+            updateMinMac(box, assignment, invThetaEff);
             converged = updateTree(peers, assignment);
             updateCounts(particleKeys, globalTreeLeaves, globalCounts, scratch);
             updateGeoCenters(box);
-            updateMinMac(box, assignment, invThetaEff);
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         }
     }
