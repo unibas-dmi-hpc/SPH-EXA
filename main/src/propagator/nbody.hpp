@@ -37,7 +37,7 @@
 #include "sph/groups.hpp"
 #include "sph/particles_data.hpp"
 #include "sph/positions.hpp"
-#include "sph/timestep.hpp"
+#include "sph/ts_global.hpp"
 
 #include "ipropagator.hpp"
 #include "gravity_wrapper.hpp"
@@ -64,7 +64,8 @@ class NbodyProp final : public Propagator<DomainType, DataType>
     using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
         MultipoleType, DomainType, typename DataType::HydroData>;
 
-    MHolder_t mHolder_;
+    MHolder_t      mHolder_;
+    GroupData<Acc> groups_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
      *
@@ -121,6 +122,7 @@ public:
         d.resize(domain.nParticlesWithHalos());
         auto first = domain.startIndex();
         auto last  = domain.endIndex();
+        computeGroups(first, last, d, domain.box(), groups_);
 
         transferToHost(d, first, first + 1, {"m"});
         fill(get<"m">(d), 0, first, d.m[first]);
@@ -156,7 +158,7 @@ public:
         d.minDtCourant = INFINITY;
         computeTimestep(first, last, d);
         timer.step("Timestep");
-        computePositions(first, last, d, domain.box());
+        computePositions(groups_.view(), d, domain.box(), d.minDt, {float(d.minDt_m1)});
         timer.step("UpdateQuantities");
     }
 

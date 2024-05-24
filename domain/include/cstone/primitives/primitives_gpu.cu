@@ -164,6 +164,7 @@ template size_t lowerBoundGpu(const unsigned*, const unsigned*, unsigned);
 template size_t lowerBoundGpu(const uint64_t*, const uint64_t*, uint64_t);
 template size_t lowerBoundGpu(const int*, const int*, int);
 template size_t lowerBoundGpu(const int64_t*, const int64_t*, int64_t);
+template size_t lowerBoundGpu(const float*, const float*, float);
 
 template<class T, class IndexType>
 void lowerBoundGpu(const T* first, const T* last, const T* valueFirst, const T* valueLast, IndexType* result)
@@ -260,6 +261,7 @@ void sortGpu(KeyType* first, KeyType* last, KeyType* keyBuf)
 
 template void sortGpu(uint32_t*, uint32_t*, uint32_t*);
 template void sortGpu(uint64_t*, uint64_t*, uint64_t*);
+template void sortGpu(float*, float*, float*);
 
 template<class KeyType, class ValueType>
 void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values, KeyType* keyBuf, ValueType* valueBuf)
@@ -300,6 +302,7 @@ template void sortByKeyGpu(unsigned*, unsigned*, int*, unsigned*, int*);
 template void sortByKeyGpu(uint64_t*, uint64_t*, unsigned*, uint64_t*, unsigned*);
 template void sortByKeyGpu(uint64_t*, uint64_t*, int*, uint64_t*, int*);
 template void sortByKeyGpu(uint64_t*, uint64_t*, uint64_t*, uint64_t*, uint64_t*);
+template void sortByKeyGpu(float*, float*, unsigned*, float*, unsigned*);
 
 template<class KeyType, class ValueType>
 void sortByKeyGpu(KeyType* first, KeyType* last, ValueType* values)

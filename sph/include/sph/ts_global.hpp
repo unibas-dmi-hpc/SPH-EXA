@@ -27,7 +27,6 @@
  * @brief Min-reduction to determine global timestep
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Aurelien Cavelan
  */
 
 #pragma once
@@ -37,6 +36,7 @@
 #include <vector>
 #include <mpi.h>
 
+#include "cstone/primitives/primitives_gpu.h"
 #include "kernels.hpp"
 
 namespace sph

@@ -29,31 +29,37 @@
  */
 
 #include "cstone/primitives/math.hpp"
-#include "cstone/tree/definitions.h"
+#include "sph/sph_gpu.hpp"
 #include "sph/kernels.hpp"
 
 namespace sph
 {
 
 template<class Th>
-__global__ void updateSmoothingLengthGpuKernel(size_t first, size_t last, unsigned ng0, const unsigned* nc, Th* h)
+__global__ void updateSmoothingLengthGpuKernel(GroupView grp, unsigned ng0, const unsigned* nc, Th* h)
 {
-    cstone::LocalIndex i = first + blockDim.x * blockIdx.x + threadIdx.x;
-    if (i >= last) { return; }
+    cstone::LocalIndex tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid >= grp.numGroups) { return; }
 
-    h[i] = updateH(ng0, nc[i], h[i]);
+    auto bodyBegin = grp.groupStart[tid];
+    auto bodyEnd   = grp.groupEnd[tid];
+
+    for (auto i = bodyBegin; i < bodyEnd; ++i)
+    {
+        h[i] = updateH(ng0, nc[i], h[i]);
+    }
 }
 
 template<class Th>
-void updateSmoothingLengthGpu(size_t first, size_t last, unsigned ng0, const unsigned* nc, Th* h)
+void updateSmoothingLengthGpu(const GroupView& grp, unsigned ng0, const unsigned* nc, Th* h)
 {
     unsigned numThreads = 256;
-    unsigned numBlocks  = cstone::iceil(last - first, 256);
+    unsigned numBlocks  = cstone::iceil(grp.numGroups, 256);
 
-    updateSmoothingLengthGpuKernel<<<numBlocks, numThreads>>>(first, last, ng0, nc, h);
+    updateSmoothingLengthGpuKernel<<<numBlocks, numThreads>>>(grp, ng0, nc, h);
 }
 
-template void updateSmoothingLengthGpu(size_t first, size_t last, unsigned ng0, const unsigned* nc, float* h);
-template void updateSmoothingLengthGpu(size_t first, size_t last, unsigned ng0, const unsigned* nc, double* h);
+template void updateSmoothingLengthGpu(const GroupView& grp, unsigned ng0, const unsigned* nc, float* h);
+template void updateSmoothingLengthGpu(const GroupView& grp, unsigned ng0, const unsigned* nc, double* h);
 
 } // namespace sph
