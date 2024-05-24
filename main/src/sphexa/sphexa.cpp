@@ -141,20 +141,27 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    size_t startIteration = d.iteration;
-    bool   keepRunning    = true;
-    for (; keepRunning; d.iteration++)
+    size_t startIteration    = d.iteration;
+    bool   isOutputTriggered = false;
+
+    for (bool keepRunning = true; keepRunning; d.iteration++)
     {
         propagator->computeForces(domain, simData);
         box = domain.box();
 
-        observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
+        if (propagator->isSynced())
+        {
+            observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
+        }
 
         bool isWallClockReached = totalTimer.elapsed() > simDuration;
 
-        if (isOutputStep(d.iteration, writeFreqStr) || isOutputTime(d.ttot - d.minDt, d.ttot, writeFreqStr) ||
-            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) ||
-            (isWallClockReached && writeEnabled))
+        isOutputTriggered = isOutputStep(d.iteration, writeFreqStr) ||
+                            isOutputTime(d.ttot - d.minDt, d.ttot, writeFreqStr) ||
+                            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) ||
+                            (isWallClockReached && writeEnabled) || isOutputTriggered;
+
+        if (isOutputTriggered && propagator->isSynced())
         {
             fileWriter->addStep(domain.startIndex(), domain.endIndex(), outFile);
             simData.hydro.loadOrStoreAttributes(fileWriter.get());
@@ -162,13 +169,15 @@ int main(int argc, char** argv)
             propagator->saveFields(fileWriter.get(), domain.startIndex(), domain.endIndex(), simData, box);
             propagator->save(fileWriter.get());
             fileWriter->closeStep();
+            isOutputTriggered = false;
         }
         if (isOutputStep(d.iteration, profFreqStr) || isOutputTime(d.ttot - d.minDt, d.ttot, profFreqStr) ||
             isWallClockReached)
         {
             if (profEnabled) { propagator->writeMetrics(fileWriter.get(), "profile"); }
         }
-        keepRunning = not(stopConditionReached(d.iteration, d.ttot, maxStepStr) || isWallClockReached);
+        keepRunning = not(stopConditionReached(d.iteration, d.ttot, maxStepStr) || isWallClockReached) ||
+                      not propagator->isSynced();
 
         viz::execute(d, domain.startIndex(), domain.endIndex());
 

@@ -63,7 +63,7 @@ protected:
     using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
         MultipoleType, DomainType, typename DataType::HydroData>;
 
-    MHolder_t            mHolder_;
+    MHolder_t      mHolder_;
     GroupData<Acc> groups_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
@@ -178,8 +178,8 @@ public:
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
-        computePositions(first, last, d, domain.box());
-        updateSmoothingLength(first, last, d);
+        computePositions(groups_.view(), d, domain.box(), d.minDt, {float(d.minDt_m1)});
+        updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateQuantities");
     }
 

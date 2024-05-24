@@ -73,11 +73,17 @@ public:
     //! @brief save particle data fields to file
     virtual void saveFields(IFileWriter*, size_t, size_t, ParticleDataType&, const cstone::Box<T>&){};
 
+    //! @brief save extra customizable stuff
+    virtual void saveExtra(IFileWriter*, ParticleDataType&){};
+
     //! @brief save internal state to file
     virtual void save(IFileWriter*){};
 
     //! @brief load internal state from file
     virtual void load(const std::string& path, IFileReader*){};
+
+    //! @brief whether conserved quantities are time-synchronized (when completing a full time-step hierarchy)
+    virtual bool isSynced() { return true; }
 
     //! @brief add pm counters if they exist
     void addCounters(const std::string& pmRoot, int numRanksPerNode) { pmReader.addCounters(pmRoot, numRanksPerNode); }

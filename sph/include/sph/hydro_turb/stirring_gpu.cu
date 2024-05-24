@@ -65,6 +65,7 @@ void computeStirringGpu(GroupView grp, size_t numDim, const Tc* x, const Tc* y, 
     unsigned numThreads = 256;
     unsigned numBlocks  = cstone::iceil(grp.numGroups, numThreads);
 
+    if (numBlocks == 0) { return; }
     computeStirringKernel<<<numBlocks, numThreads>>>(grp, numDim, x, y, z, ax, ay, az, numModes, modes, st_aka, st_akb,
                                                      amplitudes, solWeightNorm);
 }

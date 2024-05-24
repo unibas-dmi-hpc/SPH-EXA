@@ -321,15 +321,15 @@ public:
         }
     }
 
-    template<class Tm, class DeviceVector = std::vector<LocalIndex>>
+    template<class Tm, class DevVec1 = std::vector<LocalIndex>, class DevVec2 = std::vector<LocalIndex>>
     void updateCenters(const RealType* x,
                        const RealType* y,
                        const RealType* z,
                        const Tm* m,
                        const Octree<KeyType>& globalTree,
                        const Box<RealType>& box,
-                       DeviceVector&& scratch1 = std::vector<LocalIndex>{},
-                       DeviceVector&& scratch2 = std::vector<LocalIndex>{})
+                       DevVec1&& scratch1 = std::vector<LocalIndex>{},
+                       DevVec2&& scratch2 = std::vector<LocalIndex>{})
     {
         TreeNodeIndex firstIdx           = assignment_[myRank_].start();
         TreeNodeIndex lastIdx            = assignment_[myRank_].end();
@@ -342,7 +342,7 @@ public:
 
         if constexpr (HaveGpu<Accelerator>{})
         {
-            static_assert(IsDeviceVector<std::decay_t<DeviceVector>>{});
+            static_assert(IsDeviceVector<std::decay_t<DevVec1>>{} && IsDeviceVector<std::decay_t<DevVec2>>{});
             size_t bytesLayout = (octree.numLeafNodes + 1) * sizeof(LocalIndex);
             size_t osz1        = reallocateBytes(scratch1, bytesLayout);
             auto* d_layout     = reinterpret_cast<LocalIndex*>(rawPtr(scratch1));
