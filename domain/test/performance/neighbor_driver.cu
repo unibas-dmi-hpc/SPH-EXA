@@ -140,7 +140,7 @@ auto findNeighborsBT(size_t firstBody,
                      unsigned ngmax)
 {
     unsigned numBodies = lastBody - firstBody;
-    unsigned numBlocks = TravConfig::numBlocks(numBodies);
+    unsigned numBlocks = TravConfig::numBlocks();
     unsigned poolSize  = TravConfig::poolSize();
     thrust::device_vector<int> globalPool(poolSize);
 

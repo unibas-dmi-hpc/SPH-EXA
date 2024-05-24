@@ -35,6 +35,7 @@
 
 #include "cstone/util/strong_type.hpp"
 
+#include "box.hpp"
 #include "morton.hpp"
 #include "hilbert.hpp"
 

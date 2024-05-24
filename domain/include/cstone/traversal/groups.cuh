@@ -35,22 +35,14 @@
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/primitives/warpscan.cuh"
 #include "cstone/sfc/sfc.hpp"
-#include "cstone/tree/definitions.h"
+#include "cstone/traversal/groups.hpp"
 
 namespace cstone
 {
 
 //! @brief simple-fixed width group targets
-template<class T>
-__global__ void groupTargets(LocalIndex first,
-                             LocalIndex last,
-                             const T* x,
-                             const T* y,
-                             const T* z,
-                             const T* h,
-                             unsigned groupSize,
-                             LocalIndex* groups,
-                             unsigned numGroups)
+__global__ static void
+fixedGroupsKernel(LocalIndex first, LocalIndex last, unsigned groupSize, LocalIndex* groups, unsigned numGroups)
 {
     LocalIndex tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -63,6 +55,20 @@ __global__ void groupTargets(LocalIndex first,
         groups[groupIdx] = scan;
         if (groupIdx + 1 == numGroups) { groups[numGroups] = last; }
     }
+}
+
+static void computeFixedGroups(LocalIndex first, LocalIndex last, unsigned groupSize, GroupData<GpuTag>& groups)
+{
+    LocalIndex numBodies = last - first;
+    LocalIndex numGroups = iceil(numBodies, groupSize);
+    groups.data.resize(numGroups + 1);
+    fixedGroupsKernel<<<iceil(numBodies, 256), 256>>>(first, last, groupSize, rawPtr(groups.data), numGroups);
+
+    groups.firstBody  = first;
+    groups.lastBody   = last;
+    groups.numGroups  = numGroups;
+    groups.groupStart = rawPtr(groups.data);
+    groups.groupEnd   = rawPtr(groups.data) + 1;
 }
 
 /*! @brief Computes splitting patterns of target particle groups

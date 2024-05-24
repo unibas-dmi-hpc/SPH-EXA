@@ -96,16 +96,17 @@ void ryoanjiTest(int thisRank, int numRanks, size_t numParticlesGlobal)
     MultipoleHolder<T, T, T, T, T, KeyType, MultipoleType> multipoleHolder;
 
     std::vector<MultipoleType> multipoles(octree.numNodes);
+    auto grp = multipoleHolder.computeSpatialGroups(domain.startIndex(), domain.endIndex(), rawPtr(d_x), rawPtr(d_y),
+                                                    rawPtr(d_z), rawPtr(d_h), domain.focusTree(),
+                                                    domain.layout().data(), domain.box());
     multipoleHolder.upsweep(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), domain.globalTree(), domain.focusTree(),
                             domain.layout().data(), multipoles.data());
-    multipoleHolder.createGroups(domain.startIndex(), domain.endIndex(), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z),
-                                 rawPtr(d_h), domain.focusTree(), domain.layout().data(), domain.box());
 
     auto t0 = std::chrono::high_resolution_clock::now();
     // compute accelerations for locally owned particles based on globally valid multipoles and
     // halo particles are in [0:domain.startIndex()] and in [domain.endIndex():domain.nParticlesWithHalos()]
-    float totalPotential = multipoleHolder.compute(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h), G,
-                                                   0, box, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
+    float totalPotential = multipoleHolder.compute(grp, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h),
+                                                   G, 0, box, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
 
     auto t1 = std::chrono::high_resolution_clock::now();
     auto dt = std::chrono::duration<double>(t1 - t0).count();
