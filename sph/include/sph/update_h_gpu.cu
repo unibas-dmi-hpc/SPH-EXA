@@ -28,8 +28,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <cmath>
-
 #include "cstone/primitives/math.hpp"
 #include "cstone/tree/definitions.h"
 #include "sph/kernels.hpp"

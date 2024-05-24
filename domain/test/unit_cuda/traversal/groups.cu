@@ -51,20 +51,14 @@ using SplitType             = util::array<GpuConfig::ThreadMask, nwt>;
 TEST(TargetGroups, t0)
 {
     using T              = double;
-    LocalIndex numGroups = 4;
-    LocalIndex groupSize = 8;
-    LocalIndex first     = 4;
-    LocalIndex last      = 34;
+    LocalIndex numGroups = 4, groupSize = 8, first = 4, last = 34;
 
     thrust::device_vector<LocalIndex> groups(numGroups + 1);
-
-    groupTargets<T><<<iceil(last - first, 64), 64>>>(first, last, nullptr, nullptr, nullptr, nullptr, groupSize,
-                                                     rawPtr(groups), iceil(last - first, groupSize));
+    fixedGroupsKernel<<<iceil(last - first, 64), 64>>>(first, last, groupSize, rawPtr(groups),
+                                                       iceil(last - first, groupSize));
 
     thrust::host_vector<LocalIndex> hgroups = groups;
-
-    thrust::host_vector<LocalIndex> ref = std::vector<LocalIndex>{4, 12, 20, 28, 34};
-
+    thrust::host_vector<LocalIndex> ref     = std::vector<LocalIndex>{4, 12, 20, 28, 34};
     EXPECT_EQ(hgroups, ref);
 }
 

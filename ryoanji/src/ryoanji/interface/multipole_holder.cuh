@@ -34,6 +34,7 @@
 #include <memory>
 
 #include "cstone/focus/octree_focus_mpi.hpp"
+#include "cstone/traversal/groups.hpp"
 #include "ryoanji/nbody/types.h"
 
 namespace ryoanji
@@ -47,16 +48,17 @@ public:
 
     ~MultipoleHolder();
 
+    cstone::GroupView computeSpatialGroups(LocalIndex first, LocalIndex last, const Tc* x, const Tc* y, const Tc* z,
+                                           const Th*                                                 h,
+                                           const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree,
+                                           const cstone::LocalIndex* layout, const cstone::Box<Tc>& box);
+
     void upsweep(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalOctree,
                  const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles);
 
-    void createGroups(LocalIndex first, LocalIndex last, const Tc* x, const Tc* y, const Tc* z, const Th* h,
-                      const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree,
-                      const cstone::LocalIndex* layout, const cstone::Box<Tc>& box);
-
-    float compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const Th* h, Tc G, int numShells,
-                  const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az);
+    float compute(cstone::GroupView grp, const Tc* x, const Tc* y, const Tc* z, const Tm* m, const Th* h, Tc G,
+                  int numShells, const cstone::Box<Tc>& box, Ta* ax, Ta* ay, Ta* az);
 
     util::array<uint64_t, 5> readStats() const;
 

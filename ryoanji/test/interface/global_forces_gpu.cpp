@@ -129,10 +129,11 @@ static int multipoleHolderTest(int thisRank, int numRanks)
         d_ay = std::vector<T>(domain.nParticlesWithHalos(), 0);
         d_az = std::vector<T>(domain.nParticlesWithHalos(), 0);
 
-        multipoleHolder.createGroups(domain.startIndex(), domain.endIndex(), rawPtr(d_x), rawPtr(d_y), rawPtr(d_z),
-                                     rawPtr(d_h), domain.focusTree(), domain.layout().data(), domain.box());
-        double bhPotential = multipoleHolder.compute(rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m), rawPtr(d_h), G,
-                                                     0, box, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
+        auto   grp         = multipoleHolder.computeSpatialGroups(domain.startIndex(), domain.endIndex(), rawPtr(d_x),
+                                                                  rawPtr(d_y), rawPtr(d_z), rawPtr(d_h), domain.focusTree(),
+                                                                  domain.layout().data(), domain.box());
+        double bhPotential = multipoleHolder.compute(grp, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m),
+                                                     rawPtr(d_h), G, 0, box, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
 
         // download BH accelerations for locally present particles
         thrust::host_vector<T> ax(d_ax.begin() + domain.startIndex(), d_ax.begin() + domain.endIndex());
