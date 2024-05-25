@@ -43,7 +43,4 @@ void memcpyD2D(const T* src, size_t n, T* dest)
     checkGpuErrors(cudaMemcpy(dest, src, sizeof(T) * n, cudaMemcpyDeviceToDevice));
 }
 
-inline void syncGpu()
-{
-    checkGpuErrors(cudaDeviceSynchronize());
-}
+inline void syncGpu() { checkGpuErrors(cudaDeviceSynchronize()); }

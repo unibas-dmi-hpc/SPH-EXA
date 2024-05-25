@@ -39,8 +39,8 @@
 namespace sph
 {
 
-using cstone::LocalIndex;
 using cstone::GpuConfig;
+using cstone::LocalIndex;
 
 //! Drift back by dt_back, then advance by dt
 template<class Tc, class Thydro, class Tm1, class Tdu>

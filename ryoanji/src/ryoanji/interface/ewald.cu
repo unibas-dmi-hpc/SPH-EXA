@@ -61,9 +61,9 @@ __global__ void resetEwaldPotential() { totalEwaldPotentialGlob = 0; }
 
 //! GPU version of computeGravityEwald
 template<class MType, class Tc, class Ta, class Tm, class Tu>
-void computeGravityEwaldGpu(const cstone::Vec3<Tc>& rootCenter, const MType& Mroot, cstone::GroupView grp,
-                            const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Box<Tc>& box, float G,
-                            Ta* ugrav, Ta* ax, Ta* ay, Ta* az, Tu* ugravTot, EwaldSettings settings)
+void computeGravityEwaldGpu(const cstone::Vec3<Tc>& rootCenter, const MType& Mroot, cstone::GroupView grp, const Tc* x,
+                            const Tc* y, const Tc* z, const Tm* m, const cstone::Box<Tc>& box, float G, Ta* ugrav,
+                            Ta* ax, Ta* ay, Ta* az, Tu* ugravTot, EwaldSettings settings)
 {
     if (box.minExtent() != box.maxExtent()) { throw std::runtime_error("Ewald gravity requires cubic bounding boxes"); }
 
@@ -77,8 +77,8 @@ void computeGravityEwaldGpu(const cstone::Vec3<Tc>& rootCenter, const MType& Mro
 
     if (ewaldParams.numEwaldShells == 0) { return; }
 
-    unsigned   numThreads = EwaldKernelConfig::numThreads;
-    unsigned   numBlocks  = (grp.numGroups - 1) / numThreads + 1;
+    unsigned numThreads = EwaldKernelConfig::numThreads;
+    unsigned numBlocks  = (grp.numGroups - 1) / numThreads + 1;
 
     resetEwaldPotential<<<1, 1>>>();
     computeGravityEwaldKernel<<<numBlocks, numThreads>>>(grp, x, y, z, m, G, ugrav, ax, ay, az, ewaldParamsGpu);

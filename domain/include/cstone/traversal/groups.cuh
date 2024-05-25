@@ -145,7 +145,7 @@ __device__ void makeSplits(util::array<GpuConfig::ThreadMask, N> split, LocalInd
             int length = countTrailingZeros(mask) + 1;
             bitsRemaining -= length;
             *splitLengths++ = length + carry;
-            carry = 0;
+            carry           = 0;
             mask >>= length;
         }
         return carry + bitsRemaining;
@@ -236,7 +236,7 @@ __global__ void groupSplitsKernel(LocalIndex first,
         T vol      = 8 * nodeSize[0] * nodeSize[1] * nodeSize[2];
         nodeVolume = min(vol, nodeVolume);
     }
-    nodeVolume = warpMin(nodeVolume);
+    nodeVolume  = warpMin(nodeVolume);
     Tc distCrit = std::cbrt(nodeVolume) * tolFactor;
 
     // load target coordinates
