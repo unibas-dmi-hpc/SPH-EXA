@@ -56,8 +56,8 @@ template<class DomainType, class DataType>
 class HydroGrackleProp final : public HydroProp<DomainType, DataType>
 {
     using Base = HydroProp<DomainType, DataType>;
-    using Base::timer;
     using Base::groups_;
+    using Base::timer;
 
     using T        = typename DataType::RealType;
     using KeyType  = typename DataType::KeyType;

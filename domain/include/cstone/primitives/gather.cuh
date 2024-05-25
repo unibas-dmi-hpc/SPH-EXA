@@ -89,7 +89,7 @@ public:
     template<class KeyType, class KeyBuf, class ValueBuf>
     void setMapFromCodes(KeyType* first, KeyType* last, KeyBuf& keyBuf, ValueBuf& valueBuf)
     {
-        mapSize_         = std::size_t(last - first);
+        mapSize_ = std::size_t(last - first);
         reallocateBytes(buffer_, mapSize_ * sizeof(IndexType), growthRate_);
         sequenceGpu(ordering(), mapSize_, LocalIndex(0));
 

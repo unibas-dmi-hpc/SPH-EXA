@@ -46,7 +46,7 @@ using PinnedAlloc_t = typename cstone::AccelSwitchType<Accelerator, std::allocat
 //! @brief stub for use in CPU code
 struct DeviceDataFacade
 {
-    void resize(size_t, float) {}
+    void   resize(size_t, float) {}
     size_t size() { return 0; }
 
     template<class... Ts>
