@@ -79,10 +79,7 @@ __global__ void upsweepMultipoles(TreeNodeIndex firstCell, TreeNodeIndex lastCel
     TreeNodeIndex firstChild = childOffsets[cellIdx];
 
     // firstChild is zero if the cell is a leaf
-    if (firstChild)
-    {
-        M2M(firstChild, firstChild + 8, centers[cellIdx], centers, multipoles, multipoles[cellIdx]);
-    }
+    if (firstChild) { M2M(firstChild, firstChild + 8, centers[cellIdx], centers, multipoles, multipoles[cellIdx]); }
 }
 
 template<class Tc, class Tm, class Th, class Tf>

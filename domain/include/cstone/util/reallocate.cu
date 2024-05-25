@@ -37,7 +37,7 @@
 template<class Vector>
 void reallocateDevice(Vector& vector, size_t size, double growthRate)
 {
-    constexpr size_t valueTypeSize   = sizeof(typename Vector::value_type);
+    constexpr size_t valueTypeSize = sizeof(typename Vector::value_type);
     //! @brief rounding up all GPU buffers to multiples of 64 KB avoids performance issues with GPU-direct MPI
     constexpr size_t pageSize    = 1 << 16;
     constexpr size_t pageSize_vt = pageSize / valueTypeSize;

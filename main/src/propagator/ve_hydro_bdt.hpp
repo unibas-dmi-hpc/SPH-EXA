@@ -225,7 +225,7 @@ public:
         sync(domain, simData);
         timer.step("domain::sync");
 
-        auto& d = simData.hydro;
+        auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
@@ -275,8 +275,8 @@ public:
 
         if (d.g != 0.0)
         {
-            bool isNewHierarchy = activeRung(timestep_.substep, timestep_.numRungs) == 0;
-            GroupView gravGroup = isNewHierarchy ? mHolder_.computeSpatialGroups(d, domain) : activeRungs_;
+            bool      isNewHierarchy = activeRung(timestep_.substep, timestep_.numRungs) == 0;
+            GroupView gravGroup      = isNewHierarchy ? mHolder_.computeSpatialGroups(d, domain) : activeRungs_;
 
             mHolder_.upsweep(d, domain);
             timer.step("Upsweep");
@@ -396,7 +396,8 @@ public:
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
                     std::visit([writer, c = column, key = namesDone[i]](auto field)
-                               { writer->writeField(key, field->data(), c); }, fieldPointers[fidx]);
+                               { writer->writeField(key, field->data(), c); },
+                               fieldPointers[fidx]);
                     indicesDone.erase(indicesDone.begin() + i);
                     namesDone.erase(namesDone.begin() + i);
                 }
