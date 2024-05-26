@@ -44,15 +44,17 @@ __global__ void computePositionsKernel(size_t first, size_t last, double dt, dou
     cstone::LocalIndex i = first + blockDim.x * blockIdx.x + threadIdx.x;
     if (i >= last) { return; }
 
-    bool fbcX   = (box.boundaryX() == cstone::BoundaryType::fixed);
-    bool fbcY   = (box.boundaryY() == cstone::BoundaryType::fixed);
-    bool fbcZ   = (box.boundaryZ() == cstone::BoundaryType::fixed);
-    bool anyFBC = fbcX || fbcY || fbcZ;
+    bool fbcX         = (box.boundaryX() == cstone::BoundaryType::fixed);
+    bool fbcY         = (box.boundaryY() == cstone::BoundaryType::fixed);
+    bool fbcZ         = (box.boundaryZ() == cstone::BoundaryType::fixed);
+    bool anyFBC       = fbcX || fbcY || fbcZ;
+    int  fbcThickness = box.fbcThickness();
 
     if (anyFBC && vx[i] == Tv(0) && vy[i] == Tv(0) && vz[i] == Tv(0))
     {
-        if (fbcCheck(x[i], h[i], box.xmax(), box.xmin(), fbcX) || fbcCheck(y[i], h[i], box.ymax(), box.ymin(), fbcY) ||
-            fbcCheck(z[i], h[i], box.zmax(), box.zmin(), fbcZ))
+        if (fbcCheck(x[i], h[i], box.xmax(), box.xmin(), fbcX, fbcThickness) ||
+            fbcCheck(y[i], h[i], box.ymax(), box.ymin(), fbcY, fbcThickness) ||
+            fbcCheck(z[i], h[i], box.zmax(), box.zmin(), fbcZ, fbcThickness))
         {
             return;
         }

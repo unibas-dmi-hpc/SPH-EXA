@@ -85,6 +85,83 @@ void readTemplateBlock(const std::string& block, IFileReader* reader, Vector& x,
     reader->closeStep();
 }
 
+/*!@brief apply fixed boundary conditions to one axis
+ *
+ * @tparam T    field type
+ * @param pos   position data of axis to be applied
+ * @param axisMax max coordinate of the box in the axis of pos
+ * @param axisMin min coordinate of the box in the axis of pos
+ * @param size  number of particles
+ */
+template<class T, class Th>
+void initFixedBoundaries(T* pos, Th* vx, Th* vy, Th* vz, Th* h, T axisMax, T axisMin, size_t size, T thickness)
+{
+
+#pragma omp parallel for
+    for (size_t i = 0; i < size; i++)
+    {
+        T distMax = std::abs(axisMax - pos[i]);
+        T distMin = std::abs(axisMin - pos[i]);
+
+        if (distMax < 2.0 * h[i] * thickness || distMin < 2.0 * h[i] * thickness)
+        {
+            vx[i] = 0.0;
+            vy[i] = 0.0;
+            vz[i] = 0.0;
+        }
+    }
+}
+
+struct
+{
+    cstone::Vec3<int> x = {1, 0, 0};
+    cstone::Vec3<int> y = {0, 1, 0};
+    cstone::Vec3<int> z = {0, 0, 1};
+} Axis;
+
+/*! @brief add additional particles as a fixed boundary layer
+ *
+ * @tparam T coordinate floating point type
+ * @tparam Th
+ * @tparam Vector coordinate vector type
+ * @param axis  axis to add particles to, for example Axis::x
+ * @param x     x-coordinates of particles
+ * @param y     y-coordinates of particles
+ * @param z     z-coordinates of particles
+ * @param h     smoothing lengths
+ * @param box   global bounding box
+ * @param thickness thickness of particle layer to be added, in  2 * h per SPH convention
+ */
+template<class T, class Vector>
+void addFixedBoundaryLayer(cstone::Vec3<int> axis, Vector& x, Vector& y, Vector& z, std::vector<T> h, size_t size,
+                           cstone::Box<T>& box, T thickness)
+{
+    int             axisIndex = axis[0] * 1 + axis[1] * 2 + axis[2] * 3;
+    cstone::Vec3<T> boxMax    = {box.xmax(), box.ymax(), box.zmax()};
+    cstone::Vec3<T> boxMin    = {box.xmin(), box.ymin(), box.zmin()};
+
+    for (int i = 0; i < size; ++i)
+    {
+        cstone::Vec3<T> X           = {x[i], y[i], z[i]};
+        T               distanceMax = std::abs(boxMax[axisIndex - 1] - X[axisIndex - 1]);
+        T               distanceMin = std::abs(boxMin[axisIndex - 1] - X[axisIndex - 1]);
+        if (distanceMax < 2 * h[i] * thickness)
+        {
+            X[axisIndex - 1] += 2.0 * distanceMax;
+            x.push_back(X[0]);
+            y.push_back(X[1]);
+            z.push_back(X[2]);
+        }
+        if (distanceMin < 2 * h[i] * thickness)
+        {
+            X[axisIndex - 1] -= 2.0 * distanceMin;
+            x.push_back(X[0]);
+            y.push_back(X[1]);
+            z.push_back(X[2]);
+        }
+    }
+}
+
 //! @brief read file attributes into an associative container
 void readFileAttributes(InitSettings& settings, const std::string& settingsFile, IFileReader* reader, bool verbose)
 {
