@@ -63,17 +63,18 @@ template<class KeyType>
 SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
                              gsl::span<const int> haloFlags,
                              gsl::span<const TreeIndexPair> assignment,
-                             gsl::span<const int> peerRanks,
+                             gsl::span<const int> sendRanks,
+                             gsl::span<const int> recvRanks,
                              gsl::span<const LocalIndex> layout)
 {
     std::vector<std::vector<KeyType>> sendBuffers;
-    sendBuffers.reserve(peerRanks.size());
+    sendBuffers.reserve(sendRanks.size());
 
     std::vector<MPI_Request> sendRequests;
 
     constexpr int haloRequestKeyTag = static_cast<int>(P2pTags::haloRequestKeys);
 
-    for (int peer : peerRanks)
+    for (int peer : sendRanks)
     {
         auto requestKeys =
             extractMarkedElements(treeLeaves, haloFlags, assignment[peer].start(), assignment[peer].end());
@@ -85,8 +86,8 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
 
     SendList ret(assignment.size());
 
-    size_t numMessages = peerRanks.size();
-    while (numMessages > 0)
+    int numMessages = recvRanks.ssize();
+    while (numMessages--)
     {
         MPI_Status status;
         mpiRecvSync(receiveBuffer.data(), receiveBuffer.size(), MPI_ANY_SOURCE, haloRequestKeyTag, &status);
@@ -104,8 +105,6 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
 
             ret[receiveRank].addRange(lowerIdx, upperIdx);
         }
-
-        numMessages--;
     }
 
     MPI_Status status[sendRequests.size()];

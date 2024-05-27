@@ -105,14 +105,14 @@ public:
      *
      * The part of the SFC that is assigned to @p myRank is considered as the focus area.
      */
-    bool updateTree(gsl::span<const int> peerRanks, const SfcAssignment<KeyType>& assignment, const Box<RealType>& box)
+    bool updateTree(const SfcAssignment<KeyType>& assignment,
+                    gsl::span<const KeyType> globalLeaves,
+                    const Box<RealType>& box)
     {
         if (rebalanceStatus_ != valid)
         {
             throw std::runtime_error("update of criteria required before updating the tree structure\n");
         }
-        peers_.resize(peerRanks.size());
-        std::copy(peerRanks.begin(), peerRanks.end(), peers_.begin());
 
         KeyType focusStart = assignment[myRank_];
         KeyType focusEnd   = assignment[myRank_ + 1];
@@ -152,18 +152,20 @@ public:
                                  focusEnd, invThetaRefine, box))
                 ;
         }
-        translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
+        findPeers(assignment, globalLeaves);
+        translateAssignment<KeyType>(assignment, leaves_, assignment_);
 
         if constexpr (HaveGpu<Accelerator>{})
         {
-            syncTreeletsGpu(peers_, assignment_, leaves_, octreeAcc_, leavesAcc_, treelets_, treeletIdx_);
+            syncTreeletsGpu(recvPeers_, sendPeers_, assignment_, leaves_, octreeAcc_, leavesAcc_, treelets_,
+                            treeletIdx_);
             downloadOctree();
             indexTreelets<KeyType>(treeData_.prefixes, treeData_.levelRange, treelets_, treeletIdx_);
         }
-        else { syncTreelets(peers_, assignment_, treeData_, leaves_, treelets_, treeletIdx_); }
+        else { syncTreelets(recvPeers_, sendPeers_, assignment_, treeData_, leaves_, treelets_, treeletIdx_); }
 
         translateAssignment<KeyType>(assignment, leaves_, assignment_);
-        extractPeerRanges(peers_, myRank_, assignment_, peerRanges_);
+        extractPeerRanges(recvPeers_, myRank_, assignment_, peerRanges_);
 
         prevFocusStart   = focusStart;
         prevFocusEnd     = focusEnd;
@@ -254,7 +256,8 @@ public:
     template<class T>
     void peerExchange(gsl::span<T> quantities, int commTag) const
     {
-        exchangeTreeletGeneral<T>(peers_, treeletIdx_, assignment_, leafToInternal(treeData_), quantities, commTag);
+        exchangeTreeletGeneral<T>(sendPeers_, recvPeers_, treeletIdx_, assignment_, leafToInternal(treeData_),
+                                  quantities, commTag);
     }
 
     /*! @brief transfer quantities of leaf cells inside the focus into a global array
@@ -508,7 +511,7 @@ public:
     template<class DeviceVector = std::vector<KeyType>>
     void converge(const Box<RealType>& box,
                   gsl::span<const KeyType> particleKeys,
-                  gsl::span<const int> peers,
+                  gsl::span<const int> /*peers*/,
                   const SfcAssignment<KeyType>& assignment,
                   gsl::span<const KeyType> globalTreeLeaves,
                   gsl::span<const unsigned> globalCounts,
@@ -519,7 +522,7 @@ public:
         while (converged != numRanks_)
         {
             updateMinMac(box, assignment, invThetaEff);
-            converged = updateTree(peers, assignment, box);
+            converged = updateTree(assignment, globalTreeLeaves, box);
             updateCounts(particleKeys, globalTreeLeaves, globalCounts, scratch);
             updateGeoCenters(box);
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -580,6 +583,22 @@ public:
     }
 
 private:
+    void findPeers(const SfcAssignment<KeyType>& assignment, gsl::span<const KeyType> globalLeaves)
+    {
+        auto extPeers = oneSidedPeerFlags<KeyType>({assignment.data(), size_t(numRanks_ + 1)}, numRanks_, myRank_,
+                                                    globalLeaves, leaves_);
+        std::vector<int> intPeers(numRanks_, 0);
+        MPI_Alltoall(extPeers.data(), 1, MPI_INT, intPeers.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+        sendPeers_.clear();
+        recvPeers_.clear();
+        for (int rank = 0; rank < numRanks_; ++rank)
+        {
+            if (extPeers[rank]) { recvPeers_.push_back(rank); }
+            if (intPeers[rank]) { sendPeers_.push_back(rank); }
+        }
+    }
+
     void uploadOctree()
     {
         if constexpr (HaveGpu<Accelerator>{})
@@ -643,7 +662,7 @@ private:
     float allocGrowthRate_{1.05};
 
     //! @brief list of peer ranks from last call to updateTree()
-    std::vector<int> peers_;
+    std::vector<int> sendPeers_, recvPeers_;
     //! @brief the tree structures that the peers have for the domain of the executing rank (myRank_)
     std::vector<std::vector<KeyType>> treelets_;
     std::vector<std::vector<TreeNodeIndex>> treeletIdx_;

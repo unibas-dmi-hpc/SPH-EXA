@@ -217,19 +217,21 @@ public:
     int computeLayout(gsl::span<const KeyType> leaves,
                       gsl::span<const unsigned> counts,
                       gsl::span<const TreeIndexPair> assignment,
-                      gsl::span<const int> peers,
+                      gsl::span<const int> sendPeers,
+                      gsl::span<const int> recvPeers,
                       gsl::span<LocalIndex> layout)
     {
         computeNodeLayout(counts, haloFlags_, assignment[myRank_].start(), assignment[myRank_].end(), layout);
         auto newParticleStart = layout[assignment[myRank_].start()];
         auto newParticleEnd   = layout[assignment[myRank_].end()];
 
-        outgoingHaloIndices_ = exchangeRequestKeys<KeyType>(leaves, haloFlags_, assignment, peers, layout);
+        outgoingHaloIndices_ =
+            exchangeRequestKeys<KeyType>(leaves, haloFlags_, assignment, sendPeers, recvPeers, layout);
 
         if (detail::checkHalos(myRank_, assignment, haloFlags_, leaves)) { return 1; }
         detail::checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd, layout.back());
 
-        incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, peers);
+        incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, recvPeers);
         return 0;
     }
 

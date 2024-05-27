@@ -215,7 +215,7 @@ TEST_F(MacRefinement, noSurface)
 TEST_F(MacRefinement, partialSurface)
 {
     Box<T> box(0, 1);
-    float invTheta = sqrt(3) / 2 + 1e-6;
+    float invTheta              = sqrt(3) / 2 + 1e-6;
     TreeNodeIndex numNodesStart = octree.numLeafNodes;
 
     KeyType oldFStart  = 0;
@@ -225,6 +225,22 @@ TEST_F(MacRefinement, partialSurface)
     while (!macRefine(octree, leaves, centers, macs, oldFStart, oldFEnd, focusStart, focusEnd, invTheta, box)) {}
 
     EXPECT_EQ(nNodes(leaves), numNodesStart + 5 * 7);
+}
+
+TEST(FocusedOctree, oneSidedPeers)
+{
+    using KeyType = uint64_t;
+
+    // clang-format off
+    //   rank                       0     1       2               3           4
+    std::vector<KeyType> globalTree{0,    10, 20, 30, 40, 50,     60, 70, 80, 90, 100,      200};
+    std::vector<KeyType> boundaries{0,    10,     30,                 70,         100,      200};
+    std::vector<KeyType> focusTree {0,                40, 50, 55, 60, 70, 75, 90,      150, 200};
+    // clang-format on
+
+    auto probe = oneSidedPeers<KeyType>(boundaries, boundaries.size() - 1, 3, globalTree, focusTree);
+    std::vector<int> ref{2, 4};
+    EXPECT_EQ(probe, ref);
 }
 
 } // namespace cstone
