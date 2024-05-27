@@ -99,7 +99,8 @@ void countRequestParticles(gsl::span<const KeyType> leaves,
 /*! @brief exchange subtree structures with peers
  *
  * @tparam      KeyType          32- or 64-bit unsigned integer
- * @param[in]   peerRanks        List of peer rank IDs
+ * @param[in]   sendPeers        List of peer rank IDs to send data to, TODO: choose better naming
+ * @param[in]   recvPeers        List of peer rank IDs to receive data from
  * @param[in]   focusAssignment  The assignment of @p localLeaves to peer ranks
  * @param[in]   localLeaves      The tree of the executing rank. Covers the global domain, but is locally focused.
  * @param[out]  peerTrees        The tree structures of REMOTE peer ranks covering the LOCALLY assigned part of
@@ -111,28 +112,27 @@ void countRequestParticles(gsl::span<const KeyType> leaves,
  * contain the LOCAL view of REMOTE peer domains.
  */
 template<class KeyType>
-void exchangeTreelets(gsl::span<const int> peerRanks,
+void exchangeTreelets(gsl::span<const int> recvPeers,
+                      gsl::span<const int> sendPeers,
                       gsl::span<const IndexPair<TreeNodeIndex>> focusAssignment,
                       gsl::span<const KeyType> localLeaves,
                       std::vector<std::vector<KeyType>>& peerTrees,
                       std::vector<MPI_Request>& receiveRequests)
-
 {
     constexpr int keyTag = static_cast<int>(P2pTags::focusPeerCounts);
-    size_t numPeers      = peerRanks.size();
 
     std::vector<MPI_Request> sendRequests;
-    sendRequests.reserve(numPeers);
-    for (auto peer : peerRanks)
+    sendRequests.reserve(sendPeers.size());
+    for (auto peer : sendPeers)
     {
         // +1 to include the upper key boundary for the last node
         TreeNodeIndex sendCount = focusAssignment[peer].count() + 1;
         mpiSendAsync(localLeaves.data() + focusAssignment[peer].start(), sendCount, peer, keyTag, sendRequests);
     }
 
-    receiveRequests.reserve(numPeers);
-    int numMessages = numPeers;
-    while (numMessages > 0)
+    receiveRequests.reserve(recvPeers.size());
+    int numMessages = recvPeers.ssize();
+    while (numMessages--)
     {
         MPI_Status status;
         MPI_Probe(MPI_ANY_SOURCE, keyTag, MPI_COMM_WORLD, &status);
@@ -142,15 +142,14 @@ void exchangeTreelets(gsl::span<const int> peerRanks,
         peerTrees[receiveRank].resize(receiveSize);
 
         mpiRecvAsync(peerTrees[receiveRank].data(), receiveSize, receiveRank, keyTag, receiveRequests);
-
-        numMessages--;
     }
 
-    MPI_Waitall(int(numPeers), sendRequests.data(), MPI_STATUS_IGNORE);
+    MPI_Waitall(int(sendPeers.size()), sendRequests.data(), MPI_STATUS_IGNORE);
 }
 
 template<class T, class KeyType>
-void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
+void exchangeTreeletGeneral(gsl::span<const int> sendPeers,
+                            gsl::span<const int> recvPeers,
                             const std::vector<std::vector<KeyType>>& peerTrees,
                             gsl::span<const IndexPair<TreeNodeIndex>> focusAssignment,
                             gsl::span<const KeyType> prefixes,
@@ -159,13 +158,12 @@ void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
                             gsl::span<T> quantities,
                             int commTag)
 {
-    size_t numPeers = peerRanks.size();
     std::vector<std::vector<T>> sendBuffers;
-    sendBuffers.reserve(numPeers);
+    sendBuffers.reserve(sendPeers.size());
 
     std::vector<MPI_Request> sendRequests;
-    sendRequests.reserve(numPeers);
-    for (auto peer : peerRanks)
+    sendRequests.reserve(sendPeers.size());
+    for (auto peer : sendPeers)
     {
         TreeNodeIndex treeletSize = nNodes(peerTrees[peer]);
         std::vector<T> buffer(treeletSize);
@@ -184,7 +182,7 @@ void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
     }
 
     std::vector<T> buffer;
-    for (auto peer : peerRanks)
+    for (auto peer : recvPeers)
     {
         TreeNodeIndex receiveCount = focusAssignment[peer].count();
         buffer.resize(receiveCount);

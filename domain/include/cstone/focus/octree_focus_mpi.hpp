@@ -104,14 +104,12 @@ public:
      *
      * The part of the SFC that is assigned to @p myRank is considered as the focus area.
      */
-    bool updateTree(gsl::span<const int> peerRanks, const SfcAssignment<KeyType>& assignment)
+    bool updateTree(const SfcAssignment<KeyType>& assignment, gsl::span<const KeyType> globalLeaves)
     {
         if (rebalanceStatus_ != valid)
         {
             throw std::runtime_error("update of criteria required before updating the tree structure\n");
         }
-        peers_.resize(peerRanks.size());
-        std::copy(peerRanks.begin(), peerRanks.end(), peers_.begin());
 
         KeyType focusStart = assignment[myRank_];
         KeyType focusEnd   = assignment[myRank_ + 1];
@@ -142,8 +140,9 @@ public:
         }
         downloadOctree();
 
+        findPeers(assignment, globalLeaves);
         translateAssignment<KeyType>(assignment, leaves_, assignment_);
-        extractPeerRanges(peers_, myRank_, assignment_, peerRanges_);
+        extractPeerRanges(recvPeers_, myRank_, assignment_, peerRanges_);
 
         prevFocusStart   = focusStart;
         prevFocusEnd     = focusEnd;
@@ -174,7 +173,7 @@ public:
     {
         gsl::span<const KeyType> leaves(leaves_);
         std::vector<MPI_Request> treeletRequests;
-        exchangeTreelets(peers_, assignment_, leaves, treelets_, treeletRequests);
+        exchangeTreelets(sendPeers_, recvPeers_, assignment_, leaves, treelets_, treeletRequests);
 
         leafCounts_.resize(nNodes(leaves_));
         if constexpr (HaveGpu<Accelerator>{})
@@ -214,10 +213,9 @@ public:
         }
 
         // counts from neighboring peers
-        MPI_Waitall(int(peers_.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
+        MPI_Waitall(int(sendPeers_.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
         constexpr int countTag = static_cast<int>(P2pTags::focusPeerCounts) + 1;
-        exchangeTreeletGeneral(peers_, treelets_, assignment_, gsl::span<const KeyType>(treeData_.prefixes),
-                               treeData_.levelRange, leafToInternal(treeData_), gsl::span<unsigned>(counts_), countTag);
+        peerExchange(gsl::span<unsigned>(counts_), countTag);
 
         // 2nd upsweep with peer and global data present
         upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), NodeCount<unsigned>{});
@@ -238,8 +236,9 @@ public:
     template<class T>
     void peerExchange(gsl::span<T> quantities, int commTag) const
     {
-        exchangeTreeletGeneral<T>(peers_, treelets_, assignment_, gsl::span<const KeyType>(treeData_.prefixes),
-                                  treeData_.levelRange, leafToInternal(treeData_), quantities, commTag);
+        exchangeTreeletGeneral<T>(sendPeers_, recvPeers_, treelets_, assignment_,
+                                  gsl::span<const KeyType>(treeData_.prefixes), treeData_.levelRange,
+                                  leafToInternal(treeData_), quantities, commTag);
     }
 
     /*! @brief transfer quantities of leaf cells inside the focus into a global array
@@ -491,7 +490,7 @@ public:
     template<class DeviceVector = std::vector<KeyType>>
     void converge(const Box<RealType>& box,
                   gsl::span<const KeyType> particleKeys,
-                  gsl::span<const int> peers,
+                  gsl::span<const int> /*peers*/,
                   const SfcAssignment<KeyType>& assignment,
                   gsl::span<const KeyType> globalTreeLeaves,
                   gsl::span<const unsigned> globalCounts,
@@ -502,7 +501,7 @@ public:
         while (converged != numRanks_)
         {
             updateMinMac(box, assignment, invThetaEff);
-            converged = updateTree(peers, assignment);
+            converged = updateTree(assignment, globalTreeLeaves);
             updateCounts(particleKeys, globalTreeLeaves, globalCounts, scratch);
             updateGeoCenters(box);
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -563,6 +562,22 @@ public:
     }
 
 private:
+    void findPeers(const SfcAssignment<KeyType>& assignment, gsl::span<const KeyType> globalLeaves)
+    {
+        auto recvPeers = oneSidedPeerFlags<KeyType>({assignment.data(), size_t(numRanks_ + 1)}, numRanks_, myRank_,
+                                                    globalLeaves, leaves_);
+        std::vector<int> sendPeers(numRanks_, 0);
+        MPI_Alltoall(recvPeers.data(), 1, MPI_INT, sendPeers.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+        sendPeers_.clear();
+        recvPeers_.clear();
+        for (int rank = 0; rank < numRanks_; ++rank)
+        {
+            if (recvPeers[rank]) { recvPeers_.push_back(rank); }
+            if (sendPeers[rank]) { sendPeers_.push_back(rank); }
+        }
+    }
+
     void uploadOctree()
     {
         if constexpr (HaveGpu<Accelerator>{})
@@ -626,7 +641,7 @@ private:
     float allocGrowthRate_{1.05};
 
     //! @brief list of peer ranks from last call to updateTree()
-    std::vector<int> peers_;
+    std::vector<int> sendPeers_, recvPeers_;
     //! @brief the tree structures that the peers have for the domain of the executing rank (myRank_)
     std::vector<std::vector<KeyType>> treelets_;
 

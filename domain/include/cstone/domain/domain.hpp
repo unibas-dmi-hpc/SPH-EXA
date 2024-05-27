@@ -225,7 +225,7 @@ public:
         else
         {
             focusTree_.updateMinMac(box(), global_.assignment(), invThetaEff);
-            focusTree_.updateTree(peers, global_.assignment());
+            focusTree_.updateTree(global_.assignment(), global_.treeLeaves());
             focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
             focusTree_.updateGeoCenters(box());
         }
@@ -238,7 +238,8 @@ public:
         halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
                         focusTree_.leafCountsAcc(), focusTree_.assignment(), {rawPtr(layoutAcc_), layoutAcc_.size()},
                         box(), rawPtr(h), haloSearchExt_, std::get<0>(scratch));
-        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
+        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, peers,
+                             layout_);
 
         updateLayout(sorter, exchangeStart, keyView, particleKeys, std::tie(h),
                      std::tuple_cat(std::tie(x, y, z), particleProperties), scratch);
@@ -279,7 +280,7 @@ public:
             int converged = 0, reps = 0;
             while (converged != numRanks_ || reps < 2)
             {
-                converged = focusTree_.updateTree(peers, global_.assignment());
+                converged = focusTree_.updateTree(global_.assignment(), global_.treeLeaves());
                 focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
                 focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.octree(), box(),
                                          std::get<0>(scratch), std::get<1>(scratch));
@@ -293,7 +294,7 @@ public:
         do
         {
             focusTree_.updateMacs(box(), global_.assignment(), centerDriftTol_ / theta_);
-            focusTree_.updateTree(peers, global_.assignment());
+            focusTree_.updateTree(global_.assignment(), global_.treeLeaves());
             focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
             focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.octree(), box(),
                                      std::get<0>(scratch), std::get<1>(scratch));
@@ -311,7 +312,7 @@ public:
                             std::get<0>(scratch));
             focusTree_.addMacs(halos_.haloFlags());
             fail = halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(),
-                                        peers, layout_);
+                                        peers, peers, layout_);
             MPI_Allreduce(MPI_IN_PLACE, &fail, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
             if (fail)

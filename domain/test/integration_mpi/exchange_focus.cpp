@@ -102,7 +102,7 @@ void exchangeFocusIrregular(int myRank, int numRanks)
 
     std::vector<std::vector<KeyType>> treelets(numRanks);
     std::vector<MPI_Request> requests;
-    exchangeTreelets<KeyType>(peers, peerFocusIndices, treeLeaves, treelets, requests);
+    exchangeTreelets<KeyType>(peers, peers, peerFocusIndices, treeLeaves, treelets, requests);
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUS_IGNORE);
 
     if (myRank == 0) { EXPECT_TRUE(std::equal(begin(treelets[1]), end(treelets[1]), treeLeavesRef[1].begin())); }
