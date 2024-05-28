@@ -142,7 +142,8 @@ public:
         }
         downloadOctree();
 
-        translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
+        translateAssignment<KeyType>(assignment, leaves_, assignment_);
+        extractPeerRanges(peers_, myRank_, assignment_, peerRanges_);
 
         prevFocusStart   = focusStart;
         prevFocusEnd     = focusEnd;
@@ -199,7 +200,7 @@ public:
         upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), NodeCount<unsigned>{});
 
         // global counts
-        auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves_));
+        auto globalCountIndices = invertRanges(0, peerRanges_, nNodes(leaves_));
 
         // particle counts for leaf nodes in treeLeaves() / leafCounts():
         //   Node indices [firstFocusNode:lastFocusNode] got assigned counts from local particles.
@@ -299,7 +300,7 @@ public:
         const KeyType* localLeaves      = leaves_.data();
         const TreeNodeIndex* toInternal = leafToInternal(treeData_).data();
         //! requestIndices: range of leaf cell indices in the locally focused tree that need global information
-        auto requestIndices = invertRanges(0, assignment_, treeData_.numLeafNodes);
+        auto requestIndices = invertRanges(0, peerRanges_, treeData_.numLeafNodes);
         for (auto range : requestIndices)
         {
             //! from global tree, pull in missing elements into locally focused tree
@@ -659,7 +660,7 @@ private:
     //! @brief we also need to hold on to the expansion centers of the global tree for the multipole upsweep
     std::vector<SourceCenterType<RealType>> globalCenters_;
     //! @brief the assignment of peer ranks to tree_.treeLeaves()
-    std::vector<TreeIndexPair> assignment_;
+    std::vector<TreeIndexPair> assignment_, peerRanges_;
 
     //! @brief the status of the macs_ and counts_ rebalance criteria
     int rebalanceStatus_{valid};
