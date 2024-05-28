@@ -120,6 +120,29 @@ void readFileAttributes(InitSettings& settings, const std::string& settingsFile,
     }
 }
 
+//! @brief generate particle IDs at the beginning of the simulation initialization
+template<class Dataset>
+void generateParticleIDs(Dataset& d, int rank, int numRanks)
+{
+    std::vector<size_t> ranksLocalParticles(numRanks);
+    size_t              localNumRanks = d.x.size();
+    // fill ranksLocalParticles with the number of particles per rank
+    MPI_Allgather(&localNumRanks, 1, MPI_UNSIGNED_LONG, ranksLocalParticles.data(), 1, MPI_UNSIGNED_LONG,
+                  MPI_COMM_WORLD);
+
+    size_t offset = 0;
+
+    for (int i = 0; i < rank; i++)
+    {
+        offset += ranksLocalParticles[i];
+    }
+
+    for (size_t i = 0; i < d.x.size(); i++)
+    {
+        d.id[i] = offset + i;
+    }
+}
+
 //! @brief Used to read the default values of dataset attributes
 class BuiltinReader
 {

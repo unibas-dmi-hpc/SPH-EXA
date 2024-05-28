@@ -199,6 +199,8 @@ public:
 
         initKelvinHelmholtzFields(d, settings_, particleMass);
 
+        generateParticleIDs(d, rank, numRanks);
+
         return globalBox;
     }
 

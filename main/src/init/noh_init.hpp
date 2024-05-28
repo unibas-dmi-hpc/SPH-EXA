@@ -145,6 +145,8 @@ public:
 
         initNohFields(d, settings_);
 
+        generateParticleIDs(d, rank, numRanks);
+
         return globalBox;
     }
 

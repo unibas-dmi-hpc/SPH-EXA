@@ -208,6 +208,8 @@ public:
 
         initIsobaricCubeFields(d, settings_, massPart);
 
+        generateParticleIDs(d, rank, numRanks);
+
         return globalBox;
     }
 

@@ -126,6 +126,8 @@ public:
 
         initSedovFields(d, settings_);
 
+        generateParticleIDs(d, rank, numRanks);
+
         return globalBox;
     }
 
@@ -182,6 +184,8 @@ public:
         d.loadOrStoreAttributes(&attributeSetter);
 
         initSedovFields(d, settings_);
+
+        generateParticleIDs(d, rank, numRanks);
 
         return globalBox;
     }

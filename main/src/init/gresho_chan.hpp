@@ -157,6 +157,8 @@ public:
         T massPart = globalBox.lx() * globalBox.ly() * globalBox.lz() * settings_.at("rho") / d.numParticlesGlobal;
         initGreshoChanFields(d, settings_, massPart);
 
+        generateParticleIDs(d, rank, numRanks);
+
         return globalBox;
     }
 

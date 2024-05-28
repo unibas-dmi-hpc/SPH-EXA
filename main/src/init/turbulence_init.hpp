@@ -139,6 +139,8 @@ public:
 
         initTurbulenceHydroFields(d, settings_);
 
+        generateParticleIDs(d, rank, numRanks);
+
         return globalBox;
     }
 
