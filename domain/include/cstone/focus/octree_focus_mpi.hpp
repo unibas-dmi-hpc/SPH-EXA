@@ -564,8 +564,8 @@ public:
 private:
     void findPeers(const SfcAssignment<KeyType>& assignment, gsl::span<const KeyType> globalLeaves)
     {
-        auto recvPeers = oneSidedPeerFlags<KeyType>({assignment.data(), size_t(numRanks_ + 1)}, numRanks_, myRank_,
-                                                    globalLeaves, leaves_);
+        auto recvPeers =
+            focusPeers<KeyType>({assignment.data(), size_t(numRanks_ + 1)}, numRanks_, myRank_, globalLeaves, leaves_);
         std::vector<int> sendPeers(numRanks_, 0);
         MPI_Alltoall(recvPeers.data(), 1, MPI_INT, sendPeers.data(), 1, MPI_INT, MPI_COMM_WORLD);
 

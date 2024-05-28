@@ -289,11 +289,11 @@ private:
 
 //! @brief Return a list of ranks (peers) which contain nodes in @p focusTree that don't exist in @p globalTree
 template<class KeyType>
-std::vector<int> oneSidedPeerFlags(gsl::span<const KeyType> boundaries,
-                                   int numRanks,
-                                   int myRank,
-                                   gsl::span<const KeyType> globalTree,
-                                   gsl::span<const KeyType> focusTree)
+std::vector<int> focusPeers(gsl::span<const KeyType> boundaries,
+                            int numRanks,
+                            int myRank,
+                            gsl::span<const KeyType> globalTree,
+                            gsl::span<const KeyType> focusTree)
 {
     std::vector<int> peerFlags(numRanks, 0);
 #pragma omp parallel for
@@ -320,13 +320,32 @@ std::vector<int> oneSidedPeers(gsl::span<const KeyType> boundaries,
                                gsl::span<const KeyType> globalTree,
                                gsl::span<const KeyType> focusTree)
 {
-    auto peerFlags = oneSidedPeerFlags(boundaries, numRanks, myRank, globalTree, focusTree);
+    auto peerFlags = focusPeers(boundaries, numRanks, myRank, globalTree, focusTree);
     std::vector<int> ret;
     for (int rank = 0; rank < numRanks; ++rank)
     {
         if (peerFlags[rank]) { ret.push_back(rank); }
     }
     return ret;
+}
+
+inline std::vector<int>
+haloPeers(int myRank, gsl::span<const int> haloFlags, gsl::span<const TreeIndexPair> fAssignment)
+{
+    int numRanks = fAssignment.size();
+    std::vector<int> peerFlags(numRanks, 0);
+#pragma omp parallel for
+    for (int rank = 0; rank < numRanks; ++rank)
+    {
+        if (rank == myRank) { continue; }
+
+        TreeNodeIndex focStart = fAssignment[rank].start();
+        TreeNodeIndex focEnd   = fAssignment[rank].end();
+        if (focEnd < focStart) { focEnd = focStart; }
+
+        peerFlags[rank] = bool(std::accumulate(haloFlags.begin() + focStart, haloFlags.begin() + focEnd, 0));
+    }
+    return peerFlags;
 }
 
 } // namespace cstone
