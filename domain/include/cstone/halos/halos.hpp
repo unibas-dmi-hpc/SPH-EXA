@@ -37,6 +37,7 @@
 #include "cstone/domain/index_ranges.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/halos/exchange_halos.hpp"
+#include "cstone/halos/halo_peers.hpp"
 #ifdef USE_CUDA
 #include "cstone/halos/exchange_halos_gpu.cuh"
 #endif
@@ -49,67 +50,6 @@
 
 namespace cstone
 {
-
-namespace detail
-{
-
-//! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
-void checkIndices(const SendList& sendList,
-                  [[maybe_unused]] LocalIndex start,
-                  [[maybe_unused]] LocalIndex end,
-                  [[maybe_unused]] LocalIndex bufferSize)
-{
-    for (const auto& manifest : sendList)
-    {
-        for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
-        {
-            assert(!overlapTwoRanges(LocalIndex{0}, start, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-            assert(!overlapTwoRanges(end, bufferSize, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-        }
-    }
-}
-
-//! @brief check halo discovery for sanity
-template<class KeyType>
-int checkHalos(int myRank,
-               gsl::span<const TreeIndexPair> focusAssignment,
-               gsl::span<const int> haloFlags,
-               gsl::span<const KeyType> ftree)
-{
-    TreeNodeIndex firstAssignedNode = focusAssignment[myRank].start();
-    TreeNodeIndex lastAssignedNode  = focusAssignment[myRank].end();
-
-    std::array<TreeNodeIndex, 2> checkRanges[2] = {{0, firstAssignedNode},
-                                                   {lastAssignedNode, TreeNodeIndex(haloFlags.size())}};
-
-    int ret = 0;
-    for (int range = 0; range < 2; ++range)
-    {
-#pragma omp parallel for
-        for (TreeNodeIndex i = checkRanges[range][0]; i < checkRanges[range][1]; ++i)
-        {
-            if (haloFlags[i])
-            {
-                bool peerFound = false;
-                for (auto peerRange : focusAssignment)
-                {
-                    if (peerRange.start() <= i && i < peerRange.end()) { peerFound = true; }
-                }
-                if (!peerFound)
-                {
-                    std::cout << "Assignment rank " << myRank << " " << std::oct << ftree[firstAssignedNode] << " - "
-                              << ftree[lastAssignedNode] << std::dec << std::endl;
-                    std::cout << "Failed node " << i << " " << std::oct << ftree[i] << " - " << ftree[i + 1] << std::dec
-                              << std::endl;
-                    ret = 1;
-                }
-            }
-        }
-    }
-    return ret;
-}
-
-} // namespace detail
 
 template<class DevVec1, class DevVec2, class... Arrays>
 void haloExchangeGpu(int epoch,
@@ -205,7 +145,6 @@ public:
      * @param[in]  leaves      (focus) tree leaves
      * @param[in]  counts      (focus) tree counts
      * @param[in]  assignment  assignment of @p leaves to ranks
-     * @param[in]  peers       list of peer ranks
      * @param[out] layout      Particle offsets for each node in @p leaves w.r.t to the final particle buffers,
      *                         including the halos, length = counts.size() + 1. The last element contains
      *                         the total number of locally present particles, i.e. assigned + halos.
@@ -217,21 +156,18 @@ public:
     int computeLayout(gsl::span<const KeyType> leaves,
                       gsl::span<const unsigned> counts,
                       gsl::span<const TreeIndexPair> assignment,
-                      gsl::span<const int> sendPeers,
-                      gsl::span<const int> recvPeers,
                       gsl::span<LocalIndex> layout)
     {
+        if (detail::checkHalos(myRank_, assignment, haloFlags_, leaves)) { return 1; }
         computeNodeLayout(counts, haloFlags_, assignment[myRank_].start(), assignment[myRank_].end(), layout);
-        auto newParticleStart = layout[assignment[myRank_].start()];
-        auto newParticleEnd   = layout[assignment[myRank_].end()];
+
+        auto extPeerFlags = haloPeers(myRank_, haloFlags_, assignment);
+        exchangePeers(extPeerFlags, extPeers_, intPeers_);
 
         outgoingHaloIndices_ =
-            exchangeRequestKeys<KeyType>(leaves, haloFlags_, assignment, sendPeers, recvPeers, layout);
+            exchangeRequestKeys<KeyType>(leaves, haloFlags_, assignment, extPeers_, intPeers_, layout);
 
-        if (detail::checkHalos(myRank_, assignment, haloFlags_, leaves)) { return 1; }
-        detail::checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd, layout.back());
-
-        incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, recvPeers);
+        incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, extPeers_);
         return 0;
     }
 
@@ -273,6 +209,7 @@ private:
     SendList outgoingHaloIndices_;
 
     std::vector<int> haloFlags_;
+    std::vector<int> extPeers_, intPeers_;
 
     /*! @brief Counter for halo exchange calls
      * Multiple client calls to domain::exchangeHalos() during a time-step
