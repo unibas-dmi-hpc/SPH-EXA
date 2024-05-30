@@ -158,7 +158,6 @@ public:
                       gsl::span<const TreeIndexPair> assignment,
                       gsl::span<LocalIndex> layout)
     {
-        if (detail::checkHalos(myRank_, assignment, haloFlags_, leaves)) { return 1; }
         computeNodeLayout(counts, haloFlags_, assignment[myRank_].start(), assignment[myRank_].end(), layout);
 
         auto extPeerFlags = haloPeers(myRank_, haloFlags_, assignment);
@@ -168,7 +167,7 @@ public:
             exchangeRequestKeys<KeyType>(leaves, haloFlags_, assignment, extPeers_, intPeers_, layout);
 
         incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, extPeers_);
-        return 0;
+        return detail::checkHalos(myRank_, assignment, haloFlags_, leaves);
     }
 
     /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
