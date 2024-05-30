@@ -490,7 +490,6 @@ public:
     template<class DeviceVector = std::vector<KeyType>>
     void converge(const Box<RealType>& box,
                   gsl::span<const KeyType> particleKeys,
-                  gsl::span<const int> /*peers*/,
                   const SfcAssignment<KeyType>& assignment,
                   gsl::span<const KeyType> globalTreeLeaves,
                   gsl::span<const unsigned> globalCounts,
