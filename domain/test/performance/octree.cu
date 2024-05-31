@@ -53,9 +53,12 @@ auto benchmarkMacsCpu(const OctreeView<KeyType>& octree,
                       TreeNodeIndex firstFocusNode,
                       TreeNodeIndex lastFocusNode)
 {
-    std::vector<char> macs(octree.numNodes);
+    std::vector<char> macs(octree.numNodes, 0);
     auto findMacsLambda = [&octree, &centers, &box, &leaves, &macs, firstFocusNode, lastFocusNode]()
-    { markMacs(octree, centers, box, leaves[firstFocusNode], leaves[lastFocusNode], macs.data()); };
+    {
+        markMacs(octree.prefixes, octree.childOffsets, centers, box, leaves.data() + firstFocusNode,
+                 lastFocusNode - firstFocusNode, macs.data());
+    };
 
     float macCpuTime = timeGpu(findMacsLambda);
     std::cout << "CPU mac eval " << macCpuTime / 1000 << " nNodes(tree): " << nNodes(leaves)
