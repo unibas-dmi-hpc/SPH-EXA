@@ -457,12 +457,13 @@ public:
     {
         setMacRadius(box, invTheta);
         macs_.resize(treeData_.numNodes);
+
+        // need to find again assignment start and end indices in focus tree because assignment might have changed
+        TreeNodeIndex fAssignStart = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), assignment[myRank_]);
+        TreeNodeIndex fAssignEnd   = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), assignment[myRank_ + 1]);
+
         if constexpr (HaveGpu<Accelerator>{})
         {
-            // need to find again assignment start and end indices in focus tree because assignment might have changed
-            TreeNodeIndex fAssignStart = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), assignment[myRank_]);
-            TreeNodeIndex fAssignEnd   = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), assignment[myRank_ + 1]);
-
             reallocate(macsAcc_, octreeAcc_.numNodes, allocGrowthRate_);
             fillGpu(rawPtr(macsAcc_), rawPtr(macsAcc_) + macsAcc_.size(), char(0));
             markMacsGpu(rawPtr(octreeAcc_.prefixes), rawPtr(octreeAcc_.childOffsets), rawPtr(centersAcc_), box,
@@ -472,8 +473,9 @@ public:
         }
         else
         {
-            markMacs(treeData_.data(), centers_.data(), box, assignment[myRank_], assignment[myRank_ + 1],
-                     macs_.data());
+            std::fill(rawPtr(macs_), rawPtr(macs_) + macs_.size(), char(0));
+            markMacs(rawPtr(treeData_.prefixes), rawPtr(treeData_.childOffsets), rawPtr(centers_), box,
+                     rawPtr(leaves_) + fAssignStart, fAssignEnd - fAssignStart, rawPtr(macs_));
         }
 
         rebalanceStatus_ |= macCriterion;

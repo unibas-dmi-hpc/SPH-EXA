@@ -136,7 +136,8 @@ __global__ void markMacsGpuKernel(const KeyType* prefixes,
     if (containedIn(focusStart, focusEnd, targetExt)) { return; }
 
     auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
-    markMacPerBox(targetCenter, targetSize, prefixes, childOffsets, centers, box, focusStart, focusEnd, markings);
+    markMacPerBox(targetCenter, targetSize, maxTreeLevel<KeyType>{}, prefixes, childOffsets, centers, box, focusStart,
+                  focusEnd, markings);
 }
 
 template<class T, class KeyType>
