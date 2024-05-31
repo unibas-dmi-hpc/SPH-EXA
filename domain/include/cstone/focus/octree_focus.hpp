@@ -133,6 +133,36 @@ struct CombinedUpdate
         return converged;
     }
 
+    static bool updateShift(OctreeData<KeyType, CpuTag>& tree,
+                            std::vector<KeyType>& leaves,
+                            unsigned bucketSize,
+                            KeyType focusStart,
+                            KeyType focusEnd,
+                            gsl::span<const unsigned> counts,
+                            gsl::span<const char> macs)
+    {
+        gsl::span<TreeNodeIndex> nodeOpsAll(tree.internalToLeaf);
+        rebalanceDecisionEssential<KeyType>(tree.prefixes, tree.childOffsets.data(), tree.parents.data(), counts.data(),
+                                            macs.data(), focusStart, focusEnd, bucketSize, nodeOpsAll.data());
+
+        // extract leaf decision, using childOffsets at temp storage, require +1 for exclusive scan last element
+        assert(tree.childOffsets.size() >= size_t(tree.numLeafNodes + 1));
+        gsl::span<TreeNodeIndex> nodeOps(tree.childOffsets.data(), tree.numLeafNodes + 1);
+        gather(leafToInternal(tree), nodeOpsAll.data(), nodeOps.data());
+
+        bool converged = std::all_of(nodeOps.begin(), nodeOps.end() - 1, [](TreeNodeIndex i) { return i == 1; });
+
+        // carry out rebalance based on nodeOps
+        auto& newLeaves = tree.prefixes;
+        rebalanceTree(leaves, newLeaves, nodeOps.data());
+
+        swap(newLeaves, leaves);
+        tree.resize(nNodes(leaves));
+        updateInternalTree<KeyType>(leaves, tree.data());
+
+        return converged;
+    }
+
     /*! @brief combined update of a tree based on count-bucketsize in the focus and based on macs outside
      *
      * @param[inout] tree         the fully linked octree
@@ -256,7 +286,11 @@ public:
         }
 
         macs_.resize(tree_.numNodes);
-        markMacs(tree_.data(), centers_.data(), box, focusStart, focusEnd, macs_.data());
+        std::fill(macs_.begin(), macs_.end(), 0);
+        TreeNodeIndex fStart = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), focusStart);
+        TreeNodeIndex fEnd   = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), focusEnd);
+        markMacs(tree_.prefixes.data(), tree_.childOffsets.data(), centers_.data(), box, rawPtr(leaves_) + fStart,
+                 fEnd - fStart, macs_.data());
 
         leafCounts_.resize(nNodes(leaves_));
         computeNodeCounts(leaves_.data(), leafCounts_.data(), nNodes(leaves_), particleKeys.data(),
