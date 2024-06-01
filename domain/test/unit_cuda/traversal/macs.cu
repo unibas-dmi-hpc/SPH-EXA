@@ -35,10 +35,7 @@ TEST(Macs, limitSource4x4_matchCPU)
 
     thrust::host_vector<KeyType> h_prefixes = fullTree.prefixes;
     std::vector<SourceCenterType<T>> h_centers(ov.numNodes);
-    for (TreeNodeIndex i = 0; i < ov.numNodes; ++i)
-    {
-        h_centers[i] = computeMinMacR2(h_prefixes[i], invTheta, box);
-    }
+    geoMacSpheres<KeyType>(h_prefixes, h_centers.data(), invTheta, box);
     thrust::device_vector<char> macs(ov.numNodes, 0);
     thrust::device_vector<SourceCenterType<T>> centers = h_centers;
 

@@ -195,17 +195,15 @@ TEST(Macs, limitSource4x4)
     float invTheta = sqrt(3.) / 2;
 
     std::vector<KeyType> leaves = makeUniformNLevelTree<KeyType>(64, 1);
-    Octree<KeyType> fullTree;
-    fullTree.update(leaves.data(), nNodes(leaves));
+    OctreeData<KeyType, CpuTag> fullTree;
+    fullTree.resize(nNodes(leaves));
     OctreeView<KeyType> ov = fullTree.data();
+    updateInternalTree<KeyType>(leaves, ov);
 
     std::vector<SourceCenterType<T>> centers(ov.numNodes);
-    for (TreeNodeIndex i = 0; i < ov.numNodes; ++i)
-    {
-        centers[i] = computeMinMacR2(ov.prefixes[i], invTheta, box);
-    }
+    geoMacSpheres<KeyType>({ov.prefixes, size_t(ov.numNodes)}, centers.data(), invTheta, box);
 
-    std::vector<char> macs(fullTree.numTreeNodes(), 0);
+    std::vector<char> macs(ov.numNodes, 0);
     markMacs(ov.prefixes, ov.childOffsets, centers.data(), box, leaves.data() + 0, 32, true, macs.data());
 
     std::vector<char> macRef{1, 0, 0, 0, 0, 1, 1, 1, 1};
