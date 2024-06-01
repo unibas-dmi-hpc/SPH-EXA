@@ -467,7 +467,7 @@ public:
             reallocate(macsAcc_, octreeAcc_.numNodes, allocGrowthRate_);
             fillGpu(rawPtr(macsAcc_), rawPtr(macsAcc_) + macsAcc_.size(), char(0));
             markMacsGpu(rawPtr(octreeAcc_.prefixes), rawPtr(octreeAcc_.childOffsets), rawPtr(centersAcc_), box,
-                        rawPtr(leavesAcc_) + fAssignStart, fAssignEnd - fAssignStart, rawPtr(macsAcc_));
+                        rawPtr(leavesAcc_) + fAssignStart, fAssignEnd - fAssignStart, false, rawPtr(macsAcc_));
 
             memcpyD2H(rawPtr(macsAcc_), macsAcc_.size(), macs_.data());
         }
@@ -475,7 +475,7 @@ public:
         {
             std::fill(rawPtr(macs_), rawPtr(macs_) + macs_.size(), char(0));
             markMacs(rawPtr(treeData_.prefixes), rawPtr(treeData_.childOffsets), rawPtr(centers_), box,
-                     rawPtr(leaves_) + fAssignStart, fAssignEnd - fAssignStart, rawPtr(macs_));
+                     rawPtr(leaves_) + fAssignStart, fAssignEnd - fAssignStart, false, rawPtr(macs_));
         }
 
         rebalanceStatus_ |= macCriterion;

@@ -290,7 +290,7 @@ public:
         TreeNodeIndex fStart = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), focusStart);
         TreeNodeIndex fEnd   = findNodeAbove(rawPtr(leaves_), nNodes(leaves_), focusEnd);
         markMacs(tree_.prefixes.data(), tree_.childOffsets.data(), centers_.data(), box, rawPtr(leaves_) + fStart,
-                 fEnd - fStart, macs_.data());
+                 fEnd - fStart, false, macs_.data());
 
         leafCounts_.resize(nNodes(leaves_));
         computeNodeCounts(leaves_.data(), leafCounts_.data(), nNodes(leaves_), particleKeys.data(),
