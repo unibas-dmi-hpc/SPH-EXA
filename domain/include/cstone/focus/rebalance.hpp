@@ -87,6 +87,15 @@ inline HOST_DEVICE_FUN int mergeCountAndMacOp(TreeNodeIndex nodeIdx,
     return 1; // default: do nothing
 }
 
+//! @brief refine nodes based on Mac only
+template<class KeyType>
+inline HOST_DEVICE_FUN int macRefineOp(KeyType nodeKey, char mac)
+{
+    unsigned level = decodePrefixLength(nodeKey) / 3;
+    if (level < maxTreeLevel<KeyType>{} && mac) { return 8; }
+    return 1;
+}
+
 /*! @brief Overrides a 0-value of nodeOps[nodeIdx] if @p nodeIdx is the left-most descendant of a non-zero ancestor
  *
  * @tparam KeyType

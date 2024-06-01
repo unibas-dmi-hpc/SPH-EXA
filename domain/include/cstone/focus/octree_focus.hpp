@@ -49,6 +49,7 @@
 #include "cstone/focus/inject.hpp"
 #include "cstone/focus/rebalance.hpp"
 #include "cstone/focus/rebalance_gpu.h"
+#include "cstone/focus/source_center.hpp"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/traversal/macs.hpp"
 #include "cstone/tree/csarray_gpu.h"
@@ -125,36 +126,6 @@ struct CombinedUpdate
             converged = false;
             injectKeys<KeyType>(newLeaves, allMandatoryKeys);
         }
-
-        swap(newLeaves, leaves);
-        tree.resize(nNodes(leaves));
-        updateInternalTree<KeyType>(leaves, tree.data());
-
-        return converged;
-    }
-
-    static bool updateShift(OctreeData<KeyType, CpuTag>& tree,
-                            std::vector<KeyType>& leaves,
-                            unsigned bucketSize,
-                            KeyType focusStart,
-                            KeyType focusEnd,
-                            gsl::span<const unsigned> counts,
-                            gsl::span<const char> macs)
-    {
-        gsl::span<TreeNodeIndex> nodeOpsAll(tree.internalToLeaf);
-        rebalanceDecisionEssential<KeyType>(tree.prefixes, tree.childOffsets.data(), tree.parents.data(), counts.data(),
-                                            macs.data(), focusStart, focusEnd, bucketSize, nodeOpsAll.data());
-
-        // extract leaf decision, using childOffsets at temp storage, require +1 for exclusive scan last element
-        assert(tree.childOffsets.size() >= size_t(tree.numLeafNodes + 1));
-        gsl::span<TreeNodeIndex> nodeOps(tree.childOffsets.data(), tree.numLeafNodes + 1);
-        gather(leafToInternal(tree), nodeOpsAll.data(), nodeOps.data());
-
-        bool converged = std::all_of(nodeOps.begin(), nodeOps.end() - 1, [](TreeNodeIndex i) { return i == 1; });
-
-        // carry out rebalance based on nodeOps
-        auto& newLeaves = tree.prefixes;
-        rebalanceTree(leaves, newLeaves, nodeOps.data());
 
         swap(newLeaves, leaves);
         tree.resize(nNodes(leaves));
@@ -242,6 +213,71 @@ struct CombinedUpdate
         return converged;
     }
 };
+
+template<class KeyType>
+bool updateMacRefine(OctreeData<KeyType, CpuTag>& tree,
+                     std::vector<KeyType>& leaves,
+                     gsl::span<const char> macs,
+                     TreeIndexPair focus)
+{
+    assert(tree.childOffsets.size() >= size_t(tree.numLeafNodes + 1));
+    gsl::span<TreeNodeIndex> nodeOps(tree.childOffsets.data(), tree.numLeafNodes + 1);
+
+    auto l2i = leafToInternal(tree);
+#pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < tree.numLeafNodes; ++i)
+    {
+        if (i < focus.start() || i >= focus.end()) { nodeOps[i] = macRefineOp(tree.prefixes[l2i[i]], macs[l2i[i]]); }
+        else { nodeOps[i] = 1; }
+    }
+
+    bool converged = std::all_of(nodeOps.begin(), nodeOps.end() - 1, [](TreeNodeIndex i) { return i == 1; });
+    if (not converged)
+    {
+        auto& newLeaves = tree.prefixes;
+        rebalanceTree(leaves, newLeaves, nodeOps.data());
+
+        swap(newLeaves, leaves);
+        tree.resize(nNodes(leaves));
+        updateInternalTree<KeyType>(leaves, tree.data());
+    }
+
+    return converged;
+}
+
+template<class T, class KeyType>
+bool macRefine(OctreeData<KeyType, CpuTag>& tree,
+               std::vector<KeyType>& leaves,
+               std::vector<SourceCenterType<T>>& centers,
+               std::vector<char>& macs,
+               KeyType oldFocusStart,
+               KeyType oldFocusEnd,
+               KeyType focusStart,
+               KeyType focusEnd,
+               float invTheta,
+               const Box<T>& box)
+{
+    centers.resize(tree.numNodes);
+    geoMacSpheres<KeyType>(tree.prefixes, rawPtr(centers), invTheta, box);
+
+    macs.resize(tree.numNodes);
+    std::fill(macs.begin(), macs.end(), 0);
+
+    KeyType growthLower = focusStart < oldFocusStart ? oldFocusStart : focusStart;
+    KeyType growthUpper = oldFocusEnd < focusEnd ? oldFocusEnd : focusEnd;
+
+    TreeNodeIndex fGrowL = findNodeAbove(rawPtr(leaves), nNodes(leaves), growthLower);
+    TreeNodeIndex fGrowU = findNodeAbove(rawPtr(leaves), nNodes(leaves), growthUpper);
+    TreeNodeIndex fStart = findNodeAbove(rawPtr(leaves), nNodes(leaves), focusStart);
+    TreeNodeIndex fEnd   = findNodeAbove(rawPtr(leaves), nNodes(leaves), focusEnd);
+
+    markMacs(rawPtr(tree.prefixes), rawPtr(tree.childOffsets), rawPtr(centers), box, rawPtr(leaves) + fStart,
+             fGrowL - fStart, true, rawPtr(macs));
+    markMacs(rawPtr(tree.prefixes), rawPtr(tree.childOffsets), rawPtr(centers), box, rawPtr(leaves) + fGrowU,
+             fEnd - fGrowU, true, rawPtr(macs));
+
+    return updateMacRefine(tree, leaves, macs, {fStart, fEnd});
+}
 
 /*! @brief A fully traversable octree, locally focused w.r.t a MinMac criterion
  *

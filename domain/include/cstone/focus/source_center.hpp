@@ -156,4 +156,15 @@ void nodeFpCenters(gsl::span<const KeyType> prefixes, Vec3<T>* centers, Vec3<T>*
     }
 }
 
+//! @brief set @p centers to geometric node centers with Mac radius l * invTheta
+template<class KeyType, class T>
+void geoMacSpheres(gsl::span<const KeyType> prefixes, SourceCenterType<T>* centers, float invTheta, const Box<T>& box)
+{
+#pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < prefixes.ssize(); ++i)
+    {
+        centers[i] = computeMinMacR2(prefixes[i], invTheta, box);
+    }
+}
+
 } // namespace cstone

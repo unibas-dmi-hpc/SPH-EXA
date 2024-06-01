@@ -178,11 +178,10 @@ int main()
         Vec3<T> center_i;
         util::tie(center_i, std::ignore) = centerAndSize<KeyType>(nodeBox, box);
 
-        T mac           = computeVecMacR2(h_octree.prefixes[i], center_i, invTheta, box);
         h_centers[i][0] = center_i[0];
         h_centers[i][1] = center_i[1];
         h_centers[i][2] = center_i[2];
-        h_centers[i][3] = mac;
+        h_centers[i][3] = computeVecMacR2(h_octree.prefixes[i], center_i, invTheta, box);
     }
     centers = h_centers;
 
