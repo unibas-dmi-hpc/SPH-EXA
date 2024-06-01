@@ -57,7 +57,7 @@ auto benchmarkMacsCpu(const OctreeView<KeyType>& octree,
     auto findMacsLambda = [&octree, &centers, &box, &leaves, &macs, firstFocusNode, lastFocusNode]()
     {
         markMacs(octree.prefixes, octree.childOffsets, centers, box, leaves.data() + firstFocusNode,
-                 lastFocusNode - firstFocusNode, macs.data());
+                 lastFocusNode - firstFocusNode, false, macs.data());
     };
 
     float macCpuTime = timeGpu(findMacsLambda);
@@ -189,7 +189,7 @@ int main()
     auto findMacsLambda = [octree = octreeView, &centers, &box, &tree, &macs, firstFocusNode, lastFocusNode]()
     {
         markMacsGpu(octree.prefixes, octree.childOffsets, rawPtr(centers), box, rawPtr(tree) + firstFocusNode,
-                    lastFocusNode - firstFocusNode, rawPtr(macs));
+                    lastFocusNode - firstFocusNode, false, rawPtr(macs));
     };
 
     float macTime = timeGpu(findMacsLambda);

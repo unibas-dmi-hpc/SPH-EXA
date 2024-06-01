@@ -246,7 +246,7 @@ void markMacs(const KeyType* prefixes,
               const Box<T>& box,
               const KeyType* focusNodes,
               TreeNodeIndex numFocusNodes,
-              // bool limitSource,
+              bool limitSource,
               char* markings)
 {
     KeyType focusStart = focusNodes[0];
@@ -261,8 +261,8 @@ void markMacs(const KeyType* prefixes,
         if (containedIn(focusStart, focusEnd, targetExt)) { continue; }
 
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
-        auto maxLevel                   = maxTreeLevel<KeyType>{};
-        // if (limitSource) { maxLevel = treeLevel(focusNodes[i + 1] - focusNodes[i]); }
+        unsigned maxLevel               = maxTreeLevel<KeyType>{};
+        if (limitSource) { maxLevel = std::max(int(treeLevel(focusNodes[i + 1] - focusNodes[i])) - 1, 0); }
         markMacPerBox(targetCenter, targetSize, maxLevel, prefixes, childOffsets, centers, box, focusStart, focusEnd,
                       markings);
     }
