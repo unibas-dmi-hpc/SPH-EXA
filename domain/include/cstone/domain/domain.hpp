@@ -225,7 +225,7 @@ public:
         else
         {
             focusTree_.updateMinMac(box(), global_.assignment(), invThetaEff);
-            focusTree_.updateTree(peers, global_.assignment());
+            focusTree_.updateTree(peers, global_.assignment(), box());
             focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
             focusTree_.updateGeoCenters(box());
         }
@@ -279,7 +279,7 @@ public:
             int converged = 0, reps = 0;
             while (converged != numRanks_ || reps < 2)
             {
-                converged = focusTree_.updateTree(peers, global_.assignment());
+                converged = focusTree_.updateTree(peers, global_.assignment(), box());
                 focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
                 focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.octree(), box(),
                                          std::get<0>(scratch), std::get<1>(scratch));
@@ -293,7 +293,7 @@ public:
         do
         {
             focusTree_.updateMacs(box(), global_.assignment(), centerDriftTol_ / theta_);
-            focusTree_.updateTree(peers, global_.assignment());
+            focusTree_.updateTree(peers, global_.assignment(), box());
             focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
             focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.octree(), box(),
                                      std::get<0>(scratch), std::get<1>(scratch));
