@@ -179,8 +179,7 @@ public:
                       DeviceVector&& /*scratch*/ = std::vector<KeyType>{})
     {
         gsl::span<const KeyType> leaves(leaves_);
-        std::vector<MPI_Request> treeletRequests;
-        exchangeTreelets(peers_, assignment_, leaves, treelets_, treeletRequests);
+        exchangeTreelets<KeyType>(peers_, assignment_, leaves, treeData_.prefixes, treeData_.levelRange, treelets_);
 
         leafCounts_.resize(nNodes(leaves_));
         if constexpr (HaveGpu<Accelerator>{})
@@ -220,10 +219,8 @@ public:
         }
 
         // counts from neighboring peers
-        MPI_Waitall(int(peers_.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
         constexpr int countTag = static_cast<int>(P2pTags::focusPeerCounts) + 1;
-        exchangeTreeletGeneral(peers_, treelets_, assignment_, gsl::span<const KeyType>(treeData_.prefixes),
-                               treeData_.levelRange, leafToInternal(treeData_), gsl::span<unsigned>(counts_), countTag);
+        peerExchange(gsl::span<unsigned>(counts_), countTag);
 
         // 2nd upsweep with peer and global data present
         upsweep(treeData_.levelRange, treeData_.childOffsets, counts_.data(), NodeCount<unsigned>{});
@@ -244,8 +241,7 @@ public:
     template<class T>
     void peerExchange(gsl::span<T> quantities, int commTag) const
     {
-        exchangeTreeletGeneral<T>(peers_, treelets_, assignment_, gsl::span<const KeyType>(treeData_.prefixes),
-                                  treeData_.levelRange, leafToInternal(treeData_), quantities, commTag);
+        exchangeTreeletGeneral<T>(peers_, treelets_, assignment_, leafToInternal(treeData_), quantities, commTag);
     }
 
     /*! @brief transfer quantities of leaf cells inside the focus into a global array
@@ -634,7 +630,7 @@ private:
     //! @brief list of peer ranks from last call to updateTree()
     std::vector<int> peers_;
     //! @brief the tree structures that the peers have for the domain of the executing rank (myRank_)
-    std::vector<std::vector<KeyType>> treelets_;
+    std::vector<std::vector<TreeNodeIndex>> treelets_;
 
     //! @brief octree data resident on GPU if active
     OctreeData<KeyType, Accelerator> octreeAcc_;

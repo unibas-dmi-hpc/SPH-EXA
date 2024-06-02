@@ -101,7 +101,7 @@ void countRequestParticles(gsl::span<const KeyType> leaves,
  * @tparam      KeyType          32- or 64-bit unsigned integer
  * @param[in]   peerRanks        List of peer rank IDs
  * @param[in]   focusAssignment  The assignment of @p localLeaves to peer ranks
- * @param[in]   localLeaves      The tree of the executing rank. Covers the global domain, but is locally focused.
+ * @param[in]   localPrefixes    The tree of the executing rank. Covers the global domain, but is locally focused.
  * @param[out]  peerTrees        The tree structures of REMOTE peer ranks covering the LOCALLY assigned part of
  *                               the tree. Each treelet covers the same SFC key range (the assigned range of
  *                               the executing rank) but is adaptively (MAC) resolved from the perspective of the
@@ -114,8 +114,9 @@ template<class KeyType>
 void exchangeTreelets(gsl::span<const int> peerRanks,
                       gsl::span<const IndexPair<TreeNodeIndex>> focusAssignment,
                       gsl::span<const KeyType> localLeaves,
-                      std::vector<std::vector<KeyType>>& peerTrees,
-                      std::vector<MPI_Request>& receiveRequests)
+                      gsl::span<const KeyType> prefixes,
+                      gsl::span<const TreeNodeIndex> levelRange,
+                      std::vector<std::vector<TreeNodeIndex>>& peerTrees)
 
 {
     constexpr int keyTag = static_cast<int>(P2pTags::focusPeerCounts);
@@ -130,31 +131,40 @@ void exchangeTreelets(gsl::span<const int> peerRanks,
         mpiSendAsync(localLeaves.data() + focusAssignment[peer].start(), sendCount, peer, keyTag, sendRequests);
     }
 
-    receiveRequests.reserve(numPeers);
+    std::vector<KeyType> treelet;
     int numMessages = numPeers;
-    while (numMessages > 0)
+    while (numMessages--)
     {
         MPI_Status status;
         MPI_Probe(MPI_ANY_SOURCE, keyTag, MPI_COMM_WORLD, &status);
         int receiveRank = status.MPI_SOURCE;
         TreeNodeIndex receiveSize;
         MPI_Get_count(&status, MpiType<KeyType>{}, &receiveSize);
-        peerTrees[receiveRank].resize(receiveSize);
 
-        mpiRecvAsync(peerTrees[receiveRank].data(), receiveSize, receiveRank, keyTag, receiveRequests);
+        treelet.clear();
+        treelet.resize(receiveSize);
+        mpiRecvSync(treelet.data(), receiveSize, receiveRank, keyTag, &status);
 
-        numMessages--;
+        TreeNodeIndex numNodes = nNodes(treelet);
+        auto& pTree = peerTrees[receiveRank];
+        pTree.resize(numNodes);
+
+#pragma omp parallel for
+        for (int i = 0; i < numNodes; ++i)
+        {
+            TreeNodeIndex internalIdx = locateNode(treelet[i], treelet[i + 1], prefixes.data(), levelRange.data());
+            if (internalIdx >= prefixes.size()) { throw std::runtime_error("Cut to deep\n"); };
+            pTree[i] = internalIdx;
+        }
     }
 
     MPI_Waitall(int(numPeers), sendRequests.data(), MPI_STATUS_IGNORE);
 }
 
-template<class T, class KeyType>
+template<class T>
 void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
-                            const std::vector<std::vector<KeyType>>& peerTrees,
+                            const std::vector<std::vector<TreeNodeIndex>>& peerTrees,
                             gsl::span<const IndexPair<TreeNodeIndex>> focusAssignment,
-                            gsl::span<const KeyType> prefixes,
-                            gsl::span<const TreeNodeIndex> levelRange,
                             gsl::span<const TreeNodeIndex> csToInternalMap,
                             gsl::span<T> quantities,
                             int commTag)
@@ -167,19 +177,11 @@ void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
     sendRequests.reserve(numPeers);
     for (auto peer : peerRanks)
     {
-        TreeNodeIndex treeletSize = nNodes(peerTrees[peer]);
-        std::vector<T> buffer(treeletSize);
-        gsl::span<const KeyType> treelet(peerTrees[peer]);
+        std::vector<T> buffer(peerTrees[peer].size());
+        gsl::span<const TreeNodeIndex> treelet(peerTrees[peer]);
+        gather<TreeNodeIndex>(treelet, quantities.data(), buffer.data());
 
-#pragma omp parallel for
-        for (TreeNodeIndex i = 0; i < treeletSize; ++i)
-        {
-            TreeNodeIndex internalIdx = locateNode(treelet[i], treelet[i + 1], prefixes.data(), levelRange.data());
-            assert(treelet[i] == decodePlaceholderBit(prefixes[internalIdx]));
-            buffer[i] = quantities[internalIdx];
-        }
-
-        mpiSendAsync(buffer.data(), treeletSize, peer, commTag, sendRequests);
+        mpiSendAsync(buffer.data(), buffer.size(), peer, commTag, sendRequests);
         sendBuffers.push_back(std::move(buffer));
     }
 

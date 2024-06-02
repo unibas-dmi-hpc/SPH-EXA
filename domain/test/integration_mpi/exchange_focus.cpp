@@ -85,6 +85,10 @@ void exchangeFocusIrregular(int myRank, int numRanks)
 
     std::vector<KeyType> treeLeaves = treeLeavesRef[myRank];
 
+    OctreeData<KeyType, CpuTag> octree;
+    octree.resize(nNodes(treeLeaves));
+    updateInternalTree<KeyType>(treeLeaves, octree.data());
+
     if (myRank == 0)
     {
         peers.push_back(1);
@@ -100,18 +104,31 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         peerFocusIndices[0] = TreeIndexPair(0, peerEndIdx);
     }
 
-    std::vector<std::vector<KeyType>> treelets(numRanks);
-    std::vector<MPI_Request> requests;
-    exchangeTreelets<KeyType>(peers, peerFocusIndices, treeLeaves, treelets, requests);
-    MPI_Waitall(requests.size(), requests.data(), MPI_STATUS_IGNORE);
+    std::vector<std::vector<TreeNodeIndex>> treelets(numRanks);
+    exchangeTreelets<KeyType>(peers, peerFocusIndices, treeLeaves, octree.prefixes, octree.levelRange, treelets);
 
-    if (myRank == 0) { EXPECT_TRUE(std::equal(begin(treelets[1]), end(treelets[1]), treeLeavesRef[1].begin())); }
+    if (myRank == 0)
+    {
+        KeyType boundary = decodePlaceholderBit(KeyType(014));
+        EXPECT_EQ(treelets[1].size(), findNodeAbove(treeLeavesRef[1].data(), nNodes(treeLeavesRef[1]), boundary));
+        for (size_t i = 0; i < treelets[1].size(); ++i)
+        {
+            KeyType tlKey = octree.prefixes[treelets[1][i]];
+            EXPECT_EQ(tlKey, encodePlaceholderBit2K(treeLeavesRef[1][i], treeLeavesRef[1][i + 1]));
+        }
+    }
     else
     {
         TreeNodeIndex peerStartIdx =
             std::lower_bound(begin(treeLeavesRef[0]), end(treeLeavesRef[0]), codeFromIndices<KeyType>({4})) -
             begin(treeLeavesRef[0]);
-        EXPECT_TRUE(std::equal(begin(treelets[0]), end(treelets[0]), treeLeavesRef[0].begin() + peerStartIdx));
+
+        for (size_t i = 0; i < treelets[0].size(); ++i)
+        {
+            const KeyType* refTree = &treeLeavesRef[0][peerStartIdx];
+            KeyType tlKey          = octree.prefixes[treelets[0][i]];
+            EXPECT_EQ(tlKey, encodePlaceholderBit2K(refTree[i], refTree[i + 1]));
+        }
     }
 }
 
