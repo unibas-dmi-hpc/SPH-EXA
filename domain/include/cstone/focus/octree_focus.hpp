@@ -233,16 +233,13 @@ bool updateMacRefine(OctreeData<KeyType, CpuTag>& tree,
         else { nodeOps[i] = 1; }
     }
 
-    bool converged = std::all_of(nodeOps.begin(), nodeOps.end() - 1, [](TreeNodeIndex i) { return i == 1; });
-    if (not converged)
-    {
-        auto& newLeaves = tree.prefixes;
-        rebalanceTree(leaves, newLeaves, nodeOps.data());
+    bool converged  = std::all_of(nodeOps.begin(), nodeOps.end() - 1, [](TreeNodeIndex i) { return i == 1; });
+    auto& newLeaves = tree.prefixes;
+    rebalanceTree(leaves, newLeaves, nodeOps.data());
 
-        swap(newLeaves, leaves);
-        tree.resize(nNodes(leaves));
-        updateInternalTree<KeyType>(leaves, tree.data());
-    }
+    swap(newLeaves, leaves);
+    tree.resize(nNodes(leaves));
+    updateInternalTree<KeyType>(leaves, tree.data());
 
     return converged;
 }
@@ -259,6 +256,7 @@ bool macRefine(OctreeData<KeyType, CpuTag>& tree,
                float invTheta,
                const Box<T>& box)
 {
+    if (oldFocusStart == focusStart && oldFocusEnd == focusEnd) { return true; }
     centers.resize(tree.numNodes);
     geoMacSpheres<KeyType>(tree.prefixes, rawPtr(centers), invTheta, box);
 
@@ -294,20 +292,17 @@ bool updateMacRefineGpu(OctreeData<KeyType, GpuTag>& tree,
     macRefineDecisionGpu(rawPtr(tree.prefixes), macs, l2i.data(), l2i.size(), focus, nodeOps.data());
 
     bool converged = countGpu(nodeOps.cbegin(), nodeOps.cend() - 1, 1) == tree.numLeafNodes;
-    if (not converged)
-    {
-        exclusiveScanGpu(nodeOps.data(), nodeOps.data() + nodeOps.size(), nodeOps.data());
-        TreeNodeIndex newNumLeafNodes;
-        memcpyD2H(nodeOps.data() + nodeOps.size() - 1, 1, &newNumLeafNodes);
+    exclusiveScanGpu(nodeOps.data(), nodeOps.data() + nodeOps.size(), nodeOps.data());
+    TreeNodeIndex newNumLeafNodes;
+    memcpyD2H(nodeOps.data() + nodeOps.size() - 1, 1, &newNumLeafNodes);
 
-        auto& newLeaves = tree.prefixes;
-        reallocateDestructive(newLeaves, newNumLeafNodes + 1, 1.05);
-        rebalanceTreeGpu(rawPtr(leaves), nNodes(leaves), newNumLeafNodes, nodeOps.data(), rawPtr(newLeaves));
-        swap(newLeaves, leaves);
+    auto& newLeaves = tree.prefixes;
+    reallocateDestructive(newLeaves, newNumLeafNodes + 1, 1.05);
+    rebalanceTreeGpu(rawPtr(leaves), nNodes(leaves), newNumLeafNodes, nodeOps.data(), rawPtr(newLeaves));
+    swap(newLeaves, leaves);
 
-        tree.resize(nNodes(leaves));
-        buildOctreeGpu(rawPtr(leaves), tree.data());
-    }
+    tree.resize(nNodes(leaves));
+    buildOctreeGpu(rawPtr(leaves), tree.data());
 
     return converged;
 }
