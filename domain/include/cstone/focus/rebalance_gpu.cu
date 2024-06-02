@@ -75,27 +75,47 @@ void rebalanceDecisionEssentialGpu(const KeyType* prefixes,
         prefixes, childOffsets, parents, counts, macs, focusStart, focusEnd, bucketSize, nodeOps, numNodes);
 }
 
-template void rebalanceDecisionEssentialGpu(const uint32_t* prefixes,
-                                            const TreeNodeIndex* childOffsets,
-                                            const TreeNodeIndex* parents,
-                                            const unsigned* counts,
-                                            const char* macs,
-                                            uint32_t focusStart,
-                                            uint32_t focusEnd,
-                                            unsigned bucketSize,
-                                            TreeNodeIndex* nodeOps,
-                                            TreeNodeIndex numNodes);
+#define REBA_DEC_ESS_GPU(KeyType)                                                                                      \
+    template void rebalanceDecisionEssentialGpu(const KeyType* prefixes, const TreeNodeIndex* childOffsets,            \
+                                                const TreeNodeIndex* parents, const unsigned* counts,                  \
+                                                const char* macs, KeyType focusStart, KeyType focusEnd,                \
+                                                unsigned bucketSize, TreeNodeIndex* nodeOps, TreeNodeIndex numNodes)
+REBA_DEC_ESS_GPU(uint32_t);
+REBA_DEC_ESS_GPU(uint64_t);
 
-template void rebalanceDecisionEssentialGpu(const uint64_t* prefixes,
-                                            const TreeNodeIndex* childOffsets,
-                                            const TreeNodeIndex* parents,
-                                            const unsigned* counts,
-                                            const char* macs,
-                                            uint64_t focusStart,
-                                            uint64_t focusEnd,
-                                            unsigned bucketSize,
-                                            TreeNodeIndex* nodeOps,
-                                            TreeNodeIndex numNodes);
+template<class KeyType>
+__global__ void macRefineDecisionKernel(const KeyType* prefixes,
+                                        const char* macs,
+                                        const TreeNodeIndex* l2i,
+                                        TreeNodeIndex numLeafNodes,
+                                        int2 focus,
+                                        TreeNodeIndex* nodeOps)
+{
+    unsigned i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= numLeafNodes) { return; }
+
+    if (i < focus.x || i >= focus.y) { nodeOps[i] = macRefineOp(prefixes[l2i[i]], macs[l2i[i]]); }
+    else { nodeOps[i] = 1; }
+}
+
+template<class KeyType>
+void macRefineDecisionGpu(const KeyType* prefixes,
+                          const char* macs,
+                          const TreeNodeIndex* l2i,
+                          TreeNodeIndex numLeafNodes,
+                          TreeIndexPair focus,
+                          TreeNodeIndex* nodeOps)
+{
+    constexpr unsigned numThreads = 256;
+    macRefineDecisionKernel<<<iceil(numLeafNodes, numThreads), numThreads>>>(prefixes, macs, l2i, numLeafNodes,
+                                                                             {focus.start(), focus.end()}, nodeOps);
+}
+
+#define MAC_REF_DEC_GPU(KeyType)                                                                                       \
+    template void macRefineDecisionGpu(const KeyType* prefixes, const char* macs, const TreeNodeIndex* l2i,            \
+                                       TreeNodeIndex numLeafNodes, TreeIndexPair focus, TreeNodeIndex* nodeOps)
+MAC_REF_DEC_GPU(uint32_t);
+MAC_REF_DEC_GPU(uint64_t);
 
 __device__ int nodeOpSum;
 __global__ void resetNodeOpSum() { nodeOpSum = 0; }
