@@ -31,6 +31,7 @@
 #pragma once
 
 #include "cstone/tree/definitions.h"
+#include "cstone/domain/index_ranges.hpp"
 
 namespace cstone
 {
@@ -46,6 +47,23 @@ extern void rebalanceDecisionEssentialGpu(const KeyType* prefixes,
                                           unsigned bucketSize,
                                           TreeNodeIndex* nodeOps,
                                           TreeNodeIndex numNodes);
+
+/*! @brief Take decision how to refine nodes based on Macs
+ *
+ * @param[in]  prefixes       WS-SFC key of each node, length numNodes
+ * @param[in]  macs           mac evaluation result flags, length numNodes
+ * @param[in]  l2i            translates indices in [0:numLeafNodes] to [0:numNodes] to access prefixes and macs
+ * @param[in]  numLeafNodes   number of leaf nodes
+ * @param[in]  focus          index range within [0:numLeafNodes] that corresponds to nodes in focus
+ * @param[out] nodeOps        output refinement decision per leaf node
+ */
+template<class KeyType>
+extern void macRefineDecisionGpu(const KeyType* prefixes,
+                                 const char* macs,
+                                 const TreeNodeIndex* l2i,
+                                 TreeNodeIndex numLeafNodes,
+                                 TreeIndexPair focus,
+                                 TreeNodeIndex* nodeOps);
 
 template<class KeyType>
 extern bool protectAncestorsGpu(const KeyType*, const TreeNodeIndex*, TreeNodeIndex*, TreeNodeIndex);
