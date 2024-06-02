@@ -105,7 +105,7 @@ public:
      *
      * The part of the SFC that is assigned to @p myRank is considered as the focus area.
      */
-    bool updateTree(gsl::span<const int> peerRanks, const SfcAssignment<KeyType>& assignment)
+    bool updateTree(gsl::span<const int> peerRanks, const SfcAssignment<KeyType>& assignment, const Box<RealType>& box)
     {
         if (rebalanceStatus_ != valid)
         {
@@ -136,17 +136,25 @@ public:
         auto uniqueEnd = std::unique(enforcedKeys.begin(), enforcedKeys.end());
         enforcedKeys.erase(uniqueEnd, enforcedKeys.end());
 
+        float invThetaRefine = sqrt(3) / 2 + 1e-6;
         bool converged;
         if constexpr (HaveGpu<Accelerator>{})
         {
             converged = CombinedUpdate<KeyType>::updateFocusGpu(
                 octreeAcc_, leavesAcc_, bucketSize_, focusStart, focusEnd, enforcedKeys,
                 {rawPtr(countsAcc_), countsAcc_.size()}, {rawPtr(macsAcc_), macsAcc_.size()});
+
+            while (not macRefineGpu(octreeAcc_, leavesAcc_, centersAcc_, macsAcc_, prevFocusStart, prevFocusEnd,
+                                    focusStart, focusEnd, invThetaRefine, box))
+                ;
         }
         else
         {
             converged = CombinedUpdate<KeyType>::updateFocus(treeData_, leaves_, bucketSize_, focusStart, focusEnd,
                                                              enforcedKeys, counts_, macs_);
+            while (not macRefine(treeData_, leaves_, centers_, macs_, prevFocusStart, prevFocusEnd, focusStart,
+                                 focusEnd, invThetaRefine, box))
+                ;
         }
         downloadOctree();
         translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
@@ -509,7 +517,7 @@ public:
         while (converged != numRanks_)
         {
             updateMinMac(box, assignment, invThetaEff);
-            converged = updateTree(peers, assignment);
+            converged = updateTree(peers, assignment, box);
             updateCounts(particleKeys, globalTreeLeaves, globalCounts, scratch);
             updateGeoCenters(box);
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
