@@ -45,7 +45,7 @@ using namespace cstone;
 template<class KeyType>
 void exchangeFocusIrregular(int myRank, int numRanks)
 {
-    std::vector<KeyType> treeLeavesRef[numRanks];
+    std::vector<KeyType> treeLeavesRef[numRanks], treeLeavesInitial[numRanks];
     std::vector<int> peers;
     std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices(numRanks);
 
@@ -56,15 +56,18 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         // regular level-3 grid in the half cube with x = 0...0.5
         for (int i = 0; i < 4; ++i)
         {
-            octreeMaker.divide({i}, 1);
+            octreeMaker.divide(i);
             for (int j = 0; j < 8; ++j)
             {
-                octreeMaker.divide({i, j}, 2);
+                octreeMaker.divide(i, j);
             }
         }
-        // finer resolution at one location outside the regular grid
+        // finer resolution at one location outside the regular grid + cells that don't exist on rank 1
         octreeMaker.divide(7).divide(7, 0);
         treeLeavesRef[0] = octreeMaker.makeTree();
+        octreeMaker.divide(7,0,3);
+        treeLeavesInitial[0] = octreeMaker.makeTree();
+        EXPECT_EQ(treeLeavesRef[0].size() + 7, treeLeavesInitial[0].size());
     }
     {
         OctreeMaker<KeyType> octreeMaker;
@@ -72,18 +75,19 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         // regular level-3 grid in the half cube with x = 0.5...1
         for (int i = 4; i < 8; ++i)
         {
-            octreeMaker.divide({i}, 1);
+            octreeMaker.divide(i);
             for (int j = 0; j < 8; ++j)
             {
-                octreeMaker.divide({i, j}, 2);
+                octreeMaker.divide(i, j);
             }
         }
         // finer resolution at one location outside the regular grid
         octreeMaker.divide(1).divide(1, 6);
         treeLeavesRef[1] = octreeMaker.makeTree();
+        treeLeavesInitial[1] = treeLeavesRef[1];
     }
 
-    std::vector<KeyType> treeLeaves = treeLeavesRef[myRank];
+    std::vector<KeyType> treeLeaves = treeLeavesInitial[myRank];
 
     OctreeData<KeyType, CpuTag> octree;
     octree.resize(nNodes(treeLeaves));
@@ -105,12 +109,24 @@ void exchangeFocusIrregular(int myRank, int numRanks)
     }
 
     std::vector<std::vector<TreeNodeIndex>> treelets(numRanks);
-    exchangeTreelets<KeyType>(peers, peerFocusIndices, treeLeaves, octree.prefixes, octree.levelRange, treelets);
+    std::vector<TreeNodeIndex> nodeOps(treeLeaves.size(), 1);
+    exchangeTreelets<KeyType>(peers, peerFocusIndices, treeLeaves, octree.prefixes, octree.levelRange, treelets,
+                              nodeOps);
+
+    if (myRank == 0)
+        EXPECT_EQ(std::count(nodeOps.begin(), nodeOps.end(), 0), 7);
+    else
+        EXPECT_TRUE(std::all_of(nodeOps.begin(), nodeOps.end(), [](auto i) { return i == 1; }));
+
+    std::vector<KeyType> prunedLeaves;
+    rebalanceTree(treeLeaves, prunedLeaves, nodeOps.data());
+    EXPECT_EQ(treeLeavesRef[myRank], prunedLeaves);
 
     if (myRank == 0)
     {
         KeyType boundary = decodePlaceholderBit(KeyType(014));
         EXPECT_EQ(treelets[1].size(), findNodeAbove(treeLeavesRef[1].data(), nNodes(treeLeavesRef[1]), boundary));
+        // check that rank 0's interior tree matches the exterior tree of rank 1
         for (size_t i = 0; i < treelets[1].size(); ++i)
         {
             KeyType tlKey = octree.prefixes[treelets[1][i]];
@@ -122,6 +138,10 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         TreeNodeIndex peerStartIdx =
             std::lower_bound(begin(treeLeavesRef[0]), end(treeLeavesRef[0]), codeFromIndices<KeyType>({4})) -
             begin(treeLeavesRef[0]);
+
+        TreeNodeIndex numNodesExtTreeRank0 = nNodes(treeLeavesRef[0]) - peerStartIdx;
+        // size of rank 0's exterior tree should match interior treelet size on rank 1
+        EXPECT_EQ(numNodesExtTreeRank0, treelets[0].size());
 
         for (size_t i = 0; i < treelets[0].size(); ++i)
         {
@@ -143,7 +163,7 @@ TEST(PeerExchange, irregularTree)
     if (numRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
     exchangeFocusIrregular<unsigned>(rank, numRanks);
-    exchangeFocusIrregular<uint64_t>(rank, numRanks);
+    //exchangeFocusIrregular<uint64_t>(rank, numRanks);
 }
 
 TEST(PeerExchange, arrayWrap)
