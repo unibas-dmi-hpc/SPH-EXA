@@ -96,11 +96,12 @@ using Vec4 = util::array<T, 4>;
 enum class P2pTags : int
 {
     focusTransfer    = 1000,
-    focusPeerCounts  = 2000,
-    focusPeerCenters = 3000,
-    haloRequestKeys  = 4000,
-    domainExchange   = 5000,
-    haloExchange     = 6000
+    focusTreelets    = 2000,
+    focusPeerCounts  = 3000,
+    focusPeerCenters = 4000,
+    haloRequestKeys  = 5000,
+    domainExchange   = 6000,
+    haloExchange     = 7000
 };
 
 /*! @brief returns the number of nodes in a tree

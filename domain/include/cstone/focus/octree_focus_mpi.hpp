@@ -148,6 +148,11 @@ public:
                                                              enforcedKeys, counts_, macs_);
         }
         downloadOctree();
+        translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
+
+        std::vector<TreeNodeIndex> nodeOps(leaves_.size(), 1);
+        exchangeTreelets<KeyType>(peers_, assignment_, leaves_, treeData_.prefixes, treeData_.levelRange, treelets_,
+                                  nodeOps);
 
         translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
 
@@ -179,7 +184,6 @@ public:
                       DeviceVector&& /*scratch*/ = std::vector<KeyType>{})
     {
         gsl::span<const KeyType> leaves(leaves_);
-        exchangeTreelets<KeyType>(peers_, assignment_, leaves, treeData_.prefixes, treeData_.levelRange, treelets_);
 
         leafCounts_.resize(nNodes(leaves_));
         if constexpr (HaveGpu<Accelerator>{})
@@ -219,7 +223,7 @@ public:
         }
 
         // counts from neighboring peers
-        constexpr int countTag = static_cast<int>(P2pTags::focusPeerCounts) + 1;
+        constexpr int countTag = static_cast<int>(P2pTags::focusPeerCounts);
         peerExchange(gsl::span<unsigned>(counts_), countTag);
 
         // 2nd upsweep with peer and global data present
