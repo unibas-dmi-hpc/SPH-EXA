@@ -71,6 +71,7 @@ public:
         , numRanks_(numRanks)
         , bucketSize_(bucketSize)
         , treelets_(numRanks_)
+        , treeletIdx_(numRanks_)
         , counts_{bucketSize + 1}
         , macs_{1}
         , centers_(1)
@@ -150,11 +151,9 @@ public:
         downloadOctree();
         translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
 
-        std::vector<TreeNodeIndex> nodeOps(leaves_.size(), 1);
-        exchangeTreelets<KeyType>(peers_, assignment_, leaves_, treeData_.prefixes, treeData_.levelRange, treelets_,
-                                  nodeOps);
-
+        syncTreelets(peers_, assignment_, treeData_, leaves_, treelets_, treeletIdx_);
         translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
+        uploadOctree();
 
         prevFocusStart   = focusStart;
         prevFocusEnd     = focusEnd;
@@ -245,7 +244,7 @@ public:
     template<class T>
     void peerExchange(gsl::span<T> quantities, int commTag) const
     {
-        exchangeTreeletGeneral<T>(peers_, treelets_, assignment_, leafToInternal(treeData_), quantities, commTag);
+        exchangeTreeletGeneral<T>(peers_, treeletIdx_, assignment_, leafToInternal(treeData_), quantities, commTag);
     }
 
     /*! @brief transfer quantities of leaf cells inside the focus into a global array
@@ -634,7 +633,8 @@ private:
     //! @brief list of peer ranks from last call to updateTree()
     std::vector<int> peers_;
     //! @brief the tree structures that the peers have for the domain of the executing rank (myRank_)
-    std::vector<std::vector<TreeNodeIndex>> treelets_;
+    std::vector<std::vector<KeyType>> treelets_;
+    std::vector<std::vector<TreeNodeIndex>> treeletIdx_;
 
     //! @brief octree data resident on GPU if active
     OctreeData<KeyType, Accelerator> octreeAcc_;
