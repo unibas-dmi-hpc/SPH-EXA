@@ -75,6 +75,7 @@ public:
         , counts_{bucketSize + 1}
         , macs_{1}
         , centers_(1)
+        , intPeerFlags_(numRanks)
     {
         if constexpr (HaveGpu<Accelerator>{})
         {
@@ -95,7 +96,12 @@ public:
         leaves_ = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
         treeData_.resize(nNodes(leaves_));
         updateInternalTree<KeyType>(leaves_, treeData_.data());
+
+        MPI_Win_create(intPeerFlags_.data(), intPeerFlags_.size() * sizeof(int), sizeof(int), MPI_INFO_NULL,
+                       MPI_COMM_WORLD, &rmaWin);
     }
+
+    ~FocusedOctree() { MPI_Win_free(&rmaWin); }
 
     /*! @brief Update the tree structure according to previously calculated criteria (MAC and particle counts)
      *
@@ -584,20 +590,16 @@ public:
 private:
     void findPeers(const SfcAssignment<KeyType>& assignment, gsl::span<const KeyType> globalLeaves)
     {
-        std::vector<int> extPeersF_(numRanks_), intPeersF_(numRanks_, 0);
-
+        std::vector<int> extPeerFlags(numRanks_, 0);
         focusPeers<KeyType>({assignment.data(), size_t(numRanks_ + 1)}, numRanks_, myRank_, globalLeaves, leaves_,
-                            extPeersF_);
-        //MPI_Alltoall(extPeersF_.data(), 1, MPI_INT, intPeersF_.data(), 1, MPI_INT, MPI_COMM_WORLD);
-
-        MPI_Win rmaWin;
-        MPI_Win_create(intPeersF_.data(), intPeersF_.size() * sizeof(int), sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD,
-                       &rmaWin);
+                            extPeerFlags);
+        std::fill(intPeerFlags_.begin(), intPeerFlags_.end(), 0);
+        //MPI_Alltoall(extPeerFlags.data(), 1, MPI_INT, intPeerFlags_.data(), 1, MPI_INT, MPI_COMM_WORLD);
 
         MPI_Win_fence(0, rmaWin);
         for (int rank = 0; rank < numRanks_; ++rank)
         {
-            if (extPeersF_[rank])
+            if (extPeerFlags[rank])
             {
                 int one = 1;
                 MPI_Put(&one, 1, MPI_INT, rank, myRank_, 1, MPI_INT, rmaWin);
@@ -605,14 +607,12 @@ private:
         }
         MPI_Win_fence(0, rmaWin);
 
-        MPI_Win_free(&rmaWin);
-
         sendPeers_.clear();
         recvPeers_.clear();
         for (int rank = 0; rank < numRanks_; ++rank)
         {
-            if (extPeersF_[rank]) { recvPeers_.push_back(rank); }
-            if (intPeersF_[rank]) { sendPeers_.push_back(rank); }
+            if (extPeerFlags[rank]) { recvPeers_.push_back(rank); }
+            if (intPeerFlags_[rank]) { sendPeers_.push_back(rank); }
         }
     }
 
@@ -679,7 +679,9 @@ private:
     float allocGrowthRate_{1.05};
 
     //! @brief list of peer ranks from last call to updateTree()
-    std::vector<int> sendPeers_, recvPeers_;
+    MPI_Win rmaWin;
+    std::vector<int> sendPeers_, recvPeers_, intPeerFlags_;
+
     //! @brief the tree structures that the peers have for the domain of the executing rank (myRank_)
     std::vector<std::vector<KeyType>> treelets_;
     std::vector<std::vector<TreeNodeIndex>> treeletIdx_;

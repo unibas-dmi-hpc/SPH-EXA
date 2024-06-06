@@ -66,7 +66,14 @@ public:
     Halos(int myRank)
         : myRank_(myRank)
     {
+        int numRanks;
+        MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+        intPeerFlags_.resize(numRanks);
+        MPI_Win_create(intPeerFlags_.data(), intPeerFlags_.size() * sizeof(int), sizeof(int), MPI_INFO_NULL,
+                       MPI_COMM_WORLD, &rmaWin);
     }
+
+    ~Halos() { MPI_Win_free(&rmaWin); }
 
     /*! @brief Discover which cells outside myRank's assignment are halos
      *
@@ -161,7 +168,7 @@ public:
         computeNodeLayout(counts, haloFlags_, assignment[myRank_].start(), assignment[myRank_].end(), layout);
 
         auto extPeerFlags = haloPeers(myRank_, haloFlags_, assignment);
-        exchangePeers(extPeerFlags, extPeers_, intPeers_);
+        exchangePeers(rmaWin, myRank_, extPeerFlags, intPeerFlags_, extPeers_, intPeers_);
 
         outgoingHaloIndices_ =
             exchangeRequestKeys<KeyType>(leaves, haloFlags_, assignment, extPeers_, intPeers_, layout);
@@ -208,7 +215,8 @@ private:
     SendList outgoingHaloIndices_;
 
     std::vector<int> haloFlags_;
-    std::vector<int> extPeers_, intPeers_;
+    std::vector<int> extPeers_, intPeers_, intPeerFlags_;
+    MPI_Win rmaWin;
 
     /*! @brief Counter for halo exchange calls
      * Multiple client calls to domain::exchangeHalos() during a time-step
