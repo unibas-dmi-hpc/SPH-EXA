@@ -217,18 +217,15 @@ public:
         float invThetaEff      = invThetaMinMac(theta_);
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
 
-        if (firstCall_ || convergeTrees)
+        if (firstCall_)
         {
             focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts(),
                                 invThetaEff, std::get<0>(scratch));
         }
-        else
-        {
-            focusTree_.updateMinMac(box(), global_.assignment(), invThetaEff);
-            focusTree_.updateTree(peers, global_.assignment(), box());
-            focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
-            focusTree_.updateGeoCenters(box());
-        }
+        focusTree_.updateMinMac(box(), global_.assignment(), invThetaEff);
+        focusTree_.updateTree(peers, global_.assignment(), box());
+        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
+        focusTree_.updateGeoCenters(box());
 
         auto octreeView            = focusTree_.octreeViewAcc();
         const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
