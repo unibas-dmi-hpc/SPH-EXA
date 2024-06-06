@@ -147,6 +147,9 @@ public:
             while (not macRefineGpu(octreeAcc_, leavesAcc_, centersAcc_, macsAcc_, prevFocusStart, prevFocusEnd,
                                     focusStart, focusEnd, invThetaRefine, box))
                 ;
+
+            reallocateDestructive(leaves_, leavesAcc_.size(), allocGrowthRate_);
+            memcpyD2H(rawPtr(leavesAcc_), leavesAcc_.size(), rawPtr(leaves_));
         }
         else
         {
@@ -156,12 +159,17 @@ public:
                                  focusEnd, invThetaRefine, box))
                 ;
         }
-        downloadOctree();
         translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
 
-        syncTreelets(peers_, assignment_, treeData_, leaves_, treelets_, treeletIdx_);
+        if constexpr (HaveGpu<Accelerator>{})
+        {
+            syncTreeletsGpu(peers_, assignment_, leaves_, octreeAcc_, leavesAcc_, treelets_, treeletIdx_);
+            downloadOctree();
+            indexTreelets<KeyType>(treeData_.prefixes, treeData_.levelRange, treelets_, treeletIdx_);
+        }
+        else { syncTreelets(peers_, assignment_, treeData_, leaves_, treelets_, treeletIdx_); }
+
         translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
-        uploadOctree();
 
         prevFocusStart   = focusStart;
         prevFocusEnd     = focusEnd;

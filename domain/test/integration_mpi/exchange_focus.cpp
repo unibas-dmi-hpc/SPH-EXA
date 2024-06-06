@@ -65,7 +65,7 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         // finer resolution at one location outside the regular grid + cells that don't exist on rank 1
         octreeMaker.divide(7).divide(7, 0);
         treeLeavesRef[0] = octreeMaker.makeTree();
-        octreeMaker.divide(7,0,3);
+        octreeMaker.divide(7, 0, 3);
         treeLeavesInitial[0] = octreeMaker.makeTree();
         EXPECT_EQ(treeLeavesRef[0].size() + 7, treeLeavesInitial[0].size());
     }
@@ -83,7 +83,7 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         }
         // finer resolution at one location outside the regular grid
         octreeMaker.divide(1).divide(1, 6);
-        treeLeavesRef[1] = octreeMaker.makeTree();
+        treeLeavesRef[1]     = octreeMaker.makeTree();
         treeLeavesInitial[1] = treeLeavesRef[1];
     }
 

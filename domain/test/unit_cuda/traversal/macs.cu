@@ -13,7 +13,6 @@
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/focus/source_center.hpp"
 #include "cstone/traversal/collisions_gpu.h"
-#include "cstone/traversal/macs.hpp"
 #include "cstone/tree/cs_util.hpp"
 #include "cstone/tree/octree_gpu.h"
 
@@ -42,13 +41,13 @@ TEST(Macs, limitSource4x4_matchCPU)
     markMacsGpu(ov.prefixes, ov.childOffsets, rawPtr(centers), box, rawPtr(leaves) + 0, 32, true, rawPtr(macs));
     thrust::host_vector<char> h_macs = macs;
 
-    thrust::host_vector<char> macRef{1, 0, 0, 0, 0, 1, 1, 1, 1};
+    thrust::host_vector<char> macRef = std::vector<char>{1, 0, 0, 0, 0, 1, 1, 1, 1};
     macRef.resize(ov.numNodes);
     EXPECT_EQ(macRef, h_macs);
 
     thrust::fill(macs.begin(), macs.end(), 0);
     markMacsGpu(ov.prefixes, ov.childOffsets, rawPtr(centers), box, rawPtr(leaves) + 0, 32, false, rawPtr(macs));
-    h_macs = macs;
+    h_macs      = macs;
     int numMacs = std::accumulate(h_macs.begin(), h_macs.end(), 0);
     EXPECT_EQ(numMacs, 5 + 16);
 }

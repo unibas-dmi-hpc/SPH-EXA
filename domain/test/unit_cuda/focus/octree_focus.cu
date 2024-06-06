@@ -32,7 +32,7 @@ protected:
 
         // L3 in first octant, L1 otherwise
         h_leaves = om.makeTree();
-        leaves = h_leaves;
+        leaves   = h_leaves;
 
         octree.resize(nNodes(h_leaves));
         buildOctreeGpu<KeyType>(rawPtr(leaves), octree.data());
@@ -57,15 +57,15 @@ TEST_F(MacRefinementGpu, fullSurface)
     while (!macRefineGpu(octree, leaves, centers, macs, focusEnd, focusEnd, focusStart, focusEnd, invTheta, box)) {}
 
     int numNodesVertex = 7 + 8;
-    int numNodesEdge = 6 + 2 * 8;
-    int numNodesFace = 4 + 4 * 8;
+    int numNodesEdge   = 6 + 2 * 8;
+    int numNodesFace   = 4 + 4 * 8;
     EXPECT_EQ(nNodes(leaves), 64 + 7 + 3 * numNodesFace + 3 * numNodesEdge + numNodesVertex);
 }
 
 TEST_F(MacRefinementGpu, noSurface)
 {
     Box<T> box(0, 1);
-    float invTheta = sqrt(3) / 2 + 1e-6;
+    float invTheta              = sqrt(3) / 2 + 1e-6;
     TreeNodeIndex numNodesStart = octree.numLeafNodes;
 
     KeyType oldFStart  = decodePlaceholderBit(KeyType(0101));
@@ -80,7 +80,7 @@ TEST_F(MacRefinementGpu, noSurface)
 TEST_F(MacRefinementGpu, partialSurface)
 {
     Box<T> box(0, 1);
-    float invTheta = sqrt(3) / 2 + 1e-6;
+    float invTheta              = sqrt(3) / 2 + 1e-6;
     TreeNodeIndex numNodesStart = octree.numLeafNodes;
 
     KeyType oldFStart  = 0;
