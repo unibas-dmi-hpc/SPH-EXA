@@ -464,15 +464,15 @@ TEST_F(MacRefinement, fullSurface)
     while (!macRefine(octree, leaves, centers, macs, focusEnd, focusEnd, focusStart, focusEnd, invTheta, box)) {}
 
     int numNodesVertex = 7 + 8;
-    int numNodesEdge = 6 + 2 * 8;
-    int numNodesFace = 4 + 4 * 8;
+    int numNodesEdge   = 6 + 2 * 8;
+    int numNodesFace   = 4 + 4 * 8;
     EXPECT_EQ(nNodes(leaves), 64 + 7 + 3 * numNodesFace + 3 * numNodesEdge + numNodesVertex);
 }
 
 TEST_F(MacRefinement, noSurface)
 {
     Box<T> box(0, 1);
-    float invTheta = sqrt(3) / 2 + 1e-6;
+    float invTheta              = sqrt(3) / 2 + 1e-6;
     TreeNodeIndex numNodesStart = octree.numLeafNodes;
 
     KeyType oldFStart  = decodePlaceholderBit(KeyType(0101));
@@ -487,7 +487,7 @@ TEST_F(MacRefinement, noSurface)
 TEST_F(MacRefinement, partialSurface)
 {
     Box<T> box(0, 1);
-    float invTheta = sqrt(3) / 2 + 1e-6;
+    float invTheta              = sqrt(3) / 2 + 1e-6;
     TreeNodeIndex numNodesStart = octree.numLeafNodes;
 
     KeyType oldFStart  = 0;

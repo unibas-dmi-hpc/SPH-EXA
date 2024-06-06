@@ -49,6 +49,7 @@
 #include "cstone/domain/index_ranges.hpp"
 #include "cstone/primitives/gather.hpp"
 #include "cstone/primitives/mpi_wrappers.hpp"
+#include "cstone/primitives/primitives_gpu.h"
 #include "cstone/tree/csarray.hpp"
 #include "cstone/tree/octree.hpp"
 #include "cstone/util/gsl-lite.hpp"
@@ -308,6 +309,42 @@ void syncTreelets(gsl::span<const int> peers,
     }
 
     indexTreelets<KeyType>(octree.prefixes, octree.levelRange, treelets, treeletIdx);
+}
+
+template<class KeyType, class DAlloc>
+void syncTreeletsGpu(gsl::span<const int> peers,
+                     gsl::span<const IndexPair<TreeNodeIndex>> assignment,
+                     const std::vector<KeyType>& leaves,
+                     OctreeData<KeyType, GpuTag>& octreeAcc,
+                     thrust::device_vector<KeyType, DAlloc>& leavesAcc,
+                     std::vector<std::vector<KeyType>>& treelets,
+                     std::vector<std::vector<TreeNodeIndex>>& treeletIdx)
+{
+    exchangeTreelets<KeyType>(peers, assignment, leaves, treelets);
+    checkTreelets<KeyType>(leaves, treelets, treeletIdx);
+
+    std::vector<TreeNodeIndex> nodeOps(leaves.size(), 1);
+    exchangeRejectedKeys<KeyType>(peers, leaves, treelets, treeletIdx, nodeOps);
+    pruneTreelets<KeyType>(peers, treelets, treeletIdx);
+
+    if (std::count(nodeOps.begin(), nodeOps.end(), 1) != nodeOps.size())
+    {
+        assert(octreeAcc.childOffsets.size() >= nodeOps.size());
+        gsl::span<TreeNodeIndex> nops(rawPtr(octreeAcc.childOffsets), nodeOps.size());
+        memcpyH2D(rawPtr(nodeOps), nodeOps.size(), nops.data());
+
+        exclusiveScanGpu(nops.data(), nops.data() + nops.size(), nops.data());
+        TreeNodeIndex newNumLeafNodes;
+        memcpyD2H(nops.data() + nops.size() - 1, 1, &newNumLeafNodes);
+
+        auto& newLeaves = octreeAcc.prefixes;
+        reallocateDestructive(newLeaves, newNumLeafNodes + 1, 1.05);
+        rebalanceTreeGpu(rawPtr(leavesAcc), nNodes(leavesAcc), newNumLeafNodes, nops.data(), rawPtr(newLeaves));
+        swap(newLeaves, leavesAcc);
+
+        octreeAcc.resize(nNodes(leavesAcc));
+        buildOctreeGpu(rawPtr(leavesAcc), octreeAcc.data());
+    }
 }
 
 template<class T>
