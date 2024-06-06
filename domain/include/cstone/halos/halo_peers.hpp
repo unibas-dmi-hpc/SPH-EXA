@@ -91,7 +91,27 @@ void exchangePeers(gsl::span<const int> exteriorPeerFlags,
                    std::vector<int>& interiorPeers)
 {
     std::vector<int> interiorPeerFlags(exteriorPeerFlags.size(), 0);
-    MPI_Alltoall(exteriorPeerFlags.data(), 1, MPI_INT, interiorPeerFlags.data(), 1, MPI_INT, MPI_COMM_WORLD);
+    //MPI_Alltoall(exteriorPeerFlags.data(), 1, MPI_INT, interiorPeerFlags.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+    MPI_Win rmaWin;
+    MPI_Win_create(interiorPeerFlags.data(), interiorPeerFlags.size() * sizeof(int), sizeof(int), MPI_INFO_NULL,
+                   MPI_COMM_WORLD, &rmaWin);
+
+    int myRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+
+    MPI_Win_fence(0, rmaWin);
+    for (int rank = 0; rank < exteriorPeerFlags.size(); ++rank)
+    {
+        if (exteriorPeerFlags[rank])
+        {
+            int one = 1;
+            MPI_Put(&one, 1, MPI_INT, rank, myRank, 1, MPI_INT, rmaWin);
+        }
+    }
+    MPI_Win_fence(0, rmaWin);
+
+    MPI_Win_free(&rmaWin);
 
     detail::compactPeers(exteriorPeerFlags, exteriorPeers);
     detail::compactPeers(interiorPeerFlags, interiorPeers);

@@ -422,13 +422,14 @@ private:
 
 //! @brief Return a list of ranks (peers) which contain nodes in @p focusTree that don't exist in @p globalTree
 template<class KeyType>
-std::vector<int> focusPeers(gsl::span<const KeyType> boundaries,
-                            int numRanks,
-                            int myRank,
-                            gsl::span<const KeyType> globalTree,
-                            gsl::span<const KeyType> focusTree)
+void focusPeers(gsl::span<const KeyType> boundaries,
+                int numRanks,
+                int myRank,
+                gsl::span<const KeyType> globalTree,
+                gsl::span<const KeyType> focusTree,
+                gsl::span<int> peerFlags)
 {
-    std::vector<int> peerFlags(numRanks, 0);
+    std::fill(peerFlags.begin(), peerFlags.end(), 0);
 #pragma omp parallel for
     for (int rank = 0; rank < numRanks; ++rank)
     {
@@ -443,7 +444,6 @@ std::vector<int> focusPeers(gsl::span<const KeyType> boundaries,
         if (focEnd - focStart > globEnd - globStart) { peerFlags[rank] = 1; }
         else { peerFlags[rank] = not std::includes(globStart, globEnd, focStart, focEnd); }
     }
-    return peerFlags;
 }
 
 template<class KeyType>
@@ -453,7 +453,8 @@ std::vector<int> oneSidedPeers(gsl::span<const KeyType> boundaries,
                                gsl::span<const KeyType> globalTree,
                                gsl::span<const KeyType> focusTree)
 {
-    auto peerFlags = focusPeers(boundaries, numRanks, myRank, globalTree, focusTree);
+    std::vector<int> peerFlags(numRanks, 0);
+    focusPeers(boundaries, numRanks, myRank, globalTree, focusTree, peerFlags);
     std::vector<int> ret;
     for (int rank = 0; rank < numRanks; ++rank)
     {

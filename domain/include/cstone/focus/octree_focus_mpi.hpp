@@ -584,17 +584,35 @@ public:
 private:
     void findPeers(const SfcAssignment<KeyType>& assignment, gsl::span<const KeyType> globalLeaves)
     {
-        auto extPeers =
-            focusPeers<KeyType>({assignment.data(), size_t(numRanks_ + 1)}, numRanks_, myRank_, globalLeaves, leaves_);
-        std::vector<int> intPeers(numRanks_, 0);
-        MPI_Alltoall(extPeers.data(), 1, MPI_INT, intPeers.data(), 1, MPI_INT, MPI_COMM_WORLD);
+        std::vector<int> extPeersF_(numRanks_), intPeersF_(numRanks_, 0);
+
+        focusPeers<KeyType>({assignment.data(), size_t(numRanks_ + 1)}, numRanks_, myRank_, globalLeaves, leaves_,
+                            extPeersF_);
+        //MPI_Alltoall(extPeersF_.data(), 1, MPI_INT, intPeersF_.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+        MPI_Win rmaWin;
+        MPI_Win_create(intPeersF_.data(), intPeersF_.size() * sizeof(int), sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD,
+                       &rmaWin);
+
+        MPI_Win_fence(0, rmaWin);
+        for (int rank = 0; rank < numRanks_; ++rank)
+        {
+            if (extPeersF_[rank])
+            {
+                int one = 1;
+                MPI_Put(&one, 1, MPI_INT, rank, myRank_, 1, MPI_INT, rmaWin);
+            }
+        }
+        MPI_Win_fence(0, rmaWin);
+
+        MPI_Win_free(&rmaWin);
 
         sendPeers_.clear();
         recvPeers_.clear();
         for (int rank = 0; rank < numRanks_; ++rank)
         {
-            if (extPeers[rank]) { recvPeers_.push_back(rank); }
-            if (intPeers[rank]) { sendPeers_.push_back(rank); }
+            if (extPeersF_[rank]) { recvPeers_.push_back(rank); }
+            if (intPeersF_[rank]) { sendPeers_.push_back(rank); }
         }
     }
 
