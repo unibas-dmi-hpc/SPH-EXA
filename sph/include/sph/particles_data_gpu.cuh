@@ -102,7 +102,7 @@ public:
     DevVector<unsigned>   nc;                                 // number of neighbors of each particle
     DevVector<HydroType>  dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
     DevVector<uint8_t>    rung;                               // rung per particle of previous timestep
-    FieldVector<uint64_t> id;                                 // unique particle id
+    DevVector<uint64_t>  id;                                 // unique particle id
 
     //! @brief SPH interpolation kernel lookup tables
     DevVector<HydroType> wh, whd;
