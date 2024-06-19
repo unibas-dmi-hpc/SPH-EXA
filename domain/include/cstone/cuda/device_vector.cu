@@ -6,10 +6,7 @@
 
 #include <thrust/execution_policy.h>
 #include <thrust/device_vector.h>
-<<<<<<< HEAD
 #include <thrust/fill.h>
-=======
->>>>>>> 18128c94 (encapsulate thrust::device_vector everywhere)
 
 #include "cstone/util/noinit_thrust.cuh"
 
@@ -176,10 +173,7 @@ DEVICE_VECTOR(double);
 template class DeviceVector<util::array<int, 2>>;
 template class DeviceVector<util::array<int, 3>>;
 template class DeviceVector<util::array<unsigned, 1>>;
-<<<<<<< HEAD
 template class DeviceVector<util::array<uint64_t, 1>>;
-=======
->>>>>>> 18128c94 (encapsulate thrust::device_vector everywhere)
 template class DeviceVector<util::array<unsigned, 2>>;
 template class DeviceVector<util::array<float, 3>>;
 template class DeviceVector<util::array<double, 3>>;
