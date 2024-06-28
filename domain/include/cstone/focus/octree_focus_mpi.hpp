@@ -41,7 +41,7 @@
 #include "cstone/focus/source_center.hpp"
 #include "cstone/focus/source_center_gpu.h"
 #include "cstone/primitives/primitives_gpu.h"
-#include "cstone/tree/accel_switch.hpp"
+#include "cstone/primitives/accel_switch.hpp"
 #include "cstone/traversal/collisions_gpu.h"
 
 namespace cstone
