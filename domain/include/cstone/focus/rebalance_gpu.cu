@@ -29,6 +29,7 @@
  */
 
 #include <cub/cub.cuh>
+#include <thrust/execution_policy.h>
 
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/focus/rebalance.hpp"
@@ -198,18 +199,52 @@ ResolutionStatus enforceKeysGpu(const KeyType* forcedKeys,
     return static_cast<ResolutionStatus>(status);
 }
 
-template ResolutionStatus enforceKeysGpu(const uint32_t* forcedKeys,
-                                         TreeNodeIndex numForcedKeys,
-                                         const uint32_t* nodeKeys,
-                                         const TreeNodeIndex* childOffsets,
-                                         const TreeNodeIndex* parents,
-                                         TreeNodeIndex* nodeOps);
+#define ENFORCE_KEYS_GPU(KeyType)                                                                                      \
+    template ResolutionStatus enforceKeysGpu(const KeyType* forcedKeys, TreeNodeIndex numForcedKeys,                   \
+                                             const KeyType* nodeKeys, const TreeNodeIndex* childOffsets,               \
+                                             const TreeNodeIndex* parents, TreeNodeIndex* nodeOps)
+ENFORCE_KEYS_GPU(uint32_t);
+ENFORCE_KEYS_GPU(uint64_t);
 
-template ResolutionStatus enforceKeysGpu(const uint64_t* forcedKeys,
-                                         TreeNodeIndex numForcedKeys,
-                                         const uint64_t* nodeKeys,
-                                         const TreeNodeIndex* childOffsets,
-                                         const TreeNodeIndex* parents,
-                                         TreeNodeIndex* nodeOps);
+template<class KeyType>
+__global__ void rangeCountKernel(gsl::span<const KeyType> leaves,
+                                 gsl::span<const unsigned> counts,
+                                 gsl::span<const KeyType> leavesFocus,
+                                 gsl::span<const TreeNodeIndex> leavesFocusIdx,
+                                 gsl::span<unsigned> countsFocus)
+{
+    unsigned i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= leavesFocusIdx.size()) { return; }
+
+    TreeNodeIndex leafIdx = leavesFocusIdx[i];
+    KeyType startKey      = leavesFocus[leafIdx];
+    KeyType endKey        = leavesFocus[leafIdx + 1];
+
+    size_t startIdx = findNodeBelow(leaves.data(), leaves.size(), startKey);
+    size_t endIdx   = findNodeAbove(leaves.data(), leaves.size(), endKey);
+
+    uint64_t globCount   = thrust::reduce(thrust::seq, counts.begin() + startIdx, counts.begin() + endIdx, uint64_t(0));
+    countsFocus[leafIdx] = stl::min(uint64_t(0xFFFFFFFF), globCount);
+}
+
+template<class KeyType>
+void rangeCountGpu(gsl::span<const KeyType> leaves,
+                   gsl::span<const unsigned> counts,
+                   gsl::span<const KeyType> leavesFocus,
+                   gsl::span<const TreeNodeIndex> leavesFocusIdx,
+                   gsl::span<unsigned> countsFocus)
+{
+    constexpr unsigned numThreads = 64;
+    unsigned numBlocks            = iceil(leavesFocusIdx.size(), numThreads);
+    if (numBlocks == 0) { return; }
+    rangeCountKernel<<<numBlocks, numThreads>>>(leaves, counts, leavesFocus, leavesFocusIdx, countsFocus);
+}
+
+#define RANGE_COUNT_GPU(KeyType)                                                                                       \
+    template void rangeCountGpu(gsl::span<const KeyType> leaves, gsl::span<const unsigned> counts,                     \
+                                gsl::span<const KeyType> leavesFocus, gsl::span<const TreeNodeIndex> leavesFocusIdx,   \
+                                gsl::span<unsigned> countsFocus)
+RANGE_COUNT_GPU(uint32_t);
+RANGE_COUNT_GPU(uint64_t);
 
 } // namespace cstone
