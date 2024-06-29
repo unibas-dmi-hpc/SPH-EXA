@@ -275,12 +275,13 @@ public:
         const KeyType* nodeKeys         = rawPtr(treeData_.prefixes);
         const TreeNodeIndex* levelRange = rawPtr(treeData_.levelRange);
 
+        std::vector<TreeNodeIndex> gmap(lastGlobIdx - firstGlobIdx);
 #pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = 0; i < globLeavesFoc.size() - 1; ++i)
         {
-            TreeNodeIndex localIdx = locateNode(globLeavesFoc[i], globLeavesFoc[i + 1], nodeKeys, levelRange);
-            globQFoc[i]            = localQuantities[localIdx];
+            gmap[i] = locateNode(globLeavesFoc[i], globLeavesFoc[i + 1], nodeKeys, levelRange);
         }
+        gather<TreeNodeIndex>(gmap, localQuantities.data(), globQFoc.data());
     }
 
     /*! @brief transfer missing cell quantities from global tree into localQuantities
