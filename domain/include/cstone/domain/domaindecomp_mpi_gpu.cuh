@@ -43,13 +43,13 @@ namespace cstone
 {
 
 //! @brief copy the value of @a count to the start the provided GPU-buffer
-void encodeSendCount(size_t count, char* sendPtr)
+inline void encodeSendCount(size_t count, char* sendPtr)
 {
     checkGpuErrors(cudaMemcpy(sendPtr, &count, sizeof(size_t), cudaMemcpyHostToDevice));
 }
 
 //! @brief extract message length count from head of received GPU buffer and advance the buffer pointer by alignment
-char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
+inline char* decodeSendCount(char* recvPtr, size_t* count, size_t alignment)
 {
     checkGpuErrors(cudaMemcpy(count, recvPtr, sizeof(size_t), cudaMemcpyDeviceToHost));
     return recvPtr + alignment;
@@ -94,15 +94,16 @@ void exchangeParticlesGpu(int epoch,
                           const LocalIndex* ordering,
                           Arrays... arrays)
 {
-    using TransferType        = uint64_t;
-    constexpr int alignment   = 128;
-    constexpr int headerBytes = round_up(sizeof(uint64_t), alignment);
+    using TransferType          = uint64_t;
+    constexpr int alignment     = 128;
+    constexpr int headerBytes   = round_up(sizeof(uint64_t), alignment);
+    const float allocGrowthRate = 1.05;
     static_assert(alignment % sizeof(TransferType) == 0);
     bool record  = receiveLog.empty();
     int domExTag = static_cast<int>(P2pTags::domainExchange) + epoch;
 
     size_t totalSendBytes    = computeTotalSendBytes<alignment>(sends, thisRank, headerBytes, arrays...);
-    const size_t oldSendSize = reallocateBytes(sendScratchBuffer, totalSendBytes);
+    const size_t oldSendSize = reallocateBytes(sendScratchBuffer, totalSendBytes, allocGrowthRate);
     char* const sendBuffer   = reinterpret_cast<char*>(rawPtr(sendScratchBuffer));
 
     // Not used if GPU-direct is ON
@@ -138,7 +139,7 @@ void exchangeParticlesGpu(int epoch,
         MPI_Get_count(&status, MpiType<TransferType>{}, &receiveCountTransfer);
 
         size_t receiveCountBytes = receiveCountTransfer * sizeof(TransferType);
-        reallocateBytes(receiveScratchBuffer, receiveCountBytes);
+        reallocateBytes(receiveScratchBuffer, receiveCountBytes, allocGrowthRate);
         char* receiveBuffer = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
         mpiRecvGpuDirect(reinterpret_cast<TransferType*>(receiveBuffer), receiveCountTransfer, receiveRank, domExTag,
                          &status);

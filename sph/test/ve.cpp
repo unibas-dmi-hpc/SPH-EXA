@@ -180,11 +180,11 @@ TEST_F(SphKernelTests, MomentumEnergy)
         auto [du, grad_Px, grad_Py, grad_Pz, maxvsignal] = std::array<T, 5>{-1, -1, -1, -1, -1};
 
         momentumAndEnergyJLoop<true>(0, K, box(), neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
-                                     vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(), c.data(),
-                                     c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), Atmin,
-                                     Atmax, ramp, wh.data(), whd.data(), kx.data(), xm.data(), alpha.data(),
-                                     dV11.data(), dV12.data(), dV13.data(), dV22.data(), dV23.data(), dV33.data(),
-                                     &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
+                                     vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(),
+                                     (const T*)nullptr, c.data(), c11.data(), c12.data(), c13.data(), c22.data(),
+                                     c23.data(), c33.data(), Atmin, Atmax, ramp, wh.data(), kx.data(), xm.data(),
+                                     alpha.data(), dV11.data(), dV12.data(), dV13.data(), dV22.data(), dV23.data(),
+                                     dV33.data(), &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
 
         EXPECT_NEAR(grad_Px, -505548.68073726865, 0.023);
         EXPECT_NEAR(grad_Py, 303384.91384746187, 0.053);
@@ -196,11 +196,11 @@ TEST_F(SphKernelTests, MomentumEnergy)
         auto [du, grad_Px, grad_Py, grad_Pz, maxvsignal] = std::array<T, 5>{-1, -1, -1, -1, -1};
 
         momentumAndEnergyJLoop<false>(0, K, box(), neighbors.data(), neighborsCount, x.data(), y.data(), z.data(),
-                                      vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(), c.data(),
-                                      c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(), Atmin,
-                                      Atmax, ramp, wh.data(), whd.data(), kx.data(), xm.data(), alpha.data(),
-                                      dV11.data(), dV12.data(), dV13.data(), dV22.data(), dV23.data(), dV33.data(),
-                                      &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
+                                      vx.data(), vy.data(), vz.data(), h.data(), m.data(), prho.data(),
+                                      (const T*)nullptr, c.data(), c11.data(), c12.data(), c13.data(), c22.data(),
+                                      c23.data(), c33.data(), Atmin, Atmax, ramp, wh.data(), kx.data(), xm.data(),
+                                      alpha.data(), dV11.data(), dV12.data(), dV13.data(), dV22.data(), dV23.data(),
+                                      dV33.data(), &grad_Px, &grad_Py, &grad_Pz, &du, &maxvsignal);
 
         EXPECT_NEAR(grad_Px, -521261.07791667967, 0.022);
         EXPECT_NEAR(grad_Py, -74471.016515749841, 0.064);

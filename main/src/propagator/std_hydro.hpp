@@ -63,7 +63,8 @@ protected:
     using MHolder_t = typename cstone::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<
         MultipoleType, DomainType, typename DataType::HydroData>;
 
-    MHolder_t mHolder_;
+    MHolder_t      mHolder_;
+    GroupData<Acc> groups_;
 
     /*! @brief the list of conserved particles fields with values preserved between iterations
      *
@@ -120,43 +121,7 @@ public:
         d.treeView = domain.octreeProperties();
     }
 
-    void computeForces(DomainType& domain, DataType& simData)
-    {
-        size_t first = domain.startIndex();
-        size_t last  = domain.endIndex();
-        auto&  d     = simData.hydro;
-
-        resizeNeighbors(d, domain.nParticles() * d.ngmax);
-        findNeighborsSfc(first, last, d, domain.box());
-        timer.step("FindNeighbors");
-
-        computeDensity(first, last, d, domain.box());
-        timer.step("Density");
-        computeEOS_HydroStd(first, last, d);
-        timer.step("EquationOfState");
-
-        domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
-        timer.step("mpi::synchronizeHalos");
-
-        computeIAD(first, last, d, domain.box());
-        timer.step("IAD");
-
-        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
-        timer.step("mpi::synchronizeHalos");
-
-        computeMomentumEnergySTD(first, last, d, domain.box());
-        timer.step("MomentumEnergyIAD");
-
-        if (d.g != 0.0)
-        {
-            mHolder_.upsweep(d, domain);
-            timer.step("Upsweep");
-            mHolder_.traverse(d, domain);
-            timer.step("Gravity");
-        }
-    }
-
-    void step(DomainType& domain, DataType& simData) override
+    void computeForces(DomainType& domain, DataType& simData) override
     {
         timer.start();
 
@@ -173,56 +138,56 @@ public:
         fill(get<"m">(d), 0, first, d.m[first]);
         fill(get<"m">(d), last, domain.nParticlesWithHalos(), d.m[first]);
 
-        computeForces(domain, simData);
+        resizeNeighbors(d, domain.nParticles() * d.ngmax);
+        findNeighborsSfc(first, last, d, domain.box());
+        computeGroups(first, last, d, domain.box(), groups_);
+        timer.step("FindNeighbors");
+
+        computeDensity(groups_.view(), d, domain.box());
+        timer.step("Density");
+        computeEOS_HydroStd(first, last, d);
+        timer.step("EquationOfState");
+
+        domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
+        timer.step("mpi::synchronizeHalos");
+
+        computeIAD(groups_.view(), d, domain.box());
+        timer.step("IAD");
+
+        domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
+        timer.step("mpi::synchronizeHalos");
+
+        computeMomentumEnergySTD(groups_.view(), d, domain.box());
+        timer.step("MomentumEnergyIAD");
+
+        if (d.g != 0.0)
+        {
+            auto groups = mHolder_.computeSpatialGroups(d, domain);
+            mHolder_.upsweep(d, domain);
+            timer.step("Upsweep");
+            mHolder_.traverse(groups, d, domain);
+            timer.step("Gravity");
+        }
+    }
+
+    void integrate(DomainType& domain, DataType& simData) override
+    {
+        auto&  d     = simData.hydro;
+        size_t first = domain.startIndex();
+        size_t last  = domain.endIndex();
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
-        computePositions(first, last, d, domain.box());
+        computePositions(groups_.view(), d, domain.box(), d.minDt, {float(d.minDt_m1)});
+        updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateQuantities");
-        updateSmoothingLength(first, last, d);
-        timer.step("UpdateSmoothingLength");
-
-        timer.stop();
     }
 
     void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
                     const cstone::Box<T>& /*box*/) override
     {
-        auto output = [&](auto& d)
-        {
-            auto fieldPointers = d.data();
-            auto indicesDone   = d.outputFieldIndices;
-            auto namesDone     = d.outputFieldNames;
-
-            for (int i = int(indicesDone.size()) - 1; i >= 0; --i)
-            {
-                int fidx = indicesDone[i];
-                if (d.isAllocated(fidx))
-                {
-                    int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
-                                 d.outputFieldIndices.begin();
-                    transferToHost(d, first, last, {d.fieldNames[fidx]});
-                    std::visit([writer, c = column, key = namesDone[i]](auto field)
-                               { writer->writeField(key, field->data(), c); },
-                               fieldPointers[fidx]);
-                    indicesDone.erase(indicesDone.begin() + i);
-                    namesDone.erase(namesDone.begin() + i);
-                }
-            }
-
-            if (!indicesDone.empty() && Base::rank_ == 0)
-            {
-                std::cout << "WARNING: the following fields are not in use and therefore not output: ";
-                for (int fidx = 0; fidx < indicesDone.size() - 1; ++fidx)
-                {
-                    std::cout << d.fieldNames[fidx] << ",";
-                }
-                std::cout << d.fieldNames[indicesDone.back()] << std::endl;
-            }
-        };
-
-        output(simData.hydro);
-        output(simData.chem);
+        Base::outputAllocatedFields(writer, first, last, simData);
+        timer.step("FileOutput");
     }
 };
 

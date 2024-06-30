@@ -43,19 +43,21 @@
 #include "cstone/util/reallocate.hpp"
 
 #include "table_lookup.hpp"
+#include "types.hpp"
 
 namespace sphexa
 {
 
-template<typename T, class KeyType>
-class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData<T, KeyType>>
+class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData>
 {
     template<class FType>
     using DevVector = thrust::device_vector<FType>;
 
-    using HydroType = float;
-    using XM1Type   = float;
-    using Tmass     = float;
+    using KeyType   = sph::SphTypes::KeyType;
+    using RealType  = sph::SphTypes::CoordinateType;
+    using HydroType = sph::SphTypes::HydroType;
+    using XM1Type   = sph::SphTypes::XM1Type;
+    using Tmass     = sph::SphTypes::Tmass;
 
 public:
     // number of CUDA streams to use
@@ -73,14 +75,15 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    DevVector<T>         x, y, z;                            // Positions
+    DevVector<RealType>  x, y, z;                            // Positions
     DevVector<XM1Type>   x_m1, y_m1, z_m1;                   // Difference to previous positions
     DevVector<HydroType> vx, vy, vz;                         // Velocities
     DevVector<HydroType> rho;                                // Density
-    DevVector<T>         temp;                               // Temperature
-    DevVector<T>         u;                                  // Internal Energy
+    DevVector<RealType>  temp;                               // Temperature
+    DevVector<RealType>  u;                                  // Internal Energy
     DevVector<HydroType> p;                                  // Pressure
     DevVector<HydroType> prho;                               // p / (kx * m^2 * gradh)
+    DevVector<HydroType> tdpdTrho;                           // temp * dp/dT * prho
     DevVector<HydroType> h;                                  // Smoothing Length
     DevVector<Tmass>     m;                                  // Mass
     DevVector<HydroType> c;                                  // Speed of sound
@@ -88,7 +91,7 @@ public:
     DevVector<HydroType> mue, mui;                           // mean molecular weight (electrons, ions)
     DevVector<HydroType> divv, curlv;                        // Div(velocity), Curl(velocity)
     DevVector<HydroType> ax, ay, az;                         // acceleration
-    DevVector<T>         du;                                 // energy rate of change (du/dt)
+    DevVector<RealType>  du;                                 // energy rate of change (du/dt)
     DevVector<XM1Type>   du_m1;                              // previous energy rate of change (du/dt)
     DevVector<HydroType> c11, c12, c13, c22, c23, c33;       // IAD components
     DevVector<HydroType> alpha;                              // AV coeficient
@@ -99,12 +102,12 @@ public:
     DevVector<unsigned>  nc;                                 // number of neighbors of each particle
     DevVector<HydroType> dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
     DevVector<HydroType> markRamp; //  switch between crossed and uncrossed versions of the SPH equations
+    DevVector<uint8_t>   rung;                               // rung per particle of previous timestep
 
     //! @brief SPH interpolation kernel lookup tables
     DevVector<HydroType> wh, whd;
 
     DevVector<cstone::LocalIndex> traversalStack;
-    DevVector<cstone::LocalIndex> targetGroups;
 
     //! @brief non-stateful variables for statistics
     size_t stackUsedNc, stackUsedGravity;
@@ -114,9 +117,9 @@ public:
      */
     inline static constexpr std::array fieldNames{
         "x",     "y",    "z",   "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",    "rho",  "u",     "p",
-        "prho",  "h",    "m",   "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",   "c13",
+        "prho", "tdpdTrho", "h",    "m",   "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",   "c13",
         "c22",   "c23",  "c33", "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv", "alpha",
-        "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33", "markRamp"};
+        "gradh", "keys", "nc",  "dV11", "dV12", "dV13", "dV22", "dV23", "dV33", "markRamp", "rung"};
 
     /*! @brief return a tuple of field references
      *
@@ -124,9 +127,9 @@ public:
      */
     auto dataTuple()
     {
-        auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, h, m, c, ax, ay, az, du, du_m1, c11,
+        auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, tdpdTrho, h, m, c, ax, ay, az, du, du_m1, c11,
                             c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh, keys, nc,
-                            dV11, dV12, dV13, dV22, dV23, dV33, markRamp);
+                            dV11, dV12, dV13, dV22, dV23, dV33, markRamp, rung);
 
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
         return ret;
@@ -139,17 +142,16 @@ public:
      */
     auto data()
     {
-        using FieldType =
-            std::variant<DevVector<float>*, DevVector<double>*, DevVector<unsigned>*, DevVector<uint64_t>*>;
+        using FieldType = std::variant<DevVector<float>*, DevVector<double>*, DevVector<unsigned>*,
+                                       DevVector<uint64_t>*, DevVector<uint8_t>*>;
 
         return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
                           dataTuple());
     }
 
-    void resize(size_t size)
+    void resize(size_t size, float growthRate)
     {
-        double growthRate = 1.01;
-        auto   data_      = data();
+        auto data_ = data();
 
         auto deallocateVector = [size](auto* devVectorPtr)
         {
@@ -159,7 +161,7 @@ public:
 
         for (size_t i = 0; i < data_.size(); ++i)
         {
-            if (this->isAllocated(i)) { std::visit(deallocateVector, data_[i]); }
+            if (this->isAllocated(i) && not this->isConserved(i)) { std::visit(deallocateVector, data_[i]); }
         }
 
         for (size_t i = 0; i < data_.size(); ++i)
@@ -169,6 +171,19 @@ public:
                 std::visit([size, growthRate](auto* arg) { reallocateDevice(*arg, size, growthRate); }, data_[i]);
             }
         }
+    }
+
+    size_t size()
+    {
+        auto data_ = data();
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (this->isAllocated(i))
+            {
+                return std::visit([](auto* arg) { return arg->size(); }, data_[i]);
+            }
+        }
+        return 0;
     }
 
     DeviceParticlesData()
@@ -221,6 +236,16 @@ void transferToDevice(DataType& d, size_t first, size_t last, const std::vector<
         int fieldIdx =
             std::find(DataType::fieldNames.begin(), DataType::fieldNames.end(), field) - DataType::fieldNames.begin();
         std::visit(launchTransfer, hostData[fieldIdx], deviceData[fieldIdx]);
+    }
+}
+
+//! @brief transfer all specified fields allocated on both host and device to the device
+template<class DataType, std::enable_if_t<cstone::HaveGpu<typename DataType::AcceleratorType>{}, int> = 0>
+void transferAllocatedToDevice(DataType& d, size_t first, size_t last, const std::vector<std::string>& fields)
+{
+    for (const auto& field : fields)
+    {
+        if (d.isAllocated(field) && d.devData.isAllocated(field)) { transferToDevice(d, first, last, {field}); }
     }
 }
 

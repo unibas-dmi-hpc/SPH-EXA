@@ -55,7 +55,7 @@ template<typename Dataset>
 void computeEOS_HydroStdImpl(size_t startIndex, size_t endIndex, Dataset& d)
 {
     const auto* temp = d.temp.data();
-    const auto* rho  = d.rho.data();
+    auto*       rho  = d.rho.data();
 
     auto* p = d.p.data();
     auto* c = d.c.data();
@@ -73,7 +73,7 @@ void computeEOS_HydroStd(size_t startIndex, size_t endIndex, Dataset& d)
     if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
     {
         cuda::computeEOS_HydroStd(startIndex, endIndex, d.muiConst, d.gamma, rawPtr(d.devData.temp),
-                                  rawPtr(d.devData.rho), rawPtr(d.devData.p), rawPtr(d.devData.c));
+                                  rawPtr(d.devData.m), rawPtr(d.devData.rho), rawPtr(d.devData.p), rawPtr(d.devData.c));
     }
     else { computeEOS_HydroStdImpl(startIndex, endIndex, d); }
 }

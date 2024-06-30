@@ -44,10 +44,10 @@ template<class Accelerator, class T>
 using PinnedAlloc_t = typename cstone::AccelSwitchType<Accelerator, std::allocator, pinned_allocator>::template type<T>;
 
 //! @brief stub for use in CPU code
-template<class T, class KeyType>
 struct DeviceDataFacade
 {
-    void resize(size_t) {}
+    void   resize(size_t, float) {}
+    size_t size() { return 0; }
 
     template<class... Ts>
     void setConserved(Ts...)
@@ -77,12 +77,10 @@ struct DeviceDataFacade
     inline static constexpr std::array fieldNames{0};
 };
 
-template<class T, class KeyType>
 class DeviceParticlesData;
 
 //! @brief Just a facade on the CPU, DeviceParticlesData on the GPU
-template<class Accelerator, class T, class KeyType>
-using DeviceData_t =
-    typename cstone::AccelSwitchType<Accelerator, DeviceDataFacade, DeviceParticlesData>::template type<T, KeyType>;
+template<class Accelerator>
+using DeviceData_t = typename cstone::AccelSwitchTypeSimple<Accelerator, DeviceDataFacade, DeviceParticlesData>::type;
 
 } // namespace sphexa

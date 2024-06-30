@@ -128,11 +128,30 @@ TEST(Utils, discardLastElement)
     }
     {
         // test that lvalue reference elements are passed on as lvalue references
-        std::vector<int> v1(10), v2(10);
-
-        auto tup   = std::tie(v1, v2);
-        auto probe = discardLastElement(tup);
+        std::vector<int> v1{1, 2, 3, 4}, v2{5, 6, 7};
+        auto probe = discardLastElement(std::tie(v1, v2));
         EXPECT_EQ(probe, std::tie(v1));
-        EXPECT_EQ(std::get<0>(tup).data(), v1.data());
+        EXPECT_EQ(std::get<0>(probe).data(), v1.data());
+    }
+}
+
+TEST(Utils, zipView)
+{
+    {
+        auto t1   = std::make_tuple(1, 2, 3);
+        auto t2   = std::make_tuple("a", "b", "c");
+        auto view = zipTuples(t1, t2);
+
+        EXPECT_EQ(std::get<0>(std::get<0>(view)), 1);
+        EXPECT_EQ(std::get<1>(std::get<0>(view)), "a");
+    }
+    {
+        std::vector<int> vi1{1, 2, 3, 4}, vi2{5, 6, 7};
+        std::vector<std::string> vs1{"a", "b", "c", "d"}, vs2{"x", "y", "z"};
+
+        auto zipped = zipTuples(std::tie(vi1, vi2), std::tie(vs1, vs2));
+
+        EXPECT_EQ(get<1>(get<0>(zipped)).back(), "d");
+        EXPECT_EQ(get<1>(get<0>(zipped)).data(), vs1.data());
     }
 }

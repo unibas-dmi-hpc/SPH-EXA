@@ -45,9 +45,10 @@ static void sendListMinimalGpu()
     std::vector<KeyType> codes{0, 0, 1, 3, 4, 5, 6, 6, 9};
 
     int numRanks = 2;
-    SpaceCurveAssignment assignment(numRanks);
-    assignment.addRange(0, 0, 2, 0);
-    assignment.addRange(1, 2, 4, 0);
+    SfcAssignment<KeyType> assignment(numRanks);
+    assignment.set(0, tree[0], 0);
+    assignment.set(1, tree[2], 0);
+    assignment.set(2, tree[4], 0);
 
     thrust::device_vector<KeyType> d_keys = codes;
     thrust::device_vector<KeyType> d_searchKeys(numRanks);
@@ -56,7 +57,7 @@ static void sendListMinimalGpu()
     gsl::span<const KeyType> d_keyView{rawPtr(d_keys), d_keys.size()};
 
     // note: codes input needs to be sorted
-    auto sendList = createSendRangesGpu<KeyType>(assignment, tree, d_keyView, rawPtr(d_searchKeys), rawPtr(d_indices));
+    auto sendList = createSendRangesGpu(assignment, d_keyView, rawPtr(d_searchKeys), rawPtr(d_indices));
 
     EXPECT_EQ(sendList.count(0), 6);
     EXPECT_EQ(sendList.count(1), 3);

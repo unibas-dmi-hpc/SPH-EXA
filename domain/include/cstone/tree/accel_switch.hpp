@@ -68,4 +68,21 @@ struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<H
     using type = GpuCaseType<Args...>;
 };
 
+template<class Accelerator, class CpuCaseType, class GpuCaseType, class = void>
+struct AccelSwitchTypeSimple
+{
+};
+
+template<class Accelerator, class CpuCaseType, class GpuCaseType>
+struct AccelSwitchTypeSimple<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<!HaveGpu<Accelerator>{}>>
+{
+    using type = CpuCaseType;
+};
+
+template<class Accelerator, class CpuCaseType, class GpuCaseType>
+struct AccelSwitchTypeSimple<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<HaveGpu<Accelerator>{}>>
+{
+    using type = GpuCaseType;
+};
+
 } // namespace cstone

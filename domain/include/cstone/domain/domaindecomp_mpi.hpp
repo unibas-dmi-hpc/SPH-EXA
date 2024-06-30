@@ -49,7 +49,7 @@ size_t numElementsFit(size_t numBytesAvail, Arrays... arrays)
     return numBytesAvail / bytesPerElement;
 }
 
-void encodeSendCountCpu(uint64_t count, char* sendPtr) { memcpy(sendPtr, &count, sizeof(uint64_t)); }
+inline void encodeSendCountCpu(uint64_t count, char* sendPtr) { memcpy(sendPtr, &count, sizeof(uint64_t)); }
 
 template<class T>
 uint64_t decodeSendCountCpu(T* recvPtr)

@@ -232,23 +232,34 @@ void computeGravity(const TreeNodeIndex* childOffsets, const TreeNodeIndex* inte
 }
 
 //! @brief compute direct gravity sum for all particles [0:numParticles]
-template<class T1, class T2, class Tm>
-void directSum(const T1* x, const T1* y, const T1* z, const T2* h, const Tm* m, LocalIndex numParticles, float G,
-               T1* ax, T1* ay, T1* az, T1* ugrav)
+template<class Tc, class Th, class Tm>
+void directSum(const Tc* x, const Tc* y, const Tc* z, const Th* h, const Tm* m, LocalIndex numParticles, float G,
+               Vec3<Tc> boxL, int numShells, Tc* ax, Tc* ay, Tc* az, Tc* ugrav)
 {
 #pragma omp parallel for schedule(static)
     for (LocalIndex t = 0; t < numParticles; ++t)
     {
-        Vec4<T1> acc{0, 0, 0, 0};
-        Vec3<T1> target{x[t], y[t], z[t]};
-        T1       target_h = h[t];
+        Vec4<Tc> acc{0, 0, 0, 0};
+        Vec3<Tc> target{x[t], y[t], z[t]};
+        Tc       target_h = h[t];
+
+        for (int iz = -numShells; iz <= numShells; ++iz)
+        {
+            for (int iy = -numShells; iy <= numShells; ++iy)
+            {
+                for (int ix = -numShells; ix <= numShells; ++ix)
+                {
+                    auto targetRepl = target + Vec3<Tc>{ix * boxL[0], iy * boxL[1], iz * boxL[2]};
 
 #if defined(__llvm__) || defined(__clang__)
 #pragma clang loop vectorize(enable)
 #endif
-        for (LocalIndex s = 0; s < numParticles; ++s)
-        {
-            acc = P2P(acc, target, Vec3<T1>{x[s], y[s], z[s]}, m[s], target_h, h[s]);
+                    for (LocalIndex s = 0; s < numParticles; ++s)
+                    {
+                        acc = P2P(acc, targetRepl, Vec3<Tc>{x[s], y[s], z[s]}, m[s], target_h, h[s]);
+                    }
+                }
+            }
         }
 
         *(ugrav + t) += G * m[t] * acc[0];

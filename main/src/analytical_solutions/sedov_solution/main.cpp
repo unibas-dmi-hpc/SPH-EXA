@@ -51,7 +51,7 @@ void writeColumns1D(const std::string& path);
 
 int main(int argc, char** argv)
 {
-    const ArgParser parser(argc, argv);
+    const ArgParser parser(argc, (const char**)argv);
 
     if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))
     {

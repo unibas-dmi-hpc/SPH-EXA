@@ -34,6 +34,7 @@
 #include "cstone/fields/data_util.hpp"
 #include "cstone/tree/accel_switch.hpp"
 #include "cstone/util/constexpr_string.hpp"
+#include "cstone/util/value_list.hpp"
 
 namespace cstone
 {
@@ -85,25 +86,6 @@ template<util::StructuralString... Fields, class Dataset>
 decltype(auto) get(Dataset& d)
 {
     return get<util::FieldList<Fields...>>(d);
-}
-
-/*! @brief return a reference to the named field F from a tuple
- *
- * @tparam        F
- * @tparam        Dataset    a type with a fieldNames member with the same number of fields as @p tup
- * @tparam        Tuple
- * @param[inout]  tup        a tuple, for example the fields for a single particle
- * @return                   the field F from @p tup
- */
-template<util::StructuralString F,
-         class Dataset,
-         class Tuple,
-         std::enable_if_t<std::is_same_v<void, util::void_value_t<Dataset::fieldNames.size()>>, int> = 0>
-decltype(auto) get(Tuple&& tup)
-{
-    static_assert(std::tuple_size_v<std::decay_t<Tuple>> == Dataset::fieldNames.size(),
-                  "size of tuple must be identical to number of field names");
-    return getFields<Dataset>(std::forward<Tuple>(tup), util::FieldList<F>{});
 }
 
 //! @brief return a tuple of pointers to element i of @p tup = tuple of vector-like containers

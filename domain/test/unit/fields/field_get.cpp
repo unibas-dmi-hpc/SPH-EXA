@@ -37,22 +37,6 @@
 
 using namespace cstone;
 
-struct Testset
-{
-    inline static constexpr std::array fieldNames{"a", "b", "c"};
-};
-
-TEST(FieldGet, DatasetGet)
-{
-    auto tup = std::make_tuple(0, "alpha", 1.0);
-
-    auto& e_a = get<"a", Testset>(tup);
-    EXPECT_EQ(e_a, 0);
-
-    e_a = 1;
-    EXPECT_EQ(std::get<0>(tup), 1);
-}
-
 TEST(FieldGet, getPointers)
 {
     std::vector<double> vd{1.0, 2.0, 3.0};

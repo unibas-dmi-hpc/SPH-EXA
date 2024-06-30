@@ -1,5 +1,5 @@
 if(CMAKE_HIP_COMPILER)
-    set_source_files_properties(treebuilder.cu multipole_holder.cu PROPERTIES LANGUAGE HIP)
+    set_source_files_properties(ewald.cu treebuilder.cu multipole_holder.cu PROPERTIES LANGUAGE HIP)
 endif()
 
 if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
@@ -15,7 +15,7 @@ if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     endif()
     message(STATUS "MPI include is " ${MPI_CXX_INCLUDE_PATH})
 
-    add_library(ryoanji multipole_holder.cu)
+    add_library(ryoanji ewald.cu multipole_holder.cu)
     target_include_directories(ryoanji PUBLIC ${PROJECT_SOURCE_DIR}/src ${CSTONE_DIR} ${MPI_CXX_INCLUDE_PATH})
     target_link_libraries(ryoanji PUBLIC cstone_gpu ${MPI_CXX_LIBRARIES})
 endif()

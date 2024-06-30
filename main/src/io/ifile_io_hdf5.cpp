@@ -28,8 +28,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#pragma once
-
 #include <mpi.h>
 
 #include <filesystem>
@@ -37,14 +35,16 @@
 #include <variant>
 #include <vector>
 
-#include "init/grid.hpp"
+#include "ifile_io_impl.h"
 
-#include "file_utils.hpp"
+#ifdef SPH_EXA_HAVE_H5PART
 #include "h5part_wrapper.hpp"
-#include "ifile_io.hpp"
+#endif
 
 namespace sphexa
 {
+
+#ifdef SPH_EXA_HAVE_H5PART
 
 class H5PartWriter final : public IFileWriter
 {
@@ -56,11 +56,13 @@ public:
         : comm_(comm)
     {
         MPI_Comm_rank(comm, &rank_);
+        MPI_Comm_size(comm, &numRanks_);
     }
 
     ~H5PartWriter() override { closeStep(); }
 
     [[nodiscard]] int rank() const override { return rank_; }
+    [[nodiscard]] int numRanks() const override { return numRanks_; }
 
     std::string suffix() const override { return ".h5"; }
 
@@ -115,7 +117,7 @@ public:
     }
 
 private:
-    int      rank_{0};
+    int      rank_{0}, numRanks_{0};
     MPI_Comm comm_;
 
     size_t      firstIndex_{0};
@@ -123,6 +125,26 @@ private:
 
     H5PartFile* h5File_{nullptr};
 };
+
+std::unique_ptr<IFileWriter> makeH5PartWriter(MPI_Comm comm) { return std::make_unique<H5PartWriter>(comm); }
+
+inline auto partitionRange(size_t R, size_t i, size_t N)
+{
+    size_t s = R / N;
+    size_t r = R % N;
+    if (i < r)
+    {
+        size_t start = (s + 1) * i;
+        size_t end   = start + s + 1;
+        return std::make_tuple(start, end);
+    }
+    else
+    {
+        size_t start = (s + 1) * r + s * (i - r);
+        size_t end   = start + s;
+        return std::make_tuple(start, end);
+    }
+}
 
 class H5PartReader final : public IFileReader
 {
@@ -279,5 +301,14 @@ private:
 
     H5PartFile* h5File_;
 };
+
+std::unique_ptr<IFileReader> makeH5PartReader(MPI_Comm comm) { return std::make_unique<H5PartReader>(comm); }
+
+#else
+
+std::unique_ptr<IFileWriter> makeH5PartWriter(MPI_Comm) { return {}; }
+std::unique_ptr<IFileReader> makeH5PartReader(MPI_Comm) { return std::make_unique<UnimplementedReader>(); }
+
+#endif
 
 } // namespace sphexa

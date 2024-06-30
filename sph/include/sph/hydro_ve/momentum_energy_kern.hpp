@@ -66,9 +66,9 @@ template<bool avClean, size_t stride = 1, class Tc, class Tm, class T, class Tm1
 HOST_DEVICE_FUN inline void
 momentumAndEnergyJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
                        unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy,
-                       const T* vz, const T* h, const Tm* m, const T* prho, const T* c, const T* c11, const T* c12,
-                       const T* c13, const T* c22, const T* c23, const T* c33, const T Atmin, const T Atmax,
-                       const T ramp, const T* wh, const T* /*whd*/, const T* kx, const T* xm, const T* alpha,
+                       const T* vz, const T* h, const Tm* m, const T* prho, const T* tdpdTrho, const T* c, const T* c11,
+                       const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T Atmin,
+                       const T Atmax, const T ramp, const T* wh, const T* kx, const T* xm, const T* alpha,
                        const T* dV11, const T* dV12, const T* dV13, const T* dV22, const T* dV23, const T* dV33,
                        T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
 {
@@ -201,9 +201,9 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, c
         T    a_visc_z = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
         a_visc_energy += a_visc_x * vx_ij + a_visc_y * vy_ij + a_visc_z * vz_ij;
 
-        auto momentum_i = mj * prhoi * a_mom;
-        energy += momentum_i * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
+        energy += mj * a_mom * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
 
+        auto momentum_i = mj * prhoi * a_mom;
         auto momentum_j = mj * prho[j] * b_mom;
         momentum_x += momentum_i * termA1_i + momentum_j * termA1_j + a_visc_x;
         momentum_y += momentum_i * termA2_i + momentum_j * termA2_j + a_visc_y;
@@ -211,7 +211,8 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, c
     }
 
     a_visc_energy = stl::max(T(0), a_visc_energy);
-    du[i]         = K * (energy + T(0.5) * a_visc_energy); // factor of 2 already removed from 2P/rho
+    T eCoeff      = (tdpdTrho == nullptr) ? prhoi : tdpdTrho[i];
+    du[i]         = K * (eCoeff * energy + T(0.5) * a_visc_energy); // factor of 2 already removed from 2P/rho
 
     // grad_P_xyz is stored as the acceleration,s accel = -grad_P / rho
     grad_P_x[i] = -K * momentum_x;

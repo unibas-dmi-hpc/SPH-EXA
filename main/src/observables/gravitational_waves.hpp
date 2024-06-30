@@ -29,7 +29,9 @@
  */
 
 #include <array>
-#include "mpi.h"
+#include <mpi.h>
+
+#include "cstone/primitives/mpi_wrappers.hpp"
 #include "iobservables.hpp"
 #include "io/file_utils.hpp"
 #include "grav_waves_calculations.hpp"
@@ -93,19 +95,19 @@ template<class Dataset>
 class GravWaves : public IObservables<Dataset>
 {
     using T = typename Dataset::RealType;
-    std::ofstream& constantsFile;
-    T              viewTheta;
-    T              viewPhi;
+    std::ostream& constantsFile;
+    T             viewTheta;
+    T             viewPhi;
 
 public:
-    GravWaves(std::ofstream& constPath, T theta, T phi)
+    GravWaves(std::ostream& constPath, T theta, T phi)
         : constantsFile(constPath)
         , viewTheta(theta)
         , viewPhi(phi)
     {
     }
 
-    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
+    void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& /*box*/)
     {
         auto& d = simData.hydro;
         auto [httplus, httcross, d2xx, d2yy, d2zz, d2xy, d2xz, d2yz] =

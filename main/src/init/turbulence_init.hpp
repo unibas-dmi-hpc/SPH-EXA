@@ -47,11 +47,27 @@ namespace sphexa
 
 InitSettings TurbulenceConstants()
 {
-    return {{"solWeight", 0.5},    {"stMaxModes", 100000}, {"Lbox", 1.0},           {"stMachVelocity", 0.3e0},
-            {"minDt", 1e-4},       {"minDt_m1", 1e-4},     {"epsilon", 1e-15},      {"rngSeed", 251299},
-            {"stSpectForm", 1},    {"mTotal", 1.0},        {"powerLawExp", 5. / 3}, {"anglesExp", 2.0},
-            {"gamma", 1.001},      {"mui", 0.62},          {"u0", 1000.},           {"Kcour", 0.4},
-            {"gravConstant", 0.0}, {"ng0", 100},           {"ngmax", 150},          {"turbulence", 1.0}};
+    return {{"solWeight", 0.5},
+            {"stMaxModes", 100000},
+            {"Lbox", 1.0},
+            {"stEnergyPrefac", 5.0e-3},
+            {"stMachVelocity", 0.3e0},
+            {"minDt", 1e-4},
+            {"minDt_m1", 1e-4},
+            {"epsilon", 1e-15},
+            {"rngSeed", 251299},
+            {"stSpectForm", 1},
+            {"mTotal", 1.0},
+            {"powerLawExp", 5. / 3},
+            {"anglesExp", 2.0},
+            {"gamma", 1.001},
+            {"mui", 0.62},
+            {"u0", 1000.},
+            {"Kcour", 0.4},
+            {"gravConstant", 0.0},
+            {"ng0", 100},
+            {"ngmax", 150},
+            {"turbulence", 1.0}};
 }
 
 //! @brief init particle data fiels. Note: Dataset attributes must be initialized

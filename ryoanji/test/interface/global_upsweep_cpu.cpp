@@ -24,7 +24,8 @@
  */
 
 /*! @file
- * @brief GTest MPI driver
+ * @brief Compute an octree and multipoles from a set of particles distributed across ranks
+ *        and compare against a single-node reference computed from the same set.
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -80,7 +81,7 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
     const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();
     //! the focused octree, structure only
     auto                                         octree  = focusTree.octreeViewAcc();
-    gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
+    gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCentersAcc();
 
     std::vector<MultipoleType> multipoles(octree.numNodes);
     ryoanji::computeGlobalMultipoles(x.data(), y.data(), z.data(), m.data(), x.size(), domain.globalTree(), focusTree,

@@ -131,6 +131,7 @@ public:
      * @param[-]  layout           temporary storage for node count scan
      * @param[in] box              Global coordinate bounding box
      * @param[in] h                smoothing lengths of locally owned particles
+     * @param[in] searchExtFact    increases halo search radius to extend the depth of the ghost layer
      * @param[-]  scratchBuffer    host or device buffer for temporary use
      */
     template<class T, class Th, class Vector>
@@ -143,6 +144,7 @@ public:
                   gsl::span<LocalIndex> layout,
                   const Box<T>& box,
                   const Th* h,
+                  float searchExtFact,
                   Vector& scratch)
     {
         TreeNodeIndex firstNode      = focusAssignment[myRank_].start();
@@ -150,14 +152,15 @@ public:
         TreeNodeIndex numNodesSearch = lastNode - firstNode;
         TreeNodeIndex numLeafNodes   = counts.size();
 
-        reallocate(numLeafNodes, haloFlags_);
+        float growthRate = 1.05;
+        reallocate(numLeafNodes, growthRate, haloFlags_);
 
         if constexpr (HaveGpu<Accelerator>{})
         {
             // round up to multiple of 128 such that the radii pointer will be aligned
             size_t flagBytes  = round_up((numLeafNodes + 1) * sizeof(int), 128);
             size_t radiiBytes = numLeafNodes * sizeof(float);
-            size_t origSize   = reallocateBytes(scratch, flagBytes + radiiBytes);
+            size_t origSize   = reallocateBytes(scratch, flagBytes + radiiBytes, growthRate);
 
             auto* d_flags = reinterpret_cast<int*>(rawPtr(scratch));
             auto* d_radii = reinterpret_cast<float*>(rawPtr(scratch)) + flagBytes / sizeof(float);
@@ -165,7 +168,7 @@ public:
             exclusiveScanGpu(counts.data() + firstNode, counts.data() + lastNode + 1, layout.data() + firstNode);
             segmentMax(h, layout.data() + firstNode, numNodesSearch, d_radii + firstNode);
             // SPH convention: interaction radius = 2 * h
-            scaleGpu(d_radii, d_radii + numLeafNodes, 2.0f);
+            scaleGpu(d_radii, d_radii + numLeafNodes, 2.0f * searchExtFact);
 
             fillGpu(d_flags, d_flags + numLeafNodes, 0);
             findHalosGpu(prefixes, childOffsets, internalToLeaf, leaves, d_radii, box, firstNode, lastNode, d_flags);
@@ -183,7 +186,7 @@ public:
                 if (layout[i + 1] > layout[i])
                 {
                     // Note factor 2 due to SPH convention: interaction radius = 2 * h
-                    haloRadii[i + firstNode] = *std::max_element(h + layout[i], h + layout[i + 1]) * 2;
+                    haloRadii[i + firstNode] = *std::max_element(h + layout[i], h + layout[i + 1]) * 2 * searchExtFact;
                 }
             }
             std::fill(begin(haloFlags_), end(haloFlags_), 0);

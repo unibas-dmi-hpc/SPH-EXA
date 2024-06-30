@@ -332,7 +332,7 @@ HOST_DEVICE_FUN constexpr KeyType makePrefix(KeyType a)
  * @return      the power of 8 associated with the indicated octal place
  */
 template<class KeyType>
-constexpr KeyType octalPower(int pos)
+HOST_DEVICE_FUN constexpr KeyType octalPower(int pos)
 {
     return (KeyType(1) << 3 * (maxTreeLevel<KeyType>{} - pos));
 }
@@ -360,7 +360,7 @@ constexpr KeyType octalPower(int pos)
  *  subdivision level.
  */
 template<class KeyType, class Store>
-std::enable_if_t<std::is_same_v<Store, std::nullptr_t> || std::is_same_v<Store, KeyType*>, int>
+HOST_DEVICE_FUN std::enable_if_t<std::is_same_v<Store, std::nullptr_t> || std::is_same_v<Store, KeyType*>, int>
 spanSfcRange(KeyType a, KeyType b, [[maybe_unused]] Store output)
 {
     int numValues = 0;
@@ -402,7 +402,7 @@ spanSfcRange(KeyType a, KeyType b, [[maybe_unused]] Store output)
 //! @brief overload to skip storage and just compute number of values, see spanSfcRange(KeyType a, KeyType b, KeyType*
 //! output) above
 template<class KeyType>
-int spanSfcRange(KeyType a, KeyType b)
+HOST_DEVICE_FUN int spanSfcRange(KeyType a, KeyType b)
 {
     return spanSfcRange<KeyType, std::nullptr_t>(a, b, nullptr);
 }

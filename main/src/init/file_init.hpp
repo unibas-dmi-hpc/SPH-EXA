@@ -33,8 +33,6 @@
 
 #include "cstone/sfc/box.hpp"
 
-#include "io/arg_parser.hpp"
-#include "io/factory.hpp"
 #include "isim_init.hpp"
 
 namespace sphexa
@@ -70,8 +68,6 @@ auto restoreData(IFileReader* reader, SimulationData& simData)
     restoreDataset(reader, simData.hydro);
     restoreDataset(reader, simData.chem);
 
-    simData.hydro.iteration++;
-
     return box;
 }
 
@@ -83,9 +79,9 @@ class FileInit : public ISimInitializer<Dataset>
     int          initStep = -1;
 
 public:
-    explicit FileInit(const std::string& fname, IFileReader* reader)
-        : h5_fname(strBeforeSign(fname, ":"))
-        , initStep(numberAfterSign(fname, ":"))
+    explicit FileInit(const std::string& fname, int initStep_, IFileReader* reader)
+        : h5_fname(fname)
+        , initStep(initStep_)
     {
         // Read file attributes and put them in settings_ such that they propagate to the new output after a restart
         readFileAttributes(settings_, h5_fname, reader, false);
@@ -111,9 +107,9 @@ class FileSplitInit : public ISimInitializer<Dataset>
     int          numSplits;
 
 public:
-    explicit FileSplitInit(const std::string& fname, IFileReader* reader)
-        : h5_fname(strBeforeSign(fname, ","))
-        , numSplits(numberAfterSign(fname, ","))
+    explicit FileSplitInit(const std::string& fname, int numSplits_, IFileReader* reader)
+        : h5_fname(fname)
+        , numSplits(numSplits_)
     {
         if (numSplits < 1)
         {
@@ -223,6 +219,7 @@ public:
         replicateField(reader, "temp", d.temp, T(1));
 
         std::fill(d.du_m1.begin(), d.du_m1.end(), 0);
+        std::fill(d.rung.begin(), d.rung.end(), 0);
         std::transform(d.vx.begin(), d.vx.end(), d.x_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt; });
         std::transform(d.vy.begin(), d.vy.end(), d.y_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt; });
         std::transform(d.vz.begin(), d.vz.end(), d.z_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt; });

@@ -55,15 +55,16 @@ void haloExchangeGpu(int epoch,
                      DevVec2& receiveScratchBuffer,
                      Arrays... arrays)
 {
-    constexpr int alignment = 8;
-    using IndexType         = SendManifest::IndexType;
+    constexpr int alignment     = 8;
+    using IndexType             = SendManifest::IndexType;
+    const float allocGrowthRate = 1.05;
 
     int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
     std::vector<MPI_Request> sendRequests;
     std::vector<std::vector<char, util::DefaultInitAdaptor<char>>> sendBuffers;
 
-    const size_t oldSendSize =
-        reallocateBytes(sendScratchBuffer, computeTotalSendBytes<alignment>(outgoingHalos, -1, 0, arrays...));
+    const size_t oldSendSize = reallocateBytes(
+        sendScratchBuffer, computeTotalSendBytes<alignment>(outgoingHalos, -1, 0, arrays...), allocGrowthRate);
 
     size_t numRanges = std::max(maxNumRanges(outgoingHalos), maxNumRanges(incomingHalos));
     IndexType* d_range;
@@ -102,7 +103,7 @@ void haloExchangeGpu(int epoch,
     }
     size_t maxReceiveBytes = computeByteOffsets(maxReceiveSize, alignment, arrays...).back();
 
-    const size_t oldRecvSize = reallocateBytes(receiveScratchBuffer, maxReceiveBytes);
+    const size_t oldRecvSize = reallocateBytes(receiveScratchBuffer, maxReceiveBytes, allocGrowthRate);
     char* receiveBuffer      = reinterpret_cast<char*>(rawPtr(receiveScratchBuffer));
 
     while (numMessages > 0)
@@ -138,9 +139,7 @@ void haloExchangeGpu(int epoch,
     reallocateDevice(sendScratchBuffer, oldSendSize, 1.0);
     reallocateDevice(receiveScratchBuffer, oldRecvSize, 1.0);
 
-    // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
-    // across all ranks before calling this function again.
-    // MPI_Barrier(MPI_COMM_WORLD);
+    // MUST call MPI_Barrier, a collective MPI function or increment epoch before calling this function again.
 }
 
 } // namespace cstone

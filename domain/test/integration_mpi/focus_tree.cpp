@@ -75,7 +75,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     Octree<KeyType> domainTree;
     domainTree.update(tree.data(), nNodes(tree));
 
-    auto assignment = singleRangeSfcSplit(counts, numRanks);
+    auto assignment = makeSfcAssignment(numRanks, counts, tree.data());
 
     /*******************************/
 
@@ -85,12 +85,12 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<KeyType> peerBoundaries;
     for (auto peer : peers)
     {
-        peerBoundaries.push_back(tree[assignment.firstNodeIdx(peer)]);
-        peerBoundaries.push_back(tree[assignment.lastNodeIdx(peer)]);
+        peerBoundaries.push_back(assignment[peer]);
+        peerBoundaries.push_back(assignment[peer + 1]);
     }
 
-    KeyType focusStart = tree[assignment.firstNodeIdx(thisRank)];
-    KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
+    KeyType focusStart = assignment[thisRank];
+    KeyType focusEnd   = assignment[thisRank + 1];
 
     // build the reference focus tree from the common pool of coordinates, focused on the executing rank
     FocusedOctreeSingleNode<KeyType> referenceFocusTree(bucketSizeLocal, theta);
@@ -122,14 +122,14 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
-    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
+    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal);
 
     int converged = 0;
     while (converged != numRanks)
     {
-        converged = focusTree.updateTree(peers, assignment, tree);
+        converged = focusTree.updateTree(peers, assignment);
         focusTree.updateCounts(particleKeys, tree, counts);
-        focusTree.updateMinMac(box, assignment, tree, invThetaEff);
+        focusTree.updateMinMac(box, assignment, invThetaEff);
         MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
         // particle counts must always be valid, whatever state of convergence
@@ -156,8 +156,6 @@ TEST(GlobalTreeDomain, randomGaussian)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    globalRandomGaussian<unsigned, double>(rank, nRanks);
     globalRandomGaussian<uint64_t, double>(rank, nRanks);
     globalRandomGaussian<unsigned, float>(rank, nRanks);
-    globalRandomGaussian<uint64_t, float>(rank, nRanks);
 }

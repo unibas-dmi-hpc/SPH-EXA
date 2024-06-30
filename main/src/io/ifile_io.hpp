@@ -33,6 +33,7 @@
 #include <map>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include "cstone/util/type_list.hpp"
 
@@ -44,7 +45,7 @@ struct IO
     template<class T>
     using ConstPtr = const T*;
 
-    using Types = util::TypeList<double, float, char, int, int64_t, unsigned, uint64_t>;
+    using Types = util::TypeList<double, float, char, uint8_t, int, int64_t, unsigned, uint64_t>;
 };
 
 class IFileWriter
@@ -56,8 +57,9 @@ public:
     using FieldType   = util::Reduce<std::variant, util::Map<IO::ConstPtr, IO::Types>>;
     using FieldVector = util::Reduce<std::variant, util::Map<ToVec, IO::Types>>;
 
-    virtual int         rank() const   = 0;
-    virtual std::string suffix() const = 0;
+    virtual int         rank() const     = 0;
+    virtual int         numRanks() const = 0;
+    virtual std::string suffix() const   = 0;
 
     virtual ~IFileWriter() = default;
 

@@ -89,10 +89,12 @@ void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
     std::vector<Vec3<T>> centers(octree.numNodes), sizes(octree.numNodes);
     nodeFpCenters<KeyType>(nodeKeys, centers.data(), sizes.data(), box);
 
-    OctreeNsView<T, KeyType> nsView{octree.prefixes.data(),
+    OctreeNsView<T, KeyType> nsView{octree.numLeafNodes,
+                                    octree.prefixes.data(),
                                     octree.childOffsets.data(),
                                     octree.internalToLeaf.data(),
                                     octree.levelRange.data(),
+                                    nullptr,
                                     layout.data(),
                                     centers.data(),
                                     sizes.data()};
