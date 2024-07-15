@@ -1,3 +1,4 @@
+add_subdirectory(cuda)
 add_subdirectory(focus)
 add_subdirectory(halos)
 add_subdirectory(primitives)
@@ -13,5 +14,6 @@ if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
                            $<TARGET_OBJECTS:sfc_obj>
                            $<TARGET_OBJECTS:traversal_obj>
                            $<TARGET_OBJECTS:source_center_gpu_obj>
-                           $<TARGET_OBJECTS:reallocate_obj>)
+                           $<TARGET_OBJECTS:reallocate_obj>
+                           $<TARGET_OBJECTS:gpu_utils_obj>)
 endif ()
