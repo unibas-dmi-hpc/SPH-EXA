@@ -18,7 +18,7 @@
 
 using namespace cstone;
 
-TEST(CudaUtils, DeviceVector)
+TEST(DeviceVector, Construct)
 {
     DeviceVector<int> v;
 
@@ -45,4 +45,42 @@ TEST(CudaUtils, DeviceVector)
     std::iota(ref.begin(), ref.end(), 0);
 
     EXPECT_EQ(ref, h_v);
+}
+
+TEST(DeviceVector, PtrConstruct)
+{
+    std::vector<int> h{0, 1, 2, 3};
+    DeviceVector<int> a(h.data(), h.data() + h.size());
+
+    EXPECT_EQ(a.size(), h.size());
+    EXPECT_EQ(a.capacity(), h.size());
+
+    std::vector<int> dl = toHost(a);
+    EXPECT_EQ(dl, h);
+}
+
+TEST(DeviceVector, Swap)
+{
+    DeviceVector<int> a(10);
+    DeviceVector<int> b(20);
+
+    int* aData = a.data();
+    int* bData = b.data();
+
+    swap(a, b);
+
+    EXPECT_EQ(aData, b.data());
+    EXPECT_EQ(bData, a.data());
+}
+
+TEST(DeviceVector, Assign)
+{
+    DeviceVector<int> a(10);
+    DeviceVector<int> b(20);
+
+    a = b;
+    EXPECT_EQ(a.size(), b.size());
+
+    a = DeviceVector<int>{};
+    EXPECT_EQ(a.capacity(), 0);
 }

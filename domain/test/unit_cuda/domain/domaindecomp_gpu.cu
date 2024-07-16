@@ -26,10 +26,10 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/domain/domaindecomp_gpu.cuh"
 
 using namespace cstone;
+auto rp = [](auto& v) { return thrust::raw_pointer_cast(v.data()); };
 
 /*! @brief test SendList creation from a SFC assignment
  *
@@ -54,10 +54,10 @@ static void sendListMinimalGpu()
     thrust::device_vector<KeyType> d_searchKeys(numRanks);
     thrust::device_vector<LocalIndex> d_indices(numRanks);
 
-    gsl::span<const KeyType> d_keyView{rawPtr(d_keys), d_keys.size()};
+    gsl::span<const KeyType> d_keyView{rp(d_keys), d_keys.size()};
 
     // note: codes input needs to be sorted
-    auto sendList = createSendRangesGpu(assignment, d_keyView, rawPtr(d_searchKeys), rawPtr(d_indices));
+    auto sendList = createSendRangesGpu(assignment, d_keyView, rp(d_searchKeys), rp(d_indices));
 
     EXPECT_EQ(sendList.count(0), 6);
     EXPECT_EQ(sendList.count(1), 3);

@@ -34,6 +34,7 @@
 #include <iostream>
 #include <random>
 
+#define THRUST_DEVICE_SYSTEM THRUST_DEVICE_SYSTEM_OMP
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 

@@ -30,6 +30,8 @@
 
 #pragma once
 
+#include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/device_vector.h"
 #include "cstone/cuda/gpu_config.cuh"
 #include "cstone/primitives/math.hpp"
 #include "cstone/primitives/primitives_gpu.h"
@@ -263,21 +265,20 @@ __global__ void groupSplitsKernel(LocalIndex first,
 
 //! @brief convenience wrapper for groupSplitsKernel
 template<unsigned groupSize, class Tc, class T, class KeyType>
-void computeGroupSplits(
-    LocalIndex first,
-    LocalIndex last,
-    const Tc* x,
-    const Tc* y,
-    const Tc* z,
-    const T* h,
-    const KeyType* leaves,
-    TreeNodeIndex numLeaves,
-    const LocalIndex* layout,
-    const Box<Tc> box,
-    float tolFactor,
-    thrust::device_vector<util::array<GpuConfig::ThreadMask, groupSize / GpuConfig::warpSize>>& splitMasks,
-    thrust::device_vector<LocalIndex>& numSplitsPerGroup,
-    thrust::device_vector<LocalIndex>& groups)
+void computeGroupSplits(LocalIndex first,
+                        LocalIndex last,
+                        const Tc* x,
+                        const Tc* y,
+                        const Tc* z,
+                        const T* h,
+                        const KeyType* leaves,
+                        TreeNodeIndex numLeaves,
+                        const LocalIndex* layout,
+                        const Box<Tc> box,
+                        float tolFactor,
+                        DeviceVector<util::array<GpuConfig::ThreadMask, groupSize / GpuConfig::warpSize>>& splitMasks,
+                        DeviceVector<LocalIndex>& numSplitsPerGroup,
+                        DeviceVector<LocalIndex>& groups)
 {
     LocalIndex numParticles   = last - first;
     LocalIndex numFixedGroups = iceil(numParticles, groupSize);
@@ -296,7 +297,8 @@ void computeGroupSplits(
     groups.reserve(numFixedGroups * 1.1);
     groups.resize(numFixedGroups + 1);
     exclusiveScanGpu(rawPtr(numSplitsPerGroup), rawPtr(numSplitsPerGroup) + numFixedGroups + 1, rawPtr(groups));
-    LocalIndex newNumGroups = groups.back();
+    LocalIndex newNumGroups;
+    memcpyD2H(rawPtr(groups) + groups.size() - 1, 1, &newNumGroups);
 
     auto& newGroupSizes = numSplitsPerGroup;
     newGroupSizes.resize(newNumGroups);
@@ -306,7 +308,7 @@ void computeGroupSplits(
 
     groups.resize(newNumGroups + 1);
     exclusiveScanGpu(rawPtr(newGroupSizes), rawPtr(newGroupSizes) + newNumGroups + 1, rawPtr(groups), first);
-    groups.back() = last;
+    memcpyH2D(&last, 1, rawPtr(groups) + groups.size() - 1);
 }
 
 } // namespace cstone

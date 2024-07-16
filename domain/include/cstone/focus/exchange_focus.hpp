@@ -311,12 +311,12 @@ void syncTreelets(gsl::span<const int> peers,
     indexTreelets<KeyType>(octree.prefixes, octree.levelRange, treelets, treeletIdx);
 }
 
-template<class KeyType, class DAlloc>
+template<class KeyType>
 void syncTreeletsGpu(gsl::span<const int> peers,
                      gsl::span<const IndexPair<TreeNodeIndex>> assignment,
                      const std::vector<KeyType>& leaves,
                      OctreeData<KeyType, GpuTag>& octreeAcc,
-                     thrust::device_vector<KeyType, DAlloc>& leavesAcc,
+                     DeviceVector<KeyType>& leavesAcc,
                      std::vector<std::vector<KeyType>>& treelets,
                      std::vector<std::vector<TreeNodeIndex>>& treeletIdx)
 {
@@ -331,14 +331,14 @@ void syncTreeletsGpu(gsl::span<const int> peers,
     {
         assert(octreeAcc.childOffsets.size() >= nodeOps.size());
         gsl::span<TreeNodeIndex> nops(rawPtr(octreeAcc.childOffsets), nodeOps.size());
-        memcpyH2D(rawPtr(nodeOps), nodeOps.size(), nops.data());
+        memcpyH2D(nodeOps.data(), nodeOps.size(), nops.data());
 
         exclusiveScanGpu(nops.data(), nops.data() + nops.size(), nops.data());
         TreeNodeIndex newNumLeafNodes;
         memcpyD2H(nops.data() + nops.size() - 1, 1, &newNumLeafNodes);
 
         auto& newLeaves = octreeAcc.prefixes;
-        reallocateDestructive(newLeaves, newNumLeafNodes + 1, 1.05);
+        reallocate(newLeaves, newNumLeafNodes + 1, 1.05);
         rebalanceTreeGpu(rawPtr(leavesAcc), nNodes(leavesAcc), newNumLeafNodes, nops.data(), rawPtr(newLeaves));
         swap(newLeaves, leavesAcc);
 

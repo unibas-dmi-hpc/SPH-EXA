@@ -25,22 +25,17 @@
 
 /*! @file
  * @brief Reallocation of thrust device vectors in a separate compilation unit for use from .cpp code
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include "cstone/cuda/cuda_stubs.h"
 #include "cstone/util/tuple_util.hpp"
-
-template<class Vector>
-extern void reallocateDevice(Vector&, size_t, double);
-
-template<class Vector>
-extern void reallocateDeviceShrink(Vector&, size_t, double, double);
 
 //! @brief resizes a vector with a determined growth rate upon reallocation
 template<class Vector>
-void reallocateGeneric(Vector& vector, size_t size, double growthRate)
+void reallocate(Vector& vector, size_t size, double growthRate)
 {
     size_t current_capacity = vector.capacity();
 
@@ -50,18 +45,6 @@ void reallocateGeneric(Vector& vector, size_t size, double growthRate)
         vector.reserve(reserve_size);
     }
     vector.resize(size);
-}
-
-template<class Vector, std::enable_if_t<IsDeviceVector<Vector>{}, int> = 0>
-void reallocate(Vector& vector, size_t size, double growthRate)
-{
-    reallocateDevice(vector, size, growthRate);
-}
-
-template<class Vector, std::enable_if_t<!IsDeviceVector<Vector>{}, int> = 0>
-void reallocate(Vector& vector, size_t size, double growthRate)
-{
-    reallocateGeneric(vector, size, growthRate);
 }
 
 //! @brief if reallocation of the underlying buffer is necessary, first deallocate it

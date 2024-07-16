@@ -136,8 +136,8 @@ void haloExchangeGpu(int epoch,
     }
 
     checkGpuErrors(cudaFree(d_range));
-    reallocateDevice(sendScratchBuffer, oldSendSize, 1.0);
-    reallocateDevice(receiveScratchBuffer, oldRecvSize, 1.0);
+    reallocate(sendScratchBuffer, oldSendSize, 1.0);
+    reallocate(receiveScratchBuffer, oldRecvSize, 1.0);
 
     // MUST call MPI_Barrier, a collective MPI function or increment epoch before calling this function again.
 }

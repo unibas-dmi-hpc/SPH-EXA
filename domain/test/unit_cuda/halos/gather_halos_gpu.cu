@@ -36,7 +36,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-#include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/thrust_util.cuh"
 #include "cstone/halos/gather_halos_gpu.h"
 
 using namespace cstone;

@@ -27,11 +27,7 @@
  * @brief internal octree GPU testing
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- *
  */
-
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
 
 #include "gtest/gtest.h"
 
@@ -45,7 +41,7 @@ template<class KeyType>
 void compareAgainstCpu(const std::vector<KeyType>& tree)
 {
     // upload cornerstone tree to device
-    thrust::device_vector<KeyType> d_leaves = tree;
+    DeviceVector<KeyType> d_leaves = tree;
 
     OctreeData<KeyType, GpuTag> gpuTree;
     gpuTree.resize(nNodes(tree));
@@ -55,7 +51,7 @@ void compareAgainstCpu(const std::vector<KeyType>& tree)
     Octree<KeyType> cpuTree;
     cpuTree.update(tree.data(), nNodes(tree));
 
-    thrust::host_vector<KeyType> h_prefixes = gpuTree.prefixes;
+    std::vector<KeyType> h_prefixes = toHost(gpuTree.prefixes);
     for (auto& p : h_prefixes)
     {
         p = decodePlaceholderBit(p);
@@ -67,13 +63,13 @@ void compareAgainstCpu(const std::vector<KeyType>& tree)
         EXPECT_EQ(h_prefixes[i], cpuTree.codeStart(i));
     }
 
-    thrust::host_vector<TreeNodeIndex> h_children = gpuTree.childOffsets;
+    std::vector<TreeNodeIndex> h_children = toHost(gpuTree.childOffsets);
     for (TreeNodeIndex i = 0; i < cpuTree.numTreeNodes(); ++i)
     {
         EXPECT_EQ(h_children[i], cpuTree.child(i, 0));
     }
 
-    thrust::host_vector<TreeNodeIndex> h_parents = gpuTree.parents;
+    std::vector<TreeNodeIndex> h_parents = toHost(gpuTree.parents);
     for (TreeNodeIndex i = 0; i < cpuTree.numTreeNodes(); ++i)
     {
         EXPECT_EQ(h_parents[(i - 1) / 8], cpuTree.parent(i));
@@ -81,7 +77,7 @@ void compareAgainstCpu(const std::vector<KeyType>& tree)
 
     EXPECT_EQ(gpuTree.levelRange.size(), cpuTree.levelRange().size());
     EXPECT_EQ(gpuTree.levelRange.size(), maxTreeLevel<KeyType>{} + 2);
-    thrust::host_vector<TreeNodeIndex> h_levelRange = gpuTree.levelRange;
+    std::vector<TreeNodeIndex> h_levelRange = toHost(gpuTree.levelRange);
     for (unsigned level = 0; level < gpuTree.levelRange.size(); ++level)
     {
         EXPECT_EQ(h_levelRange[level], cpuTree.levelRange()[level]);

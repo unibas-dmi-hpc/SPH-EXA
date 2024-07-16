@@ -98,8 +98,8 @@ public:
 
         setMapFromCodes(first, last, (KeyType*)rawPtr(keyBuf), (IndexType*)rawPtr(valueBuf));
 
-        reallocateDevice(keyBuf, s1, 1.0);
-        reallocateDevice(valueBuf, s2, 1.0);
+        reallocate(keyBuf, s1, 1.0);
+        reallocate(valueBuf, s2, 1.0);
     }
 
     auto gatherFunc() const { return gatherGpuL; }

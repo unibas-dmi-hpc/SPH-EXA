@@ -33,11 +33,13 @@
 
 #include <thrust/execution_policy.h>
 #include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
 #include <thrust/gather.h>
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/thrust_util.cuh"
 #include "cstone/sfc/sfc_gpu.h"
 #include "cstone/tree/octree_gpu.h"
 #include "cstone/tree/update_gpu.cuh"
@@ -144,7 +146,7 @@ int TreeBuilder<KeyType>::Impl::extract(int2* h_levelRange)
     thrust::copy(d_counts_.begin(), d_counts_.end(), d_layout_.begin());
     thrust::exclusive_scan(d_layout_.data(), d_layout_.data() + d_layout_.size(), d_layout_.data());
 
-    thrust::host_vector<int> cs_levelRange = octreeGpuData_.levelRange;
+    std::vector<int> cs_levelRange = toHost(octreeGpuData_.levelRange);
 
     int numLevels = 0;
     for (int level = 0; level <= cstone::maxTreeLevel<KeyType>{}; ++level)

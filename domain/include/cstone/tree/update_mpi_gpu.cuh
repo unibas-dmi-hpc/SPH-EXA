@@ -64,12 +64,12 @@ bool updateOctreeGlobalGpu(const KeyType* keyStart,
     bool converged    = tree.rebalance(bucketSize, counts);
 
     counts.resize(tree.numLeafNodes());
-    reallocateDevice(d_csTree, tree.numLeafNodes() + 1, 1.01);
-    reallocateDevice(d_counts, tree.numLeafNodes(), 1.01);
+    reallocate(d_csTree, tree.numLeafNodes() + 1, 1.01);
+    reallocate(d_counts, tree.numLeafNodes(), 1.01);
 
-    thrust::copy_n(tree.treeLeaves().data(), d_csTree.size(), d_csTree.begin());
+    memcpyH2D(tree.treeLeaves().data(), d_csTree.size(), d_csTree.data());
     computeNodeCountsGpu(rawPtr(d_csTree), rawPtr(d_counts), tree.numLeafNodes(), keyStart, keyEnd, maxCount, true);
-    thrust::copy(d_counts.begin(), d_counts.end(), counts.begin());
+    memcpyD2H(d_counts.data(), d_counts.size(), counts.data());
 
     std::vector<unsigned> counts_reduced(counts.size());
     MPI_Allreduce(counts.data(), counts_reduced.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);

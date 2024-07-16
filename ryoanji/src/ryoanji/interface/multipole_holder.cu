@@ -32,6 +32,7 @@
 #include <thrust/device_vector.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/thrust_util.cuh"
 #include "cstone/primitives/math.hpp"
 #include "cstone/util/reallocate.hpp"
 #include "ryoanji/nbody/cartesian_qpole.hpp"
@@ -55,7 +56,7 @@ public:
                                    const Th* h, const cstone::FocusedOctree<KeyType, Tf, cstone::GpuTag>& focusTree,
                                    const cstone::LocalIndex* layout, const cstone::Box<Tc>& box)
     {
-        thrust::device_vector<util::array<GpuConfig::ThreadMask, TravConfig::nwt>> S;
+        cstone::DeviceVector<util::array<GpuConfig::ThreadMask, TravConfig::nwt>> S;
 
         auto  d_leaves  = focusTree.treeLeavesAcc();
         float tolFactor = 2.0f;
@@ -146,7 +147,7 @@ public:
 
         resetTraversalCounters<<<1, 1>>>();
 
-        reallocateGeneric(traversalStack_, poolSize, 1.01);
+        reallocate(traversalStack_, poolSize, 1.01);
         traverse<<<numBlocks, TravConfig::numThreads>>>(grp, 1, x, y, z, m, h, octree_.childOffsets,
                                                         octree_.internalToLeaf, layout_, centers_, rawPtr(multipoles_),
                                                         G, numShells, Vec3<Tc>{box.lx(), box.ly(), box.lz()},
@@ -183,7 +184,7 @@ private:
             multipoles_.clear();
             multipoles_.shrink_to_fit();
         }
-        reallocateGeneric(multipoles_, numNodes, growthRate);
+        reallocate(multipoles_, numNodes, growthRate);
     }
 
     cstone::OctreeView<const KeyType> octree_;
@@ -197,7 +198,7 @@ private:
     cstone::GroupData<cstone::GpuTag> groups_;
 
     //! @brief temporary memory during traversal
-    thrust::device_vector<LocalIndex> traversalStack_;
+    cstone::DeviceVector<LocalIndex> traversalStack_;
 };
 
 template<class Tc, class Th, class Tm, class Ta, class Tf, class KeyType, class MType>

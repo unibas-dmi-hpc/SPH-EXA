@@ -43,9 +43,7 @@
 
 #include <vector>
 
-#include "cstone/util/gsl-lite.hpp"
 #include "cstone/domain/index_ranges.hpp"
-
 #include "cstone/focus/inject.hpp"
 #include "cstone/focus/rebalance.hpp"
 #include "cstone/focus/rebalance_gpu.h"
@@ -58,6 +56,7 @@
 #include "cstone/tree/octree.hpp"
 #include "cstone/tree/octree_gpu.h"
 #include "cstone/traversal/traversal.hpp"
+#include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
 {
@@ -152,9 +151,8 @@ struct CombinedUpdate
      * @param[in] macs            MAC pass/fail results for each node, length = tree_.numTreeNodes()
      * @return                    true if the tree structure did not change
      */
-    template<class Alloc>
     static bool updateFocusGpu(OctreeData<KeyType, GpuTag>& tree,
-                               thrust::device_vector<KeyType, Alloc>& leaves,
+                               DeviceVector<KeyType>& leaves,
                                unsigned bucketSize,
                                KeyType focusStart,
                                KeyType focusEnd,
@@ -175,7 +173,7 @@ struct CombinedUpdate
 
         auto status = ResolutionStatus::converged;
 
-        thrust::device_vector<KeyType, Alloc> d_mandatoryKeys;
+        DeviceVector<KeyType> d_mandatoryKeys;
         reallocate(d_mandatoryKeys, mandatoryKeys.size(), 1.0);
         memcpyH2D(mandatoryKeys.data(), mandatoryKeys.size(), rawPtr(d_mandatoryKeys));
         status         = enforceKeysGpu(rawPtr(d_mandatoryKeys), d_mandatoryKeys.size(), rawPtr(tree.prefixes),
@@ -272,16 +270,16 @@ bool macRefine(OctreeData<KeyType, CpuTag>& tree,
     TreeNodeIndex fEnd   = findNodeAbove(rawPtr(leaves), nNodes(leaves), focusEnd);
 
     markMacs(rawPtr(tree.prefixes), rawPtr(tree.childOffsets), rawPtr(centers), box, rawPtr(leaves) + fStart,
-             fGrowL - fStart, true, rawPtr(macs));
+             fGrowL - fStart, true, macs.data());
     markMacs(rawPtr(tree.prefixes), rawPtr(tree.childOffsets), rawPtr(centers), box, rawPtr(leaves) + fGrowU,
-             fEnd - fGrowU, true, rawPtr(macs));
+             fEnd - fGrowU, true, macs.data());
 
     return updateMacRefine(tree, leaves, macs, {fStart, fEnd});
 }
 
-template<class KeyType, class Alloc>
+template<class KeyType>
 bool updateMacRefineGpu(OctreeData<KeyType, GpuTag>& tree,
-                        thrust::device_vector<KeyType, Alloc>& leaves,
+                        DeviceVector<KeyType>& leaves,
                         const char* macs,
                         TreeIndexPair focus)
 {
@@ -307,11 +305,11 @@ bool updateMacRefineGpu(OctreeData<KeyType, GpuTag>& tree,
     return converged;
 }
 
-template<class T, class KeyType, template<class> class Alloc>
+template<class T, class KeyType>
 bool macRefineGpu(OctreeData<KeyType, GpuTag>& tree,
-                  thrust::device_vector<KeyType, Alloc<KeyType>>& leaves,
-                  thrust::device_vector<SourceCenterType<T>, Alloc<SourceCenterType<T>>>& centers,
-                  thrust::device_vector<char, Alloc<char>>& macs,
+                  DeviceVector<KeyType>& leaves,
+                  DeviceVector<SourceCenterType<T>>& centers,
+                  DeviceVector<char>& macs,
                   KeyType oldFocusStart,
                   KeyType oldFocusEnd,
                   KeyType focusStart,
@@ -320,11 +318,11 @@ bool macRefineGpu(OctreeData<KeyType, GpuTag>& tree,
                   const Box<T>& box)
 {
     if (oldFocusStart == focusStart && oldFocusEnd == focusEnd) { return true; }
-    reallocateDevice(centers, tree.numNodes, 1.05);
+    reallocate(centers, tree.numNodes, 1.05);
     geoMacSpheresGpu(rawPtr(tree.prefixes), tree.numNodes, rawPtr(centers), invTheta, box);
 
-    reallocateDevice(macs, tree.numNodes, 1.05);
-    fillGpu(rawPtr(macs), rawPtr(macs) + macs.size(), char(0));
+    reallocate(macs, tree.numNodes, 1.05);
+    fillGpu(macs.data(), macs.data() + macs.size(), char(0));
 
     KeyType growthLower = focusStart < oldFocusStart ? oldFocusStart : focusStart;
     KeyType growthUpper = oldFocusEnd < focusEnd ? oldFocusEnd : focusEnd;
@@ -335,11 +333,11 @@ bool macRefineGpu(OctreeData<KeyType, GpuTag>& tree,
     TreeNodeIndex fGrowU = lowerBoundGpu(rawPtr(leaves), rawPtr(leaves) + nNodes(leaves), growthUpper);
 
     markMacsGpu(rawPtr(tree.prefixes), rawPtr(tree.childOffsets), rawPtr(centers), box, rawPtr(leaves) + fStart,
-                fGrowL - fStart, true, rawPtr(macs));
+                fGrowL - fStart, true, macs.data());
     markMacsGpu(rawPtr(tree.prefixes), rawPtr(tree.childOffsets), rawPtr(centers), box, rawPtr(leaves) + fGrowU,
-                fEnd - fGrowU, true, rawPtr(macs));
+                fEnd - fGrowU, true, macs.data());
 
-    return updateMacRefineGpu(tree, leaves, rawPtr(macs), {fStart, fEnd});
+    return updateMacRefineGpu(tree, leaves, macs.data(), {fStart, fEnd});
 }
 
 /*! @brief A fully traversable octree, locally focused w.r.t a MinMac criterion

@@ -31,7 +31,7 @@ template<class Dataset>
 void computeSpatialGroups(size_t startIndex, size_t endIndex, Dataset& d,
                           const cstone::Box<typename Dataset::RealType>& box, GroupData<cstone::GpuTag>& groups)
 {
-    thrust::device_vector<util::array<GpuConfig::ThreadMask, TravConfig::nwt>> S;
+    cstone::DeviceVector<util::array<GpuConfig::ThreadMask, TravConfig::nwt>> S;
 
     float tolFactor = 2.0f;
     cstone::computeGroupSplits<TravConfig::targetSize>(startIndex, endIndex, rawPtr(d.devData.x), rawPtr(d.devData.y),

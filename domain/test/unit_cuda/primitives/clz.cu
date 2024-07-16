@@ -34,7 +34,6 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-#include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/gpu_config.cuh"
 #include "cstone/primitives/clz.hpp"
 
@@ -54,7 +53,7 @@ void ctzTest()
     thrust::host_vector<T> h_v(GpuConfig::warpSize);
     thrust::device_vector<T> d_v = h_v;
 
-    testCtz<<<1, GpuConfig::warpSize>>>(rawPtr(d_v));
+    testCtz<<<1, GpuConfig::warpSize>>>(thrust::raw_pointer_cast(d_v.data()));
     h_v = d_v;
 
     EXPECT_EQ(h_v[1], 0);

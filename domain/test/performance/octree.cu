@@ -35,6 +35,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 
+#include "cstone/cuda/thrust_util.cuh"
 #include "cstone/traversal/collisions_gpu.h"
 #include "cstone/tree/update_gpu.cuh"
 #include "cstone/tree/octree_gpu.h"
@@ -114,8 +115,8 @@ int main()
     octree.resize(nNodes(tree));
     auto buildInternal = [&]() { buildOctreeGpu(rawPtr(tree), octree.data()); };
 
-    float internalBuildTime                   = timeGpu(buildInternal);
-    thrust::host_vector<TreeNodeIndex> ranges = octree.levelRange;
+    float internalBuildTime           = timeGpu(buildInternal);
+    std::vector<TreeNodeIndex> ranges = toHost(octree.levelRange);
     std::cout << "internal build time " << internalBuildTime / 1000 << std::endl;
     std::cout << "level ranges: ";
     for (int i = 0; i <= maxTreeLevel<KeyType>{}; ++i)

@@ -36,6 +36,7 @@
 #include <thrust/device_vector.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/thrust_util.cuh"
 #include "cstone/findneighbors.hpp"
 #include "cstone/primitives/math.hpp"
 

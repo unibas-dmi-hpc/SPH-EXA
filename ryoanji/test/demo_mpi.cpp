@@ -29,9 +29,8 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <chrono>
 #include <mpi.h>
-
-#include <thrust/device_vector.h>
 
 #define USE_CUDA
 #include "cstone/cuda/cuda_utils.cuh"
@@ -71,22 +70,22 @@ void ryoanjiTest(int thisRank, int numRanks, size_t numParticlesGlobal)
     cstone::Domain<KeyType, T, AccType> domain(thisRank, numRanks, bucketSizeGlobal, bucketSizeFocus, theta, box);
 
     // upload particles to GPU
-    thrust::device_vector<KeyType> d_keys = std::vector<KeyType>(numParticles);
-    thrust::device_vector<T>       d_x    = coords.x();
-    thrust::device_vector<T>       d_y    = coords.y();
-    thrust::device_vector<T>       d_z    = coords.z();
-    thrust::device_vector<T>       d_h    = h;
-    thrust::device_vector<T>       d_m    = m;
-    thrust::device_vector<T>       s1, s2, s3; // scratch buffers for sorting, reordering, etc
+    cstone::DeviceVector<KeyType> d_keys = std::vector<KeyType>(numParticles);
+    cstone::DeviceVector<T>       d_x    = coords.x();
+    cstone::DeviceVector<T>       d_y    = coords.y();
+    cstone::DeviceVector<T>       d_z    = coords.z();
+    cstone::DeviceVector<T>       d_h    = h;
+    cstone::DeviceVector<T>       d_m    = m;
+    cstone::DeviceVector<T>       s1, s2, s3; // scratch buffers for sorting, reordering, etc
 
     //! Build octrees, decompose domain and distribute particles and halos, may resize buffers
     domain.syncGrav(d_keys, d_x, d_y, d_z, d_h, d_m, std::tuple{}, std::tie(s1, s2, s3));
     //! halos for x,y,z,h are already exchanged in syncGrav
     domain.exchangeHalos(std::tie(d_m), s1, s2);
 
-    thrust::device_vector<T> d_ax = std::vector<T>(domain.nParticlesWithHalos());
-    thrust::device_vector<T> d_ay = std::vector<T>(domain.nParticlesWithHalos());
-    thrust::device_vector<T> d_az = std::vector<T>(domain.nParticlesWithHalos());
+    cstone::DeviceVector<T> d_ax = std::vector<T>(domain.nParticlesWithHalos());
+    cstone::DeviceVector<T> d_ay = std::vector<T>(domain.nParticlesWithHalos());
+    cstone::DeviceVector<T> d_az = std::vector<T>(domain.nParticlesWithHalos());
 
     //! includes tree plus associated information, like nearby ranks, assignment, counts, MAC spheres, etc
     const cstone::FocusedOctree<KeyType, T, cstone::GpuTag>& focusTree = domain.focusTree();
