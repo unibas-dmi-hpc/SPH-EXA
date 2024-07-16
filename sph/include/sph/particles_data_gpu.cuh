@@ -31,11 +31,10 @@
 #pragma once
 
 #include <cuda_runtime.h>
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
 #include <variant>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/device_vector.h"
 #include "cstone/fields/field_states.hpp"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/tree/accel_switch.hpp"
@@ -51,7 +50,7 @@ namespace sphexa
 class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData>
 {
     template<class FType>
-    using DevVector = thrust::device_vector<FType>;
+    using DevVector = cstone::DeviceVector<FType>;
 
     using KeyType   = sph::SphTypes::KeyType;
     using RealType  = sph::SphTypes::CoordinateType;
@@ -167,7 +166,7 @@ public:
         {
             if (this->isAllocated(i))
             {
-                std::visit([size, growthRate](auto* arg) { reallocateDevice(*arg, size, growthRate); }, data_[i]);
+                std::visit([size, growthRate](auto* arg) { reallocate(*arg, size, growthRate); }, data_[i]);
             }
         }
     }

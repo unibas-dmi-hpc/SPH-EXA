@@ -32,8 +32,6 @@
 
 #include <mpi.h>
 
-#include <thrust/device_vector.h>
-
 #define USE_CUDA
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/domain/domain.hpp"
@@ -81,9 +79,9 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
     MultipoleHolder<T, T, T, T, T, KeyType, MultipoleType> multipoleHolder;
 
-    thrust::device_vector<KeyType> d_keys = particleKeys;
-    thrust::device_vector<T>       d_x = x, d_y = y, d_z = z, d_h = h, d_m = m;
-    thrust::device_vector<T>       s1, s2, s3;
+    cstone::DeviceVector<KeyType> d_keys = particleKeys;
+    cstone::DeviceVector<T>       d_x = x, d_y = y, d_z = z, d_h = h, d_m = m;
+    cstone::DeviceVector<T>       s1, s2, s3;
     domain.syncGrav(d_keys, d_x, d_y, d_z, d_h, d_m, std::tuple{}, std::tie(s1, s2, s3));
     domain.exchangeHalos(std::tie(d_m), s1, s2);
 
@@ -99,8 +97,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     // Check the root multipole of the distributed tree
     bool passMultipole = false;
     {
-        auto devM = thrust::device_pointer_cast(multipoleHolder.deviceMultipoles());
-        thrust::copy(devM, devM + multipoles.size(), multipoles.data());
+        memcpyD2H(multipoleHolder.deviceMultipoles(), multipoles.size(), multipoles.data());
 
         MultipoleType globalRootMultipole = multipoles[0];
 

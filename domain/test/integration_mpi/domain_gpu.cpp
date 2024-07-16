@@ -41,14 +41,10 @@
 
 #include "gtest/gtest.h"
 
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
-
 #define USE_CUDA
 
 #include "coord_samples/random.hpp"
 #include "cstone/domain/domain.hpp"
-
 #include "cstone/util/reallocate.hpp"
 
 using namespace cstone;
@@ -98,21 +94,21 @@ void randomGaussianAssignment(int rank, int numRanks)
     std::vector<uint8_t> rungs(numParticles, rank);
     initCoordinates(x, y, z, box, rank);
 
-    thrust::device_vector<KeyType> d_keys;
-    reallocateDevice(d_keys, numParticles, 1.0);
-    thrust::device_vector<T> d_x = x;
-    thrust::device_vector<T> d_y = y;
-    thrust::device_vector<T> d_z = z;
-    thrust::device_vector<T> d_h = h;
-    thrust::device_vector<T> d_m = m;
-    thrust::device_vector<uint8_t> d_rungs = rungs;
+    DeviceVector<KeyType> d_keys;
+    reallocate(d_keys, numParticles, 1.0);
+    DeviceVector<T> d_x           = x;
+    DeviceVector<T> d_y           = y;
+    DeviceVector<T> d_z           = z;
+    DeviceVector<T> d_h           = h;
+    DeviceVector<T> d_m           = m;
+    DeviceVector<uint8_t> d_rungs = rungs;
 
     Domain<KeyType, T, CpuTag> domainCpu(rank, numRanks, bucketSize, bucketSizeFocus, 1.0, box);
     std::vector<T> hs1, hs2, hs3;
     domainCpu.sync(keys, x, y, z, h, std::tie(m, rungs), std::tie(hs1, hs2, hs3));
 
     Domain<KeyType, T, GpuTag> domainGpu(rank, numRanks, bucketSize, bucketSizeFocus, 1.0, box);
-    thrust::device_vector<T> s1, s2, s3;
+    DeviceVector<T> s1, s2, s3;
     domainGpu.sync(d_keys, d_x, d_y, d_z, d_h, std::tie(d_m, d_rungs), std::tie(s1, s2, s3));
 
     std::cout << "numHalos " << domainGpu.nParticlesWithHalos() - domainGpu.nParticles() << " cpu "
@@ -126,18 +122,15 @@ void randomGaussianAssignment(int rank, int numRanks)
     EXPECT_EQ(d_x.size(), x.size());
 
     {
-        std::vector<KeyType> dl(d_keys.size());
-        thrust::copy_n(d_keys.data(), d_keys.size(), dl.data());
+        std::vector<KeyType> dl = toHost(d_keys);
         EXPECT_TRUE(std::equal(dl.begin(), dl.end(), keys.begin()));
     }
     {
-        std::vector<T> dl(d_x.size());
-        thrust::copy_n(d_x.data(), d_x.size(), dl.data());
+        std::vector<T> dl = toHost(d_x);
         EXPECT_TRUE(std::equal(dl.begin(), dl.end(), x.begin()));
     }
     {
-        std::vector<uint8_t> rung_dl(d_rungs.size());
-        thrust::copy_n(d_rungs.data(), d_rungs.size(), rung_dl.data());
+        std::vector<uint8_t> rung_dl = toHost(d_rungs);
         EXPECT_TRUE(std::equal(rung_dl.begin() + domainGpu.startIndex(), rung_dl.begin() + domainGpu.endIndex(),
                                rungs.begin() + domainGpu.startIndex()));
     }
@@ -176,23 +169,23 @@ TEST(DomainGpu, reapplySync)
     std::vector<Real> h(numParticlesPerRank, 0.1 / std::cbrt(numRanks));
     std::vector<KeyType> keys(x.size());
 
-    thrust::device_vector<Real> d_x       = x;
-    thrust::device_vector<Real> d_y       = y;
-    thrust::device_vector<Real> d_z       = z;
-    thrust::device_vector<Real> d_h       = h;
-    thrust::device_vector<KeyType> d_keys = keys;
+    DeviceVector<Real> d_x       = x;
+    DeviceVector<Real> d_y       = y;
+    DeviceVector<Real> d_z       = z;
+    DeviceVector<Real> d_h       = h;
+    DeviceVector<KeyType> d_keys = keys;
 
     Domain<KeyType, Real, GpuTag> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
 
-    thrust::device_vector<Real> s1, s2, gpuOrdering;
+    DeviceVector<Real> s1, s2, gpuOrdering;
     domain.sync(d_keys, d_x, d_y, d_z, d_h, std::tuple{}, std::tie(s1, s2, gpuOrdering));
 
     // modify coordinates
     {
         RandomCoordinates<Real, SfcKind<KeyType>> scord(domain.nParticles(), box, numRanks + rank);
-        thrust::copy(scord.x().begin(), scord.x().end(), d_x.begin() + domain.startIndex());
-        thrust::copy(scord.y().begin(), scord.y().end(), d_y.begin() + domain.startIndex());
-        thrust::copy(scord.z().begin(), scord.z().end(), d_z.begin() + domain.startIndex());
+        memcpyH2D(scord.x().data(), scord.x().size(), d_x.data() + domain.startIndex());
+        memcpyH2D(scord.y().data(), scord.y().size(), d_y.data() + domain.startIndex());
+        memcpyH2D(scord.z().data(), scord.z().size(), d_z.data() + domain.startIndex());
     }
 
     std::vector<Real> host_property(d_x.size());
@@ -200,7 +193,7 @@ TEST(DomainGpu, reapplySync)
     {
         host_property[i] = numParticlesPerRank * rank + i;
     }
-    thrust::device_vector<Real> property = host_property;
+    DeviceVector<Real> property = host_property;
 
     // exchange property together with sync
     domain.sync(d_keys, d_x, d_y, d_z, d_h, std::tie(property), std::tie(s1, s2, gpuOrdering));
@@ -210,7 +203,7 @@ TEST(DomainGpu, reapplySync)
 
     EXPECT_EQ(property.size(), host_property.size());
 
-    thrust::host_vector<Real> dl_property = property;
+    std::vector<Real> dl_property = toHost(property);
 
     int numPass = 0;
     for (int i = domain.startIndex(); i < domain.endIndex(); ++i)

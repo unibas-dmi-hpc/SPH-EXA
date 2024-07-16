@@ -32,11 +32,9 @@
 
 #include <mpi.h>
 
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
-
 #define USE_CUDA
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/device_vector.h"
 #include "cstone/domain/domain.hpp"
 #include "cstone/findneighbors.hpp"
 #include "coord_samples/random.hpp"
@@ -85,16 +83,16 @@ static int multipoleHolderTest(int thisRank, int numRanks)
 
     MultipoleHolder<T, T, T, T, T, KeyType, MultipoleType> multipoleHolder;
 
-    thrust::device_vector<KeyType> d_keys = h_keys;
-    thrust::device_vector<T>       d_x = x, d_y = y, d_z = z, d_h = h;
-    thrust::device_vector<T>       d_m = m;
-    thrust::device_vector<T>       s1;
-    thrust::device_vector<T>       s2, s3;
+    cstone::DeviceVector<KeyType> d_keys = h_keys;
+    cstone::DeviceVector<T>       d_x = x, d_y = y, d_z = z, d_h = h;
+    cstone::DeviceVector<T>       d_m = m;
+    cstone::DeviceVector<T>       s1;
+    cstone::DeviceVector<T>       s2, s3;
     domain.syncGrav(d_keys, d_x, d_y, d_z, d_h, d_m, std::tuple{}, std::tie(s1, s2, s3));
     domain.exchangeHalos(std::tie(d_m), s1, s2);
 
     h_keys.resize(domain.nParticles());
-    thrust::copy(d_keys.begin() + domain.startIndex(), d_keys.begin() + domain.endIndex(), h_keys.begin());
+    memcpyD2H(d_keys.data() + domain.startIndex(), domain.nParticles(), h_keys.data());
 
     /*! The range [firstGlobalIdx:lastGlobalIdx] of the global set @a coords is identical to the locally
      *  present particles contained in the range [domain.startIndex():domain.endIndex()] of arrays (d_x, d_y, d_z)
@@ -124,7 +122,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     bool                pass;
     std::vector<double> firstPercentiles(numRanks), maxErrors(numRanks);
     {
-        thrust::device_vector<T> d_ax, d_ay, d_az;
+        cstone::DeviceVector<T> d_ax, d_ay, d_az;
         d_ax = std::vector<T>(domain.nParticlesWithHalos(), 0);
         d_ay = std::vector<T>(domain.nParticlesWithHalos(), 0);
         d_az = std::vector<T>(domain.nParticlesWithHalos(), 0);
@@ -135,20 +133,28 @@ static int multipoleHolderTest(int thisRank, int numRanks)
         double bhPotential = multipoleHolder.compute(grp, rawPtr(d_x), rawPtr(d_y), rawPtr(d_z), rawPtr(d_m),
                                                      rawPtr(d_h), G, 0, box, rawPtr(d_ax), rawPtr(d_ay), rawPtr(d_az));
 
+        // create a host vector and download a device pointer range into it
+        auto dl = [](auto* p1, auto* p2)
+        {
+            std::vector<std::remove_pointer_t<decltype(p1)>> ret(p2 - p1);
+            memcpyD2H(p1, p2 - p1, ret.data());
+            return ret;
+        };
+
         // download BH accelerations for locally present particles
-        thrust::host_vector<T> ax(d_ax.begin() + domain.startIndex(), d_ax.begin() + domain.endIndex());
-        thrust::host_vector<T> ay(d_ay.begin() + domain.startIndex(), d_ay.begin() + domain.endIndex());
-        thrust::host_vector<T> az(d_az.begin() + domain.startIndex(), d_az.begin() + domain.endIndex());
+        std::vector<T> ax = dl(d_ax.data() + domain.startIndex(), d_ax.data() + domain.endIndex());
+        std::vector<T> ay = dl(d_ay.data() + domain.startIndex(), d_ay.data() + domain.endIndex());
+        std::vector<T> az = dl(d_az.data() + domain.startIndex(), d_az.data() + domain.endIndex());
 
-        thrust::device_vector<T> d_xref = coords.x(), d_yref = coords.y(), d_zref = coords.z();
-        thrust::device_vector<T> d_mref = globalMasses;
-        thrust::device_vector<T> d_href = globalH;
+        cstone::DeviceVector<T> d_xref = coords.x(), d_yref = coords.y(), d_zref = coords.z();
+        cstone::DeviceVector<T> d_mref = globalMasses;
+        cstone::DeviceVector<T> d_href = globalH;
 
-        thrust::device_vector<T> d_potref, d_axref, d_ayref, d_azref;
-        reallocateDevice(d_potref, numParticles, 1.0);
-        reallocateDevice(d_axref, numParticles, 1.0);
-        reallocateDevice(d_ayref, numParticles, 1.0);
-        reallocateDevice(d_azref, numParticles, 1.0);
+        cstone::DeviceVector<T> d_potref, d_axref, d_ayref, d_azref;
+        reallocate(d_potref, numParticles, 1.0);
+        reallocate(d_axref, numParticles, 1.0);
+        reallocate(d_ayref, numParticles, 1.0);
+        reallocate(d_azref, numParticles, 1.0);
 
         // reference direct sum calculation with the global set of sources
         directSum(firstGlobalIdx, lastGlobalIdx, numParticles, {box.lx(), box.ly(), box.lz()}, numShells,
@@ -156,10 +162,10 @@ static int multipoleHolderTest(int thisRank, int numRanks)
                   rawPtr(d_axref), rawPtr(d_ayref), rawPtr(d_azref));
 
         // download reference direct sum accelerations due to global source set
-        thrust::host_vector<T> pRef(d_potref.begin() + firstGlobalIdx, d_potref.begin() + lastGlobalIdx);
-        thrust::host_vector<T> axRef(d_axref.begin() + firstGlobalIdx, d_axref.begin() + lastGlobalIdx);
-        thrust::host_vector<T> ayRef(d_ayref.begin() + firstGlobalIdx, d_ayref.begin() + lastGlobalIdx);
-        thrust::host_vector<T> azRef(d_azref.begin() + firstGlobalIdx, d_azref.begin() + lastGlobalIdx);
+        std::vector<T> pRef  = dl(d_potref.data() + firstGlobalIdx, d_potref.data() + lastGlobalIdx);
+        std::vector<T> axRef = dl(d_axref.data() + firstGlobalIdx, d_axref.data() + lastGlobalIdx);
+        std::vector<T> ayRef = dl(d_ayref.data() + firstGlobalIdx, d_ayref.data() + lastGlobalIdx);
+        std::vector<T> azRef = dl(d_azref.data() + firstGlobalIdx, d_azref.data() + lastGlobalIdx);
 
         double         potentialSumRef = 0;
         std::vector<T> errors(ax.size());

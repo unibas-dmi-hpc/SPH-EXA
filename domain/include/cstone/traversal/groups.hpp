@@ -8,7 +8,7 @@
 
 #include <utility>
 
-#include "cstone/cuda/cuda_utils.hpp"
+#include "cstone/cuda/device_vector.h"
 #include "cstone/tree/accel_switch.hpp"
 #include "cstone/tree/definitions.h"
 
@@ -29,7 +29,7 @@ template<class Accelerator>
 class GroupData
 {
     template<class T>
-    using AccVector = typename AccelSwitchType<Accelerator, std::vector, thrust::device_vector>::template type<T>;
+    using AccVector = typename AccelSwitchType<Accelerator, std::vector, DeviceVector>::template type<T>;
 
 public:
     GroupData()                 = default;

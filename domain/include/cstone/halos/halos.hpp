@@ -179,7 +179,7 @@ public:
             findHalosGpu(prefixes, childOffsets, internalToLeaf, leaves, d_radii, box, firstNode, lastNode, d_flags);
             memcpyD2H(d_flags, numLeafNodes, haloFlags_.data());
 
-            reallocateDevice(scratch, origSize, 1.0);
+            reallocate(scratch, origSize, 1.0);
         }
         else
         {

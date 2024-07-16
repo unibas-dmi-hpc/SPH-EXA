@@ -10,6 +10,7 @@
 #include <thrust/device_vector.h>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/thrust_util.cuh"
 #include "cstone/focus/source_center.hpp"
 #include "cstone/traversal/groups.cuh"
 

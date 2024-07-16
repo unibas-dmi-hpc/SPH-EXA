@@ -603,9 +603,9 @@ auto computeAcceleration(size_t firstBody, size_t lastBody, const Tc* x, const T
 
     resetTraversalCounters<<<1, 1>>>();
     auto t0 = std::chrono::high_resolution_clock::now();
-    traverse<<<numBlocks, TravConfig::numThreads>>>(groups.view(), 1, x, y, z, m, h, childOffsets, internalToLeaf,
-                                                    layout, sourceCenter, Multipole, G, numShells,
-                                                    {box.lx(), box.ly(), box.lz()}, p, ax, ay, az, rawPtr(globalPool));
+    traverse<<<numBlocks, TravConfig::numThreads>>>(
+        groups.view(), 1, x, y, z, m, h, childOffsets, internalToLeaf, layout, sourceCenter, Multipole, G, numShells,
+        {box.lx(), box.ly(), box.lz()}, p, ax, ay, az, thrust::raw_pointer_cast(globalPool.data()));
     kernelSuccess("traverse");
 
     auto   t1 = std::chrono::high_resolution_clock::now();
