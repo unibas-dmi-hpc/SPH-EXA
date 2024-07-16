@@ -253,3 +253,4 @@ void printHelp(char* name, int rank)
         printf("\t--duration \t Maximum wall-clock run time of the simulation in seconds.[MAX_INT]\n\n");
     }
 }
+
