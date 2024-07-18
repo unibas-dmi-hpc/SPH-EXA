@@ -38,8 +38,7 @@ TEST(DeviceVector, Construct)
 
     thrust::sequence(thrust::device, v.data() + initSize, v.data() + v.size(), initSize);
 
-    std::vector<int> h_v(v.size());
-    memcpyD2H(v.data(), v.size(), h_v.data());
+    std::vector<int> h_v = toHost(v);
 
     std::vector<int> ref(v.size());
     std::iota(ref.begin(), ref.end(), 0);
@@ -83,4 +82,13 @@ TEST(DeviceVector, Assign)
 
     a = DeviceVector<int>{};
     EXPECT_EQ(a.capacity(), 0);
+}
+
+TEST(DeviceVector, Capacity)
+{
+    DeviceVector<int> a(10);
+    EXPECT_EQ(a.capacity(), 10);
+    reallocate(a, 0, 1.0);
+    EXPECT_EQ(a.size(), 0);
+    EXPECT_EQ(a.capacity(), 10);
 }
