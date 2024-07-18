@@ -230,15 +230,16 @@ __device__ util::tuple<unsigned, unsigned, unsigned>
         {
             sourceQueue = cellQueue[ringAddr(oldSources + sourceIdx)]; // Global source cell index in queue
         }
-        sourceQueue = spreadSeg8(sourceQueue);
-        sourceIdx   = shflSync(sourceIdx, laneIdx >> 3);
+        sourceQueue         = spreadSeg8(sourceQueue);
+        sourceIdx           = shflSync(sourceIdx, laneIdx >> 3);
+        const bool isSource = sourceIdx < numSources; // Source index is within bounds
+        if (!isSource) { sourceQueue = 0; }
 
         const Vec4<Tf> MAC = sourceCenter[sourceQueue];        // load source cell center + MAC
         const Vec3<Tf> curSrcCenter{MAC[0], MAC[1], MAC[2]};   // Current source cell center
         const int      childBegin = childOffsets[sourceQueue]; // First child cell
         const bool     isNode     = childBegin;
         const bool     isClose    = applyMAC(curSrcCenter, MAC[3], targetCenter, targetSize); // Is too close for MAC
-        const bool     isSource   = sourceIdx < numSources; // Source index is within bounds
         const bool     isDirect   = isClose && !isNode && isSource;
         const int      leafIdx    = (isDirect) ? internalToLeaf[sourceQueue] : 0; // the cstone leaf index
 
