@@ -182,8 +182,8 @@ public:
         timer.step("UpdateQuantities");
     }
 
-    void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
-                    const cstone::Box<T>& /*box*/) override
+    void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData, const cstone::Box<T>& /*box*/,
+                    std::ofstream* progressFile, float chkpStartTime) override
     {
         auto output = [&](auto& d)
         {
@@ -200,8 +200,7 @@ public:
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
                     std::visit([writer, c = column, key = namesDone[i]](auto field)
-                               { writer->writeField(key, field->data(), c); },
-                               fieldPointers[fidx]);
+                               { writer->writeField(key, field->data(), c); }, fieldPointers[fidx]);
                     indicesDone.erase(indicesDone.begin() + i);
                     namesDone.erase(namesDone.begin() + i);
                 }

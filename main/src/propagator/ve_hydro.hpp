@@ -222,13 +222,19 @@ public:
         timer.step("UpdateQuantities");
     }
 
-    void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData,
-                    const cstone::Box<T>& box) override
+    void saveFields(IFileWriter* writer, size_t first, size_t last, DataType& simData, const cstone::Box<T>& box,
+                    std::ofstream* progressFile, float chkpStartTime) override
     {
         auto& d             = simData.hydro;
         auto  fieldPointers = d.data();
         auto  indicesDone   = d.outputFieldIndices;
         auto  namesDone     = d.outputFieldNames;
+        int   nFields       = int(indicesDone.size());
+        timer.start();
+        float elapsed;
+
+        // write checkpoint progress to progress file
+        *progressFile << chkpStartTime << "," << "0%,checkpoint" << std::endl;
 
         auto output = [&]()
         {
@@ -241,11 +247,14 @@ public:
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
                     std::visit([writer, c = column, key = namesDone[i]](auto field)
-                               { writer->writeField(key, field->data(), c); },
-                               fieldPointers[fidx]);
+                               { writer->writeField(key, field->data(), c); }, fieldPointers[fidx]);
                     indicesDone.erase(indicesDone.begin() + i);
                     namesDone.erase(namesDone.begin() + i);
                 }
+                elapsed = chkpStartTime + timer.elapsed();
+                // write checkpoint progress to progress file
+                *progressFile << elapsed << "," << (nFields - i) * 100 / nFields << "%,checkpoint" << std::endl;
+                progressFile->flush();
             }
         };
 

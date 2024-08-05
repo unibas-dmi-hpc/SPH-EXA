@@ -171,6 +171,17 @@ int main(int argc, char** argv)
 
         bool isWallClockReached = totalTimer.elapsed() > simDuration;
 
+        // Progress output for autonomy loops
+        if (isOutputStep(d.iteration, progressFreqStr))
+        {
+            if (rank == 0)
+            {
+                float perc = d.iteration / std::stof(maxStepStr) * 100;
+                progressFile << totalTimer.elapsed() << "," << perc << "%,app" << std::endl;
+                progressFile.flush();
+            }
+        }
+
         if (isOutputStep(d.iteration, writeFreqStr) || isOutputTime(d.ttot - d.minDt, d.ttot, writeFreqStr) ||
             isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) ||
             (isWallClockReached && writeEnabled))
@@ -178,7 +189,8 @@ int main(int argc, char** argv)
             fileWriter->addStep(domain.startIndex(), domain.endIndex(), outFile);
             simData.hydro.loadOrStoreAttributes(fileWriter.get());
             box.loadOrStore(fileWriter.get());
-            propagator->saveFields(fileWriter.get(), domain.startIndex(), domain.endIndex(), simData, box);
+            propagator->saveFields(fileWriter.get(), domain.startIndex(), domain.endIndex(), simData, box,
+                                   &progressFile, totalTimer.elapsed());
             propagator->save(fileWriter.get());
             fileWriter->closeStep();
         }
@@ -186,21 +198,6 @@ int main(int argc, char** argv)
             isWallClockReached)
         {
             if (profEnabled) { propagator->writeMetrics(fileWriter.get(), "profile"); }
-        }
-
-        // Progress output for autonomy loops
-        if (isOutputStep(d.iteration, progressFreqStr))
-        {
-            if (rank == 0)
-            {
-                float perc                = d.iteration / std::stof(maxStepStr) * 100;
-                float averageProgressTime = (totalTimer.elapsed() - lastInterval) / std::stof(progressFreqStr);
-                progressFile << "timestep " << d.iteration << " of " << maxStepStr << ","
-                             << " average time per timestep of this interval " << averageProgressTime << " seconds"
-                             << std::endl;
-                progressFile.flush();
-                lastInterval = totalTimer.elapsed();
-            }
         }
 
         viz::execute(d, domain.startIndex(), domain.endIndex());
