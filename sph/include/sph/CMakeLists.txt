@@ -1,6 +1,7 @@
 add_subdirectory(hydro_std)
 add_subdirectory(hydro_turb)
 add_subdirectory(hydro_ve)
+add_subdirectory(magneto_ve)
 
 set(TIMESTEP_GPU_KERNELS
         groups.cu positions_gpu.cu ts_groups.cu update_h_gpu.cu
@@ -19,6 +20,7 @@ if (CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
             $<TARGET_OBJECTS:timesteps_gpu>
             $<TARGET_OBJECTS:hydro_std_gpu>
             $<TARGET_OBJECTS:hydro_turb_gpu>
-            $<TARGET_OBJECTS:hydro_ve_gpu>)
+            $<TARGET_OBJECTS:hydro_ve_gpu>
+            $<TARGET_OBJECTS:magneto_ve_gpu>)
     set_target_properties(sph_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif ()

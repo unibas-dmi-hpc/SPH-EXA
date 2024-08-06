@@ -34,6 +34,7 @@
 
 #include "cooling/chemistry_data.hpp"
 #include "sph/particles_data.hpp"
+#include "sph/magneto_ve/magneto_data.hpp"
 
 namespace sphexa
 {
@@ -49,6 +50,7 @@ public:
 
     using HydroData = ParticlesData<AccType>;
     using ChemData  = cooling::ChemistryData<RealType>;
+    using MagnetoData = magneto::MagnetoData<AccType>;
 
     //! @brief spacially distributed data for hydrodynamics and gravity
     HydroData hydro;
@@ -59,6 +61,9 @@ public:
     //! @brief non-spacially distributed nuclear abundances
     // NuclearData nuclear;
 
+    //! @brief spatially distributed data for magneto-hydrodynamics
+    MagnetoData magneto;
+
     MPI_Comm comm;
 
     //! @brief record user selection of output fields
@@ -66,6 +71,7 @@ public:
     {
         hydro.setOutputFields(outFields);
         chem.setOutputFields(outFields);
+        magneto.setOutputFields(outFields);
 
         if (!outFields.empty())
         {

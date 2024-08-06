@@ -21,3 +21,8 @@
 #include "sph/hydro_ve/xmass.hpp"
 
 #include "sph/hydro_turb/driver.hpp"
+
+#include "sph/magneto_ve/iad_div_curl.hpp"
+#include "sph/magneto_ve/magnetic_momentum_energy.hpp"
+#include "sph/magneto_ve/induction_dissipation.hpp"
+#include "sph/magneto_ve/time_integration.hpp"
