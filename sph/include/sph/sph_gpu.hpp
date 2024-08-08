@@ -67,7 +67,7 @@ extern void computeInductionAndDissipationGpu(const GroupView& grp, HydroData& d
                                     const cstone::Box<typename HydroData::RealType>& box);
 template<class MagnetoData>
 extern void integrateMagneticQuantitiesGpu(GroupView grp, MagnetoData& md, float dt_forward,
-                                 util::array<float, Timestep::maxNumRungs> dt_m1, const uint8_t* rung = nullptr);
+                                 float dt_m1);
 } // namespace magneto::cuda
 
 template<class Tc, class Thydro, class Tm1, class Tdu>
