@@ -41,8 +41,8 @@ using cstone::LocalIndex;
 
 template<class T, class Tc, class Tm1>
 __global__ void magneticIntegrationKernel(GroupView grp, double dt, double dt_m1, Tc* Bx, Tc* By, Tc* Bz, Tc* dBx,
-                                          Tc* dBy, Tc* dBz, Tm1* dBx_m1, Tm1* dBy_m1, Tm1* dBz_m1, T* psi, T* d_psi,
-                                          Tm1* d_psi_m1)
+                                          Tc* dBy, Tc* dBz, Tm1* dBx_m1, Tm1* dBy_m1, Tm1* dBz_m1, T* psi_ch, T* d_psi_ch,
+                                          Tm1* d_psi_ch_m1)
 {
     LocalIndex laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     LocalIndex warpIdx = (blockDim.x * blockIdx.x + threadIdx.x) >> GpuConfig::warpSizeLog2;
@@ -59,8 +59,8 @@ __global__ void magneticIntegrationKernel(GroupView grp, double dt, double dt_m1
     dBy_m1[i] = dBy[i];
     dBz_m1[i] = dBz[i];
 
-    psi[i]      = updateQuantity(psi[i], dt, dt_m1, d_psi[i], d_psi_m1[i]);
-    d_psi_m1[i] = d_psi[i];
+    psi_ch[i]      = updateQuantity(psi_ch[i], dt, dt_m1, d_psi_ch[i], d_psi_ch_m1[i]);
+    d_psi_ch_m1[i] = d_psi_ch[i];
 }
 
 template<class MagnetoData>
@@ -74,7 +74,7 @@ void integrateMagneticQuantities(const GroupView& grp, MagnetoData& md, double d
     magneticIntegrationKernel<<<numBlocks, numThreads>>>(
         grp, dt, dt_m1, rawPtr(md.devData.Bx), rawPtr(md.devData.By), rawPtr(md.devData.Bz), rawPtr(md.devData.dBx),
         rawPtr(md.devData.dBy), rawPtr(md.devData.dBz), rawPtr(md.devData.dBx_m1), rawPtr(md.devData.dBy_m1),
-        rawPtr(md.devData.dBz_m1), rawPtr(md.devData.psi), rawPtr(md.devData.d_psi), rawPtr(md.devData.d_psi_m1));
+        rawPtr(md.devData.dBz_m1), rawPtr(md.devData.psi_ch), rawPtr(md.devData.d_psi_ch), rawPtr(md.devData.d_psi_ch_m1));
 }
 
 template void integrateMagneticQuantities(const GroupView& grp, sphexa::magneto::MagnetoData<cstone::GpuTag>& m, double, double);

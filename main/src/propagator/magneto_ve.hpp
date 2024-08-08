@@ -70,8 +70,8 @@ protected:
      * x, y, z, h and m are automatically considered conserved and must not be specified in this list
      */
     using ConservedFieldsHydro   = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha">;
-    using ConservedFieldsMagneto = FieldList<"Bx", "By", "Bz", "dBx", "dBy", "dBz", "dBx_m1", "dBy_m1", "dBz_m1", "psi",
-                                             "d_psi", "d_psi_m1", "ch_m1">;
+    using ConservedFieldsMagneto = FieldList<"Bx", "By", "Bz", "dBx", "dBy", "dBz", "dBx_m1", "dBy_m1", "dBz_m1", "psi_ch",
+                                             "d_psi_ch", "d_psi_ch_m1">;
 
     //! @brief list of dependent fields, these may be used as scratch space during domain sync
     using DependentFieldsHydro =
@@ -197,7 +197,7 @@ public:
         sph::magneto::computeMomentumEnergy<avClean>(groups_.view(), nullptr, simData, domain.box());
         timer.step("MomentumAndEnergy");
 
-        domain.exchangeHalos(get<"divB", "curlB_x", "curlB_y", "curlB_z", "psi">(md), get<"divv">(d), get<"curlv">(d));
+        domain.exchangeHalos(get<"divB", "curlB_x", "curlB_y", "curlB_z", "psi_ch">(md), get<"divv">(d), get<"curlv">(d));
         timer.step("mpi::synchronizeHalos");
 
         sph::magneto::computeInductionAndDissipation(groups_.view(), simData, domain.box());

@@ -62,15 +62,15 @@ void integrateMagneticField(size_t firstIndex, size_t lastIndex, double dt, doub
 }
 
 template<class Th, class Tm1>
-void integrateAuxiliaryQuantities(size_t firstIndex, size_t lastIndex, double dt, double dt_m1, Th* psi, Th* d_psi,
-                                  Tm1* d_psi_m1)
+void integrateAuxiliaryQuantities(size_t firstIndex, size_t lastIndex, double dt, double dt_m1, Th* psi_ch, Th* d_psi_ch,
+                                  Tm1* d_psi_ch_m1)
 {
 
 #pragma omp parallel for schedule(static)
     for (size_t i = firstIndex; i < lastIndex; ++i)
     {
-        psi[i]      = updateQuantity(psi[i], dt, dt_m1, d_psi[i], d_psi_m1[i]);
-        d_psi_m1[i] = d_psi[i];
+        psi_ch[i]      = updateQuantity(psi_ch[i], dt, dt_m1, d_psi_ch[i], d_psi_ch_m1[i]);
+        d_psi_ch_m1[i] = d_psi_ch[i];
     }
 }
 
@@ -84,8 +84,8 @@ void integrateMagneticQuantities(const GroupView grp, MagnetoData& md, float dt,
     integrateMagneticField(grp.firstBody, grp.lastBody, dt, dt_m1, md.Bx.data(), md.By.data(), md.Bz.data(),
                            md.dBx.data(), md.dBy.data(), md.dBz.data(), md.dBx_m1.data(), md.dBy_m1.data(),
                            md.dBz_m1.data());
-    integrateAuxiliaryQuantities(grp.firstBody, grp.lastBody, dt, dt_m1, md.psi.data(), md.d_psi.data(),
-                                 md.d_psi_m1.data());
+    integrateAuxiliaryQuantities(grp.firstBody, grp.lastBody, dt, dt_m1, md.psi_ch.data(), md.d_psi_ch.data(),
+                                 md.d_psi_ch_m1.data());
 }
 
 } // namespace sph::magneto

@@ -37,15 +37,18 @@
 
 namespace sph::magneto
 {
+// free parameters in Wissing et al. (2020) model for parabolic div-B cleaning
+static constexpr float fclean  = 1.0;
+static constexpr float sigma_c = 1.0;
+
 template<size_t stride = 1, typename Tc, class T, class Tm>
 HOST_DEVICE_FUN inline void
-inductionDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atmax, T ramp, const cstone::Box<Tc>& box,
-                          const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x, const Tc* y,
-                          const Tc* z, const T* vx, const T* vy, const T* vz, const Tc* Bx, const Tc* By, const Tc* Bz,
-                          const T* h, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
-                          const T* c33, const T* wh, const T* xm, const T* kx, const T* gradh, const Tm* m,
-                          const T* psi, const T* curlB_x, const T* curlB_y, const T* curlB_z, const T* divB, Tc* dBxi,
-                          Tc* dByi, Tc* dBzi, Tc* dui)
+inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atmax, T ramp, const cstone::Box<Tc>& box,
+                             const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x, const Tc* y,
+                             const Tc* z, const T* vx, const T* vy, const T* vz, const T* c, const Tc* Bx, const Tc* By,
+                             const Tc* Bz, const T* h, const T* c11, const T* c12, const T* c13, const T* c22,
+                             const T* c23, const T* c33, const T* wh, const T* xm, const T* kx, const T* gradh,
+                             const Tm* m, const T* psi_ch, Tc* dBxi, Tc* dByi, Tc* dBzi, Tc* dui)
 {
 
     static constexpr T alpha_B = 1.0; // todo correct value
@@ -56,6 +59,7 @@ inductionDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atmax,
     auto vxi = vx[i];
     auto vyi = vy[i];
     auto vzi = vz[i];
+    auto ci  = c[i];
 
     auto hi     = h[i];
     auto mi     = m[i];
@@ -74,17 +78,18 @@ inductionDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atmax,
     auto hiInv  = T(1) / hi;
     auto hiInv3 = hiInv * hiInv * hiInv;
 
-    auto Bxi   = Bx[i];
-    auto Byi   = By[i];
-    auto Bzi   = Bz[i];
-    auto psi_i = psi[i];
+    auto Bxi      = Bx[i];
+    auto Byi      = By[i];
+    auto Bzi      = Bz[i];
+    auto psi_ch_i = psi_ch[i];
 
     cstone::Vec3<Tc> dB_diss    = {0.0, 0.0, 0.0};
     cstone::Vec3<Tc> divB_clean = {0.0, 0.0, 0.0};
-    T               du_diss    = 0.0;
+    T                du_diss    = 0.0;
 
-    cstone::Vec3<T> current_dens = {curlB_x[i], curlB_y[i], curlB_z[i]};
-    current_dens /= mu_0;
+    // wave cleaning speed
+    auto v_alfven2 = (Bxi * Bxi + Byi * Byi + Bzi * Bzi) / (mu_0 * rhoi);
+    auto c_hi      = fclean * std::sqrt(ci * ci * v_alfven2);
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
@@ -117,23 +122,14 @@ inductionDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atmax,
         T Wi     = hiInv3 * lt::lookup(wh, v1);
         T Wj     = hjInv3 * lt::lookup(wh, v2);
 
-        T a_term, b_term;
+        T a_term;
         T Atwood = (std::abs(rhoi - rhoj)) / (rhoi + rhoj);
-        if (Atwood < Atmin)
-        {
-            a_term = xmassi * xmassi;
-            b_term = xmassj * xmassj;
-        }
-        else if (Atwood > Atmax)
-        {
-            a_term = xmassi * xmassj;
-            b_term = a_term;
-        }
+        if (Atwood < Atmin) { a_term = xmassi * xmassi; }
+        else if (Atwood > Atmax) { a_term = xmassi * xmassj; }
         else
         {
             T sigma_ij = ramp * (Atwood - Atmin);
             a_term     = pow(xmassi, T(2) - sigma_ij) * pow(xmassj, sigma_ij);
-            b_term     = pow(xmassj, T(2) - sigma_ij) * pow(xmassi, sigma_ij);
         }
 
         T termA1_i = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
@@ -161,25 +157,31 @@ inductionDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atmax,
 
         cstone::Vec3<Tc> B_ab{Bxi - Bx[j], Byi - By[j], Bzi - Bz[j]};
 
-        // todo is this correct?
-        dB_diss += mj * a_term * T(2) * resistivity_ab * B_ab *(
-                   (rx * termA_avg[0] + ry * termA_avg[1] + rz * termA_avg[2]) / r2);
+        // We have 2*resistivity_ab because we use symmetric resisitivity
+        // we divide by r^2 because we divide once to get the unit projector and again for the equation
+        dB_diss += mj * a_term * T(2) * resistivity_ab * B_ab *
+                   ((rx * termA_avg[0] + ry * termA_avg[1] + rz * termA_avg[2]) / r2);
 
-        divB_clean += mj * a_term * (psi_i + psi[j]) * termA_avg;
-        du_diss += resistivity_ab;
+        // same comment as above, discretisation taken from Wissing and Shen (2020)
+        du_diss += mj * a_term * 2 * resistivity_ab * norm2(B_ab) *
+                   ((rx * termA_avg[0] + ry * termA_avg[1] + rz * termA_avg[2]) / r2);
+
+        // wave cleaning speed
+        auto v_alfven2_j = (Bxi * Bxi + Byi * Byi + Bzi * Bzi) / (mu_0 * rhoi);
+        auto c_hj        = fclean * std::sqrt(c[j] * c[j] * v_alfven2_j);
+
+        divB_clean += mj * a_term * (psi_ch_i * c_hi + psi_ch[j] * c_hj) * termA_avg;
     }
 
     dB_diss *= K / (kxi * mi * mi * gradhi);
 
     divB_clean *= K / (kxi * mi * mi * gradhi);
-    // todo is rhoi correct
-    du_diss *= dot(current_dens, current_dens) / rhoi;
+    du_diss /= rhoi;
 
     *dBxi += dB_diss[0] - divB_clean[0];
     *dByi += dB_diss[1] - divB_clean[1];
     *dBzi += dB_diss[2] - divB_clean[2];
 
     *dui += du_diss;
-
 }
 } // namespace sph::magneto
