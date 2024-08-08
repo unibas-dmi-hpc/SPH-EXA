@@ -1,5 +1,5 @@
 /*
-* MIT License
+ * MIT License
  *
  * Copyright (c) 2024 CSCS, ETH Zurich, University of Basel, University of Zurich
  *
@@ -28,4 +28,54 @@
  * @author Lukas Schmidt
  */
 
+#include "magneto_data.hpp"
+#include "cstone/cuda/gpu_config.cuh"
+#include "cstone/util/array.hpp"
+#include "sph/magneto_ve/time_integration.hpp"
+#include "sph/sph_gpu.hpp"
 
+namespace sph::magneto::cuda
+{
+using cstone::GpuConfig;
+using cstone::LocalIndex;
+
+template<class T, class Tc, class Tm1>
+__global__ void magneticIntegrationKernel(GroupView grp, double dt, double dt_m1, Tc* Bx, Tc* By, Tc* Bz, Tc* dBx,
+                                          Tc* dBy, Tc* dBz, Tm1* dBx_m1, Tm1* dBy_m1, Tm1* dBz_m1, T* psi, T* d_psi,
+                                          Tm1* d_psi_m1)
+{
+    LocalIndex laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
+    LocalIndex warpIdx = (blockDim.x * blockIdx.x + threadIdx.x) >> GpuConfig::warpSizeLog2;
+    if (warpIdx >= grp.numGroups) { return; }
+
+    LocalIndex i = grp.groupStart[warpIdx] + laneIdx;
+    if (i >= grp.groupEnd[warpIdx]) { return; }
+
+    Bx[i] = updateQuantity(Bx[i], dt, dt_m1, dBx[i], dBx_m1[i]);
+    By[i] = updateQuantity(By[i], dt, dt_m1, dBy[i], dBy_m1[i]);
+    Bz[i] = updateQuantity(Bz[i], dt, dt_m1, dBz[i], dBz_m1[i]);
+
+    dBx_m1[i] = dBx[i];
+    dBy_m1[i] = dBy[i];
+    dBz_m1[i] = dBz[i];
+
+    psi[i]      = updateQuantity(psi[i], dt, dt_m1, d_psi[i], d_psi_m1[i]);
+    d_psi_m1[i] = d_psi[i];
+}
+
+template<class MagnetoData>
+void integrateMagneticQuantities(const GroupView& grp, MagnetoData& md, double dt, double dt_m1)
+{
+    unsigned numThreads       = 256;
+    unsigned numWarpsPerBlock = numThreads / GpuConfig::warpSize;
+    unsigned numBlocks        = (grp.numGroups + numWarpsPerBlock - 1) / numWarpsPerBlock;
+
+    if (numBlocks == 0) { return; }
+    magneticIntegrationKernel<<<numBlocks, numThreads>>>(
+        grp, dt, dt_m1, rawPtr(md.devData.Bx), rawPtr(md.devData.By), rawPtr(md.devData.Bz), rawPtr(md.devData.dBx),
+        rawPtr(md.devData.dBy), rawPtr(md.devData.dBz), rawPtr(md.DevData.dBx_m1), rawPtr(md.devData.dBy_m1),
+        rawPtr(md.devData.dBz_m1), rawPtr(md.devData.psi), rawPtr(md.devData.d_psi), rawPtr(md.devData.d_psi_m1));
+}
+
+template void integrateMagneticQuantities(const GroupView& grp, sphexa::magneto::MagnetoData<cstone::GpuTag>& m, double, double)
+} // namespace sph::magneto::cuda

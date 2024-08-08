@@ -36,8 +36,8 @@
 namespace sph::magneto
 {
 //! @brief update a quantity according to Adams-Bashforth (2nd order)
-template<class TU, class TD>
-HOST_DEVICE_FUN TU updateQuantity(TU q_old, double dt, double dt_m1, TD dq, TD dq_m1)
+template<class TU, class TD, class TDm1>
+HOST_DEVICE_FUN TU updateQuantity(TU q_old, double dt, double dt_m1, TD dq, TDm1 dq_m1)
 {
     TU u_new = q_old + dq * dt + 0.5 * (dq - dq_m1) / dt_m1 * std::abs(dt) * dt;
     return u_new;
@@ -58,7 +58,6 @@ void integrateMagneticField(size_t firstIndex, size_t lastIndex, double dt, doub
         dBx_m1[i] = dBx[i];
         dBy_m1[i] = dBy[i];
         dBz_m1[i] = dBz[i];
-
     }
 }
 
@@ -70,15 +69,13 @@ void integrateAuxiliaryQuantities(size_t firstIndex, size_t lastIndex, double dt
 #pragma omp parallel for schedule(static)
     for (size_t i = firstIndex; i < lastIndex; ++i)
     {
-        psi[i] = updateQuantity(psi[i], dt, dt_m1, d_psi[i], d_psi_m1[i]);
+        psi[i]      = updateQuantity(psi[i], dt, dt_m1, d_psi[i], d_psi_m1[i]);
         d_psi_m1[i] = d_psi[i];
     }
 }
 
-void integrateAuxiliaries() {}
-
 template<class MagnetoData>
-void integrateMagneticQuantities(const GroupView grp, MagnetoData md, float dt, float dt_m1)
+void integrateMagneticQuantities(const GroupView grp, MagnetoData& md, float dt, float dt_m1)
 {
     if constexpr (cstone::HaveGpu<typename MagnetoData::AcceleratorType>{})
     {
@@ -87,6 +84,8 @@ void integrateMagneticQuantities(const GroupView grp, MagnetoData md, float dt, 
     integrateMagneticField(grp.firstBody, grp.lastBody, dt, dt_m1, md.Bx.data(), md.By.data(), md.Bz.data(),
                            md.dBx.data(), md.dBy.data(), md.dBz.data(), md.dBx_m1.data(), md.dBy_m1.data(),
                            md.dBz_m1.data());
+    integrateAuxiliaryQuantities(grp.firstBody, grp.lastBody, dt, dt_m1, md.psi.data(), md.d_psi.data(),
+                                 md.d_psi_m1.data());
 }
 
 } // namespace sph::magneto

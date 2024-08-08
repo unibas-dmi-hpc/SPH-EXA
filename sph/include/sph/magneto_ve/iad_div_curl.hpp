@@ -39,8 +39,8 @@ namespace sph::magneto
 template<class Tc, class SimulationData>
 void computeIadFullDivvCurlvImpl(size_t startIndex, size_t endIndex, SimulationData& sim, const cstone::Box<Tc>& box)
 {
-    auto                      d              = sim.hydro;
-    auto                      m              = sim.magneto;
+    auto&                     d              = sim.hydro;
+    auto&                     m              = sim.magneto;
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
 
@@ -69,20 +69,18 @@ void computeIadFullDivvCurlvImpl(size_t startIndex, size_t endIndex, SimulationD
     auto* dvzdy = m.dvzdy.data();
     auto* dvzdz = m.dvzdz.data();
 
-
-
     const auto* wh  = d.wh.data();
     const auto* whd = d.whd.data();
     const auto* kx  = d.kx.data();
     const auto* xm  = d.xm.data();
 
-    const auto* Bx  = m.Bx.data();
+    const auto* Bx = m.Bx.data();
     const auto* By = m.By.data();
     const auto* Bz = m.Bz.data();
 
-    auto* divv  = d.divv.data();
-    auto* curlv = (d.x.size() == d.curlv.size()) ? d.curlv.data() : nullptr;
-    auto* divB = m.divB.data();
+    auto* divv    = d.divv.data();
+    auto* curlv   = (d.x.size() == d.curlv.size()) ? d.curlv.data() : nullptr;
+    auto* divB    = m.divB.data();
     auto* curlB_x = m.curlB_x.data();
     auto* curlB_y = m.curlB_y.data();
     auto* curlB_z = m.curlB_z.data();
@@ -100,7 +98,8 @@ void computeIadFullDivvCurlvImpl(size_t startIndex, size_t endIndex, SimulationD
                              c22, c23, c33, wh, whd, kx, xm, divv, curlv, dvxdx, dvxdy, dvxdz, dvydx, dvydy, dvydz,
                              dvzdx, dvzdy, dvzdz);
 
-        divB_curlB_JLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped,x,y,z,Bx,By,Bz,h,c11,c12,c13,c22,c23,c33,wh,kx,xm,divB,curlB_x,curlB_y, curlB_z);
+        divB_curlB_JLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, Bx, By, Bz, h, c11, c12, c13, c22,
+                         c23, c33, wh, kx, xm, divB, curlB_x, curlB_y, curlB_z);
     }
 }
 

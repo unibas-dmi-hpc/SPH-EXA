@@ -39,11 +39,11 @@ static constexpr float fclean  = 1.0;
 static constexpr float sigma_c = 1.0;
 
 template<class Tc, class SimData>
-void calculateInductionDissipationImpl(size_t startIndex, size_t endIndex, SimData& sim, const cstone::Box<Tc>& box)
+void computeInductionAndDissipationImpl(size_t startIndex, size_t endIndex, SimData& sim, const cstone::Box<Tc>& box)
 {
 
-    auto                      d              = sim.hydro;
-    auto                      md             = sim.magneto;
+    auto&                     d              = sim.hydro;
+    auto&                     md             = sim.magneto;
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
 
@@ -87,8 +87,8 @@ void calculateInductionDissipationImpl(size_t startIndex, size_t endIndex, SimDa
     const auto* curlB_x = md.curlB_x.data();
     const auto* curlB_y = md.curlB_y.data();
     const auto* curlB_z = md.curlB_z.data();
-    const auto* psi     = md.psi.data();
 
+    auto* psi     = md.psi.data();
     auto* dBx   = md.dBx.data();
     auto* dBy   = md.dBy.data();
     auto* dBz   = md.dBz.data();
@@ -123,13 +123,13 @@ void calculateInductionDissipationImpl(size_t startIndex, size_t endIndex, SimDa
 }
 
 template<class Tc, class SimulationData>
-void computeInductionDissipation(const GroupView& grp, SimulationData& sim, const cstone::Box<Tc>& box)
+void computeInductionAndDissipation(const GroupView& grp, SimulationData& sim, const cstone::Box<Tc>& box)
 {
     if constexpr (cstone::HaveGpu<typename SimulationData::AcceleratorType>{})
     {
-        cuda::computeInductionDissipationGpu(grp, sim.hydro, sim.magneto, box);
+        cuda::computeInductionAndDissipationGpu(grp, sim.hydro, sim.magneto, box);
     }
-    else { computeInductionDissipation(grp.firstBody, grp.lastBody, sim, box); }
+    else { computeInductionAndDissipationImpl(grp.firstBody, grp.lastBody, sim, box); }
 }
 
 } // namespace sph::magneto

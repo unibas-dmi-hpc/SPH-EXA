@@ -47,9 +47,10 @@ public:
     using AcceleratorType = AccType;
     using KeyType         = sph::SphTypes::KeyType;
     using RealType        = sph::SphTypes::CoordinateType;
+    using HydroType       = sph::SphTypes::HydroType;
 
-    using HydroData = ParticlesData<AccType>;
-    using ChemData  = cooling::ChemistryData<RealType>;
+    using HydroData   = ParticlesData<AccType>;
+    using ChemData    = cooling::ChemistryData<RealType>;
     using MagnetoData = magneto::MagnetoData<AccType>;
 
     //! @brief spacially distributed data for hydrodynamics and gravity

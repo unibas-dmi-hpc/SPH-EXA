@@ -100,7 +100,7 @@ __global__ void inductionDissipationGPU(
 }
 
 template<class HydroData, class MagnetoData>
-void computeInductionDissipationGpu(const GroupView& grp, HydroData& d, MagnetoData& m,
+void computeInductionAndDissipationGpu(const GroupView& grp, HydroData& d, MagnetoData& m,
                                     const cstone::Box<typename HydroData::RealType>& box)
 {
 
@@ -121,7 +121,7 @@ void computeInductionDissipationGpu(const GroupView& grp, HydroData& d, MagnetoD
         rawPtr(d.devData.du), rawPtr(m.devData.ch_m1), rawPtr(m.devData.d_psi), nidxPool, traversalPool);
 }
 
-template void computeInductionDissipationGpu(const GroupView& grp, sphexa::ParticlesData<cstone::GpuTag>& d,
+template void computeInductionAndDissipationGpu(const GroupView& grp, sphexa::ParticlesData<cstone::GpuTag>& d,
                                              sphexa::magneto::MagnetoData<cstone::GpuTag>& m,
                                              const cstone::Box<SphTypes::CoordinateType>&);
 } // namespace sph::magneto::cuda

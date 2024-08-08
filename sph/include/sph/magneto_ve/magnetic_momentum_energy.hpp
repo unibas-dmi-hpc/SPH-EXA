@@ -40,8 +40,8 @@ void computeMagneticMomentumEnergyImpl(size_t startIndex, size_t endIndex, SimDa
 {
     using T = typename SimData::HydroType;
 
-    auto d  = sim.hydro;
-    auto md = sim.magneto;
+    auto& d  = sim.hydro;
+    auto& md = sim.magneto;
 
     const cstone::LocalIndex* neighbors      = d.neighbors.data();
     const unsigned*           neighborsCount = d.nc.data();
@@ -101,7 +101,7 @@ void computeMagneticMomentumEnergyImpl(size_t startIndex, size_t endIndex, SimDa
 
         T maxvsignal = 0;
 
-        magneticMomentumJLoop<avClean>(i, d.K, md.mu0, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, vx, vy, vz, h,
+        magneticMomentumJLoop<avClean>(i, d.K, md.mu_0, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, vx, vy, vz, h,
                                        m, p, tdpdTrho, c, c11, c12, c13, c22, c23, c33, d.Atmin, d.Atmax, d.ramp, wh,
                                        kx, xm, alpha, dvxdx, dvxdy, dvxdz, dvydx, dvydy, dvydz, dvzdx, dvzdy, dvzdz, Bx,
                                        By, Bz, gradh, grad_P_x, grad_P_y, grad_P_z, du, &maxvsignal);
