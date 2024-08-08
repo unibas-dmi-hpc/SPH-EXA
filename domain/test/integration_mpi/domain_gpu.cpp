@@ -189,9 +189,9 @@ TEST(DomainGpu, reapplySync)
     }
 
     std::vector<Real> host_property(d_x.size());
-    for (size_t i = 0; i < x.size(); ++i)
+    for (size_t i = domain.startIndex(); i < domain.endIndex(); ++i)
     {
-        host_property[i] = numParticlesPerRank * rank + i;
+        host_property[i] = numParticlesPerRank * rank + i - domain.startIndex();
     }
     DeviceVector<Real> property = host_property;
 
