@@ -39,6 +39,7 @@
 #include "std_hydro.hpp"
 #include "ve_hydro.hpp"
 #include "ve_hydro_bdt.hpp"
+#include "magneto_ve.hpp"
 #ifdef SPH_EXA_HAVE_GRACKLE
 #include "std_hydro_grackle.hpp"
 #endif
@@ -78,6 +79,14 @@ propagatorFactory(const std::string& choice, bool avClean, std::ostream& output,
     {
         if (avClean) { return std::make_unique<TurbVeProp<true, DomainType, ParticleDataType>>(output, rank, s); }
         else { return std::make_unique<TurbVeProp<false, DomainType, ParticleDataType>>(output, rank, s); }
+    }
+    if (choice == "magneto-ve")
+    {
+        if (avClean)
+        {
+            return std::make_unique<magneto::MagnetoVeProp<true, DomainType, ParticleDataType>>(output, rank);
+        }
+        else { return std::make_unique<magneto::MagnetoVeProp<false, DomainType, ParticleDataType>>(output, rank); }
     }
 
     throw std::runtime_error("Unknown propagator choice: " + choice);
