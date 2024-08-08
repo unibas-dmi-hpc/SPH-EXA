@@ -70,8 +70,8 @@ void sort_by_key(InoutIterator keyBegin, InoutIterator keyEnd, OutputIterator va
         keyIndexPairs[i] = std::make_tuple(keyBegin[i], valueBegin[i]);
 
     // sort, comparing only the first tuple element
-    std::sort(begin(keyIndexPairs), end(keyIndexPairs),
-              [compare](const auto& t1, const auto& t2) { return compare(std::get<0>(t1), std::get<0>(t2)); });
+    std::stable_sort(begin(keyIndexPairs), end(keyIndexPairs),
+                     [compare](const auto& t1, const auto& t2) { return compare(std::get<0>(t1), std::get<0>(t2)); });
 
 // extract the resulting ordering and store back the sorted keys
 #pragma omp parallel for schedule(static)
