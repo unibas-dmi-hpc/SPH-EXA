@@ -51,7 +51,7 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atm
                              const Tm* m, const T* psi_ch, Tc* dBxi, Tc* dByi, Tc* dBzi, Tc* dui)
 {
 
-    static constexpr T alpha_B = 1.0; // todo correct value
+    static constexpr T alpha_B = 0.5; // as in SPHNYX
 
     auto xi  = x[i];
     auto yi  = y[i];
@@ -176,7 +176,7 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atm
     dB_diss *= K / (kxi * mi * mi * gradhi);
 
     divB_clean *= K / (kxi * mi * mi * gradhi);
-    du_diss /= rhoi;
+    du_diss *= K /(kxi*mi*mi*gradhi*rhoi);
 
     *dBxi += dB_diss[0] - divB_clean[0];
     *dByi += dB_diss[1] - divB_clean[1];
