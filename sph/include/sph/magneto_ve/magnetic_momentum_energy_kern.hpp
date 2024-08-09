@@ -244,9 +244,9 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
     du[i]         = K * (eCoeff * energy + T(0.5) * a_visc_energy); // factor of 2 already removed from 2P/rho
 
     // grad_P_xyz is stored as the acceleration,s accel = -grad_P / rho
-    grad_P_x[i] = -K * (momentum_x - Bxi * f_i * H * mu_0Inv);
-    grad_P_y[i] = -K * (momentum_y - Byi * f_i * H * mu_0Inv);
-    grad_P_z[i] = -K * (momentum_z - Bzi * f_i * H * mu_0Inv);
+    grad_P_x[i] = K * (momentum_x - Bxi * f_i * H * mu_0Inv);
+    grad_P_y[i] = K * (momentum_y - Byi * f_i * H * mu_0Inv);
+    grad_P_z[i] = K * (momentum_z - Bzi * f_i * H * mu_0Inv);
     *maxvsignal = maxvsignali;
 }
 
