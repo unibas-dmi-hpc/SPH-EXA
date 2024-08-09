@@ -57,12 +57,12 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
     auto Bzi     = Bz[i];
     auto pi      = p[i];
 
-    T Si_xx = -pi + 0.5 * mu_0Inv * Bxi * Bxi;
+    T Si_xx = -pi + 0.5 * mu_0Inv * (Bxi * Bxi - Byi * Byi - Bzi * Bzi);
     T Si_xy = mu_0Inv * Bxi * Byi;
     T Si_xz = mu_0Inv * Bxi * Bzi;
-    T Si_yy = -pi + 0.5 * mu_0Inv * Byi * Byi;
+    T Si_yy = -pi + 0.5 * mu_0Inv * (-Bxi * Bxi + Byi * Byi - Bzi * Bzi);
     T Si_yz = mu_0Inv * Byi * Bzi;
-    T Si_zz = -pi + 0.5 * mu_0Inv * Bzi * Bzi;
+    T Si_zz = -pi + 0.5 * mu_0Inv * (-Bxi * Bxi - Byi * Byi + Bzi * Bzi);
 
     auto xi  = x[i];
     auto yi  = y[i];
@@ -207,12 +207,12 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
 
         energy += mj * a_mom * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
 
-        T Sj_xx = -p[j] + 0.5 * mu_0Inv * Bx[j] * Bx[j];
+        T Sj_xx = -p[j] + 0.5 * mu_0Inv * (Bx[j] * Bx[j] - By[j] * By[j] - Bz[j] * Bz[j]);
         T Sj_xy = mu_0Inv * Bx[j] * By[j];
         T Sj_xz = mu_0Inv * Bx[j] * Bz[j];
-        T Sj_yy = -p[j] + 0.5 * mu_0Inv * By[j] * By[j];
+        T Sj_yy = -p[j] + 0.5 * mu_0Inv * (-Bx[j] * Bx[j] + By[j] * By[j] - Bz[j] * Bz[j]);
         T Sj_yz = mu_0Inv * By[j] * Bz[j];
-        T Sj_zz = -p[j] + 0.5 * mu_0Inv * Bz[j] * Bz[j];
+        T Sj_zz = -p[j] + 0.5 * mu_0Inv * (-Bx[j] * Bx[j] - By[j] * By[j] + Bz[j] * Bz[j]);
 
         auto momentum_xi = Si_xx * termA1_i + Si_xy * termA2_i + Si_xz * termA3_i;
         auto momentum_yi = Si_xy * termA1_i + Si_yy * termA2_i + Si_yz * termA3_i;
