@@ -236,10 +236,15 @@ public:
     {
 
         auto& d = simData.hydro;
+        auto& md = simData.magneto;
         d.resize(d.accSize());
-        auto fieldPointers    = d.data();
+        md.resize(md.accSize());
+        auto fieldPointersHydro    = d.data();
         auto indicesDoneHydro = d.outputFieldIndices;
         auto namesDoneHydro   = d.outputFieldNames;
+        auto fieldPointersMagneto    = md.data();
+        auto indicesDoneMagneto = md.outputFieldIndices;
+        auto namesDoneMagneto   = md.outputFieldNames;
 
         auto output = [&]()
         {
@@ -252,9 +257,24 @@ public:
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
                     std::visit([writer, c = column, key = namesDoneHydro[i]](auto field)
-                               { writer->writeField(key, field->data(), c); }, fieldPointers[fidx]);
+                               { writer->writeField(key, field->data(), c); }, fieldPointersHydro[fidx]);
                     indicesDoneHydro.erase(indicesDoneHydro.begin() + i);
                     namesDoneHydro.erase(namesDoneHydro.begin() + i);
+                }
+            }
+
+            for (int i = int(indicesDoneMagneto.size()) - 1; i >= 0; --i)
+            {
+                int fidx = indicesDoneMagneto[i];
+                if (d.isAllocated(fidx))
+                {
+                    int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
+                                 d.outputFieldIndices.begin();
+                    transferToHost(d, first, last, {d.fieldNames[fidx]});
+                    std::visit([writer, c = column, key = namesDoneMagneto[i]](auto field)
+                               { writer->writeField(key, field->data(), c); }, fieldPointersMagneto[fidx]);
+                    indicesDoneMagneto.erase(indicesDoneMagneto.begin() + i);
+                    namesDoneMagneto.erase(namesDoneMagneto.begin() + i);
                 }
             }
         };
@@ -263,12 +283,12 @@ public:
         output();
 
         // second output pass: write temporary quantities produced by the EOS
-        release(d, "c11", "c12", "c13");
-        acquire(d, "rho", "p", "gradh");
+        release(d, "c11");
+        acquire(d, "rho");
         computeEOS(first, last, d);
         output();
-        release(d, "rho", "p", "gradh");
-        acquire(d, "c11", "c12", "c13");
+        release(d, "rho");
+        acquire(d, "c11");
 
         // third output pass: recover temporary curlv and divv quantities
         release(d, "prho", "c");
