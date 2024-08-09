@@ -139,7 +139,7 @@ void dualTraversal(const TreeType& octree, TreeNodeIndex a, TreeNodeIndex b, MAC
 
     if (octree.isLeaf(a) && octree.isLeaf(b))
     {
-        p2p(a, b);
+        if (continuation(a, b)) { p2p(a, b); }
         return;
     }
 
