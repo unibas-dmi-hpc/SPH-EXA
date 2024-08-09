@@ -196,6 +196,14 @@ HOST_DEVICE_FUN constexpr KeyType encodePlaceholderBit(KeyType code, int prefixL
     return placeHolderMask | ret;
 }
 
+template<class KeyType>
+HOST_DEVICE_FUN constexpr KeyType encodePlaceholderBit2K(KeyType k1, KeyType k2)
+{
+    //! prefixLength is 3 * treeLevel(endKey - startKey)
+    unsigned prefixLength = countLeadingZeros(k2 - k1 - 1) - unusedBits<KeyType>{};
+    return encodePlaceholderBit(k1, prefixLength);
+}
+
 //! @brief returns the number of key-bits in the input @p code
 template<class KeyType>
 HOST_DEVICE_FUN constexpr unsigned decodePrefixLength(KeyType code)

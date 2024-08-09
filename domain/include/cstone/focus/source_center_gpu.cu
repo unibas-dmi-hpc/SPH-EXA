@@ -136,10 +136,40 @@ void computeGeoCentersGpu(
     computeGeoCentersKernel<<<numBlocks, numThreads>>>(prefixes, numNodes, centers, sizes, box);
 }
 
-template void computeGeoCentersGpu(const uint32_t*, TreeNodeIndex, Vec3<float>*, Vec3<float>*, const Box<float>&);
-template void computeGeoCentersGpu(const uint32_t*, TreeNodeIndex, Vec3<double>*, Vec3<double>*, const Box<double>&);
-template void computeGeoCentersGpu(const uint64_t*, TreeNodeIndex, Vec3<float>*, Vec3<float>*, const Box<float>&);
-template void computeGeoCentersGpu(const uint64_t*, TreeNodeIndex, Vec3<double>*, Vec3<double>*, const Box<double>&);
+#define GEO_CENTERS_GPU(KeyType, T)                                                                                    \
+    template void computeGeoCentersGpu(const KeyType* prefixes, TreeNodeIndex numNodes, Vec3<T>* centers,              \
+                                       Vec3<T>* sizes, const Box<T>& box)
+GEO_CENTERS_GPU(uint32_t, float);
+GEO_CENTERS_GPU(uint32_t, double);
+GEO_CENTERS_GPU(uint64_t, float);
+GEO_CENTERS_GPU(uint64_t, double);
+
+template<class KeyType, class T>
+__global__ void geoMacSpheresKernel(
+    const KeyType* prefixes, TreeNodeIndex numNodes, SourceCenterType<T>* centers, float invTheta, Box<T> box)
+{
+    unsigned i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= numNodes) { return; }
+    centers[i] = computeMinMacR2(prefixes[i], invTheta, box);
+}
+
+//! @brief set @p centers to geometric node centers with Mac radius l * invTheta
+template<class KeyType, class T>
+void geoMacSpheresGpu(
+    const KeyType* prefixes, TreeNodeIndex numNodes, SourceCenterType<T>* centers, float invTheta, const Box<T>& box)
+{
+    unsigned numThreads = 256;
+    unsigned numBlocks  = iceil(numNodes, numThreads);
+    geoMacSpheresKernel<<<numBlocks, numThreads>>>(prefixes, numNodes, centers, invTheta, box);
+}
+
+#define GEO_MAC_SPHERES_GPU(KeyType, T)                                                                                \
+    template void geoMacSpheresGpu(const KeyType* prefixes, TreeNodeIndex numNodes, SourceCenterType<T>* centers,      \
+                                   float invTheta, const Box<T>& box)
+GEO_MAC_SPHERES_GPU(uint32_t, float);
+GEO_MAC_SPHERES_GPU(uint32_t, double);
+GEO_MAC_SPHERES_GPU(uint64_t, float);
+GEO_MAC_SPHERES_GPU(uint64_t, double);
 
 template<class KeyType, class T>
 __global__ void
