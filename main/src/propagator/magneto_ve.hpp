@@ -70,12 +70,12 @@ protected:
      * x, y, z, h and m are automatically considered conserved and must not be specified in this list
      */
     using ConservedFieldsHydro   = FieldList<"temp", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha">;
-    using ConservedFieldsMagneto = FieldList<"Bx", "By", "Bz", "dBx", "dBy", "dBz", "dBx_m1", "dBy_m1", "dBz_m1", "psi_ch",
-                                             "d_psi_ch", "d_psi_ch_m1">;
+    using ConservedFieldsMagneto = FieldList<"Bx", "By", "Bz", "dBx", "dBy", "dBz", "dBx_m1", "dBy_m1", "dBz_m1",
+                                             "psi_ch", "d_psi_ch", "d_psi_ch_m1">;
 
     //! @brief list of dependent fields, these may be used as scratch space during domain sync
-    using DependentFieldsHydro =
-        FieldList<"ax", "ay", "az", "prho", "c", "du", "c11", "c12", "c13", "c22", "c23", "c33", "xm", "kx", "nc">;
+    using DependentFieldsHydro = FieldList<"ax", "ay", "az", "prho", "c", "p", "du", "c11", "c12", "c13", "c22", "c23",
+                                           "c33", "xm", "kx", "nc", "gradh">;
     using DependentFieldsMagneto = FieldList<"dvxdx", "dvxdy", " dvxdz", "dvydx", "dvydy", "dvydz", "dvzdx", "dvzdy",
                                              "dvzdz", "divB", "curlB_x", "curlB_y", "curlB_z">;
 
@@ -164,18 +164,17 @@ public:
         timer.step("mpi::synchronizeHalos");
 
         release(d, "ay");
-        acquire(d, "gradh");
         computeVeDefGradh(groups_.view(), d, domain.box());
         timer.step("Normalization & Gradh");
 
         computeEOS(first, last, d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(get<"vx", "vy", "vz", "prho", "c", "kx">(d), get<"ax">(d), get<"keys">(d));
+        domain.exchangeHalos(get<"vx", "vy", "vz", "p", "c", "kx">(d), get<"ax">(d), get<"keys">(d));
         domain.exchangeHalos(get<"Bx", "By", "Bz">(md), get<"ax">(d), get<"keys">(d));
         timer.step("mpi::synchronizeHalos");
 
-        release(d, "gradh", "az");
+        release(d, "az");
         acquire(d, "divv", "curlv");
         sph::magneto::computeIadFullDivvCurlv(groups_.view(), simData, domain.box());
         d.minDtRho = rhoTimestep(first, last, d);
@@ -197,7 +196,8 @@ public:
         sph::magneto::computeMomentumEnergy<avClean>(groups_.view(), nullptr, simData, domain.box());
         timer.step("MomentumAndEnergy");
 
-        domain.exchangeHalos(get<"divB", "curlB_x", "curlB_y", "curlB_z", "psi_ch">(md), get<"divv">(d), get<"curlv">(d));
+        domain.exchangeHalos(get<"divB", "curlB_x", "curlB_y", "curlB_z", "psi_ch">(md), get<"divv">(d),
+                             get<"curlv">(d));
         timer.step("mpi::synchronizeHalos");
 
         sph::magneto::computeInductionAndDissipation(groups_.view(), simData, domain.box());
