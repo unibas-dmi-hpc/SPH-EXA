@@ -176,12 +176,12 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atm
     dB_diss *= K / (kxi * mi * mi * gradhi);
 
     divB_clean *= K / (kxi * mi * mi * gradhi);
-    du_diss *= K /(kxi*mi*mi*gradhi*rhoi);
+    du_diss *= K / (kxi * mi * mi * gradhi * rhoi);
 
     *dBxi += dB_diss[0] - divB_clean[0];
     *dByi += dB_diss[1] - divB_clean[1];
     *dBzi += dB_diss[2] - divB_clean[2];
 
-    *dui += du_diss;
+    *dui -= 0.5 * du_diss;
 }
 } // namespace sph::magneto
