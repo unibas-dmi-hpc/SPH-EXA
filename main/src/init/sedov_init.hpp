@@ -135,6 +135,7 @@ public:
 template<class Dataset>
 class SedovGlass : public ISimInitializer<Dataset>
 {
+protected:
     std::string          glassBlock;
     mutable InitSettings settings_;
 
@@ -187,6 +188,52 @@ public:
     }
 
     const InitSettings& constants() const override { return settings_; }
+};
+
+template<class MagnetoData>
+void initMagnetoFields(MagnetoData& md, const std::map<std::string, double>& constants)
+{
+
+    auto Bz = constants.at("Bz");
+
+    std::fill(md.Bx.begin(), md.Bx.end(), 0.0);
+    std::fill(md.By.begin(), md.By.end(), 0.0);
+    std::fill(md.Bz.begin(), md.Bz.end(), Bz);
+
+    std::fill(md.dBx.begin(), md.dBx.end(), 0.0);
+    std::fill(md.dBy.begin(), md.dBy.end(), 0.0);
+    std::fill(md.dBz.begin(), md.dBz.end(), 0.0);
+    std::fill(md.dBx_m1.begin(), md.dBx_m1.end(), 0.0);
+    std::fill(md.dBy_m1.begin(), md.dBy_m1.end(), 0.0);
+    std::fill(md.dBz_m1.begin(), md.dBz_m1.end(), 0.0);
+
+    std::fill(md.psi_ch.begin(), md.psi_ch.end(), 0.0);
+    std::fill(md.d_psi_ch.begin(), md.d_psi_ch.end(), 0.0);
+    std::fill(md.d_psi_ch_m1.begin(), md.d_psi_ch_m1.end(), 0.0);
+}
+
+template<class SimData>
+class SedovMagneto : public SedovGlass<SimData>
+{
+    std::string          glassBlock = SedovGlass<SimData>::glassBlock;
+    mutable InitSettings settings_  = SedovGlass<SimData>::settings_;
+
+public:
+    using SedovGlass<SimData>::SedovGlass;
+    cstone::Box<typename SimData::RealType> init(int rank, int numRanks, size_t cbrtNumPart, SimData& simData,
+                                                 IFileReader* reader) const override
+    {
+        auto  box = SedovGlass<SimData>::init(rank, numRanks, cbrtNumPart, simData, reader);
+        auto& md  = simData.magneto;
+        md.resize(simData.hydro.x.size());
+        settings_.insert({"Bz", 0.1});
+        initMagnetoFields(md, settings_);
+
+        settings_["numParticlesGlobal"] = double(simData.hydro.numParticlesGlobal);
+        BuiltinWriter attributeSetter(settings_);
+        simData.hydro.loadOrStoreAttributes(&attributeSetter);
+        return box;
+    }
 };
 
 } // namespace sphexa
