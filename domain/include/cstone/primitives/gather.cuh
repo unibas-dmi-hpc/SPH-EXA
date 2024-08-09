@@ -72,8 +72,8 @@ public:
     void setMapFromCodes(KeyType* first, KeyType* last)
     {
         mapSize_ = std::size_t(last - first);
-        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType));
-        sequenceGpu(ordering(), mapSize_, LocalIndex(0));
+        reallocateBytes(buffer_, mapSize_ * sizeof(IndexType), growthRate_);
+        sequenceGpu(ordering(), mapSize_, IndexType(0));
         sortByKeyGpu(first, last, ordering());
     }
 
@@ -82,7 +82,7 @@ public:
     {
         mapSize_ = std::size_t(last - first);
         reallocateBytes(buffer_, mapSize_ * sizeof(IndexType), growthRate_);
-        sequenceGpu(ordering(), mapSize_, LocalIndex(0));
+        sequenceGpu(ordering(), mapSize_, IndexType(0));
         sortByKeyGpu(first, last, ordering(), keyBuf, valueBuf);
     }
 
@@ -91,7 +91,7 @@ public:
     {
         mapSize_ = std::size_t(last - first);
         reallocateBytes(buffer_, mapSize_ * sizeof(IndexType), growthRate_);
-        sequenceGpu(ordering(), mapSize_, LocalIndex(0));
+        sequenceGpu(ordering(), mapSize_, IndexType(0));
 
         auto s1 = reallocateBytes(keyBuf, mapSize_ * sizeof(KeyType), growthRate_);
         auto s2 = reallocateBytes(valueBuf, mapSize_ * sizeof(IndexType), growthRate_);
@@ -102,7 +102,50 @@ public:
         reallocate(valueBuf, s2, 1.0);
     }
 
+    template<class KeyType, class KeyBuf, class ValueBuf>
+    void updateMap(KeyType* first, KeyType* last, KeyBuf& keyBuf, ValueBuf& valueBuf)
+    {
+        assert(last - first == mapSize_);
+        sortByKeyGpu(first, last, ordering(), (KeyType*)rawPtr(keyBuf), (IndexType*)rawPtr(valueBuf));
+    }
+
     auto gatherFunc() const { return gatherGpuL; }
+
+    /*! @brief extend ordering map to the left or right
+     *
+     * @param[in] shifts    number of shifts
+     * @param[-]  scratch   scratch space for temporary usage
+     *
+     * Negative shift values extends the ordering map to the left, positive value to the right
+     * Examples: map = [1, 0, 3, 2] -> extendMap(-1) -> map = [0, 2, 1, 4, 3]
+     *           map = [1, 0, 3, 2] -> extendMap(1) -> map = [1, 0, 3, 2, 4]
+     *
+     * This is used to extend the key-buffer passed to setMapFromCodes with additional keys, without
+     * having to restore the original unsorted key-sequence.
+     */
+    template<class Vector>
+    void extendMap(std::make_signed_t<IndexType> shifts, Vector& scratch)
+    {
+        if (shifts == 0) { return; }
+
+        auto newMapSize = mapSize_ + std::abs(shifts);
+        reallocateBytes(scratch, newMapSize * sizeof(IndexType), 1.0);
+        auto* tempMap = reinterpret_cast<IndexType*>(rawPtr(scratch));
+
+        if (shifts < 0)
+        {
+            sequenceGpu(tempMap, IndexType(-shifts), IndexType(0));
+            incrementGpu(ordering(), ordering() + mapSize_, tempMap - shifts, IndexType(-shifts));
+        }
+        else if (shifts > 0)
+        {
+            memcpyD2D(ordering(), mapSize_, tempMap);
+            sequenceGpu(tempMap + mapSize_, IndexType(shifts), mapSize_);
+        }
+        reallocateBytes(buffer_, newMapSize * sizeof(IndexType), 1.0);
+        memcpyD2D(tempMap, newMapSize, ordering());
+        mapSize_ = newMapSize;
+    }
 
 private:
     IndexType* ordering() { return reinterpret_cast<IndexType*>(rawPtr(buffer_)); }
@@ -110,7 +153,7 @@ private:
 
     //! @brief reference to (non-owning) buffer for ordering
     BufferType& buffer_;
-    std::size_t mapSize_{0};
+    IndexType mapSize_{0};
     float growthRate_ = 1.05;
 };
 

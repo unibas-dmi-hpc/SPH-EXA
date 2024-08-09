@@ -42,6 +42,9 @@ extern void fillGpu(T* first, T* last, T value);
 template<class T>
 extern void scaleGpu(T* first, T* last, T value);
 
+template<class T>
+extern void incrementGpu(const T* first, const T* last, T* d_first, T value);
+
 template<class T, class IndexType>
 extern void gatherGpu(const IndexType* ordering, size_t numElements, const T* src, T* buffer);
 

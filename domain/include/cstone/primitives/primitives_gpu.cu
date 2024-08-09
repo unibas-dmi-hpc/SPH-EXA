@@ -82,6 +82,29 @@ void scaleGpu(T* first, T* last, T value)
 template void scaleGpu(double*, double*, double);
 template void scaleGpu(float*, float*, float);
 
+template<class T>
+struct IncrementFunctor
+{
+    const T s;
+
+    IncrementFunctor(T s_)
+        : s(s_)
+    {
+    }
+
+    __host__ __device__ T operator()(const T& x) const { return x + s; }
+};
+
+template<class T>
+void incrementGpu(const T* first, const T* last, T* d_first, T value)
+{
+    thrust::transform(thrust::device, first, last, d_first, IncrementFunctor<T>(value));
+}
+
+#define INCREMENT_GPU(T) template void incrementGpu(const T* first, const T* last, T* d_first, T value)
+INCREMENT_GPU(unsigned);
+INCREMENT_GPU(uint64_t);
+
 template<class T, class IndexType>
 __global__ void gatherGpuKernel(const IndexType* map, size_t n, const T* source, T* destination)
 {
