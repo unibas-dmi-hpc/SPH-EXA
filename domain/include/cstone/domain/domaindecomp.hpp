@@ -220,12 +220,11 @@ SendRanges createSendRanges(const SfcAssignment<KeyType>& assignment, gsl::span<
     int numRanks = assignment.numRanks();
 
     SendRanges ret(numRanks + 1);
-    for (int rank = 0; rank < numRanks; ++rank)
+    for (int rank = 0; rank <= numRanks; ++rank)
     {
         KeyType rangeStart = assignment[rank];
         ret[rank] = std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart) - particleKeys.begin();
     }
-    ret.back() = particleKeys.size();
 
     return ret;
 }

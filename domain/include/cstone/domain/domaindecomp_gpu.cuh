@@ -58,13 +58,12 @@ SendRanges createSendRangesGpu(const SfcAssignment<KeyType>& assignment,
                                KeyType* d_searchKeys,
                                LocalIndex* d_indices)
 {
-    size_t numRanks = assignment.numRanks();
-    SendRanges ret(numRanks + 1);
+    size_t numSearchKeys = assignment.numRanks() + 1;
+    SendRanges ret(numSearchKeys);
 
-    memcpyH2D(assignment.data(), numRanks, d_searchKeys);
-    lowerBoundGpu(particleKeys.begin(), particleKeys.end(), d_searchKeys, d_searchKeys + numRanks, d_indices);
-    memcpyD2H(d_indices, numRanks, ret.data());
-    ret.back() = particleKeys.size();
+    memcpyH2D(assignment.data(), numSearchKeys, d_searchKeys);
+    lowerBoundGpu(particleKeys.begin(), particleKeys.end(), d_searchKeys, d_searchKeys + numSearchKeys, d_indices);
+    memcpyD2H(d_indices, numSearchKeys, ret.data());
 
     return ret;
 }

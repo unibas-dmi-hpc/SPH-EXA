@@ -72,8 +72,8 @@ public:
         tree_.update(init.data(), nNodes(init));
         nodeCounts_ = std::vector<unsigned>(nNodes(init), bucketSize_ - 1);
 
-        reallocate(d_boundaryKeys_, numRanks_, 1.0);
-        reallocate(d_boundaryIndices_, numRanks_, 1.0);
+        reallocate(d_boundaryKeys_, numRanks_ + 1, 1.0);
+        reallocate(d_boundaryIndices_, numRanks_ + 1, 1.0);
     }
 
     /*! @brief Update the global tree
