@@ -173,9 +173,16 @@ public:
         LocalIndex envelopeSize    = newEnd - newStart;
         gsl::span<KeyType> keyView = gsl::span<KeyType>(keys + newStart, envelopeSize);
 
-        computeSfcKeysGpu(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.data()), envelopeSize, box_);
+        auto recvStart = domain_exchange::receiveStart(bufDesc, numPresent(), numAssigned());
+        auto numRecv = numAssigned() - numPresent();
+
+        computeSfcKeysGpu(x + recvStart, y + recvStart, z + recvStart, sfcKindPointer(keys + recvStart), numRecv, box_);
+        std::make_signed_t<LocalIndex> shifts = -numRecv;
+        if (newEnd > bufDesc.end) { shifts = numRecv; }
+        sfcSorter.extendMap(shifts, sendScratch);
+
         // sort keys and keep track of the ordering
-        sfcSorter.setMapFromCodes(keyView.begin(), keyView.end(), sendScratch, receiveScratch);
+        sfcSorter.updateMap(keyView.begin(), keyView.end(), sendScratch, receiveScratch);
 
         return std::make_tuple(newStart, keyView.subspan(numSendDown(), numAssigned()));
     }

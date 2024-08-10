@@ -106,7 +106,11 @@ public:
     void updateMap(KeyType* first, KeyType* last, KeyBuf& keyBuf, ValueBuf& valueBuf)
     {
         assert(last - first == mapSize_);
+        auto s1 = reallocateBytes(keyBuf, mapSize_ * sizeof(KeyType), growthRate_);
+        auto s2 = reallocateBytes(valueBuf, mapSize_ * sizeof(IndexType), growthRate_);
         sortByKeyGpu(first, last, ordering(), (KeyType*)rawPtr(keyBuf), (IndexType*)rawPtr(valueBuf));
+        reallocate(keyBuf, s1, 1.0);
+        reallocate(valueBuf, s2, 1.0);
     }
 
     auto gatherFunc() const { return gatherGpuL; }
@@ -129,8 +133,8 @@ public:
         if (shifts == 0) { return; }
 
         auto newMapSize = mapSize_ + std::abs(shifts);
-        reallocateBytes(scratch, newMapSize * sizeof(IndexType), 1.0);
-        auto* tempMap = reinterpret_cast<IndexType*>(rawPtr(scratch));
+        auto s1         = reallocateBytes(scratch, newMapSize * sizeof(IndexType), 1.0);
+        auto* tempMap   = reinterpret_cast<IndexType*>(rawPtr(scratch));
 
         if (shifts < 0)
         {
@@ -145,6 +149,7 @@ public:
         reallocateBytes(buffer_, newMapSize * sizeof(IndexType), 1.0);
         memcpyD2D(tempMap, newMapSize, ordering());
         mapSize_ = newMapSize;
+        reallocate(scratch, s1, 1.0);
     }
 
 private:
