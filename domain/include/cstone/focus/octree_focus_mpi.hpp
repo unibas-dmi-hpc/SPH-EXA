@@ -165,9 +165,10 @@ public:
         {
             syncTreeletsGpu(peers_, assignment_, leaves_, octreeAcc_, leavesAcc_, treelets_, treeletIdx_);
             downloadOctree();
-            indexTreelets<KeyType>(treeData_.prefixes, treeData_.levelRange, treelets_, treeletIdx_);
         }
         else { syncTreelets(peers_, assignment_, treeData_, leaves_, treelets_, treeletIdx_); }
+
+        indexTreelets<KeyType>(peerRanks, treeData_.prefixes, treeData_.levelRange, treelets_, treeletIdx_);
 
         translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
 

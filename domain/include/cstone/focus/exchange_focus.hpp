@@ -151,14 +151,14 @@ void exchangeTreelets(gsl::span<const int> peerRanks,
 
 //! @brief flag treelet keys that don't exist in @p leaves as invalid
 template<class KeyType>
-void checkTreelets(gsl::span<const KeyType> leaves,
+void checkTreelets(gsl::span<const int> peerRanks,
+                   gsl::span<const KeyType> leaves,
                    std::vector<std::vector<KeyType>>& treelets,
                    std::vector<std::vector<TreeNodeIndex>>& treeletIdx)
 {
-    for (int rank = 0; rank < int(treelets.size()); ++rank)
+    for (auto rank : peerRanks)
     {
-        auto& treelet = treelets[rank];
-        if (treelet.empty()) { continue; }
+        auto& treelet          = treelets[rank];
         auto& tlIdx            = treeletIdx[rank];
         TreeNodeIndex numNodes = nNodes(treelets[rank]);
         tlIdx.resize(numNodes);
@@ -194,15 +194,15 @@ void pruneTreelets(gsl::span<const int> peerRanks,
 
 //! @brief assign treelet nodes their final indices w.r.t the final LET
 template<class KeyType>
-void indexTreelets(gsl::span<const KeyType> nodeKeys,
+void indexTreelets(gsl::span<const int> peerRanks,
+                   gsl::span<const KeyType> nodeKeys,
                    gsl::span<const TreeNodeIndex> levelRange,
                    std::vector<std::vector<KeyType>>& treelets,
                    std::vector<std::vector<TreeNodeIndex>>& treeletIdx)
 {
-    for (int rank = 0; rank < int(treelets.size()); ++rank)
+    for (int rank : peerRanks)
     {
-        auto& treelet = treelets[rank];
-        if (treelet.empty()) { continue; }
+        auto& treelet          = treelets[rank];
         auto& tlIdx            = treeletIdx[rank];
         TreeNodeIndex numNodes = nNodes(treelets[rank]);
         tlIdx.resize(numNodes);
@@ -294,7 +294,7 @@ void syncTreelets(gsl::span<const int> peers,
                   std::vector<std::vector<TreeNodeIndex>>& treeletIdx)
 {
     exchangeTreelets<KeyType>(peers, focusAssignment, leaves, treelets);
-    checkTreelets<KeyType>(leaves, treelets, treeletIdx);
+    checkTreelets<KeyType>(peers, leaves, treelets, treeletIdx);
 
     std::vector<TreeNodeIndex> nodeOps(leaves.size(), 1);
     exchangeRejectedKeys<KeyType>(peers, leaves, treelets, treeletIdx, nodeOps);
@@ -307,8 +307,6 @@ void syncTreelets(gsl::span<const int> peers,
         octree.resize(nNodes(leaves));
         updateInternalTree<KeyType>(leaves, octree.data());
     }
-
-    indexTreelets<KeyType>(octree.prefixes, octree.levelRange, treelets, treeletIdx);
 }
 
 template<class KeyType>
@@ -321,7 +319,7 @@ void syncTreeletsGpu(gsl::span<const int> peers,
                      std::vector<std::vector<TreeNodeIndex>>& treeletIdx)
 {
     exchangeTreelets<KeyType>(peers, assignment, leaves, treelets);
-    checkTreelets<KeyType>(leaves, treelets, treeletIdx);
+    checkTreelets<KeyType>(peers, leaves, treelets, treeletIdx);
 
     std::vector<TreeNodeIndex> nodeOps(leaves.size(), 1);
     exchangeRejectedKeys<KeyType>(peers, leaves, treelets, treeletIdx, nodeOps);
