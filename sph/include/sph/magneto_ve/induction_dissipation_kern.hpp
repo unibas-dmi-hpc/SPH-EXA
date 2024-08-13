@@ -43,7 +43,7 @@ static constexpr float sigma_c = 1.0;
 
 template<size_t stride = 1, typename Tc, class T, class Tm>
 HOST_DEVICE_FUN inline void
-inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atmax, T ramp, const cstone::Box<Tc>& box,
+inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, const cstone::Box<Tc>& box,
                              const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x, const Tc* y,
                              const Tc* z, const T* vx, const T* vy, const T* vz, const T* c, const Tc* Bx, const Tc* By,
                              const Tc* Bz, const T* h, const T* c11, const T* c12, const T* c13, const T* c22,
@@ -98,6 +98,7 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atm
         auto mj     = m[j];
         auto xmassj = xm[j];
         auto rhoj   = kx[j] * mj / xmassj;
+        auto volj   = xmassj / (kx[j] * gradh[j]);
 
         T rx = xi - x[j];
         T ry = yi - y[j];
@@ -121,16 +122,6 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atm
         T hjInv3 = hjInv * hjInv * hjInv;
         T Wi     = hiInv3 * lt::lookup(wh, v1);
         T Wj     = hjInv3 * lt::lookup(wh, v2);
-
-        T a_term;
-        T Atwood = (std::abs(rhoi - rhoj)) / (rhoi + rhoj);
-        if (Atwood < Atmin) { a_term = xmassi * xmassi; }
-        else if (Atwood > Atmax) { a_term = xmassi * xmassj; }
-        else
-        {
-            T sigma_ij = ramp * (Atwood - Atmin);
-            a_term     = pow(xmassi, T(2) - sigma_ij) * pow(xmassj, sigma_ij);
-        }
 
         T termA1_i = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
         T termA2_i = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
@@ -159,24 +150,24 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, T Atmin, T Atm
 
         // We have 2*resistivity_ab because we use symmetric resisitivity
         // we divide by r^2 because we divide once to get the unit projector and again for the equation
-        dB_diss += mj * a_term * T(2) * resistivity_ab * B_ab *
-                   ((rx * termA_avg[0] + ry * termA_avg[1] + rz * termA_avg[2]) / r2);
+        dB_diss +=
+            volj * T(2) * resistivity_ab * B_ab * ((rx * termA_avg[0] + ry * termA_avg[1] + rz * termA_avg[2]) / r2);
 
         // same comment as above, discretisation taken from Wissing and Shen (2020)
-        du_diss += mj * a_term * 2 * resistivity_ab * norm2(B_ab) *
+        du_diss += volj * 2 * resistivity_ab * norm2(B_ab) *
                    ((rx * termA_avg[0] + ry * termA_avg[1] + rz * termA_avg[2]) / r2);
 
         // wave cleaning speed
         auto v_alfven2_j = (Bxi * Bxi + Byi * Byi + Bzi * Bzi) / (mu_0 * rhoi);
         auto c_hj        = fclean * std::sqrt(c[j] * c[j] * v_alfven2_j);
 
-        divB_clean += mj * a_term * (psi_ch_i * c_hi + psi_ch[j] * c_hj) * termA_avg;
+        divB_clean += volj * (psi_ch_i * c_hi + psi_ch[j] * c_hj) * termA_avg;
     }
 
-    dB_diss *= K / (kxi * mi * mi * gradhi);
+    dB_diss *= K;
 
-    divB_clean *= K / (kxi * mi * mi * gradhi);
-    du_diss *= K / (kxi * mi * mi * gradhi * rhoi);
+    divB_clean *= K;
+    du_diss *= K / rhoi;
 
     *dBxi += dB_diss[0] - divB_clean[0];
     *dByi += dB_diss[1] - divB_clean[1];

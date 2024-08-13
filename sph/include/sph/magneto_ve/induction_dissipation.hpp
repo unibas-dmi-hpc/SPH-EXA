@@ -35,7 +35,6 @@
 namespace sph::magneto
 {
 
-
 template<class Tc, class SimData>
 void computeInductionAndDissipationImpl(size_t startIndex, size_t endIndex, SimData& sim, const cstone::Box<Tc>& box)
 {
@@ -78,17 +77,17 @@ void computeInductionAndDissipationImpl(size_t startIndex, size_t endIndex, SimD
     const auto* m     = d.m.data();
     const auto* gradh = d.gradh.data();
 
-    const auto* Bx      = md.Bx.data();
-    const auto* By      = md.By.data();
-    const auto* Bz      = md.Bz.data();
-    const auto* divB    = md.divB.data();
+    const auto* Bx   = md.Bx.data();
+    const auto* By   = md.By.data();
+    const auto* Bz   = md.Bz.data();
+    const auto* divB = md.divB.data();
 
     auto* psi_ch   = md.psi_ch.data();
-    auto* dBx   = md.dBx.data();
-    auto* dBy   = md.dBy.data();
-    auto* dBz   = md.dBz.data();
+    auto* dBx      = md.dBx.data();
+    auto* dBy      = md.dBy.data();
+    auto* dBz      = md.dBz.data();
     auto* d_psi_ch = md.d_psi_ch.data();
-    auto* du    = d.du.data();
+    auto* du       = d.du.data();
 
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; ++i)
@@ -101,17 +100,16 @@ void computeInductionAndDissipationImpl(size_t startIndex, size_t endIndex, SimD
         dBy[i] = -By[i] * (dvxdx[i] + dvzdz[i]) + Bx[i] * dvydx[i] + Bz[i] * dvydz[i];
         dBz[i] = -Bz[i] * (dvxdx[i] + dvydy[i]) + Bx[i] * dvzdx[i] + By[i] * dvzdy[i];
 
-        inductionAndDissipationJLoop(i, d.K, md.mu_0, d.Atmin, d.Atmax, d.ramp, box, neighbors + d.ngmax * ni, ncCapped, x, y, z,
-                                  vx, vy, vz, c, Bx, By, Bz, h, c11, c12, c13, c22, c23, c33, wh, xm, kx, gradh, m, psi_ch,
-                                  &dBx[i], &dBy[i], &dBz[i], &du[i]);
+        inductionAndDissipationJLoop(i, d.K, md.mu_0, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, vx, vy, vz, c,
+                                     Bx, By, Bz, h, c11, c12, c13, c22, c23, c33, wh, xm, kx, gradh, m, psi_ch, &dBx[i],
+                                     &dBy[i], &dBz[i], &du[i]);
 
         // get psi time differential with the recipe of Wissing et al (2020)
         auto rho_i     = kx[i] * m[i] / xm[i];
         auto v_alfven2 = (Bx[i] * Bx[i] + By[i] * By[i] + Bz[i] * Bz[i]) / (md.mu_0 * rho_i);
         auto ch        = fclean * std::sqrt(c[i] * c[i] + v_alfven2);
         auto tau_Inv   = (sigma_c * ch) / h[i];
-        d_psi_ch[i]       = - ch * divB[i] - psi_ch[i] * (tau_Inv+ (dvxdx[i] + dvydy[i] + dvzdz[i]) / 2 );
-
+        d_psi_ch[i]    = -ch * divB[i] - psi_ch[i] * (tau_Inv + (dvxdx[i] + dvydy[i] + dvzdz[i]) / 2);
     }
 }
 

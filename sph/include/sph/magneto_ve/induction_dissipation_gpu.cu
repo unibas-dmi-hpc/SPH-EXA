@@ -45,16 +45,14 @@ using cstone::TravConfig;
 using cstone::TreeNodeIndex;
 
 template<class Tc, class T, class Tm, class KeyType>
-__global__ void
-inductionDissipationGPU(Tc K, unsigned ngmax, const cstone::Box<Tc> box, const LocalIndex* grpStart,
-                        const LocalIndex* grpEnd, LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree,
-                        const Tc mu_0, T Atmin, T Atmax, T ramp, const Tc* x, const Tc* y, const Tc* z, const T* vx,
-                        const T* vy, const T* vz, const T* c, const Tc* Bx, const Tc* By, const Tc* Bz, const T* h,
-                        const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
-                        const T* xm, const T* kx, const T* gradh, const Tm* m, const T* dvxdx, const T* dvxdy,
-                        const T* dvxdz, const T* dvydx, const T* dvydy, const T* dvydz, const T* dvzdx, const T* dvzdy,
-                        const T* dvzdz, T* psi_ch, const T* divB, Tc* dBx, Tc* dBy, Tc* dBz, Tc* du, T* d_psi_ch,
-                        LocalIndex* nidx, TreeNodeIndex* globalPool)
+__global__ void inductionDissipationGPU(
+    Tc K, unsigned ngmax, const cstone::Box<Tc> box, const LocalIndex* grpStart, const LocalIndex* grpEnd,
+    LocalIndex numGroups, const cstone::OctreeNsView<Tc, KeyType> tree, const Tc mu_0, const Tc* x, const Tc* y,
+    const Tc* z, const T* vx, const T* vy, const T* vz, const T* c, const Tc* Bx, const Tc* By, const Tc* Bz,
+    const T* h, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
+    const T* xm, const T* kx, const T* gradh, const Tm* m, const T* dvxdx, const T* dvxdy, const T* dvxdz,
+    const T* dvydx, const T* dvydy, const T* dvydz, const T* dvzdx, const T* dvzdy, const T* dvzdz, T* psi_ch,
+    const T* divB, Tc* dBx, Tc* dBy, Tc* dBz, Tc* du, T* d_psi_ch, LocalIndex* nidx, TreeNodeIndex* globalPool)
 {
     unsigned laneIdx     = threadIdx.x & (GpuConfig::warpSize - 1);
     unsigned targetIdx   = 0;
@@ -85,8 +83,8 @@ inductionDissipationGPU(Tc K, unsigned ngmax, const cstone::Box<Tc> box, const L
 
         unsigned ncCapped = stl::min(ncTrue[0], ngmax);
         inductionAndDissipationJLoop<TravConfig::targetSize>(
-            i, K, mu_0, Atmin, Atmax, ramp, box, neighborsWarp + laneIdx, ncCapped, x, y, z, vx, vy, vz, c, Bx, By, Bz,
-            h, c11, c12, c13, c22, c23, c33, wh, xm, kx, gradh, m, psi_ch, &dBx[i], &dBy[i], &dBz[i], &du[i]);
+            i, K, mu_0, box, neighborsWarp + laneIdx, ncCapped, x, y, z, vx, vy, vz, c, Bx, By, Bz, h, c11, c12, c13,
+            c22, c23, c33, wh, xm, kx, gradh, m, psi_ch, &dBx[i], &dBy[i], &dBz[i], &du[i]);
 
         // get psi time differential with the recipe of Wissing et al (2020)
         auto rho_i     = kx[i] * m[i] / xm[i];
@@ -106,10 +104,10 @@ void computeInductionAndDissipationGpu(const GroupView& grp, HydroData& d, Magne
     cstone::resetTraversalCounters<<<1, 1>>>();
 
     inductionDissipationGPU<<<TravConfig::numBlocks(), TravConfig::numThreads>>>(
-        d.K, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView, m.mu_0, d.Atmin, d.Atmax, d.ramp,
-        rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy),
-        rawPtr(d.devData.vz), rawPtr(d.devData.c), rawPtr(m.devData.Bx), rawPtr(m.devData.By), rawPtr(m.devData.Bz),
-        rawPtr(d.devData.h), rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
+        d.K, d.ngmax, box, grp.groupStart, grp.groupEnd, grp.numGroups, d.treeView, m.mu_0, rawPtr(d.devData.x),
+        rawPtr(d.devData.y), rawPtr(d.devData.z), rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz),
+        rawPtr(d.devData.c), rawPtr(m.devData.Bx), rawPtr(m.devData.By), rawPtr(m.devData.Bz), rawPtr(d.devData.h),
+        rawPtr(d.devData.c11), rawPtr(d.devData.c12), rawPtr(d.devData.c13), rawPtr(d.devData.c22),
         rawPtr(d.devData.c23), rawPtr(d.devData.c33), rawPtr(d.devData.wh), rawPtr(d.devData.xm), rawPtr(d.devData.kx),
         rawPtr(d.devData.gradh), rawPtr(d.devData.m), rawPtr(m.devData.dvxdx), rawPtr(m.devData.dvxdy),
         rawPtr(m.devData.dvxdz), rawPtr(m.devData.dvydx), rawPtr(m.devData.dvydy), rawPtr(m.devData.dvydz),
