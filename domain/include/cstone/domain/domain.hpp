@@ -44,6 +44,7 @@
 #include "cstone/focus/octree_focus_mpi.hpp"
 #include "cstone/halos/halos.hpp"
 #include "cstone/primitives/gather.hpp"
+#include "cstone/primitives/primitives_acc.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/traversal/peers.hpp"
 #include "cstone/tree/accel_switch.hpp"
@@ -508,6 +509,9 @@ private:
                                            rawPtr(keys), rawPtr(x), rawPtr(y), rawPtr(z));
         lowMemReallocate(exchangeSize, allocGrowthRate_, distributedArrays, scratchBuffers);
 
+        // Must zero new memory to exclude possibility of special value (removeKey) in uninitialized memory
+        fill<IsDeviceVector<KeyVec>{}>(rawPtr(keys) + bufDesc_.size, rawPtr(keys) + exchangeSize, KeyType(0));
+
         return std::apply(
             [exchangeSize, &sorter, &scratchBuffers, this](auto&... arrays)
             {
@@ -561,7 +565,8 @@ private:
 
             auto* swapPtr = reinterpret_cast<KeyType*>(rawPtr(swapSpace));
             memcpyD2D(keyView.data(), keyView.size(), swapPtr);
-            reallocateDestructive(keys, newBufDesc.size, allocGrowthRate_);
+            reallocate(keys, newBufDesc.size, allocGrowthRate_);
+            fill<true>(rawPtr(keys) + bufDesc_.size, rawPtr(keys) + newBufDesc.size, KeyType(0));
             memcpyD2D(swapPtr, keyView.size(), rawPtr(keys) + newBufDesc.start);
 
             reallocate(swapSpace, origSize, 1.0);
@@ -570,6 +575,7 @@ private:
         {
             omp_copy(layout_.begin(), layout_.end(), layoutAcc_.begin());
             reallocate(swapKeys_, newBufDesc.size, allocGrowthRate_);
+            fill<false>(rawPtr(swapKeys_) + bufDesc_.size, rawPtr(swapKeys_) + newBufDesc.size, KeyType(0));
             omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);
             swap(keys, swapKeys_);
         }
