@@ -160,7 +160,7 @@ public:
         gsl::span<KeyType> keyView(keys + newStart, envelopeSize);
 
         auto recvStart = domain_exchange::receiveStart(bufDesc, numPresent(), numAssigned());
-        auto numRecv = numAssigned() - numPresent();
+        auto numRecv   = numAssigned() - numPresent();
 
         computeSfcKeys(x + recvStart, y + recvStart, z + recvStart, sfcKindPointer(keys + recvStart), numRecv, box_);
         std::make_signed_t<LocalIndex> shifts = -numRecv;

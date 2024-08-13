@@ -19,7 +19,7 @@ using namespace cstone;
 
 TEST(SfcSorterGpu, shiftMapLeft)
 {
-    using KeyType = unsigned;
+    using KeyType   = unsigned;
     using IndexType = unsigned;
     using thrust::raw_pointer_cast;
 
@@ -46,7 +46,7 @@ TEST(SfcSorterGpu, shiftMapLeft)
 
 TEST(SfcSorterGpu, shiftMapRight)
 {
-    using KeyType = unsigned;
+    using KeyType   = unsigned;
     using IndexType = unsigned;
     using thrust::raw_pointer_cast;
 
