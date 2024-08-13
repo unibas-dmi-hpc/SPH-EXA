@@ -226,7 +226,7 @@ public:
         auto  box = SedovGlass<SimData>::init(rank, numRanks, cbrtNumPart, simData, reader);
         auto& md  = simData.magneto;
         md.resize(simData.hydro.x.size());
-        settings_.insert({"Bz", 0.1});
+        settings_.insert({"Bz", 10.});
         initMagnetoFields(md, settings_);
 
         settings_["numParticlesGlobal"] = double(simData.hydro.numParticlesGlobal);
