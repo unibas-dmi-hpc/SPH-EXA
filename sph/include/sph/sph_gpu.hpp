@@ -52,7 +52,6 @@ extern void computeEOS(size_t, size_t, Tm mui, Tu gamma, const Tu*, const Tm*, c
 
 } // namespace cuda
 
-
 namespace magneto::cuda
 {
 
@@ -61,13 +60,12 @@ extern void computeIadFullDivvCurlv(const GroupView&, HydroData& d, MagnetoData&
                                     const cstone::Box<typename HydroData::RealType>& box);
 template<bool avClean, class HydroData, class MagnetoData>
 extern void computeMagneticMomentumEnergy(const GroupView& grp, float* groupDt, HydroData& d, MagnetoData& m,
-                           const cstone::Box<typename HydroData::RealType>& box);
+                                          const cstone::Box<typename HydroData::RealType>& box);
 template<class HydroData, class MagnetoData>
 extern void computeInductionAndDissipationGpu(const GroupView& grp, HydroData& d, MagnetoData& m,
-                                    const cstone::Box<typename HydroData::RealType>& box);
+                                              const cstone::Box<typename HydroData::RealType>& box);
 template<class MagnetoData>
-extern void integrateMagneticQuantitiesGpu(GroupView grp, MagnetoData& md, double dt_forward,
-                                 double dt_m1);
+extern void integrateMagneticQuantitiesGpu(const GroupView& grp, MagnetoData& md, double dt, double dt_m1);
 } // namespace magneto::cuda
 
 template<class Tc, class Thydro, class Tm1, class Tdu>
