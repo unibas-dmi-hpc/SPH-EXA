@@ -64,7 +64,7 @@ __global__ void magneticIntegrationKernel(GroupView grp, double dt, double dt_m1
 }
 
 template<class MagnetoData>
-void integrateMagneticQuantities(const GroupView& grp, MagnetoData& md, double dt, double dt_m1)
+void integrateMagneticQuantitiesGpu(const GroupView& grp, MagnetoData& md, double dt, double dt_m1)
 {
     unsigned numThreads       = 256;
     unsigned numWarpsPerBlock = numThreads / GpuConfig::warpSize;
@@ -77,5 +77,5 @@ void integrateMagneticQuantities(const GroupView& grp, MagnetoData& md, double d
         rawPtr(md.devData.dBz_m1), rawPtr(md.devData.psi_ch), rawPtr(md.devData.d_psi_ch), rawPtr(md.devData.d_psi_ch_m1));
 }
 
-template void integrateMagneticQuantities(const GroupView& grp, sphexa::magneto::MagnetoData<cstone::GpuTag>& m, double, double);
+template void integrateMagneticQuantitiesGpu(const GroupView& grp, sphexa::magneto::MagnetoData<cstone::GpuTag>& m, double, double);
 } // namespace sph::magneto::cuda
