@@ -194,11 +194,11 @@ template<class MagnetoData>
 void initMagnetoFields(MagnetoData& md, const std::map<std::string, double>& constants)
 {
 
-    auto Bz = constants.at("Bz");
+    auto Bmag = constants.at("Bmag");
 
-    std::fill(md.Bx.begin(), md.Bx.end(), 0.0);
+    std::fill(md.Bx.begin(), md.Bx.end(), Bmag / sqrt(2.));
     std::fill(md.By.begin(), md.By.end(), 0.0);
-    std::fill(md.Bz.begin(), md.Bz.end(), Bz);
+    std::fill(md.Bz.begin(), md.Bz.end(), Bmag / sqrt(2.));
 
     std::fill(md.dBx.begin(), md.dBx.end(), 0.0);
     std::fill(md.dBy.begin(), md.dBy.end(), 0.0);
@@ -226,7 +226,7 @@ public:
         auto  box = SedovGlass<SimData>::init(rank, numRanks, cbrtNumPart, simData, reader);
         auto& md  = simData.magneto;
         md.resize(simData.hydro.x.size());
-        settings_.insert({"Bz", 10.});
+        settings_.insert({"Bmag", 10.});
         initMagnetoFields(md, settings_);
 
         settings_["numParticlesGlobal"] = double(simData.hydro.numParticlesGlobal);
