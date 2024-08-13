@@ -42,6 +42,8 @@
 #include "grid.hpp"
 #include "utils.hpp"
 
+#include <H5Mpublic.h>
+
 namespace sphexa
 {
 
@@ -190,11 +192,12 @@ public:
     const InitSettings& constants() const override { return settings_; }
 };
 
-template<class MagnetoData>
-void initMagnetoFields(MagnetoData& md, const std::map<std::string, double>& constants)
+template<class HydroData, class MagnetoData>
+void initMagnetoFields(MagnetoData& md, HydroData& d, const std::map<std::string, double>& constants)
 {
 
     auto Bmag = constants.at("Bmag");
+    using T   = HydroData::RealType;
 
     std::fill(md.Bx.begin(), md.Bx.end(), Bmag / sqrt(2.));
     std::fill(md.By.begin(), md.By.end(), 0.0);
@@ -210,24 +213,43 @@ void initMagnetoFields(MagnetoData& md, const std::map<std::string, double>& con
     std::fill(md.psi_ch.begin(), md.psi_ch.end(), 0.0);
     std::fill(md.d_psi_ch.begin(), md.d_psi_ch.end(), 0.0);
     std::fill(md.d_psi_ch_m1.begin(), md.d_psi_ch_m1.end(), 0.0);
+
+    auto cv       = sph::idealGasCv(d.muiConst, d.gamma);
+    T    p_in     = 100.;
+    T    p_out    = 1.;
+    T    temp_in  = p_in / ((d.gamma - 1.) * constants.at("rho0")) / cv;
+    T    temp_out = p_out / ((d.gamma - 1.) * constants.at("rho0")) / cv;
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < md.Bx.size(); ++i)
+    {
+        T r = sqrt(d.x[i] * d.x[i] + d.y[i] * d.y[i] + d.z[i] * d.z[i]);
+        if (r <= 0.125) { d.temp[i] = temp_in; }
+        else { d.temp[i] = temp_out; }
+    }
 }
 
 template<class SimData>
 class SedovMagneto : public SedovGlass<SimData>
 {
     std::string          glassBlock = SedovGlass<SimData>::glassBlock;
-    mutable InitSettings settings_  = SedovGlass<SimData>::settings_;
+    mutable InitSettings settings_;
 
 public:
-    using SedovGlass<SimData>::SedovGlass;
+    SedovMagneto(std::string initBlock, std::string settingsFile, IFileReader* reader)
+        : SedovGlass<SimData>(initBlock, settingsFile, reader)
+    {
+        SimData sim;
+        settings_ = buildSettings(sim, magneticSedovConstants(), settingsFile, reader);
+    }
+
     cstone::Box<typename SimData::RealType> init(int rank, int numRanks, size_t cbrtNumPart, SimData& simData,
                                                  IFileReader* reader) const override
     {
         auto  box = SedovGlass<SimData>::init(rank, numRanks, cbrtNumPart, simData, reader);
         auto& md  = simData.magneto;
         md.resize(simData.hydro.x.size());
-        settings_.insert({"Bmag", 10.});
-        initMagnetoFields(md, settings_);
+        initMagnetoFields(md, simData.hydro, settings_);
 
         settings_["numParticlesGlobal"] = double(simData.hydro.numParticlesGlobal);
         BuiltinWriter attributeSetter(settings_);
