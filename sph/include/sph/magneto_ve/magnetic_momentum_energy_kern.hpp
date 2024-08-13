@@ -109,8 +109,8 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
     T norm2_B = Bxi * Bxi + Byi * Byi + Bzi * Bzi;
     T beta    = 2 * mu_0 * pi / norm2_B;
     T H       = 0.;
-    if (beta < 1) { H = 2; }
-    else if (beta <= 2) { H = 2 * (2 - beta); }
+    if (beta < 1) { H = 2.; }
+    else if (beta <= 2) { H = 2 * (2. - beta); }
     T f_i = 0.0;
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
@@ -234,9 +234,9 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
         // tensile instability correction
         f_i += mj * a_mom * (Bxi * termA1_i + Byi * termA2_i + Bzi * termA3_i);
 
-        momentum_x += a_mom * momentum_xi + b_mom * momentum_xj + a_visc_x;
-        momentum_y += a_mom * momentum_yi + b_mom * momentum_yj + a_visc_y;
-        momentum_z += a_mom * momentum_zi + b_mom * momentum_zj + a_visc_z;
+        momentum_x += mj * (a_mom * momentum_xi + b_mom * momentum_xj + a_visc_x);
+        momentum_y += mj * (a_mom * momentum_yi + b_mom * momentum_yj + a_visc_y);
+        momentum_z += mj * (a_mom * momentum_zi + b_mom * momentum_zj + a_visc_z);
     }
 
     a_visc_energy = stl::max(T(0), a_visc_energy);
