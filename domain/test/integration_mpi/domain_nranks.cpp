@@ -269,8 +269,8 @@ TEST(FocusDomain, removeParticle)
     using KeyType = unsigned;
 
     Box<Real> box(0, 1);
-    LocalIndex numParticlesPerRank = 10;
-    unsigned bucketSize            = 1024;
+    LocalIndex numParticlesPerRank = 1000;
+    unsigned bucketSize            = 64;
     unsigned bucketSizeFocus       = 8;
     float theta                    = 0.5;
 
@@ -282,7 +282,7 @@ TEST(FocusDomain, removeParticle)
     std::vector<Real> h(numParticlesPerRank, 0.1 / std::cbrt(numRanks));
 
     std::vector<uint64_t> id(x.size());
-    std::iota(begin(id), end(id), 100 + uint64_t(rank * numParticlesPerRank));
+    std::iota(begin(id), end(id), uint64_t(rank * numParticlesPerRank));
 
     Domain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
 
@@ -292,38 +292,25 @@ TEST(FocusDomain, removeParticle)
     domain.sync(particleKeys, x, y, z, h, std::tie(id), std::tie(s1, s2, s3));
 
     // pick a particle to remove on each rank
-    LocalIndex removeIndex    = domain.startIndex() + numParticlesPerRank / 2;
+    LocalIndex removeIndex    = domain.startIndex() + domain.nParticles() / 2;
+    assert(removeIndex < domain.endIndex());
     particleKeys[removeIndex] = removeKey<KeyType>::value;
     uint64_t removeID = id[removeIndex];
 
-    std::cout << "KEYS: ";
-    for (auto v : particleKeys) std::cout << std::oct << v << " "; std::cout << std::dec << std::endl;
-    std::cout << "id: ";
-    for (auto v : id) std::cout << v << " "; std::cout << std::endl;
-    std::cout << "removeID " << removeID << " removeIndex " << removeIndex << std::endl;
-
-    std::cout << domain.startIndex() << " " << domain.endIndex() << " " << particleKeys.size() << std::endl;
-
     domain.sync(particleKeys, x, y, z, h, std::tie(id), std::tie(s1, s2, s3));
-
-    //std::cout << domain.startIndex() << " " << domain.endIndex() << " " << id.back() << " " << id[removeIndex] << std::endl;
-    std::cout << "KEYS: ";
-    for (auto v : particleKeys) std::cout << std::oct << v << " "; std::cout << std::dec << std::endl;
-    std::cout << "id: ";
-    for (auto v : id) std::cout << v << " "; std::cout << std::endl;
 
     uint64_t numLocalParticles = domain.nParticles();
     uint64_t numGlobalParticles;
     MPI_Allreduce(&numLocalParticles, &numGlobalParticles, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
     EXPECT_EQ(numGlobalParticles, numRanks * numParticlesPerRank - numRanks);
 
-    //// check that removed particles are gone by checking their IDs
-    //std::vector<uint64_t> removedIDs(numRanks);
-    //MPI_Allgather(&removeID, 1, MPI_UNSIGNED_LONG_LONG, removedIDs.data(), 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
-    //for (uint64_t rid : removedIDs)
-    //{
-    //    EXPECT_EQ(std::count(id.begin(), id.end(), rid), 0);
-    //}
+    // check that removed particles are gone by checking their IDs
+    std::vector<uint64_t> removedIDs(numRanks);
+    MPI_Allgather(&removeID, 1, MPI_UNSIGNED_LONG_LONG, removedIDs.data(), 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+    for (uint64_t rid : removedIDs)
+    {
+        EXPECT_EQ(std::count(id.begin() + domain.startIndex(), id.begin() + domain.endIndex(), rid), 0);
+    }
 }
 
 TEST(FocusDomain, reapplySync)
