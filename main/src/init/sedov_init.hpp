@@ -197,7 +197,7 @@ void initMagnetoFields(MagnetoData& md, HydroData& d, const std::map<std::string
 {
 
     auto Bmag = constants.at("Bmag");
-    using T   = HydroData::RealType;
+    using T   = typename HydroData::RealType;
 
     std::fill(md.Bx.begin(), md.Bx.end(), Bmag / sqrt(2.));
     std::fill(md.By.begin(), md.By.end(), 0.0);
