@@ -119,6 +119,7 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
 template<class Dataset>
 class KelvinHelmholtzGlass : public ISimInitializer<Dataset>
 {
+protected:
     std::string          glassBlock;
     mutable InitSettings settings_;
 
@@ -203,6 +204,54 @@ public:
     }
 
     [[nodiscard]] const InitSettings& constants() const override { return settings_; }
+};
+
+
+template<class MagnetoData>
+void initMagnetoData(MagnetoData& md)
+{
+    std::fill(md.Bx.begin(), md.Bx.end(), -0.1);
+    std::fill(md.By.begin(), md.By.end(), 0.0);
+    std::fill(md.Bz.begin(), md.Bz.end(), 0.0);
+
+    std::fill(md.dBx.begin(), md.dBx.end(), 0.0);
+    std::fill(md.dBy.begin(), md.dBy.end(), 0.0);
+    std::fill(md.dBz.begin(), md.dBz.end(), 0.0);
+    std::fill(md.dBx_m1.begin(), md.dBx_m1.end(), 0.0);
+    std::fill(md.dBy_m1.begin(), md.dBy_m1.end(), 0.0);
+    std::fill(md.dBz_m1.begin(), md.dBz_m1.end(), 0.0);
+
+    std::fill(md.psi_ch.begin(), md.psi_ch.end(), 0.0);
+    std::fill(md.d_psi_ch.begin(), md.d_psi_ch.end(), 0.0);
+    std::fill(md.d_psi_ch_m1.begin(), md.d_psi_ch_m1.end(), 0.0);
+}
+
+
+template<class SimulationData>
+class MagneticKelvinHelmholtz : public KelvinHelmholtzGlass<SimulationData>
+{
+    std::string          glassBlock = KelvinHelmholtzGlass<SimulationData>::glassBlock;
+    mutable InitSettings settings_ = KelvinHelmholtzGlass<SimulationData>::settings_;
+
+public:
+    using KelvinHelmholtzGlass<SimulationData>::KelvinHelmholtzGlass;
+
+    cstone::Box<typename SimulationData::RealType> init(int rank, int numRanks, size_t cbrtNumPart, SimulationData& simData,
+                                                 IFileReader* reader) const override
+    {
+        auto box = KelvinHelmholtzGlass<SimulationData>::init(rank, numRanks, cbrtNumPart,  simData, reader);
+
+        auto& md = simData.magneto;
+        md.resize(simData.hydro.x.size());
+        initMagnetoData(md);
+
+        settings_["numParticlesGlobal"] = double(simData.hydro.numParticlesGlobal);
+        BuiltinWriter attributeSetter(settings_);
+        simData.hydro.loadOrStoreAttributes(&attributeSetter);
+
+        return box;
+    }
+
 };
 
 } // namespace sphexa

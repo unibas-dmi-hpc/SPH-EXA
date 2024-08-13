@@ -148,6 +148,13 @@ SimInitializers<Dataset>::makeSedovMagneto(std::string glassBlock, std::string s
 {
     return std::make_unique<SedovMagneto<Dataset>>(glassBlock, settingsFile, reader);
 }
+template<class Dataset>
+std::unique_ptr<ISimInitializer<Dataset>> SimInitializers<Dataset>::makeKelvinHelmholtzMagneto(std::string glassBlock,
+                                                                                               std::string settingsFile,
+                                                                                               IFileReader* reader)
+{
+    return std::make_unique<MagneticKelvinHelmholtz<Dataset>>(glassBlock, settingsFile, reader);
+}
 
 #ifdef USE_CUDA
 template struct SimInitializers<SimulationData<cstone::GpuTag>>;
