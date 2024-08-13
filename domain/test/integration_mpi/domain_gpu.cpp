@@ -145,6 +145,70 @@ TEST(DomainGpu, matchTreeCpu)
     randomGaussianAssignment<uint64_t, double>(rank, numRanks);
 }
 
+TEST(FocusDomain, removeParticle)
+{
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+
+    using Real    = double;
+    using KeyType = unsigned;
+
+    Box<Real> box(0, 1);
+    LocalIndex numParticlesPerRank = 1000;
+    unsigned bucketSize            = 64;
+    unsigned bucketSizeFocus       = 8;
+    float theta                    = 0.5;
+
+    RandomCoordinates<Real, SfcKind<KeyType>> coordinates(numParticlesPerRank, box, rank);
+
+    std::vector<Real> x(coordinates.x().begin(), coordinates.x().end());
+    std::vector<Real> y(coordinates.y().begin(), coordinates.y().end());
+    std::vector<Real> z(coordinates.z().begin(), coordinates.z().end());
+    std::vector<Real> h(numParticlesPerRank, 0.1 / std::cbrt(numRanks));
+
+    std::vector<uint64_t> id(x.size());
+    std::iota(begin(id), end(id), uint64_t(rank * numParticlesPerRank));
+
+    std::vector<KeyType> keys(x.size());
+
+    DeviceVector<Real> d_x       = x;
+    DeviceVector<Real> d_y       = y;
+    DeviceVector<Real> d_z       = z;
+    DeviceVector<Real> d_h       = h;
+    DeviceVector<KeyType> d_keys = keys;
+    DeviceVector<uint64_t> d_id  = id;
+
+    Domain<KeyType, Real, GpuTag> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
+
+    DeviceVector<Real> s1, s2, s3;
+    domain.sync(d_keys, d_x, d_y, d_z, d_h, std::tie(d_id), std::tie(s1, s2, s3));
+
+    // pick a particle to remove on each rank
+    LocalIndex removeIndex = domain.startIndex() + domain.nParticles() / 2;
+    assert(removeIndex < domain.endIndex());
+    auto rmKey = removeKey<KeyType>::value;
+    memcpyH2D(&rmKey, 1, rawPtr(d_keys) + removeIndex);
+    uint64_t removeID;
+    memcpyD2H(rawPtr(d_id) + removeIndex, 1, &removeID);
+
+    domain.sync(d_keys, d_x, d_y, d_z, d_h, std::tie(d_id), std::tie(s1, s2, s3));
+
+    uint64_t numLocalParticles = domain.nParticles();
+    uint64_t numGlobalParticles;
+    MPI_Allreduce(&numLocalParticles, &numGlobalParticles, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    EXPECT_EQ(numGlobalParticles, numRanks * numParticlesPerRank - numRanks);
+
+    // check that removed particles are gone by checking their IDs
+    std::vector<uint64_t> removedIDs(numRanks);
+    MPI_Allgather(&removeID, 1, MPI_UNSIGNED_LONG_LONG, removedIDs.data(), 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+    for (uint64_t rid : removedIDs)
+    {
+        auto h_id = toHost(d_id);
+        EXPECT_EQ(std::count(h_id.begin() + domain.startIndex(), h_id.begin() + domain.endIndex(), rid), 0);
+    }
+}
+
 TEST(DomainGpu, reapplySync)
 {
     int rank = 0, numRanks = 0;

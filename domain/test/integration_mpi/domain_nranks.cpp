@@ -292,10 +292,10 @@ TEST(FocusDomain, removeParticle)
     domain.sync(particleKeys, x, y, z, h, std::tie(id), std::tie(s1, s2, s3));
 
     // pick a particle to remove on each rank
-    LocalIndex removeIndex    = domain.startIndex() + domain.nParticles() / 2;
+    LocalIndex removeIndex = domain.startIndex() + domain.nParticles() / 2;
     assert(removeIndex < domain.endIndex());
     particleKeys[removeIndex] = removeKey<KeyType>::value;
-    uint64_t removeID = id[removeIndex];
+    uint64_t removeID         = id[removeIndex];
 
     domain.sync(particleKeys, x, y, z, h, std::tie(id), std::tie(s1, s2, s3));
 
