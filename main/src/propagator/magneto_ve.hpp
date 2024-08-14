@@ -266,11 +266,11 @@ public:
             for (int i = int(indicesDoneMagneto.size()) - 1; i >= 0; --i)
             {
                 int fidx = indicesDoneMagneto[i];
-                if (d.isAllocated(fidx))
+                if (md.isAllocated(fidx))
                 {
-                    int column = std::find(d.outputFieldIndices.begin(), d.outputFieldIndices.end(), fidx) -
-                                 d.outputFieldIndices.begin();
-                    transferToHost(d, first, last, {d.fieldNames[fidx]});
+                    int column = std::find(md.outputFieldIndices.begin(), md.outputFieldIndices.end(), fidx) -
+                                 md.outputFieldIndices.begin();
+                    transferToHost(md, first, last, {md.fieldNames[fidx]});
                     std::visit([writer, c = column, key = namesDoneMagneto[i]](auto field)
                                { writer->writeField(key, field->data(), c); }, fieldPointersMagneto[fidx]);
                     indicesDoneMagneto.erase(indicesDoneMagneto.begin() + i);
