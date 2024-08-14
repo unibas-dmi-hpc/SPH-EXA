@@ -55,7 +55,7 @@ public:
         MPI_Comm_rank(simData.comm, &rank);
         auto& d = simData.hydro;
 
-        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
+        computeConservedQuantities(firstIndex, lastIndex, simData, simData.comm);
 
         if (rank == 0)
         {

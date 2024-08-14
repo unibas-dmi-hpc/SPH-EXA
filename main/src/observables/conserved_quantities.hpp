@@ -65,7 +65,7 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     double sharedCv = sph::idealGasCv(d.muiConst, d.gamma);
     bool   haveMui  = !d.mui.empty();
 
-#pragma omp declare reduction(+ : util::array <double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
+#pragma omp declare reduction(+ : util::array<double, 3> : omp_out += omp_in) initializer(omp_priv(omp_orig))
 
     double eKin = 0.0;
 #pragma omp parallel for reduction(+ : eKin, linmom, angmom)
@@ -106,6 +106,28 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
     return std::make_tuple(0.5 * eKin, eInt, linmom, angmom);
 }
 
+template<class SimData>
+auto localMagneticEnergy(size_t first, size_t last, const SimData& sim)
+{
+    const auto* xm   = sim.hydro.xm.data();
+    const auto* kx   = sim.hydro.kx.data();
+    const auto* Bx   = sim.magneto.Bx.data();
+    const auto* By   = sim.magneto.By.data();
+    const auto* Bz   = sim.magneto.Bz.data();
+    auto        mu_0 = sim.magneto.mu_0;
+
+    double eMag = 0.0;
+#pragma omp parallel for reduction(+ : eMag)
+    for (size_t i = first; i < last; i++)
+    {
+        double vol_i = xm[i] / kx[i];
+        double Bsq   = Bx[i] * Bx[i] + By[i] * By[i] + Bz[i] * Bz[i];
+        eMag += Bsq * vol_i;
+    }
+
+    return 0.5 * eMag / mu_0;
+}
+
 /*! @brief Computation of globally conserved quantities
  *
  * @tparam        T            float or double
@@ -114,14 +136,18 @@ auto localConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d)
  * @param[in]     endIndex     last locally assigned particle index of buffers in @p d
  * @param[inout]  d            particle data set
  */
-template<class Dataset>
-void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, MPI_Comm comm)
+template<class SimData>
+void computeConservedQuantities(size_t startIndex, size_t endIndex, SimData& sim, MPI_Comm comm)
 {
     double               eKin, eInt;
+    double               eMag = 0.0;
     cstone::Vec3<double> linmom, angmom;
     size_t               ncsum = 0;
 
-    if constexpr (cstone::HaveGpu<typename Dataset::AcceleratorType>{})
+    auto& d  = sim.hydro;
+    auto& md = sim.magneto;
+
+    if constexpr (cstone::HaveGpu<typename SimData::AcceleratorType>{})
     {
         if (!d.devData.nc.empty())
         {
@@ -131,6 +157,12 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
             sph::idealGasCv(d.muiConst, d.gamma), rawPtr(d.devData.x), rawPtr(d.devData.y), rawPtr(d.devData.z),
             rawPtr(d.devData.vx), rawPtr(d.devData.vy), rawPtr(d.devData.vz), rawPtr(d.devData.temp),
             rawPtr(d.devData.u), rawPtr(d.devData.m), startIndex, endIndex);
+
+        if (!md.devData.Bx.empty())
+        {
+            eMag = magneticEnergyGpu(md.mu_0, rawPtr(d.devData.xm), rawPtr(d.devData.kx), rawPtr(md.devData.Bx),
+                                     rawPtr(md.devData.By), rawPtr(md.devData.Bz), startIndex, endIndex);
+        }
     }
     else
     {
@@ -144,21 +176,23 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
         }
 
         std::tie(eKin, eInt, linmom, angmom) = localConservedQuantities(startIndex, endIndex, d);
+        if (md.Bx.size() == d.x.size()) { eMag = localMagneticEnergy(startIndex, endIndex, sim); }
     }
 
-    util::array<double, 10> quantities, globalQuantities;
+    util::array<double, 11> quantities, globalQuantities;
     std::fill(globalQuantities.begin(), globalQuantities.end(), double(0));
 
-    quantities[0] = eKin;
-    quantities[1] = eInt;
-    quantities[2] = d.egrav;
-    quantities[3] = linmom[0];
-    quantities[4] = linmom[1];
-    quantities[5] = linmom[2];
-    quantities[6] = angmom[0];
-    quantities[7] = angmom[1];
-    quantities[8] = angmom[2];
-    quantities[9] = double(ncsum);
+    quantities[0]  = eKin;
+    quantities[1]  = eInt;
+    quantities[2]  = d.egrav;
+    quantities[3]  = linmom[0];
+    quantities[4]  = linmom[1];
+    quantities[5]  = linmom[2];
+    quantities[6]  = angmom[0];
+    quantities[7]  = angmom[1];
+    quantities[8]  = angmom[2];
+    quantities[9]  = double(ncsum);
+    quantities[10] = eMag;
 
     int rootRank = 0;
     MPI_Reduce(quantities.data(), globalQuantities.data(), quantities.size(), MpiType<double>{}, MPI_SUM, rootRank,
@@ -167,7 +201,8 @@ void computeConservedQuantities(size_t startIndex, size_t endIndex, Dataset& d, 
     d.ecin  = globalQuantities[0];
     d.eint  = globalQuantities[1];
     d.egrav = globalQuantities[2];
-    d.etot  = d.ecin + d.eint + d.egrav;
+    md.eMag = globalQuantities[10];
+    d.etot  = d.ecin + d.eint + d.egrav + md.eMag;
 
     util::array<double, 3> globalLinmom{globalQuantities[3], globalQuantities[4], globalQuantities[5]};
     util::array<double, 3> globalAngmom{globalQuantities[6], globalQuantities[7], globalQuantities[8]};

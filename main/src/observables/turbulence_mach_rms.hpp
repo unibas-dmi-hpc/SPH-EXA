@@ -101,7 +101,7 @@ public:
     void computeAndWrite(Dataset& simData, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& /*box*/)
     {
         auto& d = simData.hydro;
-        computeConservedQuantities(firstIndex, lastIndex, d, simData.comm);
+        computeConservedQuantities(firstIndex, lastIndex, simData, simData.comm);
         double machRms = calculateMachRMS(firstIndex, lastIndex, d, simData.comm);
 
         int rank;

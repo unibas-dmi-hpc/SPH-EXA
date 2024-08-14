@@ -100,6 +100,7 @@ public:
     void printIterationTimings(const DomainType& domain, const ParticleDataType& simData)
     {
         const auto& d   = simData.hydro;
+        const auto& md  = simData.magneto;
         const auto& box = domain.box();
 
         auto nodeCount          = domain.globalTree().numLeafNodes();
@@ -116,7 +117,7 @@ public:
             << ", Avg neighbor count per particle: " << totalNeighbors / totalParticleCount << std::endl;
         out << "### Check ### Total time: " << d.ttot - d.minDt << ", current time-step: " << d.minDt << std::endl;
         out << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", kinetic: " << d.ecin;
-        out << ", gravitational: " << d.egrav;
+        out << ", gravitational: " << d.egrav << ", magnetic: " << md.eMag;
         out << ")" << std::endl;
         out << "### Check ### Focus Tree Nodes: " << domain.focusTree().octreeViewAcc().numLeafNodes << ", maxDepth "
             << domain.focusTree().depth();
