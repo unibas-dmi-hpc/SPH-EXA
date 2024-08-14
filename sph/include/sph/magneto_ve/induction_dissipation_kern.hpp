@@ -89,7 +89,7 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, const cstone::
 
     // wave cleaning speed
     auto v_alfven2 = (Bxi * Bxi + Byi * Byi + Bzi * Bzi) / (mu_0 * rhoi);
-    auto c_hi      = fclean * std::sqrt(ci * ci * v_alfven2);
+    auto c_hi      = fclean * std::sqrt(ci * ci + v_alfven2);
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
@@ -142,14 +142,14 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, const cstone::
         termA_avg *= 0.5;
 
         cstone::Vec3<T> vab_cross_rab{vy_ij * rz - vz_ij * ry, vz_ij * rx - vx_ij * rz, vx_ij * ry - vy_ij * rx};
-        T               v_sigB = std::sqrt(norm2(vab_cross_rab));
+        T               v_sigB = std::sqrt(norm2(vab_cross_rab)/dist);
 
         T resistivity_ab = T(0.5) * alpha_B * v_sigB * dist;
 
         cstone::Vec3<Tc> B_ab{Bxi - Bx[j], Byi - By[j], Bzi - Bz[j]};
 
         // We have 2*resistivity_ab because we use symmetric resisitivity
-        // we divide by r^2 because we divide once to get the unit projector and again for the equation
+        // we divide by r^2 because we divide once to get the unit projector and again for the 1/r of the equation
         dB_diss +=
             volj * T(2) * resistivity_ab * B_ab * ((rx * termA_avg[0] + ry * termA_avg[1] + rz * termA_avg[2]) / r2);
 
