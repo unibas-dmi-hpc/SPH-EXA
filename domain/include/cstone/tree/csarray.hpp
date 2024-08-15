@@ -118,12 +118,12 @@ HOST_DEVICE_FUN util::array<const KeyType*, 2> findSearchBounds(std::make_signed
                                                                 const KeyType* codesStart,
                                                                 const KeyType* codesEnd)
 {
-    assert(firstIdx >= 0);
-
     using SI  = std::make_signed_t<KeyType>;
     SI nCodes = codesEnd - codesStart;
+    if (nCodes == 0) { return {codesStart, codesStart}; }
 
     // firstIdx must be an accessible index
+    firstIdx = stl::max(firstIdx, SI(0));
     firstIdx = stl::min(nCodes - 1, firstIdx);
 
     // the last node in 64-bit is 2^63, which can't be represented as a negative number
