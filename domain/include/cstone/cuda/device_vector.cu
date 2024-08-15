@@ -4,7 +4,9 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <thrust/execution_policy.h>
 #include <thrust/device_vector.h>
+#include <thrust/fill.h>
 
 #include "cstone/util/noinit_thrust.cuh"
 
@@ -51,6 +53,14 @@ DeviceVector<T>::DeviceVector(std::size_t size)
     : impl_(new Impl())
 {
     impl_->resize(size);
+}
+
+template<class T>
+DeviceVector<T>::DeviceVector(std::size_t size, T init)
+    : impl_(new Impl())
+{
+    impl_->resize(size);
+    thrust::fill(thrust::device, impl_->data(), impl_->data() + impl_->size(), init);
 }
 
 template<class T>
