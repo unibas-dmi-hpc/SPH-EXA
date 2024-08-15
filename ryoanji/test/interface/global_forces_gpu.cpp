@@ -150,11 +150,8 @@ static int multipoleHolderTest(int thisRank, int numRanks)
         cstone::DeviceVector<T> d_mref = globalMasses;
         cstone::DeviceVector<T> d_href = globalH;
 
-        cstone::DeviceVector<T> d_potref, d_axref, d_ayref, d_azref;
-        reallocate(d_potref, numParticles, 1.0);
-        reallocate(d_axref, numParticles, 1.0);
-        reallocate(d_ayref, numParticles, 1.0);
-        reallocate(d_azref, numParticles, 1.0);
+        cstone::DeviceVector<T> d_potref(numParticles, 0);
+        cstone::DeviceVector<T> d_axref(numParticles, 0), d_ayref(numParticles, 0), d_azref(numParticles, 0);
 
         // reference direct sum calculation with the global set of sources
         directSum(firstGlobalIdx, lastGlobalIdx, numParticles, {box.lx(), box.ly(), box.lz()}, numShells,

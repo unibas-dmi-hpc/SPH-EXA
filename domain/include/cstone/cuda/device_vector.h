@@ -28,6 +28,7 @@ public:
 
     DeviceVector();
     DeviceVector(std::size_t);
+    DeviceVector(std::size_t, T init);
     DeviceVector(const DeviceVector&);
     //! @brief upload from host vecotr
     DeviceVector(const std::vector<T>&);
