@@ -235,16 +235,16 @@ public:
                     const cstone::Box<T>& box) override
     {
 
-        auto& d = simData.hydro;
+        auto& d  = simData.hydro;
         auto& md = simData.magneto;
         d.resize(d.accSize());
         md.resize(md.accSize());
-        auto fieldPointersHydro    = d.data();
-        auto indicesDoneHydro = d.outputFieldIndices;
-        auto namesDoneHydro   = d.outputFieldNames;
-        auto fieldPointersMagneto    = md.data();
-        auto indicesDoneMagneto = md.outputFieldIndices;
-        auto namesDoneMagneto   = md.outputFieldNames;
+        auto fieldPointersHydro   = d.data();
+        auto indicesDoneHydro     = d.outputFieldIndices;
+        auto namesDoneHydro       = d.outputFieldNames;
+        auto fieldPointersMagneto = md.data();
+        auto indicesDoneMagneto   = md.outputFieldIndices;
+        auto namesDoneMagneto     = md.outputFieldNames;
 
         auto output = [&]()
         {
@@ -262,19 +262,21 @@ public:
                     namesDoneHydro.erase(namesDoneHydro.begin() + i);
                 }
             }
-
-            for (int i = int(indicesDoneMagneto.size()) - 1; i >= 0; --i)
+            if (!indicesDoneMagneto.empty())
             {
-                int fidx = indicesDoneMagneto[i];
-                if (md.isAllocated(fidx))
+                for (int i = int(indicesDoneMagneto.size()) - 1; i >= 0; --i)
                 {
-                    int column = std::find(md.outputFieldIndices.begin(), md.outputFieldIndices.end(), fidx) -
-                                 md.outputFieldIndices.begin();
-                    transferToHost(md, first, last, {md.fieldNames[fidx]});
-                    std::visit([writer, c = column, key = namesDoneMagneto[i]](auto field)
-                               { writer->writeField(key, field->data(), c); }, fieldPointersMagneto[fidx]);
-                    indicesDoneMagneto.erase(indicesDoneMagneto.begin() + i);
-                    namesDoneMagneto.erase(namesDoneMagneto.begin() + i);
+                    int fidx = indicesDoneMagneto[i];
+                    if (md.isAllocated(fidx))
+                    {
+                        int column = std::find(md.outputFieldIndices.begin(), md.outputFieldIndices.end(), fidx) -
+                                     md.outputFieldIndices.begin();
+                        transferToHost(md, first, last, {md.fieldNames[fidx]});
+                        std::visit([writer, c = column, key = namesDoneMagneto[i]](auto field)
+                                   { writer->writeField(key, field->data(), c); }, fieldPointersMagneto[fidx]);
+                        indicesDoneMagneto.erase(indicesDoneMagneto.begin() + i);
+                        namesDoneMagneto.erase(namesDoneMagneto.begin() + i);
+                    }
                 }
             }
         };

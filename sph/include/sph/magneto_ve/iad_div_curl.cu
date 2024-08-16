@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief IAD and velocity/curl driver, not compacting the velocity jacobian
+ * @brief IAD and divergence/curl driver, not compacting the velocity jacobian
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  * @author Lukas Schmidt

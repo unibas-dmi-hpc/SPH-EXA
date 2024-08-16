@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 /*! @file
- * @brief Integral-approach-to-derivative and velocity divergence/curl i-loop driver
+ * @brief Integral-approach-to-derivative and divergence/curl i-loop driver
  *
  * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
  */
