@@ -112,6 +112,7 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
     if (beta < 1) { H = 2.; }
     else if (beta <= 2) { H = 2 * (2. - beta); }
     T f_i = 0.0;
+    const T Atwood = 2 * Atmax;
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
@@ -180,7 +181,7 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
         T a_mom, b_mom;
-        T Atwood = (std::abs(rhoi - rhoj)) / (rhoi + rhoj);
+        //T Atwood = (std::abs(rhoi - rhoj)) / (rhoi + rhoj);
         if (Atwood < Atmin)
         {
             a_mom = xmassi * xmassi;
