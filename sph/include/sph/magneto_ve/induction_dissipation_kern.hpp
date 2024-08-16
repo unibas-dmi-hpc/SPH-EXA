@@ -142,7 +142,7 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, const cstone::
         termA_avg *= 0.5;
 
         cstone::Vec3<T> vab_cross_rab{vy_ij * rz - vz_ij * ry, vz_ij * rx - vx_ij * rz, vx_ij * ry - vy_ij * rx};
-        T               v_sigB = std::sqrt(norm2(vab_cross_rab)/dist);
+        T               v_sigB = std::sqrt(norm2(vab_cross_rab) / dist);
 
         T resistivity_ab = T(0.5) * alpha_B * v_sigB * dist;
 
@@ -159,7 +159,7 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, const cstone::
 
         // wave cleaning speed
         auto v_alfven2_j = (Bxi * Bxi + Byi * Byi + Bzi * Bzi) / (mu_0 * rhoi);
-        auto c_hj        = fclean * std::sqrt(c[j] * c[j] * v_alfven2_j);
+        auto c_hj        = fclean * std::sqrt(c[j] * c[j] + v_alfven2_j);
 
         divB_clean += volj * (psi_ch_i * c_hi + psi_ch[j] * c_hj) * termA_avg;
     }
