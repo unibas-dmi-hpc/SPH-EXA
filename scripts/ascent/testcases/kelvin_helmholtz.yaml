@@ -14,17 +14,17 @@
     s1: 
       plots: 
         p1: 
-          field: Prho
+          field: Density
           type: pseudocolor
           pipeline: pl1
           color_table:
-            name: Viridis
+            name: Inferno
           points:
-            radius: .03
+            radius: .003
             radius_delta: 0.01
       renders:
         r1:
-          # # world_annotations: "false"
+          world_annotations: "false"
           camera:
             look_at: [0.5, 0.5, 0.5]
             position: [0.5, 0.5, 2]
