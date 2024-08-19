@@ -1,0 +1,35 @@
+# Add a pipeline to compute radius. Origin: 0, 0, 0
+-
+  action: "add_pipelines"
+  pipelines:
+    pl1:
+      f1:
+        type: "composite_vector"
+        params:
+          field1: X
+          field2: Y
+          field3: Z
+          output_name: "point3D"
+      # Radial density: 
+      # First calculate radius, bin the particles based on radius
+      # then for each bin, calculate avg density
+      # then plot.
+      # actually it's quite easy...all the direct radial quantities are the same
+      f2:
+        type: "vector_magnitude"
+        params:
+          field: "point3D"
+          output_name: "Radius"
+-
+  action: "add_queries"
+  queries:
+    q1:
+      pipeline: "pl1"
+      params:
+        expression: "binning('Density', 'pdf', [axis('Density', num_bins=256, min_val=0.0, max_val=1.4)])"
+        name: "RadialDensity"
+
+-
+  action: "save_session"
+  file_name: "turbulence_pdf_session"
+

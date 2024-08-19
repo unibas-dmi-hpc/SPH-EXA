@@ -6,4 +6,4 @@
     t1:
       params:
         condition: "cycle() % 1 == 0"
-        actions_file: "testcases/turbulence.yaml"
+        actions_file: "testcases/turbulence/slice.yaml"

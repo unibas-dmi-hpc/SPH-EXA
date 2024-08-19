@@ -1,0 +1,75 @@
+-
+  action: "add_queries"
+  queries:
+    q1:
+      params:
+        expression: "max(field('Pressure')).value"
+        name: "MaxPressure"
+- 
+  action: add_pipelines
+  pipelines:
+    pl1:
+      f1:
+        type: clip
+        params:
+          topology: mesh
+          box:
+            min:
+              x: -10
+              y: 0
+              z: 0
+            max:
+              x: 10
+              y: 10
+              z: 10
+      f2:
+        type: "expression"
+        params:
+          expression: "MaxPressure - field('Pressure')"
+          name: "PressureNormalized"
+      f3: 
+        type: "threshold"
+        params: 
+          field: "Z"
+          min_value: "-1"
+          max_value: "1"
+- 
+  action: add_scenes
+  scenes: 
+    s1: 
+      plots: 
+        p1: 
+          field: PressureNormalized
+          type: pseudocolor
+          pipeline: pl1
+          color_table:
+            name: Viridis
+          points:
+            radius: .03
+            radius_delta: 0.01
+          min_value: 0
+          max_value: 1.0
+      renders:
+        r1:
+          world_annotations: "false"
+          camera:
+            look_at: [0, 0, 0]
+            position: [-2.1709899968205337, 1.797907520678797, 1.8029059671481107]
+            up: [0.4479257557058854, 0.8420981185224633, -0.30038854198560727]
+            zoom: 1.5
+          dataset_bounds: [-0.5, 0.5, -0.5, 0.5, -0.5, 0.5]
+          image_prefix: evrard_step%05d
+- 
+  action: "add_extracts"
+  extracts: 
+    e1: 
+      type: "adios2_comp"
+      params: 
+        engine: "BPFile"
+        filename: "adios_extract.bp"
+        fields: X
+    # e1: 
+    #   type: "relay"
+    #   params: 
+    #     protocol: "blueprint/mesh/hdf5"
+    #     path: "adios_extract.h5"
