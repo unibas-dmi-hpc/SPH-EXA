@@ -57,12 +57,12 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
     auto Bzi     = Bz[i];
     auto pi      = p[i];
 
-    T Si_xx = -pi + 0.5 * mu_0Inv * (Bxi * Bxi - Byi * Byi - Bzi * Bzi);
+    T Si_xx = 0.5 * mu_0Inv * (Bxi * Bxi - Byi * Byi - Bzi * Bzi);
     T Si_xy = mu_0Inv * Bxi * Byi;
     T Si_xz = mu_0Inv * Bxi * Bzi;
-    T Si_yy = -pi + 0.5 * mu_0Inv * (-Bxi * Bxi + Byi * Byi - Bzi * Bzi);
+    T Si_yy = 0.5 * mu_0Inv * (-Bxi * Bxi + Byi * Byi - Bzi * Bzi);
     T Si_yz = mu_0Inv * Byi * Bzi;
-    T Si_zz = -pi + 0.5 * mu_0Inv * (-Bxi * Bxi - Byi * Byi + Bzi * Bzi);
+    T Si_zz = 0.5 * mu_0Inv * (-Bxi * Bxi - Byi * Byi + Bzi * Bzi);
 
     auto xi  = x[i];
     auto yi  = y[i];
@@ -112,7 +112,6 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
     if (beta < 1) { H = 2.; }
     else if (beta <= 2) { H = 2 * (2. - beta); }
     T f_i = 0.0;
-    const T Atwood = 2 * Atmax;
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
@@ -181,7 +180,7 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
         T a_mom, b_mom;
-        //T Atwood = (std::abs(rhoi - rhoj)) / (rhoi + rhoj);
+        T Atwood = (std::abs(rhoi - rhoj)) / (rhoi + rhoj);
         if (Atwood < Atmin)
         {
             a_mom = xmassi * xmassi;
@@ -208,13 +207,24 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
 
         energy += mj * a_mom * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
 
-        T Sj_xx = -p[j] + 0.5 * mu_0Inv * (Bx[j] * Bx[j] - By[j] * By[j] - Bz[j] * Bz[j]);
+        T Sj_xx = 0.5 * mu_0Inv * (Bx[j] * Bx[j] - By[j] * By[j] - Bz[j] * Bz[j]);
         T Sj_xy = mu_0Inv * Bx[j] * By[j];
         T Sj_xz = mu_0Inv * Bx[j] * Bz[j];
-        T Sj_yy = -p[j] + 0.5 * mu_0Inv * (-Bx[j] * Bx[j] + By[j] * By[j] - Bz[j] * Bz[j]);
+        T Sj_yy = 0.5 * mu_0Inv * (-Bx[j] * Bx[j] + By[j] * By[j] - Bz[j] * Bz[j]);
         T Sj_yz = mu_0Inv * By[j] * Bz[j];
-        T Sj_zz = -p[j] + 0.5 * mu_0Inv * (-Bx[j] * Bx[j] - By[j] * By[j] + Bz[j] * Bz[j]);
+        T Sj_zz = 0.5 * mu_0Inv * (-Bx[j] * Bx[j] - By[j] * By[j] + Bz[j] * Bz[j]);
 
+        // gas pressure contributions
+        a_mom /= kxi * mi * mi * gradhi;
+        b_mom /= kxj * mj * mj * gradh[j];
+
+        auto momentum_i = mj * pi * a_mom;
+        auto momentum_j = mj * p[j] * b_mom;
+        momentum_x -= momentum_i * termA1_i + momentum_j * termA1_j;
+        momentum_y -= momentum_i * termA2_i + momentum_j * termA2_j;
+        momentum_z -= momentum_i * termA3_i + momentum_j * termA3_j;
+
+        // magnetic pressure contributions
         auto momentum_xi = Si_xx * termA1_i + Si_xy * termA2_i + Si_xz * termA3_i;
         auto momentum_yi = Si_xy * termA1_i + Si_yy * termA2_i + Si_yz * termA3_i;
         auto momentum_zi = Si_xz * termA1_i + Si_yz * termA2_i + Si_zz * termA3_i;
@@ -223,21 +233,14 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
         auto momentum_yj = Sj_xy * termA1_j + Sj_yy * termA2_j + Sj_yz * termA3_j;
         auto momentum_zj = Sj_xz * termA1_j + Sj_yz * termA2_j + Sj_zz * termA3_j;
 
-        // auto momentum_i = mj * prhoi * a_mom;
-        // auto momentum_j = mj * prho[j] * b_mom;
-        // momentum_x += momentum_i * termA1_i + momentum_j * termA1_j + a_visc_x;
-        // momentum_y += momentum_i * termA2_i + momentum_j * termA2_j + a_visc_y;
-        // momentum_z += momentum_i * termA3_i + momentum_j * termA3_j + a_visc_z;
-
-        a_mom /= kxi * mi * mi * gradhi;
-        b_mom /= kxj * mj * mj * gradh[j];
+        auto rhosqinv = 1/(rhoi*rhoj);
 
         // tensile instability correction
-        f_i += mj * a_mom * (Bxi * termA1_i + Byi * termA2_i + Bzi * termA3_i);
+        f_i += mj * rhosqinv * (Bxi * termA1_i + Byi * termA2_i + Bzi * termA3_i);
 
-        momentum_x += mj * (a_mom * momentum_xi + b_mom * momentum_xj) - a_visc_x;
-        momentum_y += mj * (a_mom * momentum_yi + b_mom * momentum_yj) - a_visc_y;
-        momentum_z += mj * (a_mom * momentum_zi + b_mom * momentum_zj) - a_visc_z;
+        momentum_x += mj*(rhosqinv * momentum_xi + rhosqinv * momentum_xj) - a_visc_x;
+        momentum_y += mj*(rhosqinv * momentum_yi + rhosqinv * momentum_yj) - a_visc_y;
+        momentum_z += mj*(rhosqinv * momentum_zi + rhosqinv * momentum_zj) - a_visc_z;
     }
 
     a_visc_energy = stl::max(T(0), a_visc_energy);
