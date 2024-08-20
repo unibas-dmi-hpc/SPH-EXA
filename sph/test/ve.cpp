@@ -30,6 +30,8 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include "../../../../../../../opt/cuda/targets/x86_64-linux/include/cuda_runtime_api.h"
+
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -113,8 +115,8 @@ TEST_F(SphKernelTests, AVSwitches)
 {
     T newAlpha = AVswitchesJLoop(0, K, box(), neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(),
                                  vy.data(), vz.data(), h.data(), c.data(), c11.data(), c12.data(), c13.data(),
-                                 c22.data(), c23.data(), c33.data(), wh.data(), whd.data(), kx.data(), xm.data(),
-                                 divv.data(), dt, alphamin, alphamax, decay_constant, alpha[0]);
+                                 c22.data(), c23.data(), c33.data(), wh.data(), whd.data(), gradh.data(), kx.data(),
+                                 xm.data(), divv.data(), dt, alphamin, alphamax, decay_constant, alpha[0]);
 
     EXPECT_NEAR(newAlpha, 0.93941905320351171, 2e-9);
 }
@@ -125,8 +127,8 @@ TEST_F(SphKernelTests, Divv_Curlv)
 
     divV_curlVJLoop(0, K, box(), neighbors.data(), neighborsCount, x.data(), y.data(), z.data(), vx.data(), vy.data(),
                     vz.data(), h.data(), c11.data(), c12.data(), c13.data(), c22.data(), c23.data(), c33.data(),
-                    wh.data(), whd.data(), kx.data(), xm.data(), &divv, &curlv, &dV11, &dV12, &dV13, &dV22, &dV23,
-                    &dV33, true);
+                    wh.data(), whd.data(), gradh.data(), kx.data(), xm.data(), &divv, &curlv, &dV11, &dV12, &dV13,
+                    &dV22, &dV23, &dV33, true);
 
     EXPECT_NEAR(divv, 3.3760353440920682e-2, 2e-9);
     EXPECT_NEAR(curlv, 3.7836647734377962e-2, 2e-9);

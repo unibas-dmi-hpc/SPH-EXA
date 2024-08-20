@@ -71,10 +71,11 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, Dataset& d, con
     auto* divv  = d.divv.data();
     auto* curlv = (d.x.size() == d.curlv.size()) ? d.curlv.data() : nullptr;
 
-    const auto* wh  = d.wh.data();
-    const auto* whd = d.whd.data();
-    const auto* kx  = d.kx.data();
-    const auto* xm  = d.xm.data();
+    const auto* wh    = d.wh.data();
+    const auto* whd   = d.whd.data();
+    const auto* kx    = d.kx.data();
+    const auto* xm    = d.xm.data();
+    const auto* gradh = d.gradh.data();
 
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; ++i)
@@ -86,7 +87,7 @@ void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, Dataset& d, con
                  c33);
 
         divV_curlVJLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, vx, vy, vz, h, c11, c12, c13, c22,
-                        c23, c33, wh, whd, kx, xm, divv, curlv, dV11, dV12, dV13, dV22, dV23, dV33, doGradV);
+                        c23, c33, wh, whd, gradh, kx, xm, divv, curlv, dV11, dV12, dV13, dV22, dV23, dV33, doGradV);
     }
 }
 

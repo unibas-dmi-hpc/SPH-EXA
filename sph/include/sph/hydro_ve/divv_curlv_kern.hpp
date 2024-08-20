@@ -45,8 +45,8 @@ HOST_DEVICE_FUN inline void
 divV_curlVJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
                 unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz,
                 const T* h, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
-                const T* wh, const T* /*whd*/, const T* kx, const T* xm, T* divv, T* curlv, T* dV11, T* dV12, T* dV13,
-                T* dV22, T* dV23, T* dV33, bool doGradV)
+                const T* wh, const T* /*whd*/, const T* gradh, const T* kx, const T* xm, T* divv, T* curlv, T* dV11,
+                T* dV12, T* dV13, T* dV22, T* dV23, T* dV33, bool doGradV)
 {
     auto xi  = x[i];
     auto yi  = y[i];
@@ -102,7 +102,7 @@ divV_curlVJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const cs
         dVzi += (vz_ji * xmassj) * termA;
     }
 
-    T norm_kxi = K * hiInv3 / kxi;
+    T norm_kxi = K * hiInv3 / (kxi * gradh[i]);
     divv[i]    = norm_kxi * (dVxi[0] + dVyi[1] + dVzi[2]);
 
     if (curlv != nullptr)

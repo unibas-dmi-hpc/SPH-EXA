@@ -59,11 +59,12 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, Dataset& d, const
     const auto* c23 = d.c23.data();
     const auto* c33 = d.c33.data();
 
-    const auto* divv = d.divv.data();
-    const auto* wh   = d.wh.data();
-    const auto* whd  = d.whd.data();
-    const auto* kx   = d.kx.data();
-    const auto* xm   = d.xm.data();
+    const auto* divv  = d.divv.data();
+    const auto* wh    = d.wh.data();
+    const auto* whd   = d.whd.data();
+    const auto* kx    = d.kx.data();
+    const auto* xm    = d.xm.data();
+    const auto* gradh = d.gradh.data();
 
     auto* alpha = d.alpha.data();
 
@@ -73,7 +74,7 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, Dataset& d, const
         size_t   ni       = i - startIndex;
         unsigned ncCapped = std::min(neighborsCount[i] - 1, d.ngmax);
         alpha[i] = AVswitchesJLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, vx, vy, vz, h, c, c11, c12,
-                                   c13, c22, c23, c33, wh, whd, kx, xm, divv, d.minDt, d.alphamin, d.alphamax,
+                                   c13, c22, c23, c33, wh, whd, gradh, kx, xm, divv, d.minDt, d.alphamin, d.alphamax,
                                    d.decay_constant, alpha[i]);
     }
 }
