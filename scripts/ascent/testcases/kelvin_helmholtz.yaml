@@ -16,9 +16,11 @@
         p1: 
           field: Density
           type: pseudocolor
+          min_value: 1
+          max_value: 2
           pipeline: pl1
           color_table:
-            name: Inferno
+            name: Plasma
           points:
             radius: .003
             radius_delta: 0.01
@@ -32,3 +34,5 @@
             zoom: 1.5
           dataset_bounds: [0, 1, 0, 1, 0, 1]
           image_prefix: kelvin_helmholtz_step%05d
+          image_width: 1500
+          image_height: 1024
