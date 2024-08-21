@@ -68,9 +68,9 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, c
                        unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy,
                        const T* vz, const T* h, const Tm* m, const T* prho, const T* tdpdTrho, const T* c, const T* c11,
                        const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T Atmin,
-                       const T Atmax, const T ramp, const T* wh, const T* kx, const T* xm, const T* alpha,
-                       const T* dV11, const T* dV12, const T* dV13, const T* dV22, const T* dV23, const T* dV33,
-                       T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
+                       const T Atmax, const T ramp, const T* wh, const T* gradh, const T* kx, const T* xm,
+                       const T* alpha, const T* dV11, const T* dV12, const T* dV13, const T* dV22, const T* dV23,
+                       const T* dV33, T* grad_P_x, T* grad_P_y, T* grad_P_z, Tm1* du, T* maxvsignal)
 {
     auto xi  = x[i];
     auto yi  = y[i];
@@ -194,8 +194,8 @@ momentumAndEnergyJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, c
             b_mom      = pow(xmassj, T(2) - sigma_ij) * pow(xmassi, sigma_ij);
         }
 
-        auto a_visc   = mj / rhoi * viscosity_ij;
-        auto b_visc   = mj / rhoj * viscosity_ij;
+        auto a_visc   = mj / (rhoi * gradh[i]) * viscosity_ij;
+        auto b_visc   = mj / (rhoj * gradh[j]) * viscosity_ij;
         T    a_visc_x = T(0.5) * (a_visc * termA1_i + b_visc * termA1_j);
         T    a_visc_y = T(0.5) * (a_visc * termA2_i + b_visc * termA2_j);
         T    a_visc_z = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
