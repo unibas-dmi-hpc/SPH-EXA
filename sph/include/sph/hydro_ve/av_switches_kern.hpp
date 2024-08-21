@@ -45,8 +45,8 @@ HOST_DEVICE_FUN inline T
 AVswitchesJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
                 unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const T* vx, const T* vy, const T* vz,
                 const T* h, const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
-                const T* c33, const T* wh, const T* /*whd*/, const T* kx, const T* xm, const T* divv, const Tc dt,
-                const T alphamin, const T alphamax, const T decay_constant, T alpha_i)
+                const T* c33, const T* wh, const T* /*whd*/, const T* gradh, const T* kx, const T* xm, const T* divv,
+                const Tc dt, const T alphamin, const T alphamax, const T decay_constant, T alpha_i)
 {
     auto xi  = x[i];
     auto yi  = y[i];
@@ -114,7 +114,7 @@ AVswitchesJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const cs
         graddivv_z += factor * termA3;
     }
 
-    T graddivv = std::sqrt(graddivv_x * graddivv_x + graddivv_y * graddivv_y + graddivv_z * graddivv_z);
+    T graddivv = std::sqrt(graddivv_x * graddivv_x + graddivv_y * graddivv_y + graddivv_z * graddivv_z) / gradh[i];
 
     T alphaloc = 0.0;
     if (divv_i < T(0))

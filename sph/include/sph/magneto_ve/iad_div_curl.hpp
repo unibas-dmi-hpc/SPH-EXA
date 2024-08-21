@@ -69,10 +69,11 @@ void computeIadFullDivvCurlvImpl(size_t startIndex, size_t endIndex, SimulationD
     auto* dvzdy = m.dvzdy.data();
     auto* dvzdz = m.dvzdz.data();
 
-    const auto* wh  = d.wh.data();
-    const auto* whd = d.whd.data();
-    const auto* kx  = d.kx.data();
-    const auto* xm  = d.xm.data();
+    const auto* wh    = d.wh.data();
+    const auto* whd   = d.whd.data();
+    const auto* kx    = d.kx.data();
+    const auto* xm    = d.xm.data();
+    const auto* gradh = d.gradh.data();
 
     const auto* Bx = m.Bx.data();
     const auto* By = m.By.data();
@@ -95,11 +96,11 @@ void computeIadFullDivvCurlvImpl(size_t startIndex, size_t endIndex, SimulationD
                  c33);
 
         full_divV_curlVJLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, vx, vy, vz, h, c11, c12, c13,
-                             c22, c23, c33, wh, whd, kx, xm, divv, curlv, dvxdx, dvxdy, dvxdz, dvydx, dvydy, dvydz,
-                             dvzdx, dvzdy, dvzdz);
+                             c22, c23, c33, wh, whd, gradh, kx, xm, divv, curlv, dvxdx, dvxdy, dvxdz, dvydx, dvydy,
+                             dvydz, dvzdx, dvzdy, dvzdz);
 
         divB_curlB_JLoop(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, Bx, By, Bz, h, c11, c12, c13, c22,
-                         c23, c33, wh, kx, xm, divB, curlB_x, curlB_y, curlB_z);
+                         c23, c33, wh, gradh, kx, xm, divB, curlB_x, curlB_y, curlB_z);
     }
 }
 

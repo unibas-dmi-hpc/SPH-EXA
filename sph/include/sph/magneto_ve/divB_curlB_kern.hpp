@@ -39,11 +39,12 @@ namespace sph::magneto
 {
 
 template<size_t stride = 1, typename Tc, class T>
-HOST_DEVICE_FUN inline void
-divB_curlB_JLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const cstone::LocalIndex* neighbors,
-                 unsigned neighborsCount, const Tc* x, const Tc* y, const Tc* z, const Tc* Bx, const Tc* By,
-                 const Tc* Bz, const T* h, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
-                 const T* c33, const T* wh, const T* kx, const T* xm, T* divB, T* curlB_x, T* curlB_y, T* curlB_z)
+HOST_DEVICE_FUN inline void divB_curlB_JLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box,
+                                             const cstone::LocalIndex* neighbors, unsigned neighborsCount, const Tc* x,
+                                             const Tc* y, const Tc* z, const Tc* Bx, const Tc* By, const Tc* Bz,
+                                             const T* h, const T* c11, const T* c12, const T* c13, const T* c22,
+                                             const T* c23, const T* c33, const T* wh, const T* gradh, const T* kx,
+                                             const T* xm, T* divB, T* curlB_x, T* curlB_y, T* curlB_z)
 {
     auto xi  = x[i];
     auto yi  = y[i];
@@ -100,7 +101,7 @@ divB_curlB_JLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const c
         dBzi += (Bz_ji * xmassj) * termA;
     }
 
-    T norm_kxi = K * hiInv3 / kxi;
+    T norm_kxi = K * hiInv3 / (kxi * gradh[i]);
     divB[i]    = norm_kxi * (dBxi[0] + dByi[1] + dBzi[2]);
 
     curlB_x[i] = norm_kxi * (dBzi[1] - dByi[2]);

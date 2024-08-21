@@ -109,8 +109,13 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
     T norm2_B = Bxi * Bxi + Byi * Byi + Bzi * Bzi;
     T beta    = 2 * mu_0 * pi / norm2_B;
     T H       = 0.;
-    if (beta < 1) { H = 2.; }
-    else if (beta <= 2) { H = 2 * (2. - beta); }
+    // if (beta < 1) { H = 2.; } //SPHYNX
+    // else if (beta <= 2) { H = 2 * (2. - beta); }
+    if (beta < 2.) { H = 1.; } // PHANTOM
+    else if (beta < 10.) { H = (10. - beta) / 8.; }
+    // if (beta < 1.) { H = 1.; } //Wissing et al.
+    // else if (beta < 2.) { H = 2. - beta; }
+
     T f_i = 0.0;
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
@@ -198,8 +203,8 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
             b_mom      = pow(xmassj, T(2) - sigma_ij) * pow(xmassi, sigma_ij);
         }
 
-        auto a_visc   = mj / rhoi * viscosity_ij;
-        auto b_visc   = mj / rhoj * viscosity_ij;
+        auto a_visc   = mj / (rhoi * gradhi) * viscosity_ij;
+        auto b_visc   = mj / (rhoj * gradh[j]) * viscosity_ij;
         T    a_visc_x = T(0.5) * (a_visc * termA1_i + b_visc * termA1_j);
         T    a_visc_y = T(0.5) * (a_visc * termA2_i + b_visc * termA2_j);
         T    a_visc_z = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
@@ -224,9 +229,6 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
         momentum_y -= momentum_i * termA2_i + momentum_j * termA2_j;
         momentum_z -= momentum_i * termA3_i + momentum_j * termA3_j;
 
-        cstone::Vec3<T> termA_avg = {termA1_i + termA1_j, termA2_i + termA2_j, termA3_i + termA3_j};
-        termA_avg *= 0.5;
-
         // magnetic pressure contributions
         auto momentum_xi = Si_xx * termA1_i + Si_xy * termA2_i + Si_xz * termA3_i;
         auto momentum_yi = Si_xy * termA1_i + Si_yy * termA2_i + Si_yz * termA3_i;
@@ -236,20 +238,19 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
         auto momentum_yj = Sj_xy * termA1_j + Sj_yy * termA2_j + Sj_yz * termA3_j;
         auto momentum_zj = Sj_xz * termA1_j + Sj_yz * termA2_j + Sj_zz * termA3_j;
 
-        //auto momentum_xx =            (Si_xx + Sj_xx) * termA_avg[0] + (Si_xy + Sj_xy) * termA_avg[1] + (Si_xz + Sj_xz) * termA_avg[2];
-        //auto momentum_yy =            (Si_xy + Sj_xy) * termA_avg[0] + (Si_yy + Sj_yy) * termA_avg[1] + (Si_yz + Sj_yz) * termA_avg[2];
-        //auto momentum_zz =            (Si_xz + Sj_xz) * termA_avg[0] + (Si_yz + Sj_yz) * termA_avg[1] + (Si_zz + Sj_zz) * termA_avg[2];
-
-        auto rhosqinv = 1 / (rhoi * rhoj);
+        auto rhosqinv_i = 1 / (rhoi * rhoi * gradhi);
+        auto rhosqinv_j = 1 / (rhoj * rhoj * gradh[j]);
 
         // tensile instability correction
         // f_i += mj * rhosqinv * (Bxi * termA1_i + Byi * termA2_i + Bzi * termA3_i); SPHYNX
-        f_i += mj * rhosqinv *
-               ((Bxi + Bx[j]) * termA_avg[0] + (Byi + By[j]) * termA_avg[1] + (Bzi + Bz[j]) * termA_avg[2]); // GDSPH
+        // f_i += mj / (rhoi * rhoj) *
+        //       ((Bxi + Bx[j]) * termA_avg[0] + (Byi + By[j]) * termA_avg[1] + (Bzi + Bz[j]) * termA_avg[2]); // GDSPH
+        f_i += mj * ((Bxi * termA1_i + Byi * termA2_i + Bzi * termA3_i) * rhosqinv_i +
+                     (Bx[j] * termA1_j + By[j] * termA2_j + Bz[j] * termA3_j) * rhosqinv_j); // PHANTOM
 
-        momentum_x += mj * rhosqinv * (momentum_xi+momentum_xj) - a_visc_x;
-        momentum_y += mj * rhosqinv * (momentum_yi+momentum_yj) - a_visc_y;
-        momentum_z += mj * rhosqinv * (momentum_zi+momentum_zj) - a_visc_z;
+        momentum_x += mj * (rhosqinv_i * momentum_xi + rhosqinv_j * momentum_xj) - a_visc_x;
+        momentum_y += mj * (rhosqinv_i * momentum_yi + rhosqinv_j * momentum_yj) - a_visc_y;
+        momentum_z += mj * (rhosqinv_i * momentum_zi + rhosqinv_j * momentum_zj) - a_visc_z;
     }
 
     a_visc_energy = stl::max(T(0), a_visc_energy);

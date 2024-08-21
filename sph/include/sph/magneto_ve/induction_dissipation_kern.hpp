@@ -98,7 +98,7 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, const cstone::
         auto mj     = m[j];
         auto xmassj = xm[j];
         auto rhoj   = kx[j] * mj / xmassj;
-        auto volj   = xmassj / (kx[j] * gradh[j]);
+        auto volj   = xmassj / (kx[j] * gradh[j] * gradhi);
 
         T rx = xi - x[j];
         T ry = yi - y[j];
