@@ -77,10 +77,10 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, Dataset& d, c
     auto* grad_P_y = d.ay.data();
     auto* grad_P_z = d.az.data();
 
-    const auto* wh  = d.wh.data();
-    const auto* whd = d.whd.data();
-    const auto* kx  = d.kx.data();
-    const auto* xm  = d.xm.data();
+    const auto* wh    = d.wh.data();
+    const auto* whd   = d.whd.data();
+    const auto* kx    = d.kx.data();
+    const auto* xm    = d.xm.data();
     const auto* gradh = d.gradh.data();
 
     T minDt = INFINITY;
@@ -94,9 +94,9 @@ void computeMomentumEnergyImpl(size_t startIndex, size_t endIndex, Dataset& d, c
         T maxvsignal = 0;
 
         momentumAndEnergyJLoop<avClean>(i, d.K, box, neighbors + d.ngmax * ni, ncCapped, x, y, z, vx, vy, vz, h, m,
-                                        prho, tdpdTrho, c, c11, c12, c13, c22, c23, c33, d.Atmin, d.Atmax, d.ramp, wh, gradh,
-                                        kx, xm, alpha, dV11, dV12, dV13, dV22, dV23, dV33, grad_P_x, grad_P_y, grad_P_z,
-                                        du, &maxvsignal);
+                                        prho, tdpdTrho, c, c11, c12, c13, c22, c23, c33, d.Atmin, d.Atmax, d.ramp, wh,
+                                        gradh, kx, xm, alpha, dV11, dV12, dV13, dV22, dV23, dV33, grad_P_x, grad_P_y,
+                                        grad_P_z, du, &maxvsignal);
 
         T dt_i = tsKCourant(maxvsignal, h[i], c[i], d.Kcour);
         minDt  = std::min(minDt, dt_i);
