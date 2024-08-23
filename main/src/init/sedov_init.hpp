@@ -42,8 +42,6 @@
 #include "grid.hpp"
 #include "utils.hpp"
 
-#include <H5Mpublic.h>
-
 namespace sphexa
 {
 
