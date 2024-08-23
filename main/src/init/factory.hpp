@@ -101,6 +101,10 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     {
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for kelvin-helmholtz-magneto\n"); }
         return SimInitializers<Dataset>::makeKelvinHelmholtzMagneto(glassBlock, settingsFile, reader);
+    }    if (testNamedBase == "alfven-wave")
+    {
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for alfven-wave\n"); }
+        return SimInitializers<Dataset>::makeAlfvenWave(glassBlock, settingsFile, reader);
     }
     if (std::filesystem::exists(strBeforeSign(testCase, ":")))
     {
