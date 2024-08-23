@@ -206,7 +206,6 @@ public:
     [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
 
-
 template<class MagnetoData>
 void initMagnetoData(MagnetoData& md)
 {
@@ -226,20 +225,19 @@ void initMagnetoData(MagnetoData& md)
     std::fill(md.d_psi_ch_m1.begin(), md.d_psi_ch_m1.end(), 0.0);
 }
 
-
 template<class SimulationData>
 class MagneticKelvinHelmholtz : public KelvinHelmholtzGlass<SimulationData>
 {
     std::string          glassBlock = KelvinHelmholtzGlass<SimulationData>::glassBlock;
-    mutable InitSettings settings_ = KelvinHelmholtzGlass<SimulationData>::settings_;
+    mutable InitSettings settings_  = KelvinHelmholtzGlass<SimulationData>::settings_;
 
 public:
     using KelvinHelmholtzGlass<SimulationData>::KelvinHelmholtzGlass;
 
-    cstone::Box<typename SimulationData::RealType> init(int rank, int numRanks, size_t cbrtNumPart, SimulationData& simData,
-                                                 IFileReader* reader) const override
+    cstone::Box<typename SimulationData::RealType> init(int rank, int numRanks, size_t cbrtNumPart,
+                                                        SimulationData& simData, IFileReader* reader) const override
     {
-        auto box = KelvinHelmholtzGlass<SimulationData>::init(rank, numRanks, cbrtNumPart,  simData, reader);
+        auto box = KelvinHelmholtzGlass<SimulationData>::init(rank, numRanks, cbrtNumPart, simData, reader);
 
         auto& md = simData.magneto;
         md.resize(simData.hydro.x.size());
@@ -251,7 +249,7 @@ public:
 
         return box;
     }
-
+    [[nodiscard]] const InitSettings& constants() const override { return settings_; }
 };
 
 } // namespace sphexa
