@@ -75,33 +75,33 @@ public:
      * The length of these arrays equals the local number of particles including halos
      * if the field is active and is zero if the field is inactive.
      */
-    DevVector<RealType>   x, y, z;                            // Positions
-    DevVector<XM1Type>    x_m1, y_m1, z_m1;                   // Difference to previous positions
-    DevVector<HydroType>  vx, vy, vz;                         // Velocities
-    DevVector<HydroType>  rho;                                // Density
-    DevVector<RealType>   temp;                               // Temperature
-    DevVector<RealType>   u;                                  // Internal Energy
-    DevVector<HydroType>  p;                                  // Pressure
-    DevVector<HydroType>  prho;                               // p / (kx * m^2 * gradh)
-    DevVector<HydroType>  tdpdTrho;                           // temp * dp/dT * prho
-    DevVector<HydroType>  h;                                  // Smoothing Length
-    DevVector<Tmass>      m;                                  // Mass
-    DevVector<HydroType>  c;                                  // Speed of sound
-    DevVector<HydroType>  cv;                                 // Specific heat
-    DevVector<HydroType>  mue, mui;                           // mean molecular weight (electrons, ions)
-    DevVector<HydroType>  divv, curlv;                        // Div(velocity), Curl(velocity)
-    DevVector<HydroType>  ax, ay, az;                         // acceleration
-    DevVector<RealType>   du;                                 // energy rate of change (du/dt)
-    DevVector<XM1Type>    du_m1;                              // previous energy rate of change (du/dt)
-    DevVector<HydroType>  c11, c12, c13, c22, c23, c33;       // IAD components
-    DevVector<HydroType>  alpha;                              // AV coeficient
-    DevVector<HydroType>  xm;                                 // Volume element definition
-    DevVector<HydroType>  kx;                                 // Volume element normalization
-    DevVector<HydroType>  gradh;                              // grad(h) term
-    DevVector<KeyType>    keys;                               // Particle space-filling-curve keys
-    DevVector<unsigned>   nc;                                 // number of neighbors of each particle
-    DevVector<HydroType>  dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
-    DevVector<uint8_t>    rung;                               // rung per particle of previous timestep
+    DevVector<RealType>  x, y, z;                            // Positions
+    DevVector<XM1Type>   x_m1, y_m1, z_m1;                   // Difference to previous positions
+    DevVector<HydroType> vx, vy, vz;                         // Velocities
+    DevVector<HydroType> rho;                                // Density
+    DevVector<RealType>  temp;                               // Temperature
+    DevVector<RealType>  u;                                  // Internal Energy
+    DevVector<HydroType> p;                                  // Pressure
+    DevVector<HydroType> prho;                               // p / (kx * m^2 * gradh)
+    DevVector<HydroType> tdpdTrho;                           // temp * dp/dT * prho
+    DevVector<HydroType> h;                                  // Smoothing Length
+    DevVector<Tmass>     m;                                  // Mass
+    DevVector<HydroType> c;                                  // Speed of sound
+    DevVector<HydroType> cv;                                 // Specific heat
+    DevVector<HydroType> mue, mui;                           // mean molecular weight (electrons, ions)
+    DevVector<HydroType> divv, curlv;                        // Div(velocity), Curl(velocity)
+    DevVector<HydroType> ax, ay, az;                         // acceleration
+    DevVector<RealType>  du;                                 // energy rate of change (du/dt)
+    DevVector<XM1Type>   du_m1;                              // previous energy rate of change (du/dt)
+    DevVector<HydroType> c11, c12, c13, c22, c23, c33;       // IAD components
+    DevVector<HydroType> alpha;                              // AV coeficient
+    DevVector<HydroType> xm;                                 // Volume element definition
+    DevVector<HydroType> kx;                                 // Volume element normalization
+    DevVector<HydroType> gradh;                              // grad(h) term
+    DevVector<KeyType>   keys;                               // Particle space-filling-curve keys
+    DevVector<unsigned>  nc;                                 // number of neighbors of each particle
+    DevVector<HydroType> dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
+    DevVector<uint8_t>   rung;                               // rung per particle of previous timestep
     DevVector<uint64_t>  id;                                 // unique particle id
 
     //! @brief SPH interpolation kernel lookup tables

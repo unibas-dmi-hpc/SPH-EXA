@@ -70,7 +70,11 @@ void checkIndices(const SendList& sendList,
 }
 
 //! @brief check halo discovery for sanity
-void checkHalos(int myRank, gsl::span<const TreeIndexPair> focusAssignment, gsl::span<const int> haloFlags)
+template<class KeyType>
+int checkHalos(int myRank,
+               gsl::span<const TreeIndexPair> focusAssignment,
+               gsl::span<const int> haloFlags,
+               gsl::span<const KeyType> ftree)
 {
     TreeNodeIndex firstAssignedNode = focusAssignment[myRank].start();
     TreeNodeIndex lastAssignedNode  = focusAssignment[myRank].end();
@@ -78,6 +82,7 @@ void checkHalos(int myRank, gsl::span<const TreeIndexPair> focusAssignment, gsl:
     std::array<TreeNodeIndex, 2> checkRanges[2] = {{0, firstAssignedNode},
                                                    {lastAssignedNode, TreeNodeIndex(haloFlags.size())}};
 
+    int ret = 0;
     for (int range = 0; range < 2; ++range)
     {
 #pragma omp parallel for
@@ -92,16 +97,16 @@ void checkHalos(int myRank, gsl::span<const TreeIndexPair> focusAssignment, gsl:
                 }
                 if (!peerFound)
                 {
-                    std::cout << "Detected halo cells not belonging to peer ranks. This usually happens"
-                              << " when some particles have smoothing length interaction sphere volumes"
-                              << " of similar magnitude than the rank domain volume. In that case, either"
-                              << " the number of ranks needs to be decreased or the number of particles"
-                              << " increased, leading to shorter smoothing lengths\n";
-                    MPI_Abort(MPI_COMM_WORLD, 35);
+                    std::cout << "Assignment rank " << myRank << " " << std::oct << ftree[firstAssignedNode] << " - "
+                              << ftree[lastAssignedNode] << std::dec << std::endl;
+                    std::cout << "Failed node " << i << " " << std::oct << ftree[i] << " - " << ftree[i + 1] << std::dec
+                              << std::endl;
+                    ret = 1;
                 }
             }
         }
     }
+    return ret;
 }
 
 } // namespace detail
@@ -197,22 +202,23 @@ public:
 
     /*! @brief Compute particle offsets of each tree node and determine halo send/receive indices
      *
-     * @param[in]  leaves          (focus) tree leaves
-     * @param[in]  counts          (focus) tree counts
-     * @param[in]  assignment      assignment of @p leaves to ranks
-     * @param[in]  peers           list of peer ranks
-     * @param[out] layout          Particle offsets for each node in @p leaves w.r.t to the final particle buffers,
-     *                             including the halos, length = counts.size() + 1. The last element contains
-     *                             the total number of locally present particles, i.e. assigned + halos.
-     *                             [layout[i]:layout[i+1]] indexes particles in the i-th leaf cell.
-     *                             If the i-th cell is not a halo and not locally owned, its particles are not present
-     *                             and the corresponding layout range has length zero.
+     * @param[in]  leaves      (focus) tree leaves
+     * @param[in]  counts      (focus) tree counts
+     * @param[in]  assignment  assignment of @p leaves to ranks
+     * @param[in]  peers       list of peer ranks
+     * @param[out] layout      Particle offsets for each node in @p leaves w.r.t to the final particle buffers,
+     *                         including the halos, length = counts.size() + 1. The last element contains
+     *                         the total number of locally present particles, i.e. assigned + halos.
+     *                         [layout[i]:layout[i+1]] indexes particles in the i-th leaf cell.
+     *                         If the i-th cell is not a halo and not locally owned, its particles are not present
+     *                         and the corresponding layout range has length zero.
+     * @return                 0 if all halo cells have been matched with a peer rank, 1 otherwise
      */
-    void computeLayout(gsl::span<const KeyType> leaves,
-                       gsl::span<const unsigned> counts,
-                       gsl::span<const TreeIndexPair> assignment,
-                       gsl::span<const int> peers,
-                       gsl::span<LocalIndex> layout)
+    int computeLayout(gsl::span<const KeyType> leaves,
+                      gsl::span<const unsigned> counts,
+                      gsl::span<const TreeIndexPair> assignment,
+                      gsl::span<const int> peers,
+                      gsl::span<LocalIndex> layout)
     {
         computeNodeLayout(counts, haloFlags_, assignment[myRank_].start(), assignment[myRank_].end(), layout);
         auto newParticleStart = layout[assignment[myRank_].start()];
@@ -220,10 +226,11 @@ public:
 
         outgoingHaloIndices_ = exchangeRequestKeys<KeyType>(leaves, haloFlags_, assignment, peers, layout);
 
-        detail::checkHalos(myRank_, assignment, haloFlags_);
+        if (detail::checkHalos(myRank_, assignment, haloFlags_, leaves)) { return 1; }
         detail::checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd, layout.back());
 
         incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, peers);
+        return 0;
     }
 
     /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays

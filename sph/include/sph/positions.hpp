@@ -51,8 +51,8 @@ HOST_DEVICE_FUN bool fbcCheck(Tc coord, Th h, Tc top, Tc bottom, bool fbc)
 }
 
 //! @brief update the energy according to Adams-Bashforth (2nd order)
-template<class TU, class TD>
-HOST_DEVICE_FUN TU energyUpdate(TU u_old, double dt, double dt_m1, TD du, TD du_m1)
+template<class TU>
+HOST_DEVICE_FUN TU energyUpdate(TU u_old, double dt, double dt_m1, double du, double du_m1)
 {
     TU u_new = u_old + du * dt + 0.5 * (du - du_m1) / dt_m1 * std::abs(dt) * dt;
     // To prevent u < 0 (when cooling with GRACKLE is active)

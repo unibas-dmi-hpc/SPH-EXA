@@ -115,6 +115,7 @@ public:
     HydroVeBdtProp(std::ostream& output, size_t rank, const InitSettings& settings)
         : Base(output, rank)
     {
+        if (not cstone::HaveGpu<Acc>{}) { throw std::runtime_error("This propagator is not supported on CPUs\n"); }
         if (avClean && rank == 0) { std::cout << "AV cleaning is activated" << std::endl; }
         try
         {
@@ -211,7 +212,9 @@ public:
 
     void sync(DomainType& domain, DataType& simData) override
     {
+        domain.setTreeConv(true);
         domain.setHaloFactor(1.0 + float(timestep_.numRungs) / 40);
+
         if (activeRung(timestep_.substep, timestep_.numRungs) == 0) { fullSync(domain, simData); }
         else { partialSync(domain, simData); }
     }
@@ -396,8 +399,7 @@ public:
                                  d.outputFieldIndices.begin();
                     transferToHost(d, first, last, {d.fieldNames[fidx]});
                     std::visit([writer, c = column, key = namesDone[i]](auto field)
-                               { writer->writeField(key, field->data(), c); },
-                               fieldPointers[fidx]);
+                               { writer->writeField(key, field->data(), c); }, fieldPointers[fidx]);
                     indicesDone.erase(indicesDone.begin() + i);
                     namesDone.erase(namesDone.begin() + i);
                 }

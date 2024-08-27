@@ -131,8 +131,8 @@ void Execute(DataType& d, long startIndex, long endIndex)
     addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
     addField(mesh, "Speed of Sound", d.c.data(), startIndex, endIndex);
     addField(mesh, "ax", d.ax.data(), startIndex, endIndex);
-    addField(mesh, "ax", d.ay.data(), startIndex, endIndex);
-    addField(mesh, "ax", d.az.data(), startIndex, endIndex);
+    addField(mesh, "ay", d.ay.data(), startIndex, endIndex);
+    addField(mesh, "az", d.az.data(), startIndex, endIndex);
 
     std::vector<conduit_int64> conn(endIndex - startIndex);
     std::iota(conn.begin(), conn.end(), 0);

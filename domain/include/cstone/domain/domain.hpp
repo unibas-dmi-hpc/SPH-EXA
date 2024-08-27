@@ -223,7 +223,7 @@ public:
                                 invThetaEff, std::get<0>(scratch));
         }
         focusTree_.updateMinMac(box(), global_.assignment(), invThetaEff);
-        focusTree_.updateTree(peers, global_.assignment());
+        focusTree_.updateTree(peers, global_.assignment(), box());
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
         focusTree_.updateGeoCenters(box());
 
@@ -279,7 +279,7 @@ public:
             int converged = 0, reps = 0;
             while (converged != numRanks_ || reps < 2)
             {
-                converged = focusTree_.updateTree(peers, global_.assignment());
+                converged = focusTree_.updateTree(peers, global_.assignment(), box());
                 focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
                 focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.octree(), box(),
                                          std::get<0>(scratch), std::get<1>(scratch));
@@ -288,26 +288,38 @@ public:
                 reps++;
             }
         }
-        // update the tree using expansion centers from the previous iteration, but 5% stricter to account for
-        // possibility of the exp. center having moved closer to the source after timestep integration
-        focusTree_.updateMacs(box(), global_.assignment(), 1.05 / theta_);
-        focusTree_.updateTree(peers, global_.assignment());
-        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
-        focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.octree(), box(),
-                                 std::get<0>(scratch), std::get<1>(scratch));
-        focusTree_.updateMacs(box(), global_.assignment(), 1.0 / theta_);
-        focusTree_.updateGeoCenters(box());
 
-        auto octreeView            = focusTree_.octreeViewAcc();
-        const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
+        int fail = 0;
+        do
+        {
+            focusTree_.updateMacs(box(), global_.assignment(), centerDriftTol_ / theta_);
+            focusTree_.updateTree(peers, global_.assignment(), box());
+            focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts(), std::get<0>(scratch));
+            focusTree_.updateCenters(rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(m), global_.octree(), box(),
+                                     std::get<0>(scratch), std::get<1>(scratch));
+            focusTree_.updateMacs(box(), global_.assignment(), 1.0 / theta_);
+            focusTree_.updateGeoCenters(box());
 
-        reallocateDestructive(layout_, octreeView.numLeafNodes + 1, allocGrowthRate_);
-        reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, allocGrowthRate_);
-        halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
-                        focusTree_.leafCountsAcc(), focusTree_.assignment(), {rawPtr(layoutAcc_), layoutAcc_.size()},
-                        box(), rawPtr(h), haloSearchExt_, std::get<0>(scratch));
-        focusTree_.addMacs(halos_.haloFlags());
-        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), peers, layout_);
+            auto octreeView            = focusTree_.octreeViewAcc();
+            const KeyType* focusLeaves = focusTree_.treeLeavesAcc().data();
+
+            reallocateDestructive(layout_, octreeView.numLeafNodes + 1, allocGrowthRate_);
+            reallocateDestructive(layoutAcc_, octreeView.numLeafNodes + 1, allocGrowthRate_);
+            halos_.discover(octreeView.prefixes, octreeView.childOffsets, octreeView.internalToLeaf, focusLeaves,
+                            focusTree_.leafCountsAcc(), focusTree_.assignment(),
+                            {rawPtr(layoutAcc_), layoutAcc_.size()}, box(), rawPtr(h), haloSearchExt_,
+                            std::get<0>(scratch));
+            focusTree_.addMacs(halos_.haloFlags());
+            fail = halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(),
+                                        peers, layout_);
+            MPI_Allreduce(MPI_IN_PLACE, &fail, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+            if (fail)
+            {
+                centerDriftTol_ += 0.05;
+                if (myRank_ == 0) { std::cout << "Increased centerDriftTol to " << centerDriftTol_ << std::endl; }
+            }
+        } while (fail);
 
         // diagnostics(keyView.size(), peers);
 
@@ -362,8 +374,7 @@ public:
                        [shift](auto i) { return i - shift; });
 
         std::apply([exDesc, o = prevOrd.data(), &sendBuffer, &receiveBuffer, this](auto&... a)
-                   { global_.redoExchange(exDesc, o, sendBuffer, receiveBuffer, rawPtr(a)...); },
-                   arrays);
+                   { global_.redoExchange(exDesc, o, sendBuffer, receiveBuffer, rawPtr(a)...); }, arrays);
 
         lowMemReallocate(bufDesc_.size, allocGrowthRate_, arrays, std::tie(sendBuffer, receiveBuffer));
         gatherArrays(gatherCpu, ord + global_.numSendDown(), global_.numAssigned(), envelope[0], bufDesc_.start, arrays,
@@ -401,6 +412,7 @@ public:
     //! @brief return the coordinate bounding box from the previous sync call
     const Box<T>& box() const { return global_.box(); }
 
+    void setTreeConv(bool flag) { convergeTrees = flag; }
     void setHaloFactor(float factor) { haloSearchExt_ = factor; }
     void setGrowthAllocRate(float factor) { allocGrowthRate_ = factor; }
 
@@ -645,8 +657,11 @@ private:
     //! @brief MAC parameter for focus resolution and gravity treewalk
     float theta_;
 
+    bool convergeTrees{false};
     //! @brief Extra search factor for halo discovery, allowing multiple time integration steps between sync() calls
     float haloSearchExt_{1.0};
+    //! @brief factor to tighten theta to avoid failed macs by remote cells due to centers having moved closer
+    float centerDriftTol_{1.05};
     //! @brief buffer growth rate when reallocating
     float allocGrowthRate_{1.05};
 
