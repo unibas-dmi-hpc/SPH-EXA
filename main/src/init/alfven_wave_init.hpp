@@ -43,7 +43,7 @@ InitSettings ALfvenWaveConstants()
             {"lambda", 1},         {"P", 0.1},
             {"sinA", 2. / 3.},     {"sinB", 2. / std::sqrt(5)},
             {"gamma", 5. / 3.},    {"Kcour", 0.4},
-            {"ng0", 100},          {"ngmax", 150},
+            {"ng0", 200},          {"ngmax", 250},
             {"minDt", 1e-7},       {"minDt_m1", 1e-7},
             {"gravConstant", 0.0}, {"alfven-wave", 1.0}};
 }
@@ -168,7 +168,7 @@ public:
 
         T              L   = settings_.at("L");
         auto           pbc = cstone::BoundaryType::periodic;
-        cstone::Box<T> globalBox(-L / 2., L / 2., -L / 4., L / 4., -L / 4., L / 4., pbc, pbc, pbc);
+        cstone::Box<T> globalBox(0, L, 0, L/2., 0, L/2., pbc, pbc, pbc);
 
         auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
         assembleCuboid<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
