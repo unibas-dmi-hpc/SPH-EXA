@@ -97,6 +97,7 @@ AVswitchesJLoop(cstone::LocalIndex i, Tc K, const cstone::Box<Tc>& box, const cs
         T vijsignal_ij = 0.0;
 
         if (rv < T(0)) { vijsignal_ij = ci + c[j] - T(3) * rv / dist; }
+        else vijsignal_ij = T(1)- 40 * ci;
         vijsignal_i = stl::max(vijsignal_i, vijsignal_ij);
 
         T v1 = dist * hiInv;
