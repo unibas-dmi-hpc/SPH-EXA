@@ -43,7 +43,7 @@ InitSettings ALfvenWaveConstants()
             {"lambda", 1},         {"P", 0.1},
             {"sinA", 2. / 3.},     {"sinB", 2. / std::sqrt(5)},
             {"gamma", 5. / 3.},    {"Kcour", 0.4},
-            {"ng0", 200},          {"ngmax", 250},
+            {"ng0", 150},          {"ngmax", 200},
             {"minDt", 1e-7},       {"minDt_m1", 1e-7},
             {"gravConstant", 0.0}, {"alfven-wave", 1.0}};
 }
@@ -111,6 +111,10 @@ void initAlfvenWaveFields(SimData& sim, const std::map<std::string, double>& con
     T               k = 2 * M_PI / lambda;
     cstone::Vec3<T> r = {cosA * cosB, cosA * sinB, sinA};
 
+    // estimate max timestep from Alfvèn speed
+    auto v_alfven = sqrt((1 + 0.01) / md.mu_0 * rho);
+    d.maxDt       = 0.1 * lambda / v_alfven;
+
 #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < d.x.size(); ++i)
     {
@@ -154,7 +158,7 @@ public:
                                                  IFileReader* reader) const override
     {
         auto& d       = simData.hydro;
-        auto& md = simData.magneto;
+        auto& md      = simData.magneto;
         using KeyType = typename SimData::KeyType;
         using T       = typename SimData::RealType;
 
@@ -168,7 +172,7 @@ public:
 
         T              L   = settings_.at("L");
         auto           pbc = cstone::BoundaryType::periodic;
-        cstone::Box<T> globalBox(0, L, 0, L/2., 0, L/2., pbc, pbc, pbc);
+        cstone::Box<T> globalBox(0, L, 0, L / 2., 0, L / 2., pbc, pbc, pbc);
 
         auto [keyStart, keyEnd] = equiDistantSfcSegments<KeyType>(rank, numRanks, 100);
         assembleCuboid<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
@@ -180,8 +184,8 @@ public:
         BuiltinWriter attributeSetter(settings_);
         d.loadOrStoreAttributes(&attributeSetter);
 
-        T      volume     = globalBox.lx() * globalBox.ly() * globalBox.lz();
-        T      particleMass = volume * settings_.at("rho") / numParticlesGlobal;
+        T volume       = globalBox.lx() * globalBox.ly() * globalBox.lz();
+        T particleMass = volume * settings_.at("rho") / numParticlesGlobal;
 
         initAlfvenWaveFields(simData, settings_, particleMass);
 

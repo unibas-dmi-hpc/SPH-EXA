@@ -97,6 +97,7 @@ public:
 
     //! current and previous (global) time-steps
     RealType minDt{1e-12}, minDt_m1{1e-12};
+    RealType maxDt{INFINITY};
 
     //! temporary MPI rank local timesteps;
     RealType minDtCourant{INFINITY}, minDtRho{INFINITY};
