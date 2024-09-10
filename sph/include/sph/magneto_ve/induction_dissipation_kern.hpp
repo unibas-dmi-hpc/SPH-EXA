@@ -51,7 +51,7 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, const cstone::
                              const Tm* m, const T* psi_ch, Tc* dBxi, Tc* dByi, Tc* dBzi, Tc* dui)
 {
 
-    static constexpr T alpha_B = 0.5; // as in SPHNYX
+    static constexpr T alpha_B = 1.0; // as in PHANTOM, SPHYNX uses 0.5
 
     auto xi  = x[i];
     auto yi  = y[i];
@@ -142,7 +142,7 @@ inductionAndDissipationJLoop(cstone::LocalIndex i, Tc K, Tc mu_0, const cstone::
         termA_avg *= 0.5;
 
         cstone::Vec3<T> vab_cross_rab{vy_ij * rz - vz_ij * ry, vz_ij * rx - vx_ij * rz, vx_ij * ry - vy_ij * rx};
-        T               v_sigB = std::sqrt(norm2(vab_cross_rab) / dist);
+        T               v_sigB = std::sqrt(norm2(vab_cross_rab) / r2);
 
         T resistivity_ab = T(0.5) * alpha_B * v_sigB * dist;
 
