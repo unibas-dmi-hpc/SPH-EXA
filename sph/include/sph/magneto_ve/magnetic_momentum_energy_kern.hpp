@@ -119,7 +119,7 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
     T f_i = 0.0;
 
     T v_alfven2i       = norm2_B / (mu_0 * rhoi);
-    T magneticVsignali = std::sqrt(ci*ci+v_alfven2i);
+    T magneticVsignali = std::sqrt(ci * ci + v_alfven2i);
 
     for (unsigned pj = 0; pj < neighborsCount; ++pj)
     {
@@ -180,8 +180,8 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
                 {dvxdx[j], dvxdy[j] + dvydx[j], dvxdz[j] + dvzdx[j], dvydy[j], dvydz[j] + dvzdy[j], dvzdz[j]});
         }
 
-        T v_alfven2j = (Bx[j]*Bx[j] + By[j]*By[j] + Bz[j]*Bz[j])/(rhoj*mu_0);
-        T magneticVsignalj = std::sqrt(ci*ci + v_alfven2j);
+        T v_alfven2j       = (Bx[j] * Bx[j] + By[j] * By[j] + Bz[j] * Bz[j]) / (rhoj * mu_0);
+        T magneticVsignalj = std::sqrt(ci * ci + v_alfven2j);
 
         T wij          = rv / dist;
         T viscosity_ij = artificial_viscosity(alpha_i, alpha[j], magneticVsignali, magneticVsignalj, wij);
@@ -248,7 +248,8 @@ HOST_DEVICE_FUN inline void magneticMomentumJLoop(
         auto rhosqinv_j = 1 / (rhoj * rhoj * gradh[j]);
 
         // tensile instability correction
-        // f_i += mj * rhosqinv * (Bxi * termA1_i + Byi * termA2_i + Bzi * termA3_i); SPHYNX
+        // auto rhosqinv = 1 / (rhoi * rhoj * gradhi);
+        // f_i += 2 * mj * rhosqinv * (Bxi * termA1_i + Byi * termA2_i + Bzi * termA3_i); // SPHYNX
         // f_i += mj / (rhoi * rhoj) *
         //       ((Bxi + Bx[j]) * termA_avg[0] + (Byi + By[j]) * termA_avg[1] + (Bzi + Bz[j]) * termA_avg[2]); // GDSPH
         f_i += mj * ((Bxi * termA1_i + Byi * termA2_i + Bzi * termA3_i) * rhosqinv_i +
