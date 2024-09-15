@@ -74,6 +74,7 @@ public:
         , counts_{bucketSize + 1}
         , macs_{1}
         , centers_(1)
+        , globAssignment_(numRanks + 1)
     {
         if constexpr (HaveGpu<Accelerator>{})
         {
@@ -170,6 +171,7 @@ public:
         indexTreelets<KeyType>(peerRanks, treeData_.prefixes, treeData_.levelRange, treelets_, treeletIdx_);
 
         translateAssignment<KeyType>(assignment, leaves_, peers_, myRank_, assignment_);
+        std::copy_n(assignment.data(), numRanks_ + 1, globAssignment_.data());
         copy(treeletIdx_, treeletIdxAcc_);
 
         prevFocusStart   = focusStart;
@@ -335,6 +337,26 @@ public:
             gmap[i] = locateNode(prefixes[idxFromGlob[i]], globalNodeKeys, globalLevelRange);
         }
         gatherScatter<TreeNodeIndex>(gmap, idxFromGlob, globalQuantities.data(), localQuantities.data());
+    }
+
+    //! @brief Distribute global leaf quantities with local part filled in
+    template<class T>
+    void gatherGlobalLeaves(gsl::span<const KeyType> globalLeaves, gsl::span<T> globalLeafQuantities) const
+    {
+        std::vector<TreeNodeIndex> numGlobNodesPerRank(numRanks_), globNodesDispl(numRanks_ + 1);
+
+        for (int rank = 0; rank < numRanks_; ++rank)
+        {
+            globNodesDispl[rank] = findNodeAbove(globalLeaves.data(), nNodes(globalLeaves), globAssignment_[rank]);
+        }
+        globNodesDispl.back() = nNodes(globalLeaves);
+        for (int rank = 0; rank < numRanks_; ++rank)
+        {
+            numGlobNodesPerRank[rank] = globNodesDispl[rank + 1] - globNodesDispl[rank];
+        }
+
+        mpiAllgatherv(MPI_IN_PLACE, 0, globalLeafQuantities.data(), numGlobNodesPerRank.data(), globNodesDispl.data(),
+                      MPI_COMM_WORLD);
     }
 
     template<class Tm, class DevVec1 = std::vector<LocalIndex>, class DevVec2 = std::vector<LocalIndex>>
@@ -692,6 +714,8 @@ private:
     std::vector<SourceCenterType<RealType>> globalCenters_;
     //! @brief the assignment of peer ranks to tree_.treeLeaves()
     std::vector<TreeIndexPair> assignment_;
+    //! @brief global domain boundary SFC keys
+    std::vector<KeyType> globAssignment_;
 
     //! @brief the status of the macs_ and counts_ rebalance criteria
     int rebalanceStatus_{valid};
@@ -735,7 +759,7 @@ void globalFocusExchange(const Octree<KeyType>& globalOctree,
     focusTree.template populateGlobal<Q>(globalOctree.treeLeaves(), quantities, globalLeafQuantities);
 
     //! exchange global leaves
-    mpiAllreduce(MPI_IN_PLACE, globalLeafQuantities.data(), numGlobalLeaves, MPI_SUM);
+    focusTree.template gatherGlobalLeaves<Q>(globalOctree.treeLeaves(), globalLeafQuantities);
 
     std::vector<Q> globalQuantities(globalOctree.numTreeNodes());
     scatter(globalOctree.internalOrder(), globalLeafQuantities.data(), globalQuantities.data());
