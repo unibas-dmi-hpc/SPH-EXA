@@ -420,7 +420,7 @@ public:
         //! global exchange for the top nodes that are bigger than local domains
         std::vector<SourceCenterType<RealType>> globalLeafCenters(globalTree.numLeafNodes());
         populateGlobal<SourceCenterType<RealType>>(globalTree.treeLeaves(), centers_, globalLeafCenters);
-        mpiAllreduce(MPI_IN_PLACE, globalLeafCenters.data(), globalLeafCenters.size(), MPI_SUM);
+        gatherGlobalLeaves<SourceCenterType<RealType>>(globalTree.treeLeaves(), globalLeafCenters);
         scatter(globalTree.internalOrder(), globalLeafCenters.data(), globalCenters_.data());
         upsweep(globalTree.levelRange(), globalTree.childOffsets(), globalCenters_.data(),
                 CombineSourceCenter<RealType>{});
