@@ -68,8 +68,6 @@ auto restoreData(IFileReader* reader, SimulationData& simData)
     restoreDataset(reader, simData.hydro);
     restoreDataset(reader, simData.chem);
 
-    simData.hydro.iteration++;
-
     return box;
 }
 
@@ -222,6 +220,7 @@ public:
         replicateField(reader, "temp", d.temp, T(1));
 
         std::fill(d.du_m1.begin(), d.du_m1.end(), 0);
+        std::fill(d.rung.begin(), d.rung.end(), 0);
         std::transform(d.vx.begin(), d.vx.end(), d.x_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt; });
         std::transform(d.vy.begin(), d.vy.end(), d.y_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt; });
         std::transform(d.vz.begin(), d.vz.end(), d.z_m1.begin(), [dt = d.minDt](auto v_) { return v_ * dt; });

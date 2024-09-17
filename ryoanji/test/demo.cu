@@ -35,6 +35,7 @@
 
 #include "cstone/cuda/cuda_utils.cuh"
 #include "cstone/cuda/gpu_config.cuh"
+#include "cstone/cuda/thrust_util.cuh"
 
 #include "nbody/dataset.hpp"
 #include "ryoanji/interface/treebuilder.cuh"

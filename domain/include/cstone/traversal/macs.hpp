@@ -44,7 +44,7 @@ namespace cstone
 //! @brief compute 1/theta + s for the minimum distance MAC
 HOST_DEVICE_FUN inline float invThetaMinMac(float theta) { return 1.0f / theta + 0.5f; }
 
-//! @brief compute 1/theta + s for the worst-case vector MAC
+//! @brief compute 1/theta + sqrt(3) for the worst-case vector MAC
 HOST_DEVICE_FUN inline float invThetaVecMac(float theta) { return 1.0f / theta + std::sqrt(3.0f); }
 
 /*! @brief Compute square of the acceptance radius for the minimum distance MAC
@@ -196,6 +196,7 @@ HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
 template<class T, class KeyType>
 HOST_DEVICE_FUN void markMacPerBox(const Vec3<T>& targetCenter,
                                    const Vec3<T>& targetSize,
+                                   unsigned maxSourceLevel,
                                    const KeyType* prefixes,
                                    const TreeNodeIndex* childOffsets,
                                    const Vec4<T>* centers,
@@ -204,17 +205,18 @@ HOST_DEVICE_FUN void markMacPerBox(const Vec3<T>& targetCenter,
                                    KeyType focusEnd,
                                    char* markings)
 {
-    auto checkAndMarkMac =
-        [&targetCenter, &targetSize, prefixes, &box, focusStart, focusEnd, centers, markings](TreeNodeIndex idx)
+    auto checkAndMarkMac = [&](TreeNodeIndex idx)
     {
-        KeyType nodePrefix = prefixes[idx];
-        KeyType nodeStart  = decodePlaceholderBit(nodePrefix);
-        KeyType nodeEnd    = nodeStart + nodeRange<KeyType>(decodePrefixLength(nodePrefix) / 3);
+        KeyType nodePrefix   = prefixes[idx];
+        unsigned sourceLevel = decodePrefixLength(nodePrefix) / 3;
+        KeyType nodeStart    = decodePlaceholderBit(nodePrefix);
+        KeyType nodeEnd      = nodeStart + nodeRange<KeyType>(sourceLevel);
         // if the tree node with index idx is fully contained in the focus, we stop traversal
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
-        Vec4<T> center   = centers[idx];
-        bool violatesMac = evaluateMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
+        Vec4<T> center = centers[idx];
+        bool violatesMac =
+            evaluateMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box) && sourceLevel <= maxSourceLevel;
         if (violatesMac && !markings[idx]) { markings[idx] = 1; }
 
         return violatesMac;
@@ -232,34 +234,37 @@ HOST_DEVICE_FUN void markMacPerBox(const Vec3<T>& targetCenter,
  * @param[in]  box          global coordinate bounding box
  * @param[in]  focusStart   lower SFC focus code
  * @param[in]  focusEnd     upper SFC focus code
+ * @param[in]  limitSource  if true, source cells are only marked if the tree-level is bigger than the target
  * @param[out] markings     array of length @p octree.numTreeNodes(), each position i
  *                          will be set to 1, if the node of @p octree with index i fails the MAC paired with
  *                          any node contained in the focus range [focusStart:focusEnd]
  */
 template<class T, class KeyType>
-void markMacs(const OctreeView<KeyType>& octree,
+void markMacs(const KeyType* prefixes,
+              const TreeNodeIndex* childOffsets,
               const Vec4<T>* centers,
               const Box<T>& box,
-              KeyType focusStart,
-              KeyType focusEnd,
+              const KeyType* focusNodes,
+              TreeNodeIndex numFocusNodes,
+              bool limitSource,
               char* markings)
-
 {
-    std::fill(markings, markings + octree.numInternalNodes + octree.numLeafNodes, 0);
-
-    // find the minimum possible number of octree node boxes to cover the entire focus
-    TreeNodeIndex numFocusBoxes = spanSfcRange(focusStart, focusEnd);
-    std::vector<KeyType> focusCodes(numFocusBoxes + 1);
-    spanSfcRange(focusStart, focusEnd, focusCodes.data());
-    focusCodes.back() = focusEnd;
+    KeyType focusStart = focusNodes[0];
+    KeyType focusEnd   = focusNodes[numFocusNodes];
 
 #pragma omp parallel for schedule(dynamic)
-    for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
+    for (TreeNodeIndex i = 0; i < numFocusNodes; ++i)
     {
-        IBox target                     = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
+        IBox target    = sfcIBox(sfcKey(focusNodes[i]), sfcKey(focusNodes[i + 1]));
+        IBox targetExt = IBox(target.xmin() - 1, target.xmax() + 1, target.ymin() - 1, target.ymax() + 1,
+                              target.zmin() - 1, target.zmax() + 1);
+        if (containedIn(focusStart, focusEnd, targetExt)) { continue; }
+
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
-        markMacPerBox(targetCenter, targetSize, octree.prefixes, octree.childOffsets, centers, box, focusStart,
-                      focusEnd, markings);
+        unsigned maxLevel               = maxTreeLevel<KeyType>{};
+        if (limitSource) { maxLevel = std::max(int(treeLevel(focusNodes[i + 1] - focusNodes[i])) - 1, 0); }
+        markMacPerBox(targetCenter, targetSize, maxLevel, prefixes, childOffsets, centers, box, focusStart, focusEnd,
+                      markings);
     }
 }
 

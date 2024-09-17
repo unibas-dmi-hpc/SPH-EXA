@@ -136,8 +136,27 @@ void Execute(DataType& d, long startIndex, long endIndex)
     // Create a grid mesh for contour calculation
     /* ===================================================== */
 
-    mesh["topologies/mesh/type"]           = "unstructured";
-    mesh["topologies/mesh/coordset"]       = "coords";
+    mesh["topologies/mesh/type"]     = "unstructured";
+    mesh["topologies/mesh/coordset"] = "coords";
+    addField(mesh, "x", d.x.data(), startIndex, endIndex);
+    addField(mesh, "y", d.y.data(), startIndex, endIndex);
+    addField(mesh, "z", d.z.data(), startIndex, endIndex);
+    addField(mesh, "vx", d.vx.data(), startIndex, endIndex);
+    addField(mesh, "vy", d.vy.data(), startIndex, endIndex);
+    addField(mesh, "vz", d.vz.data(), startIndex, endIndex);
+    addField(mesh, "Mass", d.m.data(), startIndex, endIndex);
+    addField(mesh, "Smoothing Length", d.h.data(), startIndex, endIndex);
+    addField(mesh, "Density", d.rho.data(), startIndex, endIndex);
+    addField(mesh, "Internal Energy", d.u.data(), startIndex, endIndex);
+    addField(mesh, "Pressure", d.p.data(), startIndex, endIndex);
+    addField(mesh, "Speed of Sound", d.c.data(), startIndex, endIndex);
+    addField(mesh, "ax", d.ax.data(), startIndex, endIndex);
+    addField(mesh, "ay", d.ay.data(), startIndex, endIndex);
+    addField(mesh, "az", d.az.data(), startIndex, endIndex);
+
+    std::vector<conduit_int64> conn(endIndex - startIndex);
+    std::iota(conn.begin(), conn.end(), 0);
+    mesh["topologies/mesh/elements/connectivity"].set_external(conn);
     mesh["topologies/mesh/elements/shape"] = "point";
     std::vector<conduit_int32> conn(endIndex - startIndex);
     std::iota(std::begin(conn), std::end(conn), 0);

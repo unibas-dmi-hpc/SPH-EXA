@@ -143,7 +143,7 @@ public:
     template<class Reorderer, class Vector, class... Arrays>
     auto distribute(BufferDescription bufDesc,
                     Reorderer& reorderFunctor,
-                    Vector& /*scratch1*/,
+                    Vector& s1,
                     Vector& /*scratch2*/,
                     KeyType* keys,
                     T* x,
@@ -159,9 +159,16 @@ public:
         LocalIndex envelopeSize = newEnd - newStart;
         gsl::span<KeyType> keyView(keys + newStart, envelopeSize);
 
-        computeSfcKeys(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.begin()), envelopeSize, box_);
+        auto recvStart = domain_exchange::receiveStart(bufDesc, numPresent(), numAssigned());
+        auto numRecv   = numAssigned() - numPresent();
+
+        computeSfcKeys(x + recvStart, y + recvStart, z + recvStart, sfcKindPointer(keys + recvStart), numRecv, box_);
+        std::make_signed_t<LocalIndex> shifts = -numRecv;
+        if (newEnd > bufDesc.end) { shifts = numRecv; }
+        reorderFunctor.extendMap(shifts, s1);
+
         // sort keys and keep track of the ordering
-        reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
+        reorderFunctor.updateMap(keyView.begin(), keyView.end());
 
         return std::make_tuple(newStart, keyView.subspan(numSendDown(), numAssigned()));
     }

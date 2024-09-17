@@ -102,15 +102,16 @@ HOST_DEVICE_FUN unsigned calculateNodeCount(
     return stl::min(count, maxCount);
 }
 
-/*! @brief determine search bound for @p targetCode in an array of sorted particle SFC codes
+/*! @brief Narrow search bound for @p targetCode in an array of sorted particle SFC codes
  *
  * @tparam KeyType    32- or 64-bit unsigned integer type
- * @param firstIdx    first (of two) search boundary, must be non-negative, but can exceed the codes range
+ * @param firstIdx    first (of two) search boundaries, may be out of bounds
  *                    (the guess for the location of @p targetCode in [codesStart:codesEnd]
  * @param targetCode  code to look for in [codesStart:codesEnd]
  * @param codesStart  particle SFC code array start
  * @param codesEnd    particle SFC code array end
- * @return            the sub-range in [codesStart:codesEnd] containing @p targetCode
+ * @return            a sub-range of [codesStart:codesEnd] that fulfills
+ *                    lower_bound(codesStart, codesEnd, targetCode) == lower_bound(ret[0], ret[0], targetCode)
  */
 template<class KeyType>
 HOST_DEVICE_FUN util::array<const KeyType*, 2> findSearchBounds(std::make_signed_t<KeyType> firstIdx,
@@ -118,23 +119,19 @@ HOST_DEVICE_FUN util::array<const KeyType*, 2> findSearchBounds(std::make_signed
                                                                 const KeyType* codesStart,
                                                                 const KeyType* codesEnd)
 {
-    assert(firstIdx >= 0);
-
     using SI  = std::make_signed_t<KeyType>;
     SI nCodes = codesEnd - codesStart;
+    if (nCodes == 0) { return {codesStart, codesStart}; }
 
     // firstIdx must be an accessible index
+    firstIdx = stl::max(firstIdx, SI(0));
     firstIdx = stl::min(nCodes - 1, firstIdx);
 
     // the last node in 64-bit is 2^63, which can't be represented as a negative number
-    if (targetCode == nodeRange<KeyType>(0)) { return {codesStart + firstIdx, codesEnd}; }
+    if (targetCode >= nodeRange<KeyType>(0)) { return {stl::lower_bound(codesStart, codesEnd, targetCode), codesEnd}; }
 
-    KeyType firstCode = codesStart[firstIdx];
-    if (firstCode == targetCode) { firstIdx++; }
-
-    // d = 1 : search towards codesEnd
-    // d = -1 : search towards codesStart
-    SI d = (firstCode < targetCode) ? 1 : -1;
+    // d = 1 : search towards codesEnd, d = -1 : search towards codesStart
+    SI d = (codesStart[firstIdx] < targetCode) ? 1 : -1;
 
     SI targetCodeTimesD = targetCode * d;
 

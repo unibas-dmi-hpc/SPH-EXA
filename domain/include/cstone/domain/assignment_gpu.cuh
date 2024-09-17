@@ -30,13 +30,13 @@
 
 #pragma once
 
-#include <thrust/copy.h>
 #include <vector>
 
-#include "cstone/primitives/gather.cuh"
+#include "cstone/cuda/device_vector.h"
 #include "cstone/domain/domaindecomp_gpu.cuh"
 #include "cstone/domain/domaindecomp_mpi_gpu.cuh"
 #include "cstone/domain/layout.hpp"
+#include "cstone/primitives/gather.cuh"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/tree/octree.hpp"
 #include "cstone/tree/update_mpi.hpp"
@@ -72,8 +72,8 @@ public:
         tree_.update(init.data(), nNodes(init));
         nodeCounts_ = std::vector<unsigned>(nNodes(init), bucketSize_ - 1);
 
-        reallocateDevice(d_boundaryKeys_, numRanks_, 1.0);
-        reallocateDevice(d_boundaryIndices_, numRanks_, 1.0);
+        reallocate(d_boundaryKeys_, numRanks_ + 1, 1.0);
+        reallocate(d_boundaryIndices_, numRanks_ + 1, 1.0);
     }
 
     /*! @brief Update the global tree
@@ -173,9 +173,16 @@ public:
         LocalIndex envelopeSize    = newEnd - newStart;
         gsl::span<KeyType> keyView = gsl::span<KeyType>(keys + newStart, envelopeSize);
 
-        computeSfcKeysGpu(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.data()), envelopeSize, box_);
+        auto recvStart = domain_exchange::receiveStart(bufDesc, numPresent(), numAssigned());
+        auto numRecv = numAssigned() - numPresent();
+
+        computeSfcKeysGpu(x + recvStart, y + recvStart, z + recvStart, sfcKindPointer(keys + recvStart), numRecv, box_);
+        std::make_signed_t<LocalIndex> shifts = -numRecv;
+        if (newEnd > bufDesc.end) { shifts = numRecv; }
+        sfcSorter.extendMap(shifts, sendScratch);
+
         // sort keys and keep track of the ordering
-        sfcSorter.setMapFromCodes(keyView.begin(), keyView.end(), sendScratch, receiveScratch);
+        sfcSorter.updateMap(keyView.begin(), keyView.end(), sendScratch, receiveScratch);
 
         return std::make_tuple(newStart, keyView.subspan(numSendDown(), numAssigned()));
     }
@@ -220,16 +227,16 @@ private:
     mutable ExchangeLog recvLog_;
 
     //! @brief For locating global domain boundaries in local particle key arrays
-    thrust::device_vector<KeyType> d_boundaryKeys_;
-    thrust::device_vector<LocalIndex> d_boundaryIndices_;
+    DeviceVector<KeyType> d_boundaryKeys_;
+    DeviceVector<LocalIndex> d_boundaryIndices_;
 
     //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;
-    thrust::device_vector<unsigned> d_nodeCounts_;
+    DeviceVector<unsigned> d_nodeCounts_;
 
     //! @brief the fully linked octree
     Octree<KeyType> tree_;
-    thrust::device_vector<KeyType> d_csTree_;
+    DeviceVector<KeyType> d_csTree_;
 
     bool firstCall_{true};
 };

@@ -38,7 +38,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/thrust_util.cuh"
 #include "cstone/primitives/primitives_gpu.h"
 
 using namespace cstone;

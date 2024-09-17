@@ -50,7 +50,7 @@ template<class IndexType>
 void uniformBins(const std::vector<IndexType>& counts, gsl::span<TreeNodeIndex> bins, gsl::span<LocalIndex> binCounts)
 {
     std::vector<uint64_t> countScan(counts.size() + 1);
-    exclusiveScan(counts.data(), countScan.data(), countScan.size());
+    std::exclusive_scan(counts.begin(), counts.end() + 1, countScan.begin(), uint64_t(0));
 
     int numBins   = bins.size() - 1;
     auto binCount = double(countScan.back()) / numBins;
@@ -220,12 +220,11 @@ SendRanges createSendRanges(const SfcAssignment<KeyType>& assignment, gsl::span<
     int numRanks = assignment.numRanks();
 
     SendRanges ret(numRanks + 1);
-    for (int rank = 0; rank < numRanks; ++rank)
+    for (int rank = 0; rank <= numRanks; ++rank)
     {
         KeyType rangeStart = assignment[rank];
         ret[rank] = std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart) - particleKeys.begin();
     }
-    ret.back() = particleKeys.size();
 
     return ret;
 }

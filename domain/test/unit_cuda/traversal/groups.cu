@@ -38,7 +38,8 @@
 #include <thrust/host_vector.h>
 #include <thrust/sequence.h>
 
-#include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/device_vector.h"
+#include "cstone/cuda/thrust_util.cuh"
 #include "cstone/traversal/groups.cuh"
 #include "cstone/tree/cs_util.hpp"
 
@@ -51,20 +52,14 @@ using SplitType             = util::array<GpuConfig::ThreadMask, nwt>;
 TEST(TargetGroups, t0)
 {
     using T              = double;
-    LocalIndex numGroups = 4;
-    LocalIndex groupSize = 8;
-    LocalIndex first     = 4;
-    LocalIndex last      = 34;
+    LocalIndex numGroups = 4, groupSize = 8, first = 4, last = 34;
 
     thrust::device_vector<LocalIndex> groups(numGroups + 1);
-
-    groupTargets<T><<<iceil(last - first, 64), 64>>>(first, last, nullptr, nullptr, nullptr, nullptr, groupSize,
-                                                     rawPtr(groups), iceil(last - first, groupSize));
+    fixedGroupsKernel<<<iceil(last - first, 64), 64>>>(first, last, groupSize, rawPtr(groups),
+                                                       iceil(last - first, groupSize));
 
     thrust::host_vector<LocalIndex> hgroups = groups;
-
-    thrust::host_vector<LocalIndex> ref = std::vector<LocalIndex>{4, 12, 20, 28, 34};
-
+    thrust::host_vector<LocalIndex> ref     = std::vector<LocalIndex>{4, 12, 20, 28, 34};
     EXPECT_EQ(hgroups, ref);
 }
 
@@ -281,17 +276,18 @@ TEST(TargetGroups, groupVolumes)
     }
 
     {
-        thrust::device_vector<SplitType> S;
-        thrust::device_vector<LocalIndex> temp, groups;
+        DeviceVector<SplitType> S;
+        DeviceVector<LocalIndex> temp, groups;
 
         float tolFactor = std::sqrt(3.0) / distCrit * 1.01;
         computeGroupSplits<groupSize>(first, last, rawPtr(x), rawPtr(y), rawPtr(z), rawPtr(h), rawPtr(d_leaves),
                                       nNodes(leaves), rawPtr(d_layout), box, tolFactor, S, temp, groups);
 
-        EXPECT_EQ(groups.size(), 4);
-        EXPECT_EQ(groups[0], 4);
-        EXPECT_EQ(groups[1], 6);
-        EXPECT_EQ(groups[2], 68);
-        EXPECT_EQ(groups[3], 128);
+        std::vector<LocalIndex> h_groups = toHost(groups);
+        EXPECT_EQ(h_groups.size(), 4);
+        EXPECT_EQ(h_groups[0], 4);
+        EXPECT_EQ(h_groups[1], 6);
+        EXPECT_EQ(h_groups[2], 68);
+        EXPECT_EQ(h_groups[3], 128);
     }
 }

@@ -56,6 +56,7 @@ template<class DomainType, class DataType>
 class HydroGrackleProp final : public HydroProp<DomainType, DataType>
 {
     using Base = HydroProp<DomainType, DataType>;
+    using Base::groups_;
     using Base::timer;
 
     using T        = typename DataType::RealType;
@@ -151,17 +152,25 @@ public:
         d.treeView = domain.octreeProperties();
     }
 
-    void computeForces(DomainType& domain, DataType& simData)
+    void computeForces(DomainType& domain, DataType& simData) override
     {
+        auto& d = simData.hydro;
+        timer.start();
+
+        sync(domain, simData);
+        // halo exchange for masses, allows for particles with variable masses
+        domain.exchangeHalos(std::tie(get<"m">(d)), get<"ax">(d), get<"ay">(d));
+        timer.step("domain::sync");
+        d.resize(domain.nParticlesWithHalos());
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
-        auto&  d     = simData.hydro;
 
         resizeNeighbors(d, domain.nParticles() * d.ngmax);
         findNeighborsSfc(first, last, d, domain.box());
+        computeGroups(first, last, d, domain.box(), groups_);
         timer.step("FindNeighbors");
 
-        computeDensity(first, last, d, domain.box());
+        computeDensity(groups_.view(), d, domain.box());
         timer.step("Density");
 
         transferToHost(d, first, last, {"rho", "u"});
@@ -173,36 +182,28 @@ public:
         domain.exchangeHalos(get<"vx", "vy", "vz", "rho", "p", "c">(d), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
 
-        computeIAD(first, last, d, domain.box());
+        computeIAD(groups_.view(), d, domain.box());
         timer.step("IAD");
 
         domain.exchangeHalos(get<"c11", "c12", "c13", "c22", "c23", "c33">(d), get<"ax">(d), get<"ay">(d));
         timer.step("mpi::synchronizeHalos");
 
-        computeMomentumEnergySTD(first, last, d, domain.box());
+        computeMomentumEnergySTD(groups_.view(), d, domain.box());
         timer.step("MomentumEnergyIAD");
 
         if (d.g != 0.0)
         {
+            auto groups = Base::mHolder_.computeSpatialGroups(d, domain);
             Base::mHolder_.upsweep(d, domain);
             timer.step("Upsweep");
-            Base::mHolder_.traverse(d, domain);
+            Base::mHolder_.traverse(groups, d, domain);
             timer.step("Gravity");
         }
     }
 
-    void step(DomainType& domain, DataType& simData) override
+    void integrate(DomainType& domain, DataType& simData) override
     {
-        auto& d = simData.hydro;
-        timer.start();
-
-        sync(domain, simData);
-        // halo exchange for masses, allows for particles with variable masses
-        domain.exchangeHalos(std::tie(get<"m">(d)), get<"ax">(d), get<"ay">(d));
-        timer.step("domain::sync");
-        d.resize(domain.nParticlesWithHalos());
-        computeForces(domain, simData);
-
+        auto&  d     = simData.hydro;
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
@@ -218,9 +219,9 @@ public:
         transferToDevice(d, first, last, {"du"});
         timer.step("GRACKLE chemistry and cooling");
 
-        computePositions(first, last, d, domain.box());
+        computePositions(groups_.view(), d, domain.box(), d.minDt, {float(d.minDt_m1)});
         timer.step("UpdateQuantities");
-        updateSmoothingLength(first, last, d);
+        updateSmoothingLength(groups_.view(), d);
         timer.step("UpdateSmoothingLength");
     }
 };

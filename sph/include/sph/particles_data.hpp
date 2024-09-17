@@ -77,8 +77,8 @@ public:
     template<class ValueType>
     using FieldVector = std::vector<ValueType, std::allocator<ValueType>>;
 
-    using FieldVariant =
-        std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*, FieldVector<uint64_t>*>;
+    using FieldVariant = std::variant<FieldVector<float>*, FieldVector<double>*, FieldVector<unsigned>*,
+                                      FieldVector<uint64_t>*, FieldVector<uint8_t>*>;
 
     ParticlesData() { createTables(); }
     ParticlesData(const ParticlesData&) = delete;
@@ -229,10 +229,11 @@ public:
     FieldVector<KeyType>   keys;                               // Particle space-filling-curve keys
     FieldVector<unsigned>  nc;                                 // number of neighbors of each particle
     FieldVector<HydroType> dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
+    FieldVector<uint8_t>   rung;                               // rung per particle of previous timestep
 
     //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
-    std::vector<cstone::LocalIndex>             neighbors;
-    cstone::OctreeProperties<RealType, KeyType> treeView;
+    std::vector<cstone::LocalIndex>         neighbors;
+    cstone::OctreeNsView<RealType, KeyType> treeView;
 
     DeviceData_t<AccType> devData;
 
@@ -246,7 +247,7 @@ public:
         "x",     "y",        "z",    "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",   "rho",   "u",    "p",
         "prho",  "tdpdTrho", "h",    "m",    "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",
         "c13",   "c22",      "c23",  "c33",  "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv",
-        "alpha", "gradh",    "keys", "nc",   "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
+        "alpha", "gradh",    "keys", "nc",   "dV11", "dV12", "dV13", "dV22", "dV23", "dV33",  "rung"};
 
     //! @brief dataset prefix to be prepended to fieldNames for structured output
     static const inline std::string prefix{};
@@ -262,7 +263,7 @@ public:
     {
         auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, tdpdTrho, h, m, c, ax, ay, az, du,
                             du_m1, c11, c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh,
-                            keys, nc, dV11, dV12, dV13, dV22, dV23, dV33);
+                            keys, nc, dV11, dV12, dV13, dV22, dV23, dV33, rung);
 #if defined(__clang__) || __GNUC__ > 11
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
 #endif
@@ -320,18 +321,55 @@ public:
 
     void resize(size_t size)
     {
-        double growthRate = 1.05;
-        auto   data_      = data();
+        auto data_ = data();
+
+        auto deallocateVector = [size](auto* devVectorPtr)
+        {
+            using DevVector = std::decay_t<decltype(*devVectorPtr)>;
+            if (devVectorPtr->capacity() < size) { *devVectorPtr = DevVector{}; }
+        };
+
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (this->isAllocated(i) && not this->isConserved(i)) { std::visit(deallocateVector, data_[i]); }
+        }
 
         for (size_t i = 0; i < data_.size(); ++i)
         {
             if (this->isAllocated(i))
             {
-                std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
+                std::visit([size, gr = allocGrowthRate_](auto* arg) { reallocate(*arg, size, gr); }, data_[i]);
             }
         }
 
-        devData.resize(size);
+        devData.resize(size, allocGrowthRate_);
+    }
+
+    size_t size()
+    {
+        auto data_ = data();
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (this->isAllocated(i))
+            {
+                return std::visit([](auto* arg) { return arg->size(); }, data_[i]);
+            }
+        }
+        return 0;
+    }
+
+    //! @brief resize GPU arrays if in use, CPU arrays otherwise
+    void resizeAcc(size_t size)
+    {
+        if (cstone::HaveGpu<AccType>{}) { devData.resize(size, allocGrowthRate_); }
+        else { resize(size); }
+    }
+
+    //! @brief return the size of GPU arrays if in use, CPU arrays otherwise
+    size_t accSize()
+    {
+        if (cstone::HaveGpu<AccType>{}) { return devData.size(); }
+        else { return size(); }
     }
 
     //! @brief particle fields selected for file output
@@ -341,6 +379,7 @@ public:
     //! @brief particle fields selected for visualization
     std::vector<int>         visFieldIndices;
     std::vector<std::string> visFieldNames;
+    float                    getAllocGrowthRate() const { return allocGrowthRate_; }
 
 private:
     void createTables()
@@ -351,15 +390,32 @@ private:
         whd     = sph::tabulateFunction<H, lt::kTableSize>(sph::getSphKernelDerivative(kernelChoice, sincIndex), 0, 2);
         devData.uploadTables(wh, whd);
     }
+
+    //! @brief buffer growth factor when reallocating
+    float allocGrowthRate_{1.05};
 };
 
 //! @brief resizes the neighbors list, only used in the CPU version
 template<class Dataset>
 void resizeNeighbors(Dataset& d, size_t size)
 {
-    double growthRate = 1.05;
+    auto growthRate = d.getAllocGrowthRate();
     //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
     reallocate(d.neighbors, cstone::HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
+}
+
+template<class Dataset, class... Fs>
+void release(Dataset& d, const Fs&... fs)
+{
+    d.release(fs...);
+    d.devData.release(fs...);
+}
+
+template<class Dataset, class... Fs>
+void acquire(Dataset& d, const Fs&... fs)
+{
+    d.acquire(fs...);
+    d.devData.acquire(fs...);
 }
 
 template<class Dataset, std::enable_if_t<not cstone::HaveGpu<typename Dataset::AcceleratorType>{}, int> = 0>

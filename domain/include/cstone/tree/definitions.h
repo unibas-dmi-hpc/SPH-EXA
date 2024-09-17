@@ -81,6 +81,14 @@ struct maxTreeLevel<unsigned long> : stl::integral_constant<unsigned, 21>
 {
 };
 
+//! @brief A special key value that cannot result from valid coordinates. Used to flag particles for removal.
+template<class KeyType>
+struct removeKey
+{
+    static constexpr KeyType value = KeyType(1ul << (3 * maxTreeLevel<KeyType>{}));
+    HOST_DEVICE_FUN constexpr operator KeyType() const noexcept { return value; }
+};
+
 //! @brief maximum integer coordinate
 template<class KeyType>
 struct maxCoord : stl::integral_constant<unsigned, (1u << maxTreeLevel<KeyType>{})>
@@ -96,11 +104,12 @@ using Vec4 = util::array<T, 4>;
 enum class P2pTags : int
 {
     focusTransfer    = 1000,
-    focusPeerCounts  = 2000,
-    focusPeerCenters = 3000,
-    haloRequestKeys  = 4000,
-    domainExchange   = 5000,
-    haloExchange     = 6000
+    focusTreelets    = 2000,
+    focusPeerCounts  = 3000,
+    focusPeerCenters = 4000,
+    haloRequestKeys  = 5000,
+    domainExchange   = 6000,
+    haloExchange     = 7000
 };
 
 /*! @brief returns the number of nodes in a tree

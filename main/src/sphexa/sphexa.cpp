@@ -59,7 +59,7 @@ using AccType = cstone::CpuTag;
 namespace fs = std::filesystem;
 using namespace sphexa;
 
-bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr);
+bool stopConditionReached(size_t iteration, double time, const std::string& maxStepStr);
 void printHelp(char* binName, int rank);
 int  getNumLocalRanks(int);
 
@@ -139,9 +139,10 @@ int main(int argc, char** argv)
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
     uint64_t bucketSizeFocus = 64;
-    // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
+    // ~100 global nodes per rank to decompose the domain with +-1% accuracy
     uint64_t bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
     Domain   domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
+    domain.setGrowthAllocRate(simData.hydro.getAllocGrowthRate());
 
     propagator->sync(domain, simData);
     if (rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
@@ -149,21 +150,27 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    size_t startIteration = d.iteration;
-    for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
-    {
+    size_t startIteration    = d.iteration;
+    bool   isOutputTriggered = false;
 
-        propagator->step(domain, simData);
+    for (bool keepRunning = true; keepRunning; d.iteration++)
+    {
+        propagator->computeForces(domain, simData);
         box = domain.box();
 
-        observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
-        propagator->printIterationTimings(domain, simData);
+        if (propagator->isSynced())
+        {
+            observables->computeAndWrite(simData, domain.startIndex(), domain.endIndex(), box);
+        }
 
         bool isWallClockReached = totalTimer.elapsed() > simDuration;
 
-        if (isOutputStep(d.iteration, writeFreqStr) || isOutputTime(d.ttot - d.minDt, d.ttot, writeFreqStr) ||
-            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) ||
-            (isWallClockReached && writeEnabled))
+        isOutputTriggered = isOutputStep(d.iteration, writeFreqStr) ||
+                            isOutputTime(d.ttot - d.minDt, d.ttot, writeFreqStr) ||
+                            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra) ||
+                            (isWallClockReached && writeEnabled) || isOutputTriggered;
+
+        if (isOutputTriggered && propagator->isSynced())
         {
             fileWriter->addStep(domain.startIndex(), domain.endIndex(), outFile);
             simData.hydro.loadOrStoreAttributes(fileWriter.get());
@@ -171,19 +178,28 @@ int main(int argc, char** argv)
             propagator->saveFields(fileWriter.get(), domain.startIndex(), domain.endIndex(), simData, box);
             propagator->save(fileWriter.get());
             fileWriter->closeStep();
+            isOutputTriggered = false;
         }
         if (isOutputStep(d.iteration, profFreqStr) || isOutputTime(d.ttot - d.minDt, d.ttot, profFreqStr) ||
             isWallClockReached)
         {
             if (profEnabled) { propagator->writeMetrics(fileWriter.get(), "profile"); }
         }
+        keepRunning = not(stopConditionReached(d.iteration, d.ttot, maxStepStr) || isWallClockReached) ||
+                      not propagator->isSynced();
 
         propagator->visualizeFields(domain.startIndex(), domain.endIndex(), simData, box);
 
         totalTimer.step("");
         viz::execute(d, domain.startIndex(), domain.endIndex());
+<<<<<<< HEAD
         totalTimer.step("Visualization");
         if (isWallClockReached && ++d.iteration) { break; }
+=======
+
+        propagator->integrate(domain, simData);
+        propagator->printIterationTimings(domain, simData);
+>>>>>>> abe6aece244b3aef03620e04f027d47dda255536
     }
     totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration) + " iterations of " +
                     initCond + " up to t = " + std::to_string(d.ttot));
@@ -193,8 +209,8 @@ int main(int argc, char** argv)
     return exitSuccess();
 }
 
-//! @brief decide whether to stop the simulation based on evolved time (not wall-clock) or iteration count
-bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr)
+//! @brief check whether the stop conditions based on evolved time (not wall-clock) or iteration count are reached
+bool stopConditionReached(size_t iteration, double time, const std::string& maxStepStr)
 {
     bool lastIteration = strIsIntegral(maxStepStr) && iteration >= std::stoi(maxStepStr);
     bool simTimeLimit  = !strIsIntegral(maxStepStr) && time > std::stod(maxStepStr);

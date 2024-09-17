@@ -92,7 +92,7 @@ void exchangeAllToAll(int thisRank, int numRanks)
     LocalIndex numPartPresent  = sends.count(thisRank);
     LocalIndex numPartAssigned = numPartPresent * numRanks;
     bufDesc.size               = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
-    reallocate(bufDesc.size, x, y);
+    reallocate(bufDesc.size, 1.01, x, y);
 
     ExchangeLog log;
     exchangeParticles(0, log, sends, thisRank, bufDesc, numPartAssigned, ordering.data(), x.data(), y.data());
@@ -147,6 +147,7 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     std::vector<double> x(gridSize, thisRank);
     std::vector<float> y(gridSize, -thisRank);
     std::vector<util::array<int, 2>> testArray(gridSize, {thisRank, -thisRank});
+    std::vector<uint8_t> uint8Array(gridSize, thisRank);
 
     std::vector<LocalIndex> ordering(gridSize);
     std::iota(begin(ordering), end(ordering), 0);
@@ -166,14 +167,14 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     LocalIndex numPartPresent  = sends.count(thisRank);
     LocalIndex numPartAssigned = gridSize;
     bufDesc.size               = ex::exchangeBufferSize(bufDesc, numPartPresent, numPartAssigned);
-    reallocate(bufDesc.size, x, y, testArray);
+    reallocate(bufDesc.size, 1.01, x, y, testArray, uint8Array);
 
     ExchangeLog log;
     exchangeParticles(0, log, sends, thisRank, bufDesc, gridSize, ordering.data(), x.data(), y.data(),
-                      testArray.data());
+                      uint8Array.data(), testArray.data());
 
     ex::extractLocallyOwned(bufDesc, numPartPresent, numPartAssigned, ordering.data() + sends[thisRank], x, y,
-                            testArray);
+                            uint8Array, testArray);
 
     int incomingRank = (thisRank - 1 + numRanks) % numRanks;
     std::vector<double> refX(gridSize, thisRank);
@@ -186,9 +187,13 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     std::fill(begin(testArrayRef) + gridSize - nex, end(testArrayRef),
               util::array<int, 2>{incomingRank, -incomingRank});
 
+    std::vector<uint8_t> refU8(gridSize, thisRank);
+    std::fill(begin(refU8) + gridSize - nex, end(refU8), incomingRank);
+
     EXPECT_EQ(refX, x);
     EXPECT_EQ(refY, y);
     EXPECT_EQ(testArrayRef, testArray);
+    EXPECT_EQ(refU8, uint8Array);
 }
 
 TEST(GlobalDomain, exchangeCyclicNeighbors)

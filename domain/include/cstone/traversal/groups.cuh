@@ -30,27 +30,21 @@
 
 #pragma once
 
+#include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/device_vector.h"
 #include "cstone/cuda/gpu_config.cuh"
 #include "cstone/primitives/math.hpp"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/primitives/warpscan.cuh"
 #include "cstone/sfc/sfc.hpp"
-#include "cstone/tree/definitions.h"
+#include "cstone/traversal/groups.hpp"
 
 namespace cstone
 {
 
 //! @brief simple-fixed width group targets
-template<class T>
-__global__ void groupTargets(LocalIndex first,
-                             LocalIndex last,
-                             const T* x,
-                             const T* y,
-                             const T* z,
-                             const T* h,
-                             unsigned groupSize,
-                             LocalIndex* groups,
-                             unsigned numGroups)
+__global__ static void
+fixedGroupsKernel(LocalIndex first, LocalIndex last, unsigned groupSize, LocalIndex* groups, unsigned numGroups)
 {
     LocalIndex tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -63,6 +57,20 @@ __global__ void groupTargets(LocalIndex first,
         groups[groupIdx] = scan;
         if (groupIdx + 1 == numGroups) { groups[numGroups] = last; }
     }
+}
+
+static void computeFixedGroups(LocalIndex first, LocalIndex last, unsigned groupSize, GroupData<GpuTag>& groups)
+{
+    LocalIndex numBodies = last - first;
+    LocalIndex numGroups = iceil(numBodies, groupSize);
+    groups.data.resize(numGroups + 1);
+    fixedGroupsKernel<<<iceil(numBodies, 256), 256>>>(first, last, groupSize, rawPtr(groups.data), numGroups);
+
+    groups.firstBody  = first;
+    groups.lastBody   = last;
+    groups.numGroups  = numGroups;
+    groups.groupStart = rawPtr(groups.data);
+    groups.groupEnd   = rawPtr(groups.data) + 1;
 }
 
 /*! @brief Computes splitting patterns of target particle groups
@@ -139,7 +147,7 @@ __device__ void makeSplits(util::array<GpuConfig::ThreadMask, N> split, LocalInd
             int length = countTrailingZeros(mask) + 1;
             bitsRemaining -= length;
             *splitLengths++ = length + carry;
-            carry = 0;
+            carry           = 0;
             mask >>= length;
         }
         return carry + bitsRemaining;
@@ -230,7 +238,7 @@ __global__ void groupSplitsKernel(LocalIndex first,
         T vol      = 8 * nodeSize[0] * nodeSize[1] * nodeSize[2];
         nodeVolume = min(vol, nodeVolume);
     }
-    nodeVolume = warpMin(nodeVolume);
+    nodeVolume  = warpMin(nodeVolume);
     Tc distCrit = std::cbrt(nodeVolume) * tolFactor;
 
     // load target coordinates
@@ -257,21 +265,20 @@ __global__ void groupSplitsKernel(LocalIndex first,
 
 //! @brief convenience wrapper for groupSplitsKernel
 template<unsigned groupSize, class Tc, class T, class KeyType>
-void computeGroupSplits(
-    LocalIndex first,
-    LocalIndex last,
-    const Tc* x,
-    const Tc* y,
-    const Tc* z,
-    const T* h,
-    const KeyType* leaves,
-    TreeNodeIndex numLeaves,
-    const LocalIndex* layout,
-    const Box<Tc> box,
-    float tolFactor,
-    thrust::device_vector<util::array<GpuConfig::ThreadMask, groupSize / GpuConfig::warpSize>>& splitMasks,
-    thrust::device_vector<LocalIndex>& numSplitsPerGroup,
-    thrust::device_vector<LocalIndex>& groups)
+void computeGroupSplits(LocalIndex first,
+                        LocalIndex last,
+                        const Tc* x,
+                        const Tc* y,
+                        const Tc* z,
+                        const T* h,
+                        const KeyType* leaves,
+                        TreeNodeIndex numLeaves,
+                        const LocalIndex* layout,
+                        const Box<Tc> box,
+                        float tolFactor,
+                        DeviceVector<util::array<GpuConfig::ThreadMask, groupSize / GpuConfig::warpSize>>& splitMasks,
+                        DeviceVector<LocalIndex>& numSplitsPerGroup,
+                        DeviceVector<LocalIndex>& groups)
 {
     LocalIndex numParticles   = last - first;
     LocalIndex numFixedGroups = iceil(numParticles, groupSize);
@@ -290,7 +297,8 @@ void computeGroupSplits(
     groups.reserve(numFixedGroups * 1.1);
     groups.resize(numFixedGroups + 1);
     exclusiveScanGpu(rawPtr(numSplitsPerGroup), rawPtr(numSplitsPerGroup) + numFixedGroups + 1, rawPtr(groups));
-    LocalIndex newNumGroups = groups.back();
+    LocalIndex newNumGroups;
+    memcpyD2H(rawPtr(groups) + groups.size() - 1, 1, &newNumGroups);
 
     auto& newGroupSizes = numSplitsPerGroup;
     newGroupSizes.resize(newNumGroups);
@@ -300,7 +308,7 @@ void computeGroupSplits(
 
     groups.resize(newNumGroups + 1);
     exclusiveScanGpu(rawPtr(newGroupSizes), rawPtr(newGroupSizes) + newNumGroups + 1, rawPtr(groups), first);
-    groups.back() = last;
+    memcpyH2D(&last, 1, rawPtr(groups) + groups.size() - 1);
 }
 
 } // namespace cstone

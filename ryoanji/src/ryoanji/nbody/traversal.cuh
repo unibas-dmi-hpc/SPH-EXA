@@ -230,15 +230,16 @@ __device__ util::tuple<unsigned, unsigned, unsigned>
         {
             sourceQueue = cellQueue[ringAddr(oldSources + sourceIdx)]; // Global source cell index in queue
         }
-        sourceQueue = spreadSeg8(sourceQueue);
-        sourceIdx   = shflSync(sourceIdx, laneIdx >> 3);
+        sourceQueue         = spreadSeg8(sourceQueue);
+        sourceIdx           = shflSync(sourceIdx, laneIdx >> 3);
+        const bool isSource = sourceIdx < numSources; // Source index is within bounds
+        if (!isSource) { sourceQueue = 0; }
 
         const Vec4<Tf> MAC = sourceCenter[sourceQueue];        // load source cell center + MAC
         const Vec3<Tf> curSrcCenter{MAC[0], MAC[1], MAC[2]};   // Current source cell center
         const int      childBegin = childOffsets[sourceQueue]; // First child cell
         const bool     isNode     = childBegin;
         const bool     isClose    = applyMAC(curSrcCenter, MAC[3], targetCenter, targetSize); // Is too close for MAC
-        const bool     isSource   = sourceIdx < numSources; // Source index is within bounds
         const bool     isDirect   = isClose && !isNode && isSource;
         const int      leafIdx    = (isDirect) ? internalToLeaf[sourceQueue] : 0; // the cstone leaf index
 
@@ -389,9 +390,7 @@ __global__ void resetTraversalCounters()
 
 /*! @brief Compute approximate body accelerations with Barnes-Hut
  *
- * @param[in]    targets        groupings of up to TravConfig::targetSize particles to compute accelerations for
- *                              length @p numTargets + 1
- * @param[in]    numTargets     number of target groups
+ * @param[in]    grp            groups of target particles to compute accelerations for
  * @param[in]    initNodeIdx    traversal will be started with all children of the parent of @p initNodeIdx
  * @param[in]    x,y,z,m,h      bodies, in SFC order and as referenced by sourceCells
  * @param[in]    childOffsets   location (index in [0:numTreeNodes]) of first child of each cell, 0 indicates a leaf
@@ -411,8 +410,8 @@ __global__ void resetTraversalCounters()
  */
 template<class Tc, class Th, class Tm, class Ta, class Tf, class MType>
 __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
-    const LocalIndex* targets, const int numTargets, const int initNodeIdx, const Tc* __restrict__ x,
-    const Tc* __restrict__ y, const Tc* __restrict__ z, const Tm* __restrict__ m, const Th* __restrict__ h,
+    cstone::GroupView grp, const int initNodeIdx, const Tc* __restrict__ x, const Tc* __restrict__ y,
+    const Tc* __restrict__ z, const Tm* __restrict__ m, const Th* __restrict__ h,
     const TreeNodeIndex* __restrict__ childOffsets, const TreeNodeIndex* __restrict__ internalToLeaf,
     const LocalIndex* __restrict__ layout, const Vec4<Tf>* __restrict__ sourceCenter,
     const MType* __restrict__ Multipoles, Tc G, int numShells, Vec3<Tc> boxL, Ta* p, Ta* ax, Ta* ay, Ta* az,
@@ -450,10 +449,10 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
         }
         targetIdx = shflSync(targetIdx, 0);
 
-        if (targetIdx >= numTargets) return;
+        if (targetIdx >= grp.numGroups) return;
 
-        const int bodyBegin = targets[targetIdx];
-        const int bodyEnd   = targets[targetIdx + 1];
+        const int bodyBegin = grp.groupStart[targetIdx];
+        const int bodyEnd   = grp.groupEnd[targetIdx];
 
         // load target coordinates
         Vec4<Tc> pos_i[TravConfig::nwt];
@@ -590,27 +589,24 @@ auto computeAcceleration(size_t firstBody, size_t lastBody, const Tc* x, const T
 {
     constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
-    int numBodies = lastBody - firstBody;
+    cstone::GroupData<cstone::GpuTag> groups;
+    cstone::computeFixedGroups(firstBody, lastBody, TravConfig::targetSize, groups);
 
-    // each target gets a warp (numWarps == numTargets)
-    int numTargets = (numBodies - 1) / TravConfig::targetSize + 1;
-    int numBlocks  = (numTargets - 1) / numWarpsPerBlock + 1;
-    numBlocks      = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+    LocalIndex numBodies  = lastBody - firstBody;
+    int        numTargets = (numBodies - 1) / TravConfig::targetSize + 1;
+    int        numBlocks  = (numTargets - 1) / numWarpsPerBlock + 1;
+    numBlocks             = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
     printf("launching %d blocks\n", numBlocks);
 
     const int                  poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
     thrust::device_vector<int> globalPool(poolSize);
 
-    thrust::device_vector<LocalIndex> targets(numTargets + 1);
-    cstone::groupTargets<<<(numBodies - 1) / 256 + 1, 256>>>(firstBody, lastBody, x, y, z, h, TravConfig::targetSize,
-                                                             rawPtr(targets), numTargets);
-
     resetTraversalCounters<<<1, 1>>>();
     auto t0 = std::chrono::high_resolution_clock::now();
-    traverse<<<numBlocks, TravConfig::numThreads>>>(rawPtr(targets), numTargets, 1, x, y, z, m, h, childOffsets,
-                                                    internalToLeaf, layout, sourceCenter, Multipole, G, numShells,
-                                                    {box.lx(), box.ly(), box.lz()}, p, ax, ay, az, rawPtr(globalPool));
+    traverse<<<numBlocks, TravConfig::numThreads>>>(
+        groups.view(), 1, x, y, z, m, h, childOffsets, internalToLeaf, layout, sourceCenter, Multipole, G, numShells,
+        {box.lx(), box.ly(), box.lz()}, p, ax, ay, az, thrust::raw_pointer_cast(globalPool.data()));
     kernelSuccess("traverse");
 
     auto   t1 = std::chrono::high_resolution_clock::now();

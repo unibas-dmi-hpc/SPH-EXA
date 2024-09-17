@@ -31,8 +31,6 @@
  */
 
 #include <vector>
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
 
 #include "gtest/gtest.h"
 
@@ -46,13 +44,12 @@ TEST(FocusGpu, injectKeysGpu)
 
     OctreeData<KeyType, GpuTag> tree;
 
-    thrust::device_vector<KeyType> leaves        = std::vector<KeyType>{0, 64};
-    thrust::device_vector<KeyType> mandatoryKeys = std::vector<KeyType>{0, 32, 64};
+    DeviceVector<KeyType> leaves        = std::vector<KeyType>{0, 64};
+    DeviceVector<KeyType> mandatoryKeys = std::vector<KeyType>{0, 32, 64};
 
     injectKeysGpu(tree, leaves, mandatoryKeys);
 
-    thrust::host_vector<KeyType> h_leaves = leaves;
-    thrust::host_vector<KeyType> ref      = std::vector<KeyType>{0, 8, 16, 24, 32, 40, 48, 56, 64};
+    DeviceVector<KeyType> ref = std::vector<KeyType>{0, 8, 16, 24, 32, 40, 48, 56, 64};
 
-    EXPECT_EQ(h_leaves, ref);
+    EXPECT_EQ(leaves, ref);
 }

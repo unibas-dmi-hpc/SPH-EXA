@@ -25,22 +25,17 @@
 
 /*! @file
  * @brief Reallocation of thrust device vectors in a separate compilation unit for use from .cpp code
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include "cstone/cuda/cuda_stubs.h"
 #include "cstone/util/tuple_util.hpp"
-
-template<class Vector>
-extern void reallocateDevice(Vector&, size_t, double);
-
-template<class Vector>
-extern void reallocateDeviceShrink(Vector&, size_t, double, double);
 
 //! @brief resizes a vector with a determined growth rate upon reallocation
 template<class Vector>
-void reallocateGeneric(Vector& vector, size_t size, double growthRate)
+void reallocate(Vector& vector, size_t size, double growthRate)
 {
     size_t current_capacity = vector.capacity();
 
@@ -50,18 +45,6 @@ void reallocateGeneric(Vector& vector, size_t size, double growthRate)
         vector.reserve(reserve_size);
     }
     vector.resize(size);
-}
-
-template<class Vector, std::enable_if_t<IsDeviceVector<Vector>{}, int> = 0>
-void reallocate(Vector& vector, size_t size, double growthRate)
-{
-    reallocateDevice(vector, size, growthRate);
-}
-
-template<class Vector, std::enable_if_t<!IsDeviceVector<Vector>{}, int> = 0>
-void reallocate(Vector& vector, size_t size, double growthRate)
-{
-    reallocateGeneric(vector, size, growthRate);
 }
 
 //! @brief if reallocation of the underlying buffer is necessary, first deallocate it
@@ -77,9 +60,9 @@ void reallocateDestructive(Vector& vector, size_t size, double growthRate)
 }
 
 template<class... Arrays>
-void reallocate(std::size_t size, Arrays&... arrays)
+void reallocate(std::size_t size, double growthRate, Arrays&... arrays)
 {
-    [[maybe_unused]] std::initializer_list<int> list{(reallocate(arrays, size, 1.01), 0)...};
+    [[maybe_unused]] std::initializer_list<int> list{(reallocate(arrays, size, growthRate), 0)...};
 }
 
 /*! @brief resize a vector to given number of bytes if current size is smaller
@@ -91,13 +74,16 @@ void reallocate(std::size_t size, Arrays&... arrays)
  * Note: previous content is destroyed
  */
 template<class Vector>
-size_t reallocateBytes(Vector& vec, size_t numBytes)
+size_t reallocateBytes(Vector& vec, size_t numBytes, float growthRate)
 {
     constexpr size_t elementSize = sizeof(typename Vector::value_type);
     size_t originalSize          = vec.size();
 
     size_t currentSizeBytes = originalSize * elementSize;
-    if (currentSizeBytes < numBytes) { reallocateDestructive(vec, (numBytes + elementSize - 1) / elementSize, 1.01); }
+    if (currentSizeBytes < numBytes)
+    {
+        reallocateDestructive(vec, (numBytes + elementSize - 1) / elementSize, growthRate);
+    }
 
     return originalSize;
 }
@@ -105,7 +91,7 @@ size_t reallocateBytes(Vector& vec, size_t numBytes)
 //! @brief reallocate memory by first deallocating all scratch to reduce fragmentation and decrease temp mem footprint
 template<class... Vectors1, class... Vectors2>
 void lowMemReallocate(size_t size,
-                      double growthFactor,
+                      float growthRate,
                       std::tuple<Vectors1&...> conserved,
                       std::tuple<Vectors2&...> scratch)
 {
@@ -116,6 +102,6 @@ void lowMemReallocate(size_t size,
             if (size > v.capacity()) { std::decay_t<decltype(v)>{}.swap(v); }
         },
         scratch);
-    util::for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, conserved);
-    util::for_each_tuple([size, growthFactor](auto& v) { reallocate(v, size, growthFactor); }, scratch);
+    util::for_each_tuple([size, growthRate](auto& v) { reallocate(v, size, growthRate); }, conserved);
+    util::for_each_tuple([size, growthRate](auto& v) { reallocate(v, size, growthRate); }, scratch);
 }

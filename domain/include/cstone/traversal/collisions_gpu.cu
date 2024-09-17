@@ -121,6 +121,7 @@ __global__ void markMacsGpuKernel(const KeyType* prefixes,
                                   const Box<T> box,
                                   const KeyType* focusNodes,
                                   TreeNodeIndex numFocusNodes,
+                                  bool limitSource,
                                   char* markings)
 {
     unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -136,7 +137,10 @@ __global__ void markMacsGpuKernel(const KeyType* prefixes,
     if (containedIn(focusStart, focusEnd, targetExt)) { return; }
 
     auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
-    markMacPerBox(targetCenter, targetSize, prefixes, childOffsets, centers, box, focusStart, focusEnd, markings);
+    unsigned maxLevel               = maxTreeLevel<KeyType>{};
+    if (limitSource) { maxLevel = stl::max(int(treeLevel(focusNodes[tid + 1] - focusNodes[tid])) - 1, 0); }
+    markMacPerBox(targetCenter, targetSize, maxLevel, prefixes, childOffsets, centers, box, focusStart, focusEnd,
+                  markings);
 }
 
 template<class T, class KeyType>
@@ -146,19 +150,20 @@ void markMacsGpu(const KeyType* prefixes,
                  const Box<T>& box,
                  const KeyType* focusNodes,
                  TreeNodeIndex numFocusNodes,
+                 bool limitSource,
                  char* markings)
 {
     constexpr unsigned numThreads = 128;
     unsigned numBlocks            = iceil(numFocusNodes, numThreads);
 
     markMacsGpuKernel<<<numBlocks, numThreads>>>(prefixes, childOffsets, centers, box, focusNodes, numFocusNodes,
-                                                 markings);
+                                                 limitSource, markings);
 }
 
 #define MARK_MACS_GPU(KeyType, T)                                                                                      \
     template void markMacsGpu(const KeyType* prefixes, const TreeNodeIndex* childOffsets, const Vec4<T>* centers,      \
                               const Box<T>& box, const KeyType* focusNodes, TreeNodeIndex numFocusNodes,               \
-                              char* markings)
+                              bool limitSource, char* markings)
 
 MARK_MACS_GPU(uint64_t, double);
 MARK_MACS_GPU(uint64_t, float);

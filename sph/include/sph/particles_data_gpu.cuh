@@ -31,11 +31,10 @@
 #pragma once
 
 #include <cuda_runtime.h>
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
 #include <variant>
 
 #include "cstone/cuda/cuda_utils.cuh"
+#include "cstone/cuda/device_vector.h"
 #include "cstone/fields/field_states.hpp"
 #include "cstone/primitives/primitives_gpu.h"
 #include "cstone/tree/accel_switch.hpp"
@@ -51,7 +50,7 @@ namespace sphexa
 class DeviceParticlesData : public cstone::FieldStates<DeviceParticlesData>
 {
     template<class FType>
-    using DevVector = thrust::device_vector<FType>;
+    using DevVector = cstone::DeviceVector<FType>;
 
     using KeyType   = sph::SphTypes::KeyType;
     using RealType  = sph::SphTypes::CoordinateType;
@@ -101,12 +100,12 @@ public:
     DevVector<KeyType>   keys;                               // Particle space-filling-curve keys
     DevVector<unsigned>  nc;                                 // number of neighbors of each particle
     DevVector<HydroType> dV11, dV12, dV13, dV22, dV23, dV33; // Velocity gradient components
+    DevVector<uint8_t>   rung;                               // rung per particle of previous timestep
 
     //! @brief SPH interpolation kernel lookup tables
     DevVector<HydroType> wh, whd;
 
     DevVector<cstone::LocalIndex> traversalStack;
-    DevVector<cstone::LocalIndex> targetGroups;
 
     //! @brief non-stateful variables for statistics
     size_t stackUsedNc, stackUsedGravity;
@@ -118,7 +117,7 @@ public:
         "x",     "y",        "z",    "x_m1", "y_m1", "z_m1", "vx",   "vy",   "vz",   "rho",   "u",    "p",
         "prho",  "tdpdTrho", "h",    "m",    "c",    "ax",   "ay",   "az",   "du",   "du_m1", "c11",  "c12",
         "c13",   "c22",      "c23",  "c33",  "mue",  "mui",  "temp", "cv",   "xm",   "kx",    "divv", "curlv",
-        "alpha", "gradh",    "keys", "nc",   "dV11", "dV12", "dV13", "dV22", "dV23", "dV33"};
+        "alpha", "gradh",    "keys", "nc",   "dV11", "dV12", "dV13", "dV22", "dV23", "dV33",  "rung"};
 
     /*! @brief return a tuple of field references
      *
@@ -128,7 +127,7 @@ public:
     {
         auto ret = std::tie(x, y, z, x_m1, y_m1, z_m1, vx, vy, vz, rho, u, p, prho, tdpdTrho, h, m, c, ax, ay, az, du,
                             du_m1, c11, c12, c13, c22, c23, c33, mue, mui, temp, cv, xm, kx, divv, curlv, alpha, gradh,
-                            keys, nc, dV11, dV12, dV13, dV22, dV23, dV33);
+                            keys, nc, dV11, dV12, dV13, dV22, dV23, dV33, rung);
 
         static_assert(std::tuple_size_v<decltype(ret)> == fieldNames.size());
         return ret;
@@ -141,17 +140,16 @@ public:
      */
     auto data()
     {
-        using FieldType =
-            std::variant<DevVector<float>*, DevVector<double>*, DevVector<unsigned>*, DevVector<uint64_t>*>;
+        using FieldType = std::variant<DevVector<float>*, DevVector<double>*, DevVector<unsigned>*,
+                                       DevVector<uint64_t>*, DevVector<uint8_t>*>;
 
         return std::apply([](auto&... fields) { return std::array<FieldType, sizeof...(fields)>{&fields...}; },
                           dataTuple());
     }
 
-    void resize(size_t size)
+    void resize(size_t size, float growthRate)
     {
-        double growthRate = 1.01;
-        auto   data_      = data();
+        auto data_ = data();
 
         auto deallocateVector = [size](auto* devVectorPtr)
         {
@@ -161,16 +159,29 @@ public:
 
         for (size_t i = 0; i < data_.size(); ++i)
         {
-            if (this->isAllocated(i)) { std::visit(deallocateVector, data_[i]); }
+            if (this->isAllocated(i) && not this->isConserved(i)) { std::visit(deallocateVector, data_[i]); }
         }
 
         for (size_t i = 0; i < data_.size(); ++i)
         {
             if (this->isAllocated(i))
             {
-                std::visit([size, growthRate](auto* arg) { reallocateDevice(*arg, size, growthRate); }, data_[i]);
+                std::visit([size, growthRate](auto* arg) { reallocate(*arg, size, growthRate); }, data_[i]);
             }
         }
+    }
+
+    size_t size()
+    {
+        auto data_ = data();
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (this->isAllocated(i))
+            {
+                return std::visit([](auto* arg) { return arg->size(); }, data_[i]);
+            }
+        }
+        return 0;
     }
 
     DeviceParticlesData()

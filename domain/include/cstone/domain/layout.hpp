@@ -50,6 +50,7 @@
 
 #include <vector>
 
+#include "cstone/cuda/cuda_utils.hpp"
 #include "cstone/domain/domaindecomp.hpp"
 #include "cstone/util/tuple_util.hpp"
 #include "cstone/util/type_list.hpp"
@@ -196,6 +197,14 @@ inline SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
     return ret;
 }
 
+//! @brief Compare value_type size of container T to the value_type size of the N-th container in Tuple
+template<int N, class T, class Tuple>
+struct SmallerElementSize
+    : std::bool_constant<sizeof(typename std::decay_t<T>::value_type) <=
+                         sizeof(typename std::decay_t<std::tuple_element_t<N, Tuple>>::value_type)>
+{
+};
+
 //! @brief reorder with state-less function object
 template<class Gather, class... Arrays1, class... Arrays2>
 void gatherArrays(Gather&& gatherFunc,
@@ -208,10 +217,29 @@ void gatherArrays(Gather&& gatherFunc,
 {
     auto reorderArray = [ordering, numElements, inputOffset, outputOffset, &gatherFunc, &scratchBuffers](auto& array)
     {
-        auto& swapSpace = util::pickType<decltype(array)>(scratchBuffers);
-        assert(swapSpace.size() == array.size());
-        gatherFunc(ordering, numElements, rawPtr(array) + inputOffset, rawPtr(swapSpace) + outputOffset);
-        swap(swapSpace, array);
+        using VectorRef = decltype(array);
+        if constexpr (util::Contains<VectorRef, std::tuple<Arrays2&...>>{})
+        {
+            auto& swapSpace = util::pickType<decltype(array)>(scratchBuffers);
+            assert(swapSpace.size() == array.size());
+            gatherFunc(ordering, numElements, rawPtr(array) + inputOffset, rawPtr(swapSpace) + outputOffset);
+            swap(swapSpace, array);
+        }
+        else
+        {
+            constexpr int i = util::FindIndex<VectorRef, std::tuple<Arrays2&...>, SmallerElementSize>{};
+            static_assert(i < sizeof...(Arrays2));
+            assert(std::get<i>(scratchBuffers).size() == array.size());
+
+            auto* scratchSpace =
+                reinterpret_cast<typename std::decay_t<VectorRef>::value_type*>(rawPtr(std::get<i>(scratchBuffers)));
+            gatherFunc(ordering, numElements, rawPtr(array) + inputOffset, scratchSpace);
+            if constexpr (IsDeviceVector<std::decay_t<VectorRef>>{})
+            {
+                memcpyD2D(scratchSpace, numElements, rawPtr(array) + outputOffset);
+            }
+            else { omp_copy(scratchSpace, scratchSpace + numElements, rawPtr(array) + outputOffset); }
+        }
     };
 
     util::for_each_tuple(reorderArray, arrays);

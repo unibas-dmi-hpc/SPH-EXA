@@ -45,7 +45,7 @@ struct IO
     template<class T>
     using ConstPtr = const T*;
 
-    using Types = util::TypeList<double, float, char, int, int64_t, unsigned, uint64_t>;
+    using Types = util::TypeList<double, float, char, uint8_t, int, int64_t, unsigned, uint64_t>;
 };
 
 class IFileWriter

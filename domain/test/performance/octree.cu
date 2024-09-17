@@ -35,6 +35,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 
+#include "cstone/cuda/thrust_util.cuh"
 #include "cstone/traversal/collisions_gpu.h"
 #include "cstone/tree/update_gpu.cuh"
 #include "cstone/tree/octree_gpu.h"
@@ -53,9 +54,12 @@ auto benchmarkMacsCpu(const OctreeView<KeyType>& octree,
                       TreeNodeIndex firstFocusNode,
                       TreeNodeIndex lastFocusNode)
 {
-    std::vector<char> macs(octree.numNodes);
+    std::vector<char> macs(octree.numNodes, 0);
     auto findMacsLambda = [&octree, &centers, &box, &leaves, &macs, firstFocusNode, lastFocusNode]()
-    { markMacs(octree, centers, box, leaves[firstFocusNode], leaves[lastFocusNode], macs.data()); };
+    {
+        markMacs(octree.prefixes, octree.childOffsets, centers, box, leaves.data() + firstFocusNode,
+                 lastFocusNode - firstFocusNode, false, macs.data());
+    };
 
     float macCpuTime = timeGpu(findMacsLambda);
     std::cout << "CPU mac eval " << macCpuTime / 1000 << " nNodes(tree): " << nNodes(leaves)
@@ -111,8 +115,8 @@ int main()
     octree.resize(nNodes(tree));
     auto buildInternal = [&]() { buildOctreeGpu(rawPtr(tree), octree.data()); };
 
-    float internalBuildTime                   = timeGpu(buildInternal);
-    thrust::host_vector<TreeNodeIndex> ranges = octree.levelRange;
+    float internalBuildTime           = timeGpu(buildInternal);
+    std::vector<TreeNodeIndex> ranges = toHost(octree.levelRange);
     std::cout << "internal build time " << internalBuildTime / 1000 << std::endl;
     std::cout << "level ranges: ";
     for (int i = 0; i <= maxTreeLevel<KeyType>{}; ++i)
@@ -175,18 +179,17 @@ int main()
         Vec3<T> center_i;
         util::tie(center_i, std::ignore) = centerAndSize<KeyType>(nodeBox, box);
 
-        T mac           = computeVecMacR2(h_octree.prefixes[i], center_i, invTheta, box);
         h_centers[i][0] = center_i[0];
         h_centers[i][1] = center_i[1];
         h_centers[i][2] = center_i[2];
-        h_centers[i][3] = mac;
+        h_centers[i][3] = computeVecMacR2(h_octree.prefixes[i], center_i, invTheta, box);
     }
     centers = h_centers;
 
     auto findMacsLambda = [octree = octreeView, &centers, &box, &tree, &macs, firstFocusNode, lastFocusNode]()
     {
         markMacsGpu(octree.prefixes, octree.childOffsets, rawPtr(centers), box, rawPtr(tree) + firstFocusNode,
-                    lastFocusNode - firstFocusNode, rawPtr(macs));
+                    lastFocusNode - firstFocusNode, false, rawPtr(macs));
     };
 
     float macTime = timeGpu(findMacsLambda);

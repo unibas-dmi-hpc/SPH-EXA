@@ -103,7 +103,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     BufferDescription bufDesc{0, numParticles, numParticles};
     bufDesc.size = domain_exchange::exchangeBufferSize(bufDesc, numPresent, numAssigned);
-    reallocate(bufDesc.size, x, y, z);
+    reallocate(bufDesc.size, 1.01, x, y, z);
     ExchangeLog log;
     exchangeParticles(0, log, sends, thisRank, bufDesc, numAssigned, ordering.data(), x.data(), y.data(), z.data());
 
