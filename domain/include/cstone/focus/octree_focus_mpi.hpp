@@ -414,9 +414,6 @@ public:
             upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<RealType>{});
         }
 
-        //! exchange information with peer close to focus
-        std::vector<int, util::DefaultInitAdaptor<int>> hScratch;
-        peerExchange<SourceCenterType<RealType>>(centers_, static_cast<int>(P2pTags::focusPeerCenters), hScratch);
         //! global exchange for the top nodes that are bigger than local domains
         std::vector<SourceCenterType<RealType>> globalLeafCenters(globalTree.numLeafNodes());
         populateGlobal<SourceCenterType<RealType>>(globalTree.treeLeaves(), centers_, globalLeafCenters);
@@ -427,13 +424,22 @@ public:
         extractGlobal<SourceCenterType<RealType>>(globalTree.nodeKeys().data(), globalTree.levelRange().data(),
                                                   globalCenters_, centers_);
 
-        //! upsweep with all (leaf) data in place
-        upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<RealType>{});
-
         if constexpr (HaveGpu<Accelerator>{})
         {
             reallocate(centersAcc_, octreeAcc_.numNodes, allocGrowthRate_);
             memcpyH2D(centers_.data(), centers_.size(), rawPtr(centersAcc_));
+            peerExchangeGpu<SourceCenterType<RealType>>(centersAcc_, static_cast<int>(P2pTags::focusPeerCenters),
+                                                        scratch1);
+            upsweepCentersGpu(maxTreeLevel<KeyType>{}, treeData_.levelRange.data(), octree.childOffsets,
+                              rawPtr(centersAcc_));
+        }
+        else
+        {
+            //! exchange information with peer close to focus
+            std::vector<int, util::DefaultInitAdaptor<int>> hScratch;
+            peerExchange<SourceCenterType<RealType>>(centers_, static_cast<int>(P2pTags::focusPeerCenters), hScratch);
+            //! upsweep with all (leaf) data in place
+            upsweep(treeData_.levelRange, treeData_.childOffsets, centers_.data(), CombineSourceCenter<RealType>{});
         }
     }
 
