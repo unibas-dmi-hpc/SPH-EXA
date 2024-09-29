@@ -31,12 +31,12 @@ void haloexchange(int epoch, const RecvList& incomingHalos, const SendList& outg
 
         std::vector<char> buffer(util::computeByteOffsets(sendCount, 1, arrays...).back());
 
-        auto packSendBuffer = [outHalos = outgoingHalos[destinationRank]](auto arrayPair)
+        auto packSendBuffer = [&outHalos = outgoingHalos[destinationRank]](auto arrayPair)
         {
             for (std::size_t rangeIdx = 0; rangeIdx < outHalos.nRanges(); ++rangeIdx)
             {
-                std::copy_n(arrayPair[0] + outHalos.rangeStart(rangeIdx), outHalos.count(rangeIdx), arrayPair[1]);
-                arrayPair[1] += outHalos.count(rangeIdx);
+                std::copy_n(arrayPair[0] + outHalos.rangeStart(rangeIdx), outHalos.count(rangeIdx),
+                            arrayPair[1] + outHalos.scan()[rangeIdx]);
             }
         };
 
