@@ -94,6 +94,8 @@ void initTurbulenceHydroFields(Dataset& d, const std::map<std::string, double>& 
     std::fill(d.x_m1.begin(), d.x_m1.end(), 0.);
     std::fill(d.y_m1.begin(), d.y_m1.end(), 0.);
     std::fill(d.z_m1.begin(), d.z_m1.end(), 0.);
+
+    generateParticleIDs(d.id);
 }
 
 template<class Dataset>
@@ -138,8 +140,6 @@ public:
         d.loadOrStoreAttributes(&attributeSetter);
 
         initTurbulenceHydroFields(d, settings_);
-
-        generateParticleIDs(d, rank, numRanks);
 
         return globalBox;
     }

@@ -73,8 +73,9 @@ void initGreshoChanFields(Dataset& d, const std::map<std::string, double>& setti
     std::fill(d.h.begin(), d.h.end(), hInit);
     std::fill(d.mui.begin(), d.mui.end(), d.muiConst);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-
     std::fill(d.z_m1.begin(), d.z_m1.end(), 0.0);
+
+    generateParticleIDs(d.id);
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); ++i)
@@ -156,8 +157,6 @@ public:
 
         T massPart = globalBox.lx() * globalBox.ly() * globalBox.lz() * settings_.at("rho") / d.numParticlesGlobal;
         initGreshoChanFields(d, settings_, massPart);
-
-        generateParticleIDs(d, rank, numRanks);
 
         return globalBox;
     }

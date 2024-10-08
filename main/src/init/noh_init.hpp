@@ -83,6 +83,8 @@ void initNohFields(Dataset& d, const std::map<std::string, double>& constants)
     std::fill(d.temp.begin(), d.temp.end(), temp0);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
 
+    generateParticleIDs(d.id);
+
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
@@ -144,8 +146,6 @@ public:
         d.loadOrStoreAttributes(&attributeSetter);
 
         initNohFields(d, settings_);
-
-        generateParticleIDs(d, rank, numRanks);
 
         return globalBox;
     }

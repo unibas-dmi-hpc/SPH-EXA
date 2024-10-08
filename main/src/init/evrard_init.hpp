@@ -71,6 +71,8 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
     std::fill(d.y_m1.begin(), d.y_m1.end(), 0.0);
     std::fill(d.z_m1.begin(), d.z_m1.end(), 0.0);
 
+    generateParticleIDs(d.id);
+
     auto cv    = sph::idealGasCv(d.muiConst, d.gamma);
     auto temp0 = constants.at("u0") / cv;
     std::fill(d.temp.begin(), d.temp.end(), temp0);
@@ -178,8 +180,6 @@ public:
         d.loadOrStoreAttributes(&attributeSetter);
 
         initEvrardFields(d, settings_);
-
-        generateParticleIDs(d, rank, numRanks);
 
         return globalBox;
     }
