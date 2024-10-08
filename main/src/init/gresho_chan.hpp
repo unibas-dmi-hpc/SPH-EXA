@@ -76,6 +76,8 @@ void initGreshoChanFields(Dataset& d, const std::map<std::string, double>& setti
 
     std::fill(d.z_m1.begin(), d.z_m1.end(), 0.0);
 
+    generateParticleIDs(d.id);
+
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); ++i)
     {

@@ -77,6 +77,8 @@ void initKelvinHelmholtzFields(Dataset& d, const std::map<std::string, double>& 
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamax);
     std::fill(d.vz.begin(), d.vz.end(), 0.0);
 
+    generateParticleIDs(d.id);
+
     auto cv = sph::idealGasCv(d.muiConst, gamma);
 
 #pragma omp parallel for schedule(static)
