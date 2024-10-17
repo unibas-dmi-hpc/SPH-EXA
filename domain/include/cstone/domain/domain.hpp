@@ -264,7 +264,10 @@ public:
         gatherArrays(sorter.gatherFunc(), sorter.getMap() + global_.numSendDown(), global_.numAssigned(), exchangeStart,
                      0, std::tie(x, y, z, h, m), util::reverse(scratch));
 
-        float invThetaEff      = invThetaVecMac(theta_);
+        // invThetaEff needs to be more strict than the worst case vec mac, because if the tree is reused multiple
+        // times, an expansion center might have moved outside the cell, which can mark remote cells as halos on ranks
+        // that won't be found by findPeers
+        float invThetaEff      = invThetaVecMac(theta_) * haloSearchExt_;
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
 
         if (firstCall_)

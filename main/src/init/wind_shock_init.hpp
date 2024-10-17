@@ -81,6 +81,8 @@ void initWindShockFields(Dataset& d, const std::map<std::string, double>& consta
     std::fill(d.mui.begin(), d.mui.end(), d.muiConst);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
 
+    generateParticleIDs(d.id);
+
     T uInt = uExt / (rhoInt / rhoExt);
 
     T k = d.ngmax / r;
