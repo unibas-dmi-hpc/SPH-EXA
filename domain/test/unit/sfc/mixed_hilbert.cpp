@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <set>
@@ -422,4 +423,41 @@ TEST(MixedHilbertLeafCenters, EqualDistancesAtLevel)
     // The case below has bx=21, by=18, bz=13 and we want to check that the distance
     // per axis is the same from the center of the box of one leaf to the next.
     equalLeafCenterDistances<uint64_t>(10000, 1400, 40, 12);
+}
+
+//! @brief every gap-free index expands to a distinct, valid, increasing MixD key and compacts back to itself
+TEST(MixedHilbertEncoding, compactExpandKey)
+{
+    using KeyType = unsigned;
+
+    std::vector<std::array<unsigned, 3>> axesBitsSweep = {{5, 5, 5}, {10, 4, 2}, {3, 10, 3}, {1, 5, 10}, {10, 6, 1}};
+    for (auto [bx, by, bz] : axesBitsSweep)
+    {
+        KeyType numKeys = KeyType(1) << (bx + by + bz);
+
+        KeyType prevKey = 0;
+        std::set<std::array<unsigned, 3>> coordinates;
+        for (KeyType idx = 0; idx < numKeys; ++idx)
+        {
+            KeyType key = expandHilbertMixDKey(idx, bx, by, bz);
+            ASSERT_TRUE(isValidHilbertMixDKey(key, bx, by, bz));
+            ASSERT_EQ(compactHilbertMixDKey(key, bx, by, bz), idx);
+            if (idx > 0) { ASSERT_GT(key, prevKey); }
+            prevKey = key;
+
+            auto [ix, iy, iz] = decodeHilbert(key, bx, by, bz);
+            ASSERT_LT(ix, 1u << bx);
+            ASSERT_LT(iy, 1u << by);
+            ASSERT_LT(iz, 1u << bz);
+            ASSERT_EQ(iHilbert<KeyType>(ix, iy, iz, bx, by, bz), key);
+            coordinates.insert({ix, iy, iz});
+        }
+        EXPECT_EQ(coordinates.size(), numKeys);
+    }
+
+    // identity for cubic boxes
+    uint64_t key = 0123456701234567012345;
+    auto l       = maxTreeLevel<uint64_t>{};
+    EXPECT_EQ(compactHilbertMixDKey(key, l, l, l), key);
+    EXPECT_EQ(expandHilbertMixDKey(key, l, l, l), key);
 }

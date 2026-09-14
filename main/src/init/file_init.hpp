@@ -154,11 +154,11 @@ public:
         box.loadOrStore(reader);
 
         const auto axesBits = box.getBoxDimBits(cstone::maxTreeLevel<KeyType>{});
-        if (axesBits != cstone::Vec3<unsigned>{cstone::maxTreeLevel<KeyType>{}, cstone::maxTreeLevel<KeyType>{},
-                                               cstone::maxTreeLevel<KeyType>{}})
-        {
-            throw std::runtime_error("Particle splitting not implemented for discontinuous SFCs\n");
-        }
+        // keys of non-cubic boxes have gaps, interpolation between keys is done on the gap-free index instead
+        auto compact = [&axesBits](KeyType key)
+        { return cstone::compactHilbertMixDKey(key, axesBits[0], axesBits[1], axesBits[2]); };
+        auto expand = [&axesBits](KeyType index)
+        { return cstone::expandHilbertMixDKey(index, axesBits[0], axesBits[1], axesBits[2]); };
 
         auto& d = simData.hydro;
         d.loadOrStoreAttributes(reader);
@@ -209,16 +209,20 @@ public:
                 y[sIdx] = y0[i];
                 z[sIdx] = z0[i];
 
-                bool isLast   = (i == numParticlesInFile - 1);
-                long keyDelta = (isLast ? -(keys[i] - keys[i - 1]) : keys[i + 1] - keys[i]) / (numSplits + isLast);
+                using SignedKey    = std::make_signed_t<KeyType>;
+                SignedKey idx0     = compact(keys[i]);
+                SignedKey idxDelta = 0;
+                if (i + 1 < numParticlesInFile) { idxDelta = (SignedKey(compact(keys[i + 1])) - idx0) / numSplits; }
+                else if (i > 0) { idxDelta = (SignedKey(compact(keys[i - 1])) - idx0) / (numSplits + 1); }
 
                 for (int j = 1; j < numSplits; ++j)
                 {
-                    auto [ixj, iyj, izj] = cstone::decodeSfc(cstone::sfcKey(keys[i] + j * keyDelta), axesBits);
+                    KeyType keyj         = expand(KeyType(idx0 + j * idxDelta));
+                    auto [ixj, iyj, izj] = cstone::decodeSfc(cstone::sfcKey(keyj), axesBits);
 
-                    x[sIdx + j] = box.xmin() + (ixj * box.lx()) / cstone::maxCoord<KeyType>{};
-                    y[sIdx + j] = box.ymin() + (iyj * box.ly()) / cstone::maxCoord<KeyType>{};
-                    z[sIdx + j] = box.zmin() + (izj * box.lz()) / cstone::maxCoord<KeyType>{};
+                    x[sIdx + j] = box.xmin() + (ixj * box.lx()) / T(1u << axesBits[0]);
+                    y[sIdx + j] = box.ymin() + (iyj * box.ly()) / T(1u << axesBits[1]);
+                    z[sIdx + j] = box.zmin() + (izj * box.lz()) / T(1u << axesBits[2]);
                 }
             }
             d.x = std::move(x);

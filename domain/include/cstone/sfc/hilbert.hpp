@@ -551,6 +551,53 @@ HOST_DEVICE_FUN bool isValidHilbertMixDKey(KeyType key, unsigned bx, unsigned by
     return true;
 }
 
+/*! @brief map a valid MixD Hilbert key to a gap-free index that preserves SFC order
+ *
+ * @tparam KeyType   32- or 64-bit unsigned integer
+ * @param  key       valid MixD Hilbert key encoded with bit depths @p bx, @p by, @p bz
+ * @return           index in [0, 2^(bx+by+bz))
+ *
+ * Octal digits on levels where only two (or one) dimensions are refined can only take values in [0:3] (or [0:1]),
+ * which leaves gaps in the key space. Compacting these digits to 2 (or 1) bits removes the gaps, such that
+ * any integer between two compacted keys expands to a valid key in between the two original keys.
+ */
+template<class KeyType>
+HOST_DEVICE_FUN constexpr KeyType compactHilbertMixDKey(KeyType key, unsigned bx, unsigned by, unsigned bz) noexcept
+{
+    const unsigned levels3D = std::min(bx, std::min(by, bz));
+    const unsigned levels1D = std::max(bx, std::max(by, bz));
+    const unsigned levels2D = bx + by + bz - levels3D - levels1D;
+
+    KeyType ret  = key & ((KeyType(1) << (3 * levels3D)) - 1);
+    unsigned pos = 3 * levels3D;
+    for (unsigned l = levels3D; l < levels1D; ++l)
+    {
+        const unsigned width = (l < levels2D) ? 2 : 1;
+        ret |= ((key >> (3 * l)) & ((KeyType(1) << width) - 1)) << pos;
+        pos += width;
+    }
+    return ret;
+}
+
+//! @brief inverse of compactHilbertMixDKey
+template<class KeyType>
+HOST_DEVICE_FUN constexpr KeyType expandHilbertMixDKey(KeyType index, unsigned bx, unsigned by, unsigned bz) noexcept
+{
+    const unsigned levels3D = std::min(bx, std::min(by, bz));
+    const unsigned levels1D = std::max(bx, std::max(by, bz));
+    const unsigned levels2D = bx + by + bz - levels3D - levels1D;
+
+    KeyType ret  = index & ((KeyType(1) << (3 * levels3D)) - 1);
+    unsigned pos = 3 * levels3D;
+    for (unsigned l = levels3D; l < levels1D; ++l)
+    {
+        const unsigned width = (l < levels2D) ? 2 : 1;
+        ret |= ((index >> pos) & ((KeyType(1) << width) - 1)) << (3 * l);
+        pos += width;
+    }
+    return ret;
+}
+
 /*! @brief compute the 3D integer coordinate box that contains the key range
  *
  * @tparam KeyType   32- or 64-bit unsigned integer
