@@ -113,8 +113,8 @@ void xmassIjLoop(Neighborhood const& neighborhood, Tc K, const Tm* m, KernelVari
     std::visit(
         [&]<class Kernel>(Kernel wh)
         {
-            neighborhood.ijLoop(cstone::ijloop::makeIjLoopData<Tc, T*>(
-                std::make_tuple(m), std::make_tuple(xmass), XmassInteraction<T, Kernel>{wh}, XmassPostamble<T, Tc>{K}));
+            neighborhood.ijLoop(cstone::ijloop::IjLoopData(std::make_tuple(m), std::make_tuple(xmass),
+                                                           XmassInteraction<T, Kernel>{wh}, XmassPostamble<T, Tc>{K}));
         },
         wh);
 }
@@ -125,9 +125,9 @@ void densityIjLoop(Neighborhood const& neighborhood, Tc K, const Tm* m, KernelVa
     std::visit(
         [&]<class Kernel>(Kernel wh)
         {
-            neighborhood.ijLoop(cstone::ijloop::makeIjLoopData<Tc, T*>(std::make_tuple(m), std::make_tuple(xmass),
-                                                                       XmassInteraction<T, Kernel>{wh},
-                                                                       XmassToDensityPostamble<T, Tc>{K}));
+            neighborhood.ijLoop(cstone::ijloop::IjLoopData(std::make_tuple(m), std::make_tuple(xmass),
+                                                           XmassInteraction<T, Kernel>{wh},
+                                                           XmassToDensityPostamble<T, Tc>{K}));
         },
         wh);
 }
